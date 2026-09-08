@@ -606,3 +606,99 @@ def test_the_notice_appears_and_clears_as_the_window_is_resized(monkeypatch):
             assert notice.display is False
 
     asyncio.run(scenario())
+
+
+# ---------------------------------------------------------------- favoritos
+
+
+def test_f_favourites_the_selected_track_and_says_so(monkeypatch):
+    isolate_runtime(monkeypatch)
+    calls: list[tuple[int, bool]] = []
+
+    def fake_favourite(session, row, add=True):
+        calls.append((row.entry.id, add))
+        return row.entry.label
+
+    monkeypatch.setattr("tidalamp.library.favourite", fake_favourite)
+    monkeypatch.setattr("tidalamp.app.ensure_fresh", lambda session: False)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(100, 40)) as pilot:
+            await pilot.pause()
+            application.queue.append([Entry(id=42, title="Schism", artist="TOOL")])
+            application._sync_queue()
+            await pilot.pause()
+
+            await pilot.press("f")
+            await settle(pilot, lambda: "favoritos" in application.status)
+            assert calls == [(42, True)]
+            assert application.status == "«TOOL - Schism» añadido a favoritos"
+
+            await pilot.press("F")
+            await settle(pilot, lambda: "quitado" in application.status)
+            assert calls == [(42, True), (42, False)]
+
+    asyncio.run(scenario())
+
+
+def test_favouriting_nothing_says_so_instead_of_failing(monkeypatch):
+    isolate_runtime(monkeypatch)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(100, 40)) as pilot:
+            await pilot.pause()
+            await pilot.press("f")
+            assert application.status == "no hay ninguna pista seleccionada"
+
+    asyncio.run(scenario())
+
+
+def test_a_favourite_that_fails_reaches_the_status_line(monkeypatch):
+    isolate_runtime(monkeypatch)
+
+    def boom(session, row, add=True):
+        raise RuntimeError("sin red")
+
+    monkeypatch.setattr("tidalamp.library.favourite", boom)
+    monkeypatch.setattr("tidalamp.app.ensure_fresh", lambda session: False)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(100, 40)) as pilot:
+            await pilot.pause()
+            application.queue.append([Entry(id=1, title="t", artist="a")])
+            application._sync_queue()
+            await pilot.pause()
+
+            await pilot.press("f")
+            await settle(pilot, lambda: "favoritos" in application.status)
+            assert application.status == "favoritos: sin red"
+            assert not application.query_one("#busy", Spinner).busy
+
+    asyncio.run(scenario())
+
+
+def test_favouriting_drops_the_cached_favourites_levels(monkeypatch):
+    """The level on disk is now a lie; the next visit must ask again."""
+    isolate_runtime(monkeypatch)
+    monkeypatch.setattr("tidalamp.library.favourite", lambda s, r, add=True: r.entry.label)
+    monkeypatch.setattr("tidalamp.app.ensure_fresh", lambda session: False)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(100, 40)) as pilot:
+            await pilot.pause()
+            library.cached("fav:tracks", lambda: [Row(label="vieja")])()
+            assert "fav:tracks" in library._LEVELS
+
+            application.queue.append([Entry(id=1, title="t", artist="a")])
+            application._sync_queue()
+            await pilot.pause()
+            await pilot.press("f")
+            await settle(pilot, lambda: "favoritos" in application.status)
+
+            assert "fav:tracks" not in library._LEVELS
+
+    asyncio.run(scenario())

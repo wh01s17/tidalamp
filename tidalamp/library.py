@@ -75,19 +75,40 @@ class Row:
 def _paged(
     fetch: Callable[[int, int], list],
     render: Callable[[list], list[Row]],
+    count: Callable[[], int | None] | None = None,
 ) -> Callable[[], list[Row]]:
-    """Build a loader that returns one page plus a "más…" row when there is
-    likely another one. A page that comes back short is the end of the list."""
+    """Build a loader that returns one page plus a "más…" row when there is more.
 
-    def level(offset: int = 0) -> list[Row]:
+    **A short page is not the end of the list.** TIDAL applies the limit and
+    *then* filters the window, so asking for 100 favourite tracks came back
+    with 90 — out of 766. Reading that as the end meant the user could never
+    see past the first page: 90 tracks of 766, 100 albums of 539.
+
+    So when the level can tell us how many items it holds, ``count`` decides,
+    and the offset advances by the page size because TIDAL counts offsets over
+    the unfiltered collection. Where there is no count — an artist's top
+    tracks, a search — the old rule stands: a full page offers another one, an
+    exact multiple offers one empty page, which is better than lying about the
+    total.
+    """
+
+    def level(offset: int = 0, total: int | None = None) -> list[Row]:
+        if total is None and count is not None:
+            total = with_retries(count)
         items = with_retries(lambda: fetch(offset, PAGE))
         rows = render(items)
-        if len(items) >= PAGE:
+        remaining = None if total is None else total - (offset + PAGE)
+        more = remaining > 0 if remaining is not None else len(items) >= PAGE
+        if more:
             rows.append(
                 Row(
                     label="más…",
-                    detail=f"siguientes {PAGE}",
-                    more=lambda: level(offset + PAGE),
+                    detail=(
+                        f"siguientes {PAGE} de {total}"
+                        if total is not None
+                        else f"siguientes {PAGE}"
+                    ),
+                    more=lambda: level(offset + PAGE, total),
                 )
             )
         return rows
@@ -119,6 +140,7 @@ def _playlist_rows(playlists: Iterable[tidalapi.Playlist]) -> list[Row]:
                             limit=limit, offset=offset
                         ),
                         _tracks_to_rows,
+                        count=lambda p=playlist: p.num_tracks,
                     ),
                 ),
             )
@@ -151,7 +173,17 @@ def _playlists_level(session: tidalapi.Session) -> Callable[[], list[Row]]:
         prototype = tidalapi.Playlist(session, None)
         return [prototype.parse(item) for item in response.json().get("items", [])]
 
-    return _paged(fetch, _playlist_rows)
+    def count() -> int | None:
+        response = with_retries(
+            lambda: session.request.request(
+                "GET",
+                f"users/{session.user.id}/playlists",
+                params={"limit": 1, "offset": 0},
+            )
+        )
+        return response.json().get("totalNumberOfItems")
+
+    return _paged(fetch, _playlist_rows, count=count)
 
 
 def _album_rows(albums: Iterable[tidalapi.Album]) -> list[Row]:
@@ -170,6 +202,7 @@ def _album_rows(albums: Iterable[tidalapi.Album]) -> list[Row]:
                             limit=limit, offset=offset
                         ),
                         _tracks_to_rows,
+                        count=lambda a=album: getattr(a, "num_tracks", None),
                     ),
                 ),
             )
@@ -218,6 +251,7 @@ def root(session: tidalapi.Session) -> list[Row]:
                 _paged(
                     lambda offset, limit: favorites.tracks(limit=limit, offset=offset),
                     _tracks_to_rows,
+                    count=favorites.get_tracks_count,
                 ),
             ),
         ),
@@ -230,6 +264,7 @@ def root(session: tidalapi.Session) -> list[Row]:
                 _paged(
                     lambda offset, limit: favorites.albums(limit=limit, offset=offset),
                     _album_rows,
+                    count=favorites.get_albums_count,
                 ),
             ),
         ),
@@ -242,21 +277,92 @@ def root(session: tidalapi.Session) -> list[Row]:
                 _paged(
                     lambda offset, limit: favorites.artists(limit=limit, offset=offset),
                     _artist_rows,
+                    count=favorites.get_artists_count,
                 ),
             ),
         ),
     ]
 
 
-def search_rows(session: tidalapi.Session, query: str) -> list[Row]:
-    """Search results, shaped like any other browser level."""
+class NotFavouritable(RuntimeError):
+    """Raised for a row that is not a thing TIDAL can favourite."""
+
+
+def favourite(session: tidalapi.Session, row: Row, add: bool = True) -> str:
+    """Add or remove one row from the user's TIDAL favourites.
+
+    There is deliberately no toggle. TIDAL's API offers no "is this a
+    favourite?" question, so a toggle would have to either pull the whole
+    favourites list or guess — and guessing wrong deletes something the user
+    wanted. Two explicit verbs never lie.
+
+    Returns a label for the status line; raises :class:`NotFavouritable` for a
+    row that is a heading, a "más…" or a level rather than a piece of music.
+    """
+    favorites = session.user.favorites
+    if row.entry is not None:
+        call = favorites.add_track if add else favorites.remove_track
+        with_retries(lambda: call(row.entry.id))
+        return row.entry.label
+
+    kind, _, ident = row.key.partition(":")
+    calls = {
+        "album": (favorites.add_album, favorites.remove_album),
+        "artist": (favorites.add_artist, favorites.remove_artist),
+        "playlist": (favorites.add_playlist, favorites.remove_playlist),
+    }
+    if kind not in calls or not ident:
+        raise NotFavouritable("eso no es una pista, un álbum, un artista ni una playlist")
+    call = calls[kind][0 if add else 1]
+    with_retries(lambda: call(ident))
+    return row.label
+
+
+def _search_level(
+    session: tidalapi.Session,
+    query: str,
+    model: type,
+    bucket: str,
+    render: Callable[[list], list[Row]],
+) -> Callable[[], list[Row]]:
+    """One category of search results, paginated like any other level."""
 
     def fetch(offset: int, limit: int) -> list:
         results = with_retries(
-            lambda: session.search(
-                query, models=[tidalapi.Track], limit=limit, offset=offset
-            )
+            lambda: session.search(query, models=[model], limit=limit, offset=offset)
         )
-        return results.get("tracks", [])
+        return results.get(bucket, [])
 
-    return _paged(fetch, _tracks_to_rows)()
+    return _paged(fetch, render)
+
+
+def search_rows(session: tidalapi.Session, query: str) -> list[Row]:
+    """Search results, shaped like any other browser level.
+
+    Albums, artists and playlists hang off their own rows; the tracks come
+    inline underneath. A track is what people are usually after, and asking
+    for one more keystroke to reach it would be a step backwards — but only
+    the tracks are fetched on open. Each category costs a request when, and
+    only when, it is opened.
+    """
+    categories = [
+        ("Álbumes", tidalapi.Album, "albums", _album_rows),
+        ("Artistas", tidalapi.Artist, "artists", _artist_rows),
+        ("Playlists", tidalapi.Playlist, "playlists", _playlist_rows),
+    ]
+    rows = [
+        Row(
+            f"{label} con «{query}»",
+            "abrir",
+            key=f"search:{bucket}:{query}",
+            loader=cached(
+                f"search:{bucket}:{query}",
+                _search_level(session, query, model, bucket, render),
+            ),
+        )
+        for label, model, bucket, render in categories
+    ]
+    rows.extend(
+        _search_level(session, query, tidalapi.Track, "tracks", _tracks_to_rows)()
+    )
+    return rows

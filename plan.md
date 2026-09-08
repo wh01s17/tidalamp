@@ -4,9 +4,9 @@ Documento de traspaso. Describe qué existe, qué está verificado, qué falta y
 criterio se tomaron las decisiones, para que cualquiera (humano o modelo) pueda
 retomar el trabajo sin contexto previo.
 
-**Última actualización:** 2026-09-08 (refresco del token verificado contra TIDAL: la
-app se negaba a arrancar con un access token caducado; antes, el hi-res, el rendimiento
-de la biblioteca, el indicador de carga, `TrackList`, carátula y empaquetado)
+**Última actualización:** 2026-09-08 (acabado del punto 1 de la auditoría: `.desktop`,
+tamaño mínimo, búsqueda por categorías, favoritos — y una paginación rota que dejaba
+fuera 676 de 766 favoritos)
 
 ---
 
@@ -205,12 +205,25 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
 - [x] Playlists del usuario, pistas/álbumes/artistas favoritos.
 - [x] Drill-down perezoso: cada nivel se pide sólo al abrirlo, en un hilo.
 - [x] La búsqueda reutiliza la misma estructura de `Row` que la biblioteca.
-- [x] Paginación: `_paged()` pide `PAGE` (100) elementos y, si la página vuelve llena,
-      cuelga una fila `más…` al final. `↵` sobre ella carga la siguiente página **en el
-      mismo nivel** (`RowList.extend_at`), sin perder el scroll. Una página que vuelve
-      corta es el final; un total múltiplo exacto de 100 ofrece una página vacía, que es
-      preferible a mentir sobre el recuento.
-- [x] La búsqueda también pagina.
+- [x] Paginación: `_paged()` pide `PAGE` (100) elementos y cuelga una fila `más…` al
+      final cuando queda más. `↵` sobre ella carga la siguiente página **en el mismo
+      nivel** (`RowList.extend_at`), sin perder el scroll.
+- [x] **Una página corta NO es el final.** Era la regla anterior y estaba mal: TIDAL
+      aplica el límite y *después* filtra la ventana, así que pedir 100 pistas
+      favoritas devolvía 90 —de 766— y el navegador se paraba ahí. El usuario no podía
+      alcanzar 676 de sus favoritos, ni 439 de sus álbumes, ni 297 de sus artistas.
+      Ahora, cuando el nivel sabe su recuento (`get_tracks_count`, `num_tracks`,
+      `totalNumberOfItems`), es ese número el que decide, y el offset avanza de 100 en
+      100 porque TIDAL cuenta offsets sobre la colección sin filtrar. Sin recuento se
+      mantiene la regla vieja, que allí sí vale.
+- [x] La búsqueda también pagina, y ahora cubre **álbumes, artistas y playlists** además
+      de pistas: tres filas de categoría arriba y las pistas en línea debajo, porque una
+      pista es lo que se busca casi siempre y no debía costar una pulsación más. Cada
+      categoría se pide sólo al abrirla.
+- [x] Favoritos de TIDAL con `f` y `F` sobre pistas, álbumes, artistas y playlists.
+      **No es un interruptor**: la API no permite preguntar si algo ya es favorito, así
+      que alternar exigiría descargar la lista entera o adivinar, y adivinar mal borra.
+      Al escribir se invalidan los niveles de favoritos en caché.
 - [x] **«Mis playlists» costaba 20 s con 110 playlists.** `session.user.playlists()`
       parece una llamada y no lo es: al parsear cada elemento lo pasa por
       `Playlist.factory()`, que para una playlist propia construye un `UserPlaylist`,
@@ -314,7 +327,7 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
 
 ### Tests — `tests/`
 
-- [x] `pytest`, 174 pruebas, sin red y sin TIDAL. `pip install -e ".[dev]"`.
+- [x] `pytest`, 198 pruebas, sin red y sin TIDAL. `pip install -e ".[dev]"`.
 - [x] `tests/fake_mpv.py`: un mpv falso que habla el IPC JSON real y **emite eventos
       asíncronos antes de cada respuesta**, que es justo la trampa del §7. Lleva la
       cuenta de los filtros con etiqueta y rechaza la sintaxis con la etiqueta detrás.
@@ -371,6 +384,9 @@ Distinguir esto importa: parte del código nunca se ha ejecutado contra TIDAL re
 | Cola: persistencia                 | **Verificado**                    | Ida y vuelta a disco, y dos sesiones reales de la app encadenadas.                                                                                                              |
 | Navegador de biblioteca            | **Verificado**                    | Drill-down, `↵`, `a` y `A` con una sesión simulada.                                                                                                                             |
 | Paginación de la biblioteca        | **Verificado**                    | Unitarias sobre `_paged`, y la app real headless: nivel de 103 pistas → 101 filas con `más…`, `↵` sobre ella → 103 filas sin `más…`.                                            |
+| Paginación con páginas filtradas   | **VERIFICADO CONTRA TIDAL REAL**  | En la cuenta del usuario, «Pistas favoritas» pasó de 90 filas sin `más…` a 8 páginas y **699 pistas alcanzables de 766**; los 67 restantes TIDAL no los devuelve en ninguna página. Álbumes 539 y artistas 397 igual. Unitarias con un doble que filtra la página después del límite. |
+| Búsqueda por categorías            | **VERIFICADO CONTRA TIDAL REAL**  | «tool» devuelve 101 pistas en 0,34 s con tres filas de categoría; abrirlas da 101 álbumes, 101 artistas y 76 playlists, una petición cada una y sólo al abrirlas. |
+| Favoritos (escritura)              | **VERIFICADO CONTRA TIDAL REAL**  | Añadir y quitar una pista que no estaba en favoritos: el contador de la cuenta subió a 767 y volvió a 766. Saldo neto cero. Unitarias para pista, álbum, artista, playlist y para las filas que no son favoritables. |
 | Reordenar la cola                  | **Verificado**                    | Unitarias de `Queue.move` (bordes, cursor, shuffle intacto) y `alt+↓` en la app real.                                                                                           |
 | Reinicio de mpv                    | **Verificado**                    | SIGKILL a mpv con la app corriendo: el tick lo relanza con otro PID y la pista vuelve a sonar.                                                                                  |
 | Espectro con cava                  | **VERIFICADO CON AUDIO REAL**     | El usuario instaló cava 0.10.7 y reprodujo Thriller: la insignia dice `FFT` y las bandas dibujan un espectro con forma, graves y agudos por separado. `pgrep` confirma `cava -p ~/.cache/tidalamp/cava.conf` vivo junto al mpv de la app. |
@@ -553,6 +569,13 @@ Cosas que ya costaron tiempo una vez:
   que refresca automáticamente; no lo hace. Y `token_refresh()` sólo cambia el access
   token: hay que rehacer el handshake o la sesión queda sin `user`, `country_code` ni
   `session_id`.
+- **Una respuesta corta de TIDAL no significa que no haya más.** El límite se aplica
+  antes de filtrar la ventana, así que `limit=100` puede devolver 90 con 766 detrás.
+  Cualquier paginación que deduzca el final del tamaño de la página está rota; hay que
+  preguntar el recuento.
+- **`add_track` devuelve True y la lista no cambia.** No es que falle: la lista de
+  favoritos que estabas mirando venía cortada por lo anterior. Para comprobar una
+  escritura, mira `totalNumberOfItems`, no el listado.
 - **Pedir una calidad no es obtenerla.** Con el cliente del device flow, `LOSSLESS`
   vuelve como `HIGH` siempre. Sólo `HI_RES_LOSSLESS` alcanza la rama MPD, y sólo en
   pistas etiquetadas `HIRES_LOSSLESS`. Cualquier medida sobre «lossless» que no mire
@@ -600,7 +623,7 @@ instalado nada sin comprobarlo.
   del sonido. No es un fallo del analizador.
 - Venv en `.venv/`, rehecho tras el renombrado; `.venv/bin/tidalamp` funciona de nuevo.
   Lleva el paquete en editable más `pytest` y `pyte`.
-- Tests: `.venv/bin/python -m pytest` (174 pruebas, ~8 s, sin red ni bus de usuario).
+- Tests: `.venv/bin/python -m pytest` (198 pruebas, ~12 s, sin red ni bus de usuario).
   El extra `dev` arrastra Pillow, así que las pruebas de carátula corren de verdad; si
   falta, se saltan solas.
 - En la primera máquina `cava` sí estaba, en `/usr/bin/cava`, y arrancó con la

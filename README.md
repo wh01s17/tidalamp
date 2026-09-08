@@ -25,6 +25,10 @@ Tres capas independientes:
 | Carátula | Descarga, cache y pintado en el terminal | `artwork.py` |
 | Tema | Paleta Omarchy activa o fallback clásico | `theme.py` |
 
+**Búsqueda**: `/` busca pistas y las muestra directamente, con álbumes, artistas y
+playlists en tres filas propias encima. Cada categoría se pide sólo al abrirla, así que
+buscar sigue costando una única petición.
+
 **Autenticación**: no usa la API oficial de `developer.tidal.com` (que exige registrar
 una app y ni siquiera entrega URLs de stream). Usa el mismo *device authorization
 flow* que los clientes oficiales de TV/escritorio, vía `tidalapi`. Abres un enlace una
@@ -90,10 +94,17 @@ La cola se guarda en `~/.local/state/tidalamp/queue.json` y se restaura al arran
 con el cursor donde lo dejaste. Sólo se guardan los metadatos: el objeto `Track` de la
 API se pide al reproducir, así que restaurar una cola larga es instantáneo.
 
-Los niveles largos se paginan de 100 en 100: cuando una página llega llena, la última
-fila es `más…` y `↵` sobre ella carga la siguiente **en el mismo nivel**, sin perder la
-posición del cursor. Así una playlist de 500 pistas es alcanzable sin descargarla
-entera al abrirla.
+Los niveles largos se paginan de 100 en 100: la última fila es `más…` y `↵` sobre ella
+carga la siguiente **en el mismo nivel**, sin perder la posición del cursor. Así una
+playlist de 500 pistas es alcanzable sin descargarla entera al abrirla.
+
+**Una página corta no significa que se acabó.** TIDAL aplica el límite y *después*
+filtra la ventana: pedir 100 pistas favoritas devuelve 90, de 766. Por eso, cuando el
+nivel sabe decir cuántos elementos tiene (favoritos, playlists, álbumes), es ese
+recuento el que decide si hay otra página, y el offset avanza de 100 en 100 porque
+TIDAL cuenta los offsets sobre la colección sin filtrar. Donde no hay recuento —las
+mejores pistas de un artista, una búsqueda— una página llena ofrece otra, y un múltiplo
+exacto ofrece una página vacía; es preferible a mentir sobre el total.
 
 Cada nivel que abres se recuerda mientras la aplicación viva, así que volver a
 entrar es instantáneo. `R` lo vuelve a pedir a TIDAL, que es lo que necesitas si has
@@ -110,6 +121,12 @@ real: 19,87 s → 0,39 s.
 `alt+↑` y `alt+↓` mueven la pista seleccionada dentro de la cola. Con shuffle activo el
 orden de reproducción se remapea en lugar de regenerarse: mover una fila no vuelve a
 barajar lo que sonará después.
+
+`f` añade a tus favoritos de TIDAL lo que tengas seleccionado —una pista, un álbum, un
+artista o una playlist— y `F` lo quita. Son dos teclas y no un interruptor a propósito:
+la API de TIDAL no ofrece ninguna forma de preguntar «¿esto ya es favorito?», así que un
+interruptor tendría que descargarse la lista entera o adivinar, y adivinar mal borra
+algo que querías conservar. Dos verbos explícitos no mienten.
 
 `s` alterna shuffle y `r` cicla el modo de repetición (ninguna → cola → pista). El
 estado queda siempre visible en una franja propia: `SHUF ON/OFF` y
@@ -227,6 +244,7 @@ Son las de Winamp, a propósito.
 | `/` | buscar en TIDAL |
 | `↑` `↓` `Enter` | navegar y reproducir |
 | `l` | navegador de biblioteca |
+| `f` `F` | añadir / quitar de favoritos |
 | `R` | recargar el nivel (ignora la caché) |
 | `y` | letra de la pista actual |
 | `s` `r` | shuffle / repeat |

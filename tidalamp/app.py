@@ -129,6 +129,13 @@ class SearchScreen(ModalScreen[str]):
         self.dismiss("")
 
 
+def favourite_message(session, row: Row, add: bool) -> str:
+    """Do the favourite and phrase the result. Shared by both screens."""
+    ensure_fresh(session)
+    label = library.favourite(session, row, add)
+    return f"«{label}» {'añadido a' if add else 'quitado de'} favoritos"
+
+
 class BrowserScreen(ModalScreen[tuple | None]):
     """Drill-down browser over the library and over search results.
 
@@ -146,6 +153,8 @@ class BrowserScreen(ModalScreen[tuple | None]):
         Binding("a", "append_one", "añadir", show=False),
         Binding("A", "append_all", "añadir todo", show=False),
         Binding("R", "reload", "recargar", show=False),
+        Binding("f", "favourite", "favorito", show=False),
+        Binding("F", "unfavourite", "quitar favorito", show=False),
     ]
 
     def __init__(self, title: str, loader, key: str = "") -> None:
@@ -164,8 +173,8 @@ class BrowserScreen(ModalScreen[tuple | None]):
                 yield Spinner(id="browser-spinner")
             yield RowList(id="browser-list")
             yield Static(
-                " ↵ abrir/reproducir   a añadir   A añadir todo   ⌫ atrás"
-                "   R recargar   esc cerrar",
+                " ↵ abrir/reproducir   a añadir   A añadir todo   f/F favorito"
+                "   ⌫ atrás   R recargar   esc cerrar",
                 id="browser-hint",
             )
 
@@ -301,6 +310,34 @@ class BrowserScreen(ModalScreen[tuple | None]):
             # Appending a container means appending everything inside it.
             self._busy(f"añadiendo {row.label}…")
             self._append_container(row.loader)
+
+    def action_favourite(self) -> None:
+        self._favourite(True)
+
+    def action_unfavourite(self) -> None:
+        self._favourite(False)
+
+    def _favourite(self, add: bool) -> None:
+        row = self.query_one(RowList).current
+        if row is None:
+            return
+        self._busy(("añadiendo a" if add else "quitando de") + " favoritos…")
+        self._favourite_worker(row, add)
+
+    # Its own group again: an exclusive worker cancels its group, and the
+    # level being loaded next door is not this one's business.
+    @work(thread=True, exclusive=True, group="favourite")
+    def _favourite_worker(self, row: Row, add: bool) -> None:
+        try:
+            message = favourite_message(self.app.session, row, add)
+        except Exception as exc:
+            self.app.call_from_thread(self._favourite_done, f"favoritos: {exc}")
+            return
+        self.app.call_from_thread(self._favourite_done, message)
+
+    def _favourite_done(self, message: str) -> None:
+        self._idle()
+        self.app.status = message
 
     @work(thread=True, exclusive=True)
     def _append_container(self, loader) -> None:
@@ -608,6 +645,8 @@ class TidalAmp(App):
         Binding("full_stop", "balance_right", "balance der", show=False),
         Binding("backslash", "balance_centre", "centrar balance", show=False),
         Binding("t", "toggle_time", "tiempo", show=False),
+        Binding("f", "favourite", "favorito", show=False),
+        Binding("F", "unfavourite", "quitar favorito", show=False),
         Binding("q,ctrl+c", "quit", "salir"),
     ]
 
@@ -653,7 +692,7 @@ class TidalAmp(App):
             yield Slider(id="balance")
             yield Static(
                 "  z ◀◀   x ▶   c ‖   v ■   b ▶▶   / buscar  l lib  y letra  e eq"
-                "  s shuf  r rep  q salir",
+                "  f/F favorito  s shuf  r rep  q salir",
                 id="transport",
             )
             yield Static("", id="modes")
@@ -1178,6 +1217,39 @@ class TidalAmp(App):
         self._apply_audio()
         self.settings.save()
         self.status = "balance: centro"
+
+    def action_favourite(self) -> None:
+        self._favourite_selected(True)
+
+    def action_unfavourite(self) -> None:
+        self._favourite_selected(False)
+
+    def _favourite_selected(self, add: bool) -> None:
+        """Favourite the track under the playlist cursor."""
+        row = self.query_one("#playlist", RowList).current
+        if row is None or row.entry is None:
+            self.status = "no hay ninguna pista seleccionada"
+            return
+        self.query_one("#busy", Spinner).start(
+            ("añadiendo a" if add else "quitando de") + " favoritos…"
+        )
+        self._favourite_worker(row, add)
+
+    @work(thread=True, exclusive=True, group="favourite")
+    def _favourite_worker(self, row: Row, add: bool) -> None:
+        try:
+            message = favourite_message(self.session, row, add)
+        except Exception as exc:
+            self.call_from_thread(self._favourite_done, f"favoritos: {exc}")
+            return
+        self.call_from_thread(self._favourite_done, message)
+
+    def _favourite_done(self, message: str) -> None:
+        self.query_one("#busy", Spinner).stop()
+        self.status = message
+        # Whatever favourites level is cached is now out of date.
+        for level in ("fav:tracks", "fav:albums", "fav:artists"):
+            library.forget(level)
 
     def action_toggle_time(self) -> None:
         clock = self.query_one(TimeDisplay)
