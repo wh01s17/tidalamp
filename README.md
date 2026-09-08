@@ -3,7 +3,7 @@
 Un cliente de TIDAL para terminal con la estética de Winamp 2.x. Sin registrar apps
 en la API oficial y sin navegador de por medio: device flow + mpv.
 
-![TidalAmp reproduciendo TOOL – Stinkfist](tidalamp.png)
+![TidalAmp adaptándose a diferentes temas de Omarchy](img/tidalamp-banner.svg)
 
 ## Cómo funciona
 
@@ -22,6 +22,7 @@ Tres capas independientes:
 | Espectro | cava contra el sink, cuando está instalado | `spectrum.py` |
 | Audio | Balance y ecualizador como filtros de mpv | `settings.py` |
 | Letras | Carga, parseo LRC y fallback a texto plano | `lyrics.py` |
+| Tema | Paleta Omarchy activa o fallback clásico | `theme.py` |
 
 **Autenticación**: no usa la API oficial de `developer.tidal.com` (que exige registrar
 una app y ni siquiera entrega URLs de stream). Usa el mismo *device authorization
@@ -98,6 +99,19 @@ TIDALAMP_QUALITY=HIGH tidalamp tui
 
 Los valores válidos son `LOW`, `HIGH`, `LOSSLESS` y `HI_RES_LOSSLESS`.
 
+## Tema y colores
+
+En Omarchy, `tidalamp` lee la paleta activa desde
+`$XDG_STATE_HOME/omarchy/current/theme/colors.toml` (o
+`~/.local/state/omarchy/current/theme/colors.toml`) y aplica sus fondos,
+foregrounds, acento y colores semánticos a toda la interfaz: CSS, listas, reloj,
+analizador, sliders, letras y ecualizador. Si cambias el tema mientras la TUI está
+abierta, la paleta se actualiza en un máximo de dos segundos sin tocar la reproducción.
+
+En otra distribución, si el archivo no existe o no contiene una paleta válida, se usa
+la combinación Winamp verde/negro que tenía originalmente. La integración sólo lee el
+estado de Omarchy; no modifica sus temas ni requiere tener el comando `omarchy`.
+
 ## Instalación
 
 Requiere `mpv` y Python 3.11+.
@@ -168,6 +182,8 @@ No tocan la red ni TIDAL: las sesiones y los manifiestos son dobles, y `player.p
 prueba contra un mpv falso (`tests/fake_mpv.py`) que habla el mismo IPC JSON — eventos
 asíncronos incluidos, que es justo la parte del protocolo que da problemas. El parser
 de letras se prueba con LRC fijado y texto plano, incluidas las caídas transitorias.
+MPRIS se valida contra un D-Bus temporal aislado, nunca contra el bus del escritorio
+del usuario.
 
 ## Ecualizador y balance
 

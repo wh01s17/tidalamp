@@ -4,8 +4,8 @@ Documento de traspaso. Describe qué existe, qué está verificado, qué falta y
 criterio se tomaron las decisiones, para que cualquiera (humano o modelo) pueda
 retomar el trabajo sin contexto previo.
 
-**Última actualización:** 2026-09-08 (cava real disponible, letras sincronizadas,
-indicadores persistentes y estabilidad de los filtros de audio)
+**Última actualización:** 2026-09-08 (paleta Omarchy dinámica, migración MPRIS a
+`dbus-fast`, letras sincronizadas e indicadores persistentes)
 
 ---
 
@@ -58,6 +58,7 @@ tidalamp/
   spectrum.py   Cava: proceso cava + lector de frames. Opcional por diseño.
   settings.py   Balance y ecualizador: grafos de filtro y persistencia.
   lyrics.py     Carga de letras, parseo LRC y modelo de sincronización. Sin Textual.
+  theme.py      Paleta semántica: tema Omarchy activo o fallback clásico validado.
   mpris.py      Servicio MPRIS2 en D-Bus. Habla con la app por el Protocol
                 PlayerBackend, así que no conoce Textual ni tidalapi.
   cli.py        Entrypoint typer: login / tui / search.
@@ -112,9 +113,13 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
       balance, volumen, shuffle/repeat y salida.
 - [x] Indicadores persistentes `SHUF ON/OFF` y `REP OFF/ALL/1`, con resaltado para el
       modo activo y actualización inmediata por teclado o MPRIS.
+- [x] Paleta completa tomada del tema Omarchy activo cuando existe; recarga en vivo
+      cada dos segundos. En otras distros conserva exactamente los colores clásicos.
 
 ### MPRIS — `mpris.py`
 
+- [x] Implementado con `dbus-fast>=5.0.22`; `dbus-next` ya no es dependencia ni queda
+      instalado en el venv.
 - [x] Publica `org.mpris.MediaPlayer2.tidalamp` en el bus de sesión.
 - [x] Interfaz raíz `org.mpris.MediaPlayer2`: Identity, CanQuit, Quit, etc.
 - [x] Interfaz `Player`: Play, Pause, PlayPause, Stop, Next, Previous, Seek,
@@ -213,12 +218,17 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
 
 ### Tests — `tests/`
 
-- [x] `pytest`, 75 pruebas, sin red y sin TIDAL. `pip install -e ".[dev]"`.
+- [x] `pytest`, 89 pruebas, sin red y sin TIDAL. `pip install -e ".[dev]"`.
 - [x] `tests/fake_mpv.py`: un mpv falso que habla el IPC JSON real y **emite eventos
       asíncronos antes de cada respuesta**, que es justo la trampa del §7. Lleva la
       cuenta de los filtros con etiqueta y rechaza la sintaxis con la etiqueta detrás.
 - [x] `tests/fake_cava.py`: emite frames binarios como cava, leyendo el número de
       bandas de la config que generamos.
+- [x] `tests/test_mpris.py`: backend falso para metadatos, unidades, transporte,
+      diferencias y `Seeked`; además levanta un `dbus-daemon` temporal para verificar
+      propiedades, controles, señales y colisión sin tocar el bus del usuario.
+- [x] `tests/test_theme.py`: detección XDG, mapeo semántico, variables TCSS y fallback
+      ante ausencia, tema incompleto o TOML inválido; Textual cubre el cambio en vivo.
 - [x] Cubren: cola (traversal, shuffle, repeat, mover, persistencia), paginación de la
       biblioteca, las dos ramas de `stream.resolve()` más DRM y manifiesto vacío,
       política de reintentos, `player` contra el mpv falso incluida la muerte y el
@@ -251,11 +261,11 @@ Distinguir esto importa: parte del código nunca se ha ejecutado contra TIDAL re
 | IPC de mpv                         | **Verificado**                    | Script directo: get/set de volumen, `idle`, `paused`.                                                                                                                           |
 | Medición RMS                       | **Verificado**                    | Tono de 440 Hz generado con ffmpeg; devuelve −21 dBFS estable.                                                                                                                  |
 | Layout y render de la TUI          | **Verificado**                    | La app real corriendo en un pty, con `pyte` emulando el terminal y datos stub.                                                                                                  |
-| MPRIS: registro y propiedades      | **Verificado**                    | `busctl --user list` y `gdbus call` contra la app headless.                                                                                                                     |
-| MPRIS: controles                   | **Verificado**                    | Pause, Play, Next, Previous y Volume por `gdbus`, comprobando el efecto en el estado.                                                                                           |
-| MPRIS: señales                     | **Verificado**                    | `gdbus monitor`: 5 `PropertiesChanged` para 5 cambios reales, ninguna de más.                                                                                                   |
-| MPRIS: LoopStatus / Shuffle        | **Verificado**                    | Lectura, escritura y señales contra una instancia aislada.                                                                                                                      |
-| MPRIS: colisión de nombre          | **Verificado**                    | Dos instancias a la vez: la segunda cae a `.instance<pid>`.                                                                                                                     |
+| MPRIS: registro y propiedades      | **Verificado con `dbus-fast`**    | Integración automatizada contra un `dbus-daemon` temporal más la comprobación manual previa con `gdbus`.                                                                        |
+| MPRIS: controles                   | **Verificado con `dbus-fast`**    | Play y Volume cruzan el bus real; todos los transportes y setters están cubiertos con backend falso.                                                                            |
+| MPRIS: señales                     | **Verificado con `dbus-fast`**    | El bus aislado recibe un solo `PropertiesChanged`, ninguno si no cambia el estado, y `Seeked` conserva microsegundos.                                                           |
+| MPRIS: LoopStatus / Shuffle        | **Verificado con `dbus-fast`**    | Lectura/escritura del adaptador, más la integración Textual de sus indicadores persistentes.                                                                                    |
+| MPRIS: colisión de nombre          | **Verificado con `dbus-fast`**    | Dos conexiones reales al bus aislado: la segunda reclama `.instance<pid>`.                                                                                                     |
 | Cola: shuffle / repeat             | **Verificado**                    | Unitarias de recorrido en los tres modos y prueba Textual de indicadores persistentes por teclado y setters MPRIS.                                                             |
 | Cola: persistencia                 | **Verificado**                    | Ida y vuelta a disco, y dos sesiones reales de la app encadenadas.                                                                                                              |
 | Navegador de biblioteca            | **Verificado**                    | Drill-down, `↵`, `a` y `A` con una sesión simulada.                                                                                                                             |
@@ -266,6 +276,7 @@ Distinguir esto importa: parte del código nunca se ha ejecutado contra TIDAL re
 | Balance y ecualizador              | **Verificado**                    | Grafos validados con `ffmpeg -af` de verdad; en la app real los filtros llegan a mpv, se guardan, y se reaplican tras reiniciar mpv.                                            |
 | Reintentos de red                  | **Verificado**                    | Unitarias: reintenta conexión/timeout/503, no reintenta 404, se rinde al tercer intento.                                                                                        |
 | Letras sincronizadas               | **Verificado con dobles**         | 9 pruebas de LRC, texto plano, ventanas, carga y fallos transitorios; el trabajo de red queda fuera del loop. Falta probar una letra real de TIDAL.                             |
+| Tema Omarchy / fallback             | **Verificado**                    | Unitarias con paletas temporales y montaje Textual; la máquina cambió de Wh01s17 a Tokyo Night y el lector tomó el nuevo acento.                                               |
 | Refresco del token                 | **Sin verificar contra TIDAL**    | La ruta se ejerce con dobles; nunca se ha dejado caducar un token real.                                                                                                         |
 | **`login` y reproducción real**    | **VERIFICADO POR EL USUARIO**     | El usuario ejecutó `tidalamp tui` con su cuenta y reprodujo TOOL - Schism (Lateralus) el 2026-09-08. Login, búsqueda, `stream.resolve()` y salida de audio funcionan de verdad. |
 | Reproducción real (`ao` de verdad) | **Verificado sólo con `ao=null`** | Nunca se ha sacado sonido por PipeWire en esta sesión.                                                                                                                          |
@@ -283,14 +294,12 @@ P1–P4 están cerradas: lo que queda no es funcionalidad que falte para que el
 reproductor sirva, sino acabado, distribución y confirmar contra TIDAL real cosas hoy
 probadas sólo con dobles.
 
-**Orden propuesto (2026-09-08):** P6 (dbus-fast) → P5 empaquetado (AUR y PyPI) → las
-verificaciones reales cuando haya un terminal delante → carátula al final, como
-opcional. El razonamiento: P6 es media hora contra una rotura futura garantizada,
-mientras que la carátula es una sesión entera con riesgo de acabar en «no compensa».
+**Orden propuesto (2026-09-08):** P5 empaquetado (AUR y PyPI) → las verificaciones
+reales cuando haya un terminal delante → carátula al final, como opcional.
 
 ### ~~P1 — Exponer MPRIS en D-Bus~~ ✅ HECHO
 
-Implementado en `mpris.py` con `dbus-next`. Ver §4 y §5.
+Implementado en `mpris.py` con `dbus-fast`. Ver §4 y §5.
 
 ### ~~P2 — Colas y biblioteca~~ ✅ HECHO
 
@@ -318,19 +327,18 @@ Ver §4: reinicio de mpv, refresco del token, reintentos con backoff y suite de
 
 - [ ] Dejar caducar un token real para verificar `ensure_fresh` contra TIDAL.
 
-### P6 — Migrar de `dbus-next` a `dbus-fast` (lo más urgente)
+### ~~P6 — Migrar de `dbus-next` a `dbus-fast`~~ ✅ HECHO
 
 `dbus-next` **no publica una versión desde julio de 2021** y usa
 `typing.no_type_check_decorator`, deprecado y **marcado para eliminación en Python
 3.15**: son los 34 avisos de la suite. Cuando Arch actualice el intérprete, `mpris.py`
 dejará de importar y con él no arranca la aplicación entera.
 
-- [ ] Cambiar a `dbus-fast` (fork mantenido de la misma API — su propia descripción es
-      «A faster version of dbus-next»; release de junio de 2026). Debería ser poco más
-      que el import y la dependencia en `pyproject.toml`.
-- [ ] Volver a pasar las verificaciones de MPRIS de §5 con `gdbus`: registro,
-      propiedades, controles, señales y colisión de nombre. Es una sustitución de la
-      capa D-Bus, así que no vale con que la suite pase.
+- [x] Dependencia e imports cambiados a `dbus-fast>=5.0.22`; `pip check` limpio y
+      `dbus-next` retirado del venv.
+- [x] Contrato fijado con siete pruebas nuevas, incluida una integración sobre un
+      `dbus-daemon` temporal: registro, propiedades, controles, señales, `Seeked` y
+      colisión de nombre. Suite completa sin los 34 avisos anteriores.
 
 ### P5 — Acabado
 
@@ -338,6 +346,7 @@ dejará de importar y con él no arranca la aplicación entera.
 - [x] Ventana de ecualizador de 10 bandas (`e`) sobre el filtro `equalizer`.
 - [ ] Carátula en el terminal vía protocolo Kitty/sixel.
 - [x] Letras sincronizadas y fallback a texto plano (`y`).
+- [x] Colores adaptados al tema Omarchy activo, con cambio en vivo y fallback clásico.
 - [ ] Empaquetado, dos canales que se complementan:
       - [ ] PKGBUILD para el AUR. Es el bueno para Arch: puede declarar `mpv` como
             dependencia real y `cava` como opcional, que es justo lo que pip no puede.
@@ -364,7 +373,7 @@ Cosas que ya costaron tiempo una vez:
   es la nuestra.
 - **Un selector CSS agrupado (`#a, #b {}`) editado con sed** puede dejar reglas
   aplicadas al widget equivocado. Pasó con `#seek, #volume`.
-- **dbus-next exige anotaciones de tipo que sean constantes de cadena.** Un método
+- **dbus-fast exige anotaciones de tipo que sean constantes de cadena.** Un método
   D-Bus que devuelve void no lleva anotación **ninguna**: poner `-> None` hace que
   falle al importar el módulo, porque intenta leerlo como firma de salida.
 - **zsh no hace word-splitting de variables sin comillas.** Guardar flags en una
@@ -403,7 +412,7 @@ Cosas que ya costaron tiempo una vez:
 - Arch Linux, Hyprland (Omarchy). Python 3.14, mpv y ffmpeg en el sistema.
 - Venv en `.venv/`, rehecho tras el renombrado; `.venv/bin/tidalamp` funciona de nuevo.
   Lleva el paquete en editable más `pytest` y `pyte`.
-- Tests: `.venv/bin/python -m pytest` (75 pruebas, ~1,5 s, sin red).
+- Tests: `.venv/bin/python -m pytest` (89 pruebas, ~2,5 s, sin red ni bus de usuario).
 - `cava` está instalado en `/usr/bin/cava`; arranca con la configuración real de 19
   bandas. Las pruebas automatizadas siguen usando `tests/fake_cava.py` y falta validar
   visualmente una señal de audio del sink.
@@ -411,8 +420,7 @@ Cosas que ya costaron tiempo una vez:
   `app.export_screenshot()` dentro de `run_test()` da un SVG del que se saca el texto.
 - Smoke headless de la app entera (mpv falso + sesión doble) en el scratchpad de la
   sesión: ejerce paginación, reordenado y muerte/reinicio de mpv sobre la app real.
-- Para probar MPRIS sin terminal interactivo: `app.run_test()` de Textual levanta la
-  app headless en el mismo proceso, y desde fuera se interroga con `gdbus call` /
-  `gdbus monitor`. El script usado está en el scratchpad de la sesión.
+- MPRIS tiene una integración reproducible en `tests/test_mpris.py`: levanta un bus de
+  sesión temporal, conecta dos servicios y un cliente, y lo destruye al terminar.
 - Para verificar la TUI sin terminal interactivo: correr la app bajo `pty.fork()` y
   emular la pantalla con `pyte`. Es como se generaron las capturas de este repo.
