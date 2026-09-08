@@ -4,8 +4,9 @@ Documento de traspaso. Describe qué existe, qué está verificado, qué falta y
 criterio se tomaron las decisiones, para que cualquiera (humano o modelo) pueda
 retomar el trabajo sin contexto previo.
 
-**Última actualización:** 2026-09-08 (la lista de playlists pasó de 20 s a 0,4 s y los
-niveles se cachean; antes, indicador de carga, `TrackList`, carátula y empaquetado)
+**Última actualización:** 2026-09-08 (hi-res verificado contra TIDAL real: dos fallos
+que impedían reproducirlo y la calidad por defecto corregida; antes, el rendimiento de
+la biblioteca, el indicador de carga, `TrackList`, carátula y empaquetado)
 
 ---
 
@@ -96,6 +97,20 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
 
 - [x] Manifiestos `BTS` (URLs progresivas) -> se pasa la primera URL a mpv.
 - [x] Manifiestos `MPD` (DASH segmentado) -> se vuelca como playlist HLS local en cache.
+- [x] **La playlist se reescribe antes de dárse la a mpv** (`_to_fmp4_hls`). El HLS de
+      `tidalapi` lista el segmento de inicialización (`ftyp`+`moov`) como si fuera
+      audio y nunca emite `#EXT-X-MAP`, así que ffmpeg abre cada segmento por su cuenta,
+      no encuentra el `trex` y aborta con *error reading header*. Comprobado sobre una
+      pista hi-res real: 69 segmentos, el 0 es `ftyp+moov` y el resto `moof+mdat`.
+- [x] **Calidad por defecto `HI_RES_LOSSLESS`, no `LOSSLESS`.** Pedir `LOSSLESS` al
+      cliente del device flow devuelve `HIGH` siempre, incluso en pistas que TIDAL
+      etiqueta `LOSSLESS`; pedir `HI_RES_LOSSLESS` devuelve FLAC 24/96 donde lo hay y
+      `HIGH` donde no. El valor anterior no producía lossless en ningún caso.
+- [x] `Playable.downgraded`: cuando TIDAL entrega menos de lo pedido, la barra de
+      estado lo dice, en vez de dejar que la insignia lo insinúe.
+- [x] `Playable.kbps` decide por calidad, no por `bit_depth`: TIDAL informa 16 bits
+      también para AAC de 320 kbps, así que el display ponía «16bit» sobre audio con
+      pérdida.
 - [x] Detección de manifiestos cifrados -> `StreamUnavailable` con mensaje explicando
       el DRM, en vez de dejar que mpv falle con un error de códec.
 - [x] `Playable` expone `kbps`/`khz` para las insignias del display.
@@ -104,6 +119,10 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
 ### Reproducción — `player.py`
 
 - [x] Spawn de `mpv --idle --no-video` con `--input-ipc-server`.
+- [x] `--demuxer-lavf-o=protocol_whitelist=…`: sin eso, ffmpeg hereda del protocolo
+      padre y una playlist abierta como `file:` sólo puede seguir `file,crypto,data`,
+      de modo que **todos** los segmentos https del hi-res fallaban. El valor lleva
+      comas, así que necesita el escape `%<longitud>%` de mpv o la opción se parte.
 - [x] Cliente IPC con lock, `request_id` correlacionado y descarte de eventos async.
 - [x] `load` / `toggle_pause` / `stop` / `seek`; propiedades `position`, `duration`,
       `volume`, `paused`, `idle`.
@@ -287,7 +306,7 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
 
 ### Tests — `tests/`
 
-- [x] `pytest`, 151 pruebas, sin red y sin TIDAL. `pip install -e ".[dev]"`.
+- [x] `pytest`, 164 pruebas, sin red y sin TIDAL. `pip install -e ".[dev]"`.
 - [x] `tests/fake_mpv.py`: un mpv falso que habla el IPC JSON real y **emite eventos
       asíncronos antes de cada respuesta**, que es justo la trampa del §7. Lleva la
       cuenta de los filtros con etiqueta y rechaza la sintaxis con la etiqueta detrás.
@@ -355,6 +374,7 @@ Distinguir esto importa: parte del código nunca se ha ejecutado contra TIDAL re
 | **`login` y reproducción real**    | **VERIFICADO POR EL USUARIO**     | El usuario ejecutó `tidalamp tui` con su cuenta y reprodujo TOOL - Schism (Lateralus) el 2026-09-08. Login, búsqueda, `stream.resolve()` y salida de audio funcionan de verdad. |
 | Reproducción real (`ao` de verdad) | **Verificado sólo con `ao=null`** | Nunca se ha sacado sonido por PipeWire en esta sesión.                                                                                                                          |
 | Ruta MPD -> HLS                    | **PARCIAL**                       | Ambas ramas están cubiertas por tests con manifiestos fijados, y `stream.resolve()` ya registra cuál toma. Falta una reproducción real con `TIDALAMP_DEBUG=1` para leerlo.      |
+| Ruta MPD -> HLS (hi-res)           | **VERIFICADO CONTRA TIDAL REAL**  | Matriz de las cuatro calidades sobre dos pistas reales; con `HI_RES_LOSSLESS` la rama es MPD, FLAC 24 bit/96 kHz, 69 segmentos. `ffprobe` sobre la playlist reescrita da flac/96000/24 y `ffmpeg` decodifica 3 s a un WAV de 1.152.102 bytes (exactamente 96000×3×2×2). La app real con mpv de verdad: insignias `24bit 96kHz HI_RES_LOSSLESS`, posición 12,3 s de 266 s, RMS −19,2 dBFS. La playlist sin reescribir falla con *error reading header* en el mismo ffmpeg. |
 | Empaquetado (sdist / wheel / AUR)  | **Verificado salvo la publicación** | `python -m build` + `twine check` en ambos artefactos; 89 pruebas desde el sdist extraído; `bash -n` y `makepkg --printsrcinfo` sobre el PKGBUILD; `pacman -Si` confirma que todas las dependencias están en `extra`. No se ha ejecutado `makepkg -si` ni se ha publicado nada: el tag no existe todavía. |
 | Carátula                           | **Verificado salvo la vista** | Unidades sobre los tres codificadores, incluida una vuelta completa de sixel a píxeles; la app real bajo un pty con `TERM=xterm-kitty` emite el APC gráfico anclado en la esquina del widget, y en medios bloques pyte muestra el recuadro de 18×9 con el resto del display intacto. Nadie ha mirado todavía una portada real en una ventana de kitty. |
 | Indicador de carga y barra de estado | **Verificado**                  | Unitarias del `Spinner` y de los tres momentos del navegador (raíz, abrir un nivel, volver atrás) con un loader bloqueado a propósito; la app real bajo pty midió `#statusbar` dentro de la pantalla y pintó `⠦ resolviendo «Schism»…` en la última fila. |
@@ -518,6 +538,20 @@ Cosas que ya costaron tiempo una vez:
 - **`Segment(texto, None, True)` es un segmento de control**: mide cero celdas, así
   que cabe dentro de una línea que el compositor ya está pintando sin descuadrarla.
   Que sobreviva al recorte de `Strip` no era evidente: está comprobado bajo un pty.
+- **Pedir una calidad no es obtenerla.** Con el cliente del device flow, `LOSSLESS`
+  vuelve como `HIGH` siempre. Sólo `HI_RES_LOSSLESS` alcanza la rama MPD, y sólo en
+  pistas etiquetadas `HIRES_LOSSLESS`. Cualquier medida sobre «lossless» que no mire
+  `stream.audio_quality` devuelto está midiendo otra cosa.
+- **El primer segmento de un DASH no es audio.** Es `ftyp`+`moov`. Listarlo como
+  segmento en un HLS hace que ffmpeg falle con *error reading header* en todos; va en
+  `#EXT-X-MAP`, con `#EXT-X-VERSION:7`.
+- **ffmpeg hereda la lista de protocolos permitidos del padre.** Un `.m3u8` local que
+  apunta a https no puede seguirlos sin `protocol_whitelist`. Y en mpv esa opción lleva
+  comas, que su parser usa como separador: hay que escribirla como
+  `%<longitud>%<valor>` o se parte en trozos que ffmpeg nunca ve.
+- **El error de mpv puede estar enterrado.** El síntoma era un timeout y un muro de
+  *error reading header*; la causa (`Protocol 'https' not on whitelist`) sólo aparecía
+  en la primera línea del log. Leer el principio, no el final.
 - **En `tidalapi`, parsear puede costar una petición por elemento.**
   `Playlist.factory()` convierte en `UserPlaylist` toda playlist tuya, y ese
   constructor hace un GET para leer el ETag. Cualquier listado que se sienta lento
@@ -541,7 +575,7 @@ Cosas que ya costaron tiempo una vez:
 - Arch Linux, Hyprland (Omarchy). Python 3.14, mpv y ffmpeg en el sistema.
 - Venv en `.venv/`, rehecho tras el renombrado; `.venv/bin/tidalamp` funciona de nuevo.
   Lleva el paquete en editable más `pytest` y `pyte`.
-- Tests: `.venv/bin/python -m pytest` (151 pruebas, ~8 s, sin red ni bus de usuario).
+- Tests: `.venv/bin/python -m pytest` (164 pruebas, ~8 s, sin red ni bus de usuario).
   El extra `dev` arrastra Pillow, así que las pruebas de carátula corren de verdad; si
   falta, se saltan solas.
 - `cava` está instalado en `/usr/bin/cava`; arranca con la configuración real de 19

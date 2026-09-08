@@ -129,3 +129,15 @@ def test_filters_are_independent(mpv):
     mpv.set_filter("eq", "equalizer=f=1000:t=q:w=1.0:g=3")
     mpv.set_filter("balance", None)
     assert list(filters(mpv)) == ["eq"]
+
+
+def test_mpv_is_allowed_to_follow_https_from_a_local_playlist(mpv):
+    """A hi-res track is a local .m3u8 of https segments; ffmpeg blocks that
+    by default, and mpv needs its %length% escape or the commas split the
+    option into pieces that never reach ffmpeg."""
+    args = mpv._proc.args
+    option = next(a for a in args if a.startswith("--demuxer-lavf-o="))
+    value = option.split("=", 1)[1]
+
+    assert value == "protocol_whitelist=%30%file,http,https,tcp,tls,crypto"
+    assert "https" in value and "file" in value

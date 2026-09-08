@@ -25,6 +25,15 @@ log = logging.getLogger("tidalamp.player")
 # analyser. It is a level meter, not a real FFT — see visualizer.py.
 _AUDIO_FILTER = "@astats:lavfi=[astats=metadata=1:reset=1]"
 
+# A hi-res track reaches mpv as a local .m3u8 whose segments are https URLs
+# (see stream.py). ffmpeg derives the allowed protocols from the parent one, so
+# a playlist opened from `file:` may only follow `file,crypto,data` and every
+# segment fails with "Protocol 'https' not on whitelist". The list has to be
+# widened explicitly — and because mpv splits key-value options on commas, the
+# value needs mpv's own `%<length>%` escape or it never reaches ffmpeg.
+_PROTOCOLS = "file,http,https,tcp,tls,crypto"
+_PROTOCOL_OPTION = f"protocol_whitelist=%{len(_PROTOCOLS)}%{_PROTOCOLS}"
+
 
 class MpvNotFound(RuntimeError):
     pass
@@ -61,6 +70,7 @@ class Mpv:
                 "--load-scripts=no",
                 f"--input-ipc-server={IPC_SOCKET}",
                 f"--af={_AUDIO_FILTER}",
+                f"--demuxer-lavf-o={_PROTOCOL_OPTION}",
             ],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,

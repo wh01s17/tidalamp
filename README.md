@@ -31,9 +31,10 @@ flow* que los clientes oficiales de TV/escritorio, vía `tidalapi`. Abres un enl
 vez, autorizas, y la sesión refrescable queda en `~/.config/tidalamp/session.json`.
 
 **Streaming**: TIDAL devuelve dos formas de manifiesto. `BTS` es una lista de URLs
-progresivas que mpv abre directamente. `MPD` es DASH segmentado (típico en
-LOSSLESS / HI_RES); `tidalapi` ya parsea los segmentos, así que los volcamos como una
-playlist HLS local y le pasamos ese fichero a mpv.
+progresivas que mpv abre directamente. `MPD` es DASH segmentado, el que trae el hi-res;
+`tidalapi` ya parsea los segmentos, así que los volcamos como una playlist HLS local y
+le pasamos ese fichero a mpv. Ver [Calidad](#calidad), porque esa ruta tenía dos
+trampas.
 
 ## Integración con el escritorio (MPRIS)
 
@@ -110,17 +111,54 @@ estado queda siempre visible en una franja propia: `SHUF ON/OFF` y
 `REP OFF/ALL/1`. Los modos activos se iluminan en verde y ambos se exponen por MPRIS
 como `Shuffle` y `LoopStatus`.
 
-## Limitación importante: DRM
+## Calidad
 
-Las pistas cuyo manifiesto viene cifrado (Widevine) **no se pueden reproducir con
-mpv** — no hay CDM que las descifre. El cliente lo detecta y te lo dice en la barra de
-estado en vez de fallar con un error de códec. Si te topas con muchas, baja la calidad:
+Por defecto se pide `HI_RES_LOSSLESS`. Medido contra una cuenta real el 2026-09-08:
+
+| Se pide | Pista con `HIRES_LOSSLESS` | Pista sólo `LOSSLESS` |
+|---|---|---|
+| `LOW` | BTS, LOW, 96 kbps | igual |
+| `HIGH` | BTS, HIGH, 320 kbps | igual |
+| `LOSSLESS` | BTS, **HIGH** | BTS, **HIGH** |
+| `HI_RES_LOSSLESS` | **MPD**, FLAC 24 bit / 96 kHz | BTS, HIGH |
+
+Es decir: **pedir `LOSSLESS` nunca devuelve lossless** con el cliente del device flow;
+TIDAL contesta `HIGH` incluso en pistas que él mismo etiqueta como `LOSSLESS`. Pedir
+`HI_RES_LOSSLESS` sí da FLAC donde lo hay, y `HIGH` donde no. Por eso ése es el valor
+por defecto — el anterior era `LOSSLESS`, que no producía lossless jamás.
+
+Cuando TIDAL entrega menos de lo pedido, la barra de estado lo dice
+(`TIDAL entregó HIGH, no HI_RES_LOSSLESS`) en vez de dejar que la insignia lo insinúe.
 
 ```sh
 TIDALAMP_QUALITY=HIGH tidalamp tui
 ```
 
 Los valores válidos son `LOW`, `HIGH`, `LOSSLESS` y `HI_RES_LOSSLESS`.
+
+### Dos trampas de la ruta hi-res
+
+Ninguna pista hi-res sonaba, y no era evidente por qué:
+
+1. **Faltaba `#EXT-X-MAP`.** El primer segmento de un DASH es la inicialización
+   (`ftyp`+`moov`); los demás son `moof`+`mdat`, audio sin cabecera propia. El HLS que
+   genera `tidalapi` lista el de inicialización como si fuera audio, así que ffmpeg
+   abre cada segmento por separado, no encuentra el `trex` y aborta con
+   *error reading header*. Lo reescribimos: el primero pasa a `#EXT-X-MAP` y la
+   playlist declara versión 7, que es lo que exige el MP4 fragmentado.
+2. **ffmpeg bloquea `https` desde una playlist local.** La lista de protocolos
+   permitidos se hereda del protocolo padre, así que un `.m3u8` abierto como `file:`
+   sólo puede seguir `file,crypto,data` y cada segmento falla con
+   *Protocol 'https' not on whitelist*. mpv arranca con `--demuxer-lavf-o` para
+   ampliarla — con el escape `%<longitud>%` de mpv, porque el valor lleva comas y si no
+   la opción se parte y nunca llega a ffmpeg.
+
+## Limitación importante: DRM
+
+Las pistas cuyo manifiesto viene cifrado (Widevine) **no se pueden reproducir con
+mpv** — no hay CDM que las descifre. El cliente lo detecta y te lo dice en la barra de
+estado en vez de fallar con un error de códec. Si te topas con muchas, baja la calidad
+con `TIDALAMP_QUALITY=HIGH` (ver [Calidad](#calidad)).
 
 ## Tema y colores
 

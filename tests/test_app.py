@@ -529,3 +529,28 @@ def test_reload_drops_the_cached_level_and_asks_again(monkeypatch):
             assert str(title) == "MI BIBLIOTECA"
 
     asyncio.run(scenario())
+
+
+def test_a_quality_downgrade_reaches_the_status_line(monkeypatch):
+    isolate_runtime(monkeypatch)
+
+    class Downgraded:
+        url = "https://cdn/a"
+        kbps = "320"
+        khz = "44"
+        quality = "HIGH"
+        requested = "LOSSLESS"
+        downgraded = True
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(100, 40)) as pilot:
+            await pilot.pause()
+            entry = Entry(id=1, title="Schism", artist="TOOL")
+            application._start(entry, Downgraded())
+
+            assert "TIDAL entregó HIGH, no LOSSLESS" in application.status
+            badges = application.query_one("#badges", Static)
+            assert "320" in str(badges.content) and "HIGH" in str(badges.content)
+
+    asyncio.run(scenario())

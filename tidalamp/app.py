@@ -1071,6 +1071,13 @@ class TidalAmp(App):
             f"  {self.query_one(Analyzer).source}"
         )
         self.status = f"reproduciendo {entry.label}"
+        if getattr(playable, "downgraded", False):
+            # Say it out loud. The badge shows what arrived, which on its own
+            # reads as if it were what we asked for.
+            self.status = (
+                f"{self.status} · TIDAL entregó {playable.quality}, "
+                f"no {playable.requested}"
+            )
 
     # ----------------------------------------------------------------- fiddles
 

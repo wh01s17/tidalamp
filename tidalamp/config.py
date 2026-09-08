@@ -20,9 +20,16 @@ QUEUE_FILE = STATE_DIR / "queue.json"
 LOG_FILE = STATE_DIR / "tidalamp.log"
 
 # TIDAL quality to request. HIGH/LOW come back as plain URLs that mpv plays
-# directly; LOSSLESS and HI_RES_LOSSLESS arrive as segmented DASH manifests,
-# which we translate to HLS before handing them over.
-DEFAULT_QUALITY = os.environ.get("TIDALAMP_QUALITY", "LOSSLESS")
+# directly; HI_RES_LOSSLESS arrives as a segmented DASH manifest, which we
+# translate to HLS before handing it over.
+#
+# HI_RES_LOSSLESS and not LOSSLESS, which is what this used to be. Measured
+# against a real account on 2026-09-08, asking the device-flow client for
+# LOSSLESS gets HIGH back — every time, even on a track TIDAL itself tags as
+# LOSSLESS. Asking for HI_RES_LOSSLESS gets FLAC 24/96 where the track has it
+# and HIGH where it does not, so it is strictly better than the old default,
+# which never once produced a lossless stream.
+DEFAULT_QUALITY = os.environ.get("TIDALAMP_QUALITY", "HI_RES_LOSSLESS")
 
 
 def ensure_dirs() -> None:
