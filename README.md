@@ -114,13 +114,36 @@ estado de Omarchy; no modifica sus temas ni requiere tener el comando `omarchy`.
 
 ## Instalación
 
-Requiere `mpv` y Python 3.11+.
+**`mpv` no se instala con pip.** Tiene que estar en el sistema; sin él, `tidalamp`
+aborta al arrancar con `MpvNotFound`. Además hace falta Python 3.11+, y `cava` si
+quieres espectro real en lugar del vúmetro.
+
+### Arch Linux (AUR)
+
+```sh
+yay -S tidalamp        # arrastra mpv y el resto de dependencias
+```
+
+Es el canal recomendado en Arch: es el único que puede declarar `mpv` como dependencia
+de verdad y `cava` como opcional.
+
+### Resto de distribuciones (PyPI)
+
+```sh
+sudo apt install mpv   # o el gestor que corresponda
+pipx install tidalamp
+```
+
+### Desde el repositorio
 
 ```sh
 python -m venv .venv && .venv/bin/pip install -e .
 .venv/bin/tidalamp login
 .venv/bin/tidalamp tui
 ```
+
+El proceso de publicación de ambos canales está en
+[`packaging/README.md`](packaging/README.md).
 
 ## Teclas
 

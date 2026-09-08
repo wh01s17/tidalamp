@@ -4,8 +4,8 @@ Documento de traspaso. Describe qué existe, qué está verificado, qué falta y
 criterio se tomaron las decisiones, para que cualquiera (humano o modelo) pueda
 retomar el trabajo sin contexto previo.
 
-**Última actualización:** 2026-09-08 (paleta Omarchy dinámica, migración MPRIS a
-`dbus-fast`, letras sincronizadas e indicadores persistentes)
+**Última actualización:** 2026-09-08 (empaquetado: PKGBUILD para el AUR, metadata de
+PyPI y workflows de CI/publicación con Trusted Publishing)
 
 ---
 
@@ -62,6 +62,13 @@ tidalamp/
   mpris.py      Servicio MPRIS2 en D-Bus. Habla con la app por el Protocol
                 PlayerBackend, así que no conoce Textual ni tidalapi.
   cli.py        Entrypoint typer: login / tui / search.
+
+packaging/
+  README.md     Procedimiento de publicación en PyPI y en el AUR.
+  aur/PKGBUILD  Receta de Arch; `.SRCINFO` se regenera con makepkg.
+.github/workflows/
+  ci.yml        pytest en 3.11–3.14.
+  release.yml   tag v* -> build -> twine check -> PyPI por OIDC.
 ```
 
 Dependencia en un solo sentido:
@@ -281,6 +288,7 @@ Distinguir esto importa: parte del código nunca se ha ejecutado contra TIDAL re
 | **`login` y reproducción real**    | **VERIFICADO POR EL USUARIO**     | El usuario ejecutó `tidalamp tui` con su cuenta y reprodujo TOOL - Schism (Lateralus) el 2026-09-08. Login, búsqueda, `stream.resolve()` y salida de audio funcionan de verdad. |
 | Reproducción real (`ao` de verdad) | **Verificado sólo con `ao=null`** | Nunca se ha sacado sonido por PipeWire en esta sesión.                                                                                                                          |
 | Ruta MPD -> HLS                    | **PARCIAL**                       | Ambas ramas están cubiertas por tests con manifiestos fijados, y `stream.resolve()` ya registra cuál toma. Falta una reproducción real con `TIDALAMP_DEBUG=1` para leerlo.      |
+| Empaquetado (sdist / wheel / AUR)  | **Verificado salvo la publicación** | `python -m build` + `twine check` en ambos artefactos; 89 pruebas desde el sdist extraído; `bash -n` y `makepkg --printsrcinfo` sobre el PKGBUILD; `pacman -Si` confirma que todas las dependencias están en `extra`. No se ha ejecutado `makepkg -si` ni se ha publicado nada: el tag no existe todavía. |
 
 **Ya no hay ningún bloqueo de credenciales:** la sesión está guardada y la
 reproducción real está confirmada. La instrumentación de la rama de manifiesto ya está
@@ -294,8 +302,9 @@ P1–P4 están cerradas: lo que queda no es funcionalidad que falte para que el
 reproductor sirva, sino acabado, distribución y confirmar contra TIDAL real cosas hoy
 probadas sólo con dobles.
 
-**Orden propuesto (2026-09-08):** P5 empaquetado (AUR y PyPI) → las verificaciones
-reales cuando haya un terminal delante → carátula al final, como opcional.
+**Orden propuesto (2026-09-08):** ~~P5 empaquetado (AUR y PyPI)~~ ✅ hecho salvo el
+alta manual en PyPI y el AUR, que requieren cuentas → las verificaciones reales cuando
+haya un terminal delante → carátula al final, como opcional.
 
 ### ~~P1 — Exponer MPRIS en D-Bus~~ ✅ HECHO
 
@@ -347,17 +356,32 @@ dejará de importar y con él no arranca la aplicación entera.
 - [ ] Carátula en el terminal vía protocolo Kitty/sixel.
 - [x] Letras sincronizadas y fallback a texto plano (`y`).
 - [x] Colores adaptados al tema Omarchy activo, con cambio en vivo y fallback clásico.
-- [ ] Empaquetado, dos canales que se complementan:
-      - [ ] PKGBUILD para el AUR. Es el bueno para Arch: puede declarar `mpv` como
-            dependencia real y `cava` como opcional, que es justo lo que pip no puede.
-      - [ ] PyPI (`pipx install tidalamp`), para el resto. El nombre está libre
-            (comprobado el 2026-09-08) y la metadata ya lleva licencia y readme. Falta
-            añadir URLs y keywords, construir sdist y wheel para comprobar que el
-            paquete queda bien formado, y publicar con Trusted Publishing (OIDC de
-            GitHub Actions) en vez de un token de larga vida.
-      - Aviso para quien lo haga: `mpv` no se instala con pip. Quien haga
-        `pip install tidalamp` sin mpv se encuentra un `MpvNotFound` al arrancar, así
-        que hay que decirlo arriba del todo en la descripción del paquete.
+- [x] Empaquetado, dos canales que se complementan. El procedimiento completo de
+      publicación está en `packaging/README.md`; aquí sólo el estado.
+      - [x] `packaging/aur/PKGBUILD` + `.SRCINFO`. Construye desde el tarball del tag de
+            GitHub con `python -m build --no-isolation`, corre la suite en `check()` e
+            instala con `python -m installer`. `mpv` es dependencia real y `cava`
+            `optdepends`. **Todas las dependencias Python están en `extra`**
+            (`python-tidalapi`, `python-textual`, `python-typer`, `python-dbus-fast`,
+            `python-requests`), así que el paquete no arrastra nada del AUR — se
+            comprobó con `pacman -Si` el 2026-09-08.
+      - [x] PyPI: metadata con URLs, keywords y clasificadores; `sdist` que incluye
+            `tests/` y `packaging/`, de modo que el `check()` del PKGBUILD funciona
+            también desde el sdist (verificado: 89 pruebas desde el tarball extraído).
+            `python -m build` produce sdist y wheel y ambos pasan `twine check`.
+      - [x] `.github/workflows/release.yml`: al empujar un tag `v*` comprueba que el tag
+            coincide con la versión del `pyproject.toml`, construye, pasa `twine check`
+            y publica con `pypa/gh-action-pypi-publish` mediante OIDC. Ningún token de
+            larga vida. `.github/workflows/ci.yml` corre la suite en 3.11–3.14 e
+            instala `dbus` para que la integración MPRIS no se salte.
+      - [x] El aviso de `mpv` está en la primera línea de `description` del
+            `pyproject.toml` (lo que ve PyPI) y encabeza la sección de instalación del
+            README.
+      - [ ] **Pendiente y no automatizable desde aquí:** dar de alta el *pending
+            publisher* en PyPI y crear el entorno `pypi` en GitHub (sin eso el job
+            `publish` falla con un error de OIDC), y subir el PKGBUILD al AUR. Ambos
+            piden credenciales del usuario. Además `sha256sums` sigue en `SKIP` hasta
+            que exista el tag: se rellena con `updpkgsums`.
 
 ## 7. Trampas conocidas
 

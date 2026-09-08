@@ -1,14 +1,23 @@
 [project]
 name = "tidalamp"
 version = "0.1.0"
-description = "Cliente TIDAL para terminal con interfaz estilo Winamp"
+description = "Cliente TIDAL para terminal con interfaz estilo Winamp (requiere mpv en el sistema)"
 readme = "README.md"
 requires-python = ">=3.11"
 license = "GPL-3.0-or-later"
 license-files = ["LICENSE"]
+keywords = ["tidal", "music", "player", "tui", "terminal", "winamp", "mpv", "mpris"]
 classifiers = [
+    "Development Status :: 4 - Beta",
     "Environment :: Console :: Curses",
     "Intended Audience :: End Users/Desktop",
+    "Natural Language :: Spanish",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Topic :: Multimedia :: Sound/Audio :: Players",
 ]
 dependencies = [
@@ -18,6 +27,12 @@ dependencies = [
     "dbus-fast>=5.0.22",
     "requests>=2.31",
 ]
+
+[project.urls]
+Homepage = "https://github.com/wh01s17/tidalamp"
+Repository = "https://github.com/wh01s17/tidalamp"
+Issues = "https://github.com/wh01s17/tidalamp/issues"
+Changelog = "https://github.com/wh01s17/tidalamp/releases"
 
 [project.optional-dependencies]
 dev = ["pytest>=8"]
@@ -31,6 +46,16 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["tidalamp"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "tidalamp/",
+    "tests/",
+    "packaging/",
+    "README.md",
+    "LICENSE",
+    "pyproject.toml",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

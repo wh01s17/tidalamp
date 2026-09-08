@@ -3,6 +3,58 @@ __pycache__/
 *.egg-info/
 dist/
 
+# makepkg
+packaging/aur/src/
+packaging/aur/pkg/
+packaging/aur/*.tar.gz
+packaging/aur/*.pkg.tar.zst
+
+# Python bytecode and compiled extensions
+*.py[cod]
+*$py.class
+*.so
+
+# Virtual environments
+venv/
+env/
+ENV/
+.env/
+.venv
+
+# Packaging and build artifacts
+build/
+develop-eggs/
+.eggs/
+*.egg
+*.whl
+pip-wheel-metadata/
+share/python-wheels/
+*.manifest
+*.spec
+
+# Test, coverage and type-checker artifacts
+.pytest_cache/
+.tox/
+.nox/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+.mypy_cache/
+.pyre/
+.pytype/
+
+# Linters and formatters
+.ruff_cache/
+
+# Jupyter notebooks
+.ipynb_checkpoints/
+
+# Local environment files and secrets
+.env
+.env.*
+!.env.example
+
 # AI coding agents and assistants
 .agents/
 .aider*

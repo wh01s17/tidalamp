@@ -1,0 +1,39 @@
+# Maintainer: wh01s17 <joja.perezo@gmail.com>
+pkgname=tidalamp
+pkgver=0.1.0
+pkgrel=1
+pkgdesc="Cliente TIDAL para terminal con interfaz estilo Winamp 2.x"
+arch=('any')
+url="https://github.com/wh01s17/tidalamp"
+license=('GPL-3.0-or-later')
+depends=(
+  'python'
+  'python-tidalapi'
+  'python-textual'
+  'python-typer'
+  'python-dbus-fast'
+  'python-requests'
+  'mpv'
+)
+optdepends=('cava: analizador de espectro real en vez del vúmetro RMS')
+makedepends=('python-build' 'python-installer' 'python-wheel' 'python-hatchling')
+checkdepends=('python-pytest')
+source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
+# SKIP hasta que el tag exista; después, rellenar con `updpkgsums`.
+sha256sums=('SKIP')
+
+build() {
+  cd "$srcdir/$pkgname-$pkgver"
+  python -m build --wheel --no-isolation
+}
+
+check() {
+  cd "$srcdir/$pkgname-$pkgver"
+  python -m pytest
+}
+
+package() {
+  cd "$srcdir/$pkgname-$pkgver"
+  python -m installer --destdir="$pkgdir" dist/*.whl
+  install -Dm644 README.md "$pkgdir/usr/share/doc/$pkgname/README.md"
+}
