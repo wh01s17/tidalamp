@@ -4,12 +4,15 @@ from __future__ import annotations
 
 import asyncio
 
+from textual.screen import Screen
 from textual.widgets import Static
 
 from tidalamp.app import TidalAmp
-from tidalamp.queue import Queue
+from tidalamp.artwork import Cover, Protocol
+from tidalamp.queue import Entry, Queue
 from tidalamp.settings import Settings
 from tidalamp.theme import DEFAULT_COLORS, ThemePalette
+from tidalamp.widgets import Artwork
 
 
 class FakeMpv:
@@ -108,3 +111,151 @@ def test_running_app_follows_an_omarchy_theme_change(monkeypatch):
             assert any("#7aa2f7" in str(span.style) for span in modes.content.spans)
 
     asyncio.run(scenario())
+
+
+# ---------------------------------------------------------------------- artwork
+
+
+def a_cover(protocol=Protocol.BLOCKS, escape=""):
+    pixels = (((255, 0, 0), (0, 255, 0)), ((0, 0, 255), (255, 255, 0)))
+    return Cover(
+        cols=2,
+        rows=1,
+        protocol=protocol,
+        pixels=pixels if protocol is Protocol.BLOCKS else None,
+        escape=escape,
+    )
+
+
+def test_the_cover_takes_no_room_until_there_is_one(monkeypatch):
+    isolate_runtime(monkeypatch)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test() as pilot:
+            await pilot.pause()
+            art = application.query_one(Artwork)
+            assert art.cover is None
+            assert art.styles.display == "none"
+
+            art.show(a_cover())
+            await pilot.pause()
+            assert art.styles.display == "block"
+
+    asyncio.run(scenario())
+
+
+def test_half_blocks_paint_two_pixels_per_cell(monkeypatch):
+    isolate_runtime(monkeypatch)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test() as pilot:
+            art = application.query_one(Artwork)
+            art.show(a_cover())
+            await pilot.pause()
+
+            segments = list(art.render_line(0))
+            assert segments[0].text == "▀"
+            # Upper half is the first pixel row, lower half the second.
+            assert segments[0].style.color.triplet == (255, 0, 0)
+            assert segments[0].style.bgcolor.triplet == (0, 0, 255)
+            assert segments[1].style.color.triplet == (0, 255, 0)
+            assert segments[1].style.bgcolor.triplet == (255, 255, 0)
+
+    asyncio.run(scenario())
+
+
+def test_a_pixel_protocol_goes_out_as_a_zero_width_control_segment(monkeypatch):
+    isolate_runtime(monkeypatch)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test() as pilot:
+            art = application.query_one(Artwork)
+            art.show(a_cover(Protocol.KITTY, escape="\033_Ga=T;AAAA\033\\"))
+            await pilot.pause()
+
+            strip = art.render_line(0)
+            control = [segment for segment in strip if segment.is_control]
+            assert control and control[0].text.startswith("\033_G")
+            # The escape must not eat cells, or the compositor would shift the
+            # rest of the row to the left.
+            assert strip.cell_length == art.size.width
+            # One anchor draws the whole image; the other rows stay empty.
+            assert not any(segment.is_control for segment in art.render_line(1))
+
+    asyncio.run(scenario())
+
+
+def test_a_modal_takes_the_cover_down_and_the_tick_puts_it_back(monkeypatch):
+    """kitty images float above the text, so a modal would open under them."""
+    isolate_runtime(monkeypatch)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test() as pilot:
+            art = application.query_one(Artwork)
+            cover = a_cover()
+            art.show(cover)
+            await pilot.pause()
+
+            application.push_screen(Screen())
+            await pilot.pause()
+            assert art.cover is None
+            assert application._art_hidden
+
+            application.pop_screen()
+            await pilot.pause()
+            application._tick_slow()
+            assert art.cover is cover
+            assert not application._art_hidden
+
+    asyncio.run(scenario())
+
+
+def test_the_same_cover_is_not_fetched_twice(monkeypatch):
+    isolate_runtime(monkeypatch)
+    asked: list[str] = []
+    monkeypatch.setattr(TidalAmp, "_art_worker", lambda self, url: asked.append(url))
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test() as pilot:
+            await pilot.pause()
+            entry = Entry(id=1, title="t", artist="a", art_url="https://c/1.jpg")
+            application._load_art(entry)
+            application._load_art(entry)
+            assert asked == ["https://c/1.jpg"]
+
+            # A track with no cover hides whatever was on screen.
+            application.query_one(Artwork).show(a_cover())
+            application._load_art(Entry(id=2, title="t2", artist="a"))
+            assert application.query_one(Artwork).cover is None
+
+    asyncio.run(scenario())
+
+
+def test_artwork_off_never_asks_for_a_cover(monkeypatch):
+    isolate_runtime(monkeypatch)
+    monkeypatch.setattr("tidalamp.artwork.detect_protocol", lambda env=None: Protocol.NONE)
+    asked: list[str] = []
+    monkeypatch.setattr(TidalAmp, "_art_worker", lambda self, url: asked.append(url))
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test() as pilot:
+            await pilot.pause()
+            application._load_art(Entry(id=1, title="t", artist="a", art_url="https://c/1.jpg"))
+            assert asked == []
+
+    asyncio.run(scenario())
+
+
+def test_pushing_a_screen_before_the_ui_exists_is_harmless(monkeypatch):
+    """Textual pushes the default screen while compose has not run yet."""
+    isolate_runtime(monkeypatch)
+    application = TidalAmp(object(), FakeMpv())
+    application._hide_art()
+    application._restore_art()
+    assert application._artwork() is None

@@ -4,8 +4,8 @@ Documento de traspaso. Describe qué existe, qué está verificado, qué falta y
 criterio se tomaron las decisiones, para que cualquiera (humano o modelo) pueda
 retomar el trabajo sin contexto previo.
 
-**Última actualización:** 2026-09-08 (empaquetado: PKGBUILD para el AUR, metadata de
-PyPI y workflows de CI/publicación con Trusted Publishing)
+**Última actualización:** 2026-09-08 (carátula en el terminal: kitty, sixel y medios
+bloques; antes, el empaquetado para el AUR y PyPI)
 
 ---
 
@@ -59,6 +59,8 @@ tidalamp/
   settings.py   Balance y ecualizador: grafos de filtro y persistencia.
   lyrics.py     Carga de letras, parseo LRC y modelo de sincronización. Sin Textual.
   theme.py      Paleta semántica: tema Omarchy activo o fallback clásico validado.
+  artwork.py    Carátula: descarga con cache, y codificación kitty / sixel /
+                medios bloques. Sin Textual ni tidalapi.
   mpris.py      Servicio MPRIS2 en D-Bus. Habla con la app por el Protocol
                 PlayerBackend, así que no conoce Textual ni tidalapi.
   cli.py        Entrypoint typer: login / tui / search.
@@ -75,7 +77,8 @@ Dependencia en un solo sentido:
 
 ```text
 cli -> app -> {player, stream, widgets, mpris, library, lyrics, spectrum, settings}
-       app -> {queue, net} -> {auth, config}
+       app -> {queue, net, artwork} -> {auth, config}
+       widgets -> artwork  (sólo los tipos Cover/Protocol y el borrado de kitty)
 ```
 
 `widgets.py` no conoce TIDAL ni mpv; recibe valores por reactives. Mantener esa
@@ -223,9 +226,31 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
 - [x] Reutiliza refresco de sesión, reintentos de red y una cache por pista durante la
       sesión. Una letra ausente muestra un error local sin afectar al reproductor.
 
+### Carátula — `artwork.py`, `widgets.py`
+
+- [x] Tres salidas, de más a menos fidelidad: protocolo gráfico de kitty (PNG en
+      trozos base64), sixel (cuantizado a 255 colores y codificado por longitud de
+      series) y medios bloques `▀`, que no necesitan protocolo alguno y funcionan en
+      cualquier terminal.
+- [x] Detección por entorno (`$TERM`, `$TERM_PROGRAM`, `$KITTY_WINDOW_ID`) con
+      `TIDALAMP_ART=kitty|sixel|blocks|off` para forzarla. **No se consulta al
+      terminal**: la respuesta entraría por el mismo canal que el teclado y Textual la
+      leería como pulsaciones.
+- [x] Descarga en un worker, con los reintentos de `net.py`, y cache en
+      `~/.cache/tidalamp/art/` con la URL como clave. Una cache que no se puede
+      escribir no impide ver la carátula.
+- [x] Recorte centrado al aspecto del recuadro antes de escalar, para no deformar una
+      portada cuadrada dentro de un rectángulo de celdas.
+- [x] Pillow es opcional: sin él `decode()` devuelve `None`, no hay carátula y no
+      cambia nada más. Mismo trato que cava.
+- [x] Las imágenes de kitty y sixel se pintan por encima del texto, en una capa que el
+      compositor de Textual desconoce: la carátula se retira al apilar una pantalla
+      modal y se restaura desde el tick lento al desapilarla, y se borra por id al
+      desmontar el widget.
+
 ### Tests — `tests/`
 
-- [x] `pytest`, 89 pruebas, sin red y sin TIDAL. `pip install -e ".[dev]"`.
+- [x] `pytest`, 122 pruebas, sin red y sin TIDAL. `pip install -e ".[dev]"`.
 - [x] `tests/fake_mpv.py`: un mpv falso que habla el IPC JSON real y **emite eventos
       asíncronos antes de cada respuesta**, que es justo la trampa del §7. Lleva la
       cuenta de los filtros con etiqueta y rechaza la sintaxis con la etiqueta detrás.
@@ -236,6 +261,10 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
       propiedades, controles, señales y colisión sin tocar el bus del usuario.
 - [x] `tests/test_theme.py`: detección XDG, mapeo semántico, variables TCSS y fallback
       ante ausencia, tema incompleto o TOML inválido; Textual cubre el cambio en vivo.
+- [x] `tests/test_artwork.py`: detección y override, cache, recorte centrado, medios
+      bloques, troceado de kitty (que se reensambla al PNG original) y **un
+      descodificador de sixel escrito en la propia prueba**, para comprobar el
+      codificador contra píxeles y no contra una cadena esperada.
 - [x] Cubren: cola (traversal, shuffle, repeat, mover, persistencia), paginación de la
       biblioteca, las dos ramas de `stream.resolve()` más DRM y manifiesto vacío,
       política de reintentos, `player` contra el mpv falso incluida la muerte y el
@@ -289,12 +318,17 @@ Distinguir esto importa: parte del código nunca se ha ejecutado contra TIDAL re
 | Reproducción real (`ao` de verdad) | **Verificado sólo con `ao=null`** | Nunca se ha sacado sonido por PipeWire en esta sesión.                                                                                                                          |
 | Ruta MPD -> HLS                    | **PARCIAL**                       | Ambas ramas están cubiertas por tests con manifiestos fijados, y `stream.resolve()` ya registra cuál toma. Falta una reproducción real con `TIDALAMP_DEBUG=1` para leerlo.      |
 | Empaquetado (sdist / wheel / AUR)  | **Verificado salvo la publicación** | `python -m build` + `twine check` en ambos artefactos; 89 pruebas desde el sdist extraído; `bash -n` y `makepkg --printsrcinfo` sobre el PKGBUILD; `pacman -Si` confirma que todas las dependencias están en `extra`. No se ha ejecutado `makepkg -si` ni se ha publicado nada: el tag no existe todavía. |
+| Carátula                           | **Verificado salvo la vista** | Unidades sobre los tres codificadores, incluida una vuelta completa de sixel a píxeles; la app real bajo un pty con `TERM=xterm-kitty` emite el APC gráfico anclado en la esquina del widget, y en medios bloques pyte muestra el recuadro de 18×9 con el resto del display intacto. Nadie ha mirado todavía una portada real en una ventana de kitty. |
 
-**Ya no hay ningún bloqueo de credenciales:** la sesión está guardada y la
-reproducción real está confirmada. La instrumentación de la rama de manifiesto ya está
-puesta: queda ejecutar `TIDALAMP_DEBUG=1 tidalamp tui`, reproducir una pista en cada
-calidad y leer `~/.local/state/tidalamp/tidalamp.log`. Es lo primero que debería hacer
-quien retome esto delante de un terminal de verdad.
+**Ojo con la sesión:** `~/.config/tidalamp/session.json` **ya no existe** (comprobado
+el 2026-09-08, después de la sesión en la que el usuario reprodujo música). Todo lo que
+diga «contra TIDAL real» en esta tabla empieza, hoy, por `tidalamp login`, que es
+interactivo por definición: el device flow pide abrir una URL y autorizar.
+
+Con la sesión rehecha, la instrumentación de la rama de manifiesto ya está puesta:
+`TIDALAMP_DEBUG=1 tidalamp tui`, reproducir una pista en cada calidad y leer
+`~/.local/state/tidalamp/tidalamp.log`. Es lo primero que debería hacer quien retome
+esto delante de un terminal de verdad.
 
 ## 6. Pendiente
 
@@ -302,9 +336,14 @@ P1–P4 están cerradas: lo que queda no es funcionalidad que falte para que el
 reproductor sirva, sino acabado, distribución y confirmar contra TIDAL real cosas hoy
 probadas sólo con dobles.
 
-**Orden propuesto (2026-09-08):** ~~P5 empaquetado (AUR y PyPI)~~ ✅ hecho salvo el
-alta manual en PyPI y el AUR, que requieren cuentas → las verificaciones reales cuando
-haya un terminal delante → carátula al final, como opcional.
+**Orden propuesto (2026-09-08):** ~~P5 empaquetado~~ y ~~carátula~~ ✅ hechos. Lo que
+queda pide credenciales o un par de ojos: el alta en PyPI y el AUR, y las
+verificaciones contra TIDAL real.
+
+**Aviso para quien retome esto:** ya no hay sesión guardada. `~/.config/tidalamp/`
+está vacío, así que las comprobaciones «contra TIDAL real» de §5 empiezan por
+`tidalamp login`, que es interactivo por definición (device flow) y no se puede
+automatizar.
 
 ### ~~P1 — Exponer MPRIS en D-Bus~~ ✅ HECHO
 
@@ -353,7 +392,10 @@ dejará de importar y con él no arranca la aplicación entera.
 
 - [x] Slider de balance (`,` `.` `\`), como filtro `pan`.
 - [x] Ventana de ecualizador de 10 bandas (`e`) sobre el filtro `equalizer`.
-- [ ] Carátula en el terminal vía protocolo Kitty/sixel.
+- [x] Carátula en el terminal vía protocolo Kitty/sixel, con medios bloques como
+      fallback universal. Ver §4. Queda por mirar con los ojos en un kitty de verdad,
+      y por decidir si el recuadro debe seguir el tamaño del terminal en vez de ser
+      18×9 fijo.
 - [x] Letras sincronizadas y fallback a texto plano (`y`).
 - [x] Colores adaptados al tema Omarchy activo, con cambio en vivo y fallback clásico.
 - [x] Empaquetado, dos canales que se complementan. El procedimiento completo de
@@ -427,6 +469,17 @@ Cosas que ya costaron tiempo una vez:
   `log.warning` sin handlers propios pinta encima de la TUI. Por eso `__init__.py`
   registra un `NullHandler` en el logger `tidalamp`: basta con que exista uno en la
   cadena para que el de último recurso no entre.
+- **Un protocolo gráfico que responde escribe en el teclado.** El terminal contesta
+  a cada trozo del protocolo de kitty por la misma vía por la que llegan las teclas, y
+  Textual lo lee como pulsaciones. `q=2` silencia esas respuestas; y por eso tampoco
+  se consulta al terminal para detectar el protocolo. `C=1` es el otro imprescindible:
+  sin él la imagen mueve el cursor por debajo del compositor.
+- **Una imagen de kitty flota por encima del texto.** Un modal se abre *debajo* de la
+  carátula, no encima. Hay que retirarla al apilar la pantalla y restaurarla al
+  desapilarla; `z=-1` no sirve, porque entonces el fondo del propio widget la taparía.
+- **`Segment(texto, None, True)` es un segmento de control**: mide cero celdas, así
+  que cabe dentro de una línea que el compositor ya está pintando sin descuadrarla.
+  Que sobreviva al recorte de `Strip` no era evidente: está comprobado bajo un pty.
 - **Textual captura stdout mientras la app corre**: un `print` dentro de `run_test()`
   no aparece hasta que el bloque termina. Para sacar datos de una app que sigue viva,
   escribe a un fichero.
@@ -436,7 +489,9 @@ Cosas que ya costaron tiempo una vez:
 - Arch Linux, Hyprland (Omarchy). Python 3.14, mpv y ffmpeg en el sistema.
 - Venv en `.venv/`, rehecho tras el renombrado; `.venv/bin/tidalamp` funciona de nuevo.
   Lleva el paquete en editable más `pytest` y `pyte`.
-- Tests: `.venv/bin/python -m pytest` (89 pruebas, ~2,5 s, sin red ni bus de usuario).
+- Tests: `.venv/bin/python -m pytest` (122 pruebas, ~5 s, sin red ni bus de usuario).
+  El extra `dev` arrastra Pillow, así que las pruebas de carátula corren de verdad; si
+  falta, se saltan solas.
 - `cava` está instalado en `/usr/bin/cava`; arranca con la configuración real de 19
   bandas. Las pruebas automatizadas siguen usando `tests/fake_cava.py` y falta validar
   visualmente una señal de audio del sink.

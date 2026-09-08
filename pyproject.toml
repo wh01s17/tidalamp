@@ -35,7 +35,10 @@ Issues = "https://github.com/wh01s17/tidalamp/issues"
 Changelog = "https://github.com/wh01s17/tidalamp/releases"
 
 [project.optional-dependencies]
-dev = ["pytest>=8"]
+# Album art needs a decoder. Without it the cover is simply not drawn, so it
+# stays out of the hard dependencies: `pip install "tidalamp[art]"`.
+art = ["pillow>=10"]
+dev = ["pytest>=8", "pillow>=10"]
 
 [project.scripts]
 tidalamp = "tidalamp.cli:main"

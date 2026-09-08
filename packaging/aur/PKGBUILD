@@ -15,7 +15,10 @@ depends=(
   'python-requests'
   'mpv'
 )
-optdepends=('cava: analizador de espectro real en vez del vúmetro RMS')
+optdepends=(
+  'cava: analizador de espectro real en vez del vúmetro RMS'
+  'python-pillow: carátula del álbum en el display'
+)
 makedepends=('python-build' 'python-installer' 'python-wheel' 'python-hatchling')
 checkdepends=('python-pytest')
 source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")

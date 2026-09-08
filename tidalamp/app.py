@@ -15,7 +15,7 @@ from textual.screen import ModalScreen
 from textual.widget import Widget
 from textual.widgets import Input, Static
 
-from . import library
+from . import artwork, library
 from .auth import NotLoggedIn, ensure_fresh
 from .library import Row
 from .lyrics import LyricsDocument, load_lyrics
@@ -27,7 +27,15 @@ from .settings import BAND_LABELS, GAIN_LIMIT, Settings
 from .spectrum import Cava, SpectrumUnavailable
 from .stream import StreamUnavailable, cleanup_playlists, resolve
 from .theme import ThemePalette, load_palette, palette_for
-from .widgets import Analyzer, EqualizerBars, Marquee, SeekBar, Slider, TimeDisplay
+from .widgets import (
+    Analyzer,
+    Artwork,
+    EqualizerBars,
+    Marquee,
+    SeekBar,
+    Slider,
+    TimeDisplay,
+)
 
 
 class RowList(Widget):
@@ -532,6 +540,11 @@ class TidalAmp(App):
         self._was_idle = True
         self.mpris = MprisService(self)
         self._mpris_ready = False
+        # How this terminal can draw a cover, decided once from the environment.
+        self.art_protocol = artwork.detect_protocol()
+        self._art_url = ""
+        self._art_hidden = False
+        self._pending_art: artwork.Cover | None = None
         # cava, when it is installed. None means the RMS fallback.
         self.cava: Cava | None = None
 
@@ -545,6 +558,7 @@ class TidalAmp(App):
         with Vertical(id="main"):
             yield Static("░▒▓ TIDAL AMP ▓▒░", id="titlebar")
             with Horizontal(id="display"):
+                yield Artwork(id="art")
                 yield TimeDisplay(id="clock")
                 with Vertical(id="readout"):
                     yield Marquee(id="marquee")
@@ -667,6 +681,9 @@ class TidalAmp(App):
         if idle and not self._was_idle:
             self.action_next()
         self._was_idle = idle
+
+        if self._art_hidden and len(self.screen_stack) == 1:
+            self._restore_art()
 
         if self._mpris_ready:
             self.mpris.publish()
@@ -838,6 +855,11 @@ class TidalAmp(App):
         self.action_stop()
         self.queue.clear()
         self._sync_queue()
+        self._art_url = ""
+        self._pending_art = None
+        widget = self._artwork()
+        if widget is not None:
+            widget.show(None)
         self.status = "cola vaciada"
 
     def action_shuffle(self) -> None:
@@ -866,7 +888,82 @@ class TidalAmp(App):
         self.query_one(Marquee).text = f"{index + 1}. {entry.label} ({entry.length})"
         self.status = f"resolviendo «{entry.title}»…"
         self.queue.save()
+        self._load_art(entry)
         self._resolve_worker(entry)
+
+    # ----------------------------------------------------------------- artwork
+
+    def _load_art(self, entry: Entry) -> None:
+        """Ask for this entry's cover, unless we are already showing it."""
+        if self.art_protocol is artwork.Protocol.NONE:
+            return
+        widget = self._artwork()
+        if widget is None:
+            return
+        if not entry.art_url:
+            self._art_url = ""
+            widget.show(None)
+            return
+        if entry.art_url == self._art_url:
+            return
+        self._art_url = entry.art_url
+        self._art_worker(entry.art_url)
+
+    # Its own group: the default one is the resolve worker's, and an exclusive
+    # worker cancels the rest of its group — the cover would kill playback.
+    @work(thread=True, exclusive=True, group="artwork")
+    def _art_worker(self, url: str) -> None:
+        widget = self.query_one(Artwork)
+        try:
+            data = artwork.fetch(url)
+            cover = artwork.render(
+                data,
+                Artwork.COLS,
+                Artwork.ROWS,
+                self.art_protocol,
+                image_id=widget.image_id,
+            )
+        except Exception as exc:
+            # A missing cover is decoration; it never touches the audio path.
+            self.call_from_thread(setattr, self, "status", f"sin carátula: {exc}")
+            return
+        if url == self._art_url:
+            self.call_from_thread(widget.show, cover)
+
+    def _artwork(self) -> Artwork | None:
+        """The cover widget, or ``None`` before ``compose`` has produced it.
+
+        Textual pushes the default screen on the way up, which reaches
+        ``push_screen`` below while there is still nothing to query.
+        """
+        try:
+            return self.query_one(Artwork)
+        except Exception:
+            return None
+
+    def _hide_art(self) -> None:
+        """Take the cover down while another screen is in front.
+
+        kitty and sixel images live above the text, so a modal would open
+        underneath the cover instead of over it.
+        """
+        widget = self._artwork()
+        if self._art_hidden or widget is None or widget.cover is None:
+            return
+        self._art_hidden = True
+        self._pending_art = widget.cover
+        widget.show(None)
+
+    def _restore_art(self) -> None:
+        widget = self._artwork()
+        if not self._art_hidden or widget is None:
+            return
+        self._art_hidden = False
+        widget.show(self._pending_art)
+
+    def push_screen(self, screen, callback=None, wait_for_dismiss=False, *, mode=None):  # type: ignore[override]
+        self._hide_art()
+        return super().push_screen(screen, callback, wait_for_dismiss, mode=mode)
 
     @work(thread=True, exclusive=True)
     def _resolve_worker(self, entry: Entry) -> None:

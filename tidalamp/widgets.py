@@ -4,10 +4,15 @@ from __future__ import annotations
 
 import random
 
+from rich.color import Color
+from rich.segment import Segment
+from rich.style import Style
 from rich.text import Text
 from textual.reactive import reactive
+from textual.strip import Strip
 from textual.widget import Widget
 
+from .artwork import Cover, Protocol, kitty_delete
 from .theme import palette_for
 
 # Classic seven-segment glyphs, three rows tall and three columns wide.
@@ -301,3 +306,81 @@ class Slider(Widget):
             bar.append("░" * max(0, track - filled), style=palette["bar_empty"])
         bar.append(f" {self.value:>3}", style=palette["muted"])
         return bar
+
+
+class Artwork(Widget):
+    """The album cover, drawn with whatever the terminal supports.
+
+    Two very different jobs behind one widget. With half blocks the cover is
+    ordinary text and the compositor handles it like any other widget. With
+    kitty or sixel the pixels live in a layer the compositor knows nothing
+    about, so the escape goes out as a Rich *control* segment — zero cells
+    wide, emitted in the middle of the line Textual is already drawing — and
+    it is our job to delete the image again when the widget goes away.
+    """
+
+    # 18 by 9 cells is square once you account for a cell being about twice
+    # as tall as it is wide, which is the shape every album cover comes in.
+    COLS = 18
+    ROWS = 9
+
+    DEFAULT_CSS = "Artwork { width: 18; height: 9; display: none; }"
+
+    def __init__(self, **kwargs) -> None:
+        super().__init__(**kwargs)
+        self.cover: Cover | None = None
+        # kitty addresses images by id; keeping one means a new cover replaces
+        # the old one instead of stacking up in the terminal's memory.
+        self.image_id = 1
+
+    def show(self, cover: Cover | None) -> None:
+        """Swap the cover. ``None`` hides the widget and reclaims its columns."""
+        if cover is None and self.cover is not None:
+            self._erase()
+        self.cover = cover
+        self.styles.display = "none" if cover is None else "block"
+        self.refresh()
+
+    def _erase(self) -> None:
+        """Ask the terminal to drop the image we transmitted, if any."""
+        if self.cover is None or self.cover.protocol is not Protocol.KITTY:
+            return
+        driver = getattr(self.app, "_driver", None)
+        if driver is not None:
+            try:
+                driver.write(kitty_delete(self.image_id))
+            except Exception:
+                # A cover left on screen is ugly; a crash on the way out is
+                # worse. Terminals drop their images when the app exits anyway.
+                pass
+
+    def on_unmount(self) -> None:
+        self._erase()
+
+    def render_line(self, y: int) -> Strip:
+        width = self.size.width
+        cover = self.cover
+        if cover is None:
+            return Strip.blank(width)
+
+        if cover.pixels is not None:
+            top = cover.pixels[y * 2] if y * 2 < len(cover.pixels) else ()
+            bottom = cover.pixels[y * 2 + 1] if y * 2 + 1 < len(cover.pixels) else ()
+            segments = [
+                Segment(
+                    "▀",
+                    Style(
+                        color=Color.from_rgb(*top[x]) if x < len(top) else None,
+                        bgcolor=Color.from_rgb(*bottom[x]) if x < len(bottom) else None,
+                    ),
+                )
+                for x in range(min(width, len(top)))
+            ]
+            return Strip(segments, len(segments)).adjust_cell_length(width)
+
+        # Pixel protocols draw the whole cover from one anchor, so the escape
+        # belongs on the first line only; the rest of the box stays blank and
+        # the image floats over it.
+        if y == 0 and cover.escape:
+            return Strip([Segment(cover.escape, None, True), Segment(" " * width)], width)
+        return Strip.blank(width)

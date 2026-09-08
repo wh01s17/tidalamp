@@ -22,6 +22,7 @@ Tres capas independientes:
 | Espectro | cava contra el sink, cuando está instalado | `spectrum.py` |
 | Audio | Balance y ecualizador como filtros de mpv | `settings.py` |
 | Letras | Carga, parseo LRC y fallback a texto plano | `lyrics.py` |
+| Carátula | Descarga, cache y pintado en el terminal | `artwork.py` |
 | Tema | Paleta Omarchy activa o fallback clásico | `theme.py` |
 
 **Autenticación**: no usa la API oficial de `developer.tidal.com` (que exige registrar
@@ -130,8 +131,8 @@ de verdad y `cava` como opcional.
 ### Resto de distribuciones (PyPI)
 
 ```sh
-sudo apt install mpv   # o el gestor que corresponda
-pipx install tidalamp
+sudo apt install mpv       # o el gestor que corresponda
+pipx install "tidalamp[art]"   # el extra `art` añade Pillow, para la carátula
 ```
 
 ### Desde el repositorio
@@ -239,6 +240,37 @@ abrir el sink, se vuelve al vúmetro sin interrumpir la reproducción.
 
 Un matiz honesto: cava escucha el **sink**, no nuestro proceso mpv. Muestra lo que
 suene en la máquina, que casi siempre es sólo nosotros.
+
+## Carátula
+
+La portada del álbum se dibuja a la izquierda del display, en un recuadro de 18×9
+celdas. Cómo se pinta depende de lo que sepa hacer tu terminal, y se decide solo:
+
+| Protocolo | Terminales | Qué se ve |
+|---|---|---|
+| kitty graphics | kitty, Ghostty, WezTerm | píxeles de verdad |
+| sixel | foot, mlterm, contour, yaft | píxeles de verdad |
+| medios bloques | cualquier otro | `▀` con dos colores por celda |
+
+La detección se hace leyendo `$TERM`, `$TERM_PROGRAM` y `$KITTY_WINDOW_ID`. Preguntar
+al terminal sería más exacto, pero la respuesta entraría por la misma vía que el
+teclado y Textual la leería como pulsaciones. Si acierta mal, el peor caso son medios
+bloques, que se ven razonablemente bien en cualquier sitio. Para forzarlo:
+
+```sh
+TIDALAMP_ART=blocks tidalamp tui   # kitty | sixel | blocks | off
+```
+
+Hace falta **Pillow** para descodificar la imagen (`pip install pillow`, o
+`pacman -S python-pillow`). Sin él no hay carátula y no cambia nada más: es el mismo
+trato que cava con el espectro. Las portadas se cachean en
+`~/.cache/tidalamp/art/`, con la URL como clave — TIDAL pone el id de la imagen en la
+ruta, así que una URL nunca cambia de contenido.
+
+Un detalle de implementación que se nota: las imágenes de kitty y sixel viven en una
+capa por encima del texto, de la que el compositor de Textual no sabe nada. Por eso la
+carátula se retira al abrir cualquier ventana modal y vuelve al cerrarla; si no, la
+letra o el ecualizador se abrirían por debajo de ella.
 
 ## Licencia
 

@@ -18,6 +18,7 @@ pkgbase = tidalamp
 	depends = python-requests
 	depends = mpv
 	optdepends = cava: analizador de espectro real en vez del vúmetro RMS
+	optdepends = python-pillow: carátula del álbum en el display
 	source = tidalamp-0.1.0.tar.gz::https://github.com/wh01s17/tidalamp/archive/refs/tags/v0.1.0.tar.gz
 	sha256sums = SKIP
 
