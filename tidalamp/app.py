@@ -541,6 +541,7 @@ class TidalAmp(App):
                 "  s shuf  r rep  q salir",
                 id="transport",
             )
+            yield Static("", id="modes")
             yield Static("▓ PLAYLIST ▓   d quitar   C vaciar   alt+↑↓ mover", id="pl-title")
             yield RowList(id="playlist")
             yield Static("", id="status")
@@ -562,6 +563,7 @@ class TidalAmp(App):
             self._sync_queue()
             playlist.cursor = max(0, self.queue.resume_at)
             self.status = f"cola restaurada ({len(self.queue)} pistas)"
+        self._refresh_modes()
 
     def _apply_audio(self) -> None:
         """Push balance and EQ into mpv's filter chain and redraw the slider.
@@ -630,7 +632,7 @@ class TidalAmp(App):
         seek = self.query_one(SeekBar)
         seek.position, seek.total = position, duration
         self.query_one("#volume", Slider).value = self.mpv.volume
-        self.query_one("#status", Static).update(f" {self._status_line()}")
+        self.query_one("#status", Static).update(f" {self.status}")
 
         # mpv going idle after having played something means the track ended.
         idle = self.mpv.idle
@@ -658,14 +660,26 @@ class TidalAmp(App):
         else:
             self.status = "mpv se reinició"
 
-    def _status_line(self) -> str:
-        flags = []
-        if self.queue.shuffle:
-            flags.append("SHUF")
-        if self.queue.repeat is not Repeat.NONE:
-            flags.append("REP:" + ("1" if self.queue.repeat is Repeat.TRACK else "ALL"))
-        prefix = f"[{' '.join(flags)}] " if flags else ""
-        return f"{prefix}{self.status}"
+    def _refresh_modes(self) -> None:
+        """Render persistent, legible shuffle and repeat state badges."""
+        active = "bold black on #00ff4c"
+        inactive = "bold #718078 on #14141a"
+        repeat = {
+            Repeat.NONE: "OFF",
+            Repeat.QUEUE: "ALL",
+            Repeat.TRACK: "1",
+        }[self.queue.repeat]
+        modes = Text("  ")
+        modes.append(
+            f" SHUF {'ON' if self.queue.shuffle else 'OFF'} ",
+            style=active if self.queue.shuffle else inactive,
+        )
+        modes.append("   ")
+        modes.append(
+            f" REP {repeat} ",
+            style=active if self.queue.repeat is not Repeat.NONE else inactive,
+        )
+        self.query_one("#modes", Static).update(modes, layout=False)
 
     # ------------------------------------------------------------------ queue
 
@@ -800,11 +814,13 @@ class TidalAmp(App):
     def action_shuffle(self) -> None:
         self.queue.shuffle = not self.queue.shuffle
         self.queue.save()
+        self._refresh_modes()
         self.status = "shuffle activado" if self.queue.shuffle else "shuffle desactivado"
 
     def action_repeat(self) -> None:
         self.queue.repeat = self.queue.repeat.next()
         self.queue.save()
+        self._refresh_modes()
         names = {Repeat.NONE: "sin repetición", Repeat.QUEUE: "repetir cola",
                  Repeat.TRACK: "repetir pista"}
         self.status = names[self.queue.repeat]
@@ -979,6 +995,7 @@ class TidalAmp(App):
         except ValueError:
             return
         self.queue.save()
+        self._refresh_modes()
 
     def mpris_shuffle(self) -> bool:
         return self.queue.shuffle
@@ -986,6 +1003,7 @@ class TidalAmp(App):
     def mpris_set_shuffle(self, value: bool) -> None:
         self.queue.shuffle = value
         self.queue.save()
+        self._refresh_modes()
 
     def mpris_play(self) -> None:
         if self.mpv.paused:

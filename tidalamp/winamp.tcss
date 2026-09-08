@@ -66,6 +66,12 @@ Screen {
     height: 1;
 }
 
+#modes {
+    background: #14141a;
+    color: #718078;
+    height: 1;
+}
+
 #pl-title {
     background: #2b3a4a;
     color: #b8c8d8;
