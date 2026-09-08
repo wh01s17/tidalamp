@@ -330,6 +330,15 @@ ese caso la ventana muestra un error y la reproducción continúa normalmente.
 .venv/bin/python -m pytest
 ```
 
+Las cuatro comprobaciones que corren en CI, y que conviene pasar antes de un commit:
+
+```sh
+.venv/bin/ruff format --check .   # formato
+.venv/bin/ruff check .            # linter
+.venv/bin/mypy                    # tipos
+.venv/bin/python -m pytest --cov  # pruebas, con un suelo de cobertura del 70 %
+```
+
 No tocan la red ni TIDAL: las sesiones y los manifiestos son dobles, y `player.py` se
 prueba contra un mpv falso (`tests/fake_mpv.py`) que habla el mismo IPC JSON — eventos
 asíncronos incluidos, que es justo la parte del protocolo que da problemas. El parser

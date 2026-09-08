@@ -11,9 +11,8 @@ service lives on that same loop rather than in a thread.
 
 from __future__ import annotations
 
-from typing import Any, Protocol
-
 import os
+from typing import Any, Protocol
 
 from dbus_fast import Variant
 from dbus_fast.aio import MessageBus
@@ -99,11 +98,11 @@ class _Root(ServiceInterface):
         return "tidalamp"
 
     @dbus_property(access=PropertyAccess.READ)
-    def SupportedUriSchemes(self) -> "as":  # noqa: N802, F821
+    def SupportedUriSchemes(self) -> "as":  # noqa: N802
         return []
 
     @dbus_property(access=PropertyAccess.READ)
-    def SupportedMimeTypes(self) -> "as":  # noqa: N802, F821
+    def SupportedMimeTypes(self) -> "as":  # noqa: N802
         return []
 
 
@@ -164,7 +163,7 @@ class _Player(ServiceInterface):
         return self._backend.mpris_status()
 
     @dbus_property(access=PropertyAccess.READ)
-    def Metadata(self) -> "a{sv}":  # noqa: N802, F821
+    def Metadata(self) -> "a{sv}":  # noqa: N802
         return _pack_metadata(self._backend.mpris_metadata())
 
     @dbus_property(access=PropertyAccess.READ)
@@ -339,7 +338,10 @@ class MprisService:
         if reply not in (RequestNameReply.PRIMARY_OWNER, RequestNameReply.ALREADY_OWNER):
             self.bus_name = f"{BUS_NAME}.instance{os.getpid()}"
             reply = await self._bus.request_name(self.bus_name)
-            if reply not in (RequestNameReply.PRIMARY_OWNER, RequestNameReply.ALREADY_OWNER):
+            if reply not in (
+                RequestNameReply.PRIMARY_OWNER,
+                RequestNameReply.ALREADY_OWNER,
+            ):
                 raise RuntimeError(f"no se pudo reclamar un nombre MPRIS ({reply.name})")
         return self.bus_name
 

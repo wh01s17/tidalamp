@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import random
 
 from rich.color import Color
@@ -121,7 +122,7 @@ class Analyzer(Widget):
 
     @property
     def source(self) -> str:
-        """"FFT" when cava is feeding us, "RMS" when we are guessing shapes."""
+        """ "FFT" when cava is feeding us, "RMS" when we are guessing shapes."""
         return "FFT" if self.spectrum is not None else "RMS"
 
     def _targets(self) -> list[float]:
@@ -215,7 +216,7 @@ class EqualizerBars(Widget):
         for row in range(rows):
             for band, gain in enumerate(gains):
                 # How far from the centre line this band reaches, in rows.
-                extent = int(round((gain / self.limit) * middle))
+                extent = round((gain / self.limit) * middle)
                 if row == middle:
                     glyph, style = "─", palette["empty"]
                 elif extent > 0 and middle - extent <= row < middle:
@@ -232,17 +233,13 @@ class EqualizerBars(Widget):
 
         for band, label in enumerate(self.labels):
             style = (
-                f"bold {palette['accent']}"
-                if band == self.selected
-                else palette["muted"]
+                f"bold {palette['accent']}" if band == self.selected else palette["muted"]
             )
             out.append(f"{label:>3} ", style=style)
         out.append("\n")
         for band, gain in enumerate(gains):
             style = (
-                f"bold {palette['accent']}"
-                if band == self.selected
-                else palette["muted"]
+                f"bold {palette['accent']}" if band == self.selected else palette["muted"]
             )
             out.append(f"{gain:>+3.0f} ", style=style)
         return out
@@ -399,12 +396,10 @@ class Artwork(Widget):
             return
         driver = getattr(self.app, "_driver", None)
         if driver is not None:
-            try:
+            # A cover left on screen is ugly; a crash on the way out is worse.
+            # Terminals drop their images when the app exits anyway.
+            with contextlib.suppress(Exception):
                 driver.write(kitty_delete(self.image_id))
-            except Exception:
-                # A cover left on screen is ugly; a crash on the way out is
-                # worse. Terminals drop their images when the app exits anyway.
-                pass
 
     def on_unmount(self) -> None:
         self._erase()
@@ -434,5 +429,9 @@ class Artwork(Widget):
         # belongs on the first line only; the rest of the box stays blank and
         # the image floats over it.
         if y == 0 and cover.escape:
-            return Strip([Segment(cover.escape, None, True), Segment(" " * width)], width)
+            # Rich only asks whether `control` is truthy; its type says a list
+            # of control codes, and there is no code for "an APC the terminal
+            # will read". True is what makes the segment measure zero cells.
+            escape = Segment(cover.escape, None, True)  # type: ignore[arg-type]
+            return Strip([escape, Segment(" " * width)], width)
         return Strip.blank(width)

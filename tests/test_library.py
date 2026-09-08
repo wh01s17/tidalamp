@@ -6,12 +6,11 @@ from __future__ import annotations
 from types import SimpleNamespace
 
 import pytest
+from conftest import FakeTrack
 
 from tidalamp import library
 from tidalamp.library import PAGE, Row, search_rows
 from tidalamp.queue import Entry
-
-from conftest import FakeTrack
 
 
 class FakeFavorites:
@@ -96,13 +95,12 @@ class FakePlaylistPrototype:
 
 
 class FakeSession:
-    def __init__(self, total: int = 0, playlists: int = 0, filtered: int = 0,
-                 counts: bool = True):
+    def __init__(
+        self, total: int = 0, playlists: int = 0, filtered: int = 0, counts: bool = True
+    ):
         favorites = FakeFavorites(total, filtered=filtered, counts=counts)
         self.favorites = favorites
-        self.user = type(
-            "U", (), {"favorites": favorites, "playlists": lambda: [], "id": 7}
-        )()
+        self.user = type("U", (), {"favorites": favorites, "playlists": list, "id": 7})()
         self.request = FakeRequest(playlists)
         self.searched: list[tuple[int, int]] = []
         self.searched_models: list[str] = []
@@ -116,22 +114,45 @@ class FakeSession:
         if name == "track":
             return {"tracks": [FakeTrack(i) for i in span]}
         if name == "album":
-            return {"albums": [SimpleNamespace(id=i, name=f"álbum {i}", year=2000 + i,
-                                              artist=SimpleNamespace(name="a"),
-                                              tracks=lambda limit=50, offset=0: [])
-                               for i in span]}
+            return {
+                "albums": [
+                    SimpleNamespace(
+                        id=i,
+                        name=f"álbum {i}",
+                        year=2000 + i,
+                        artist=SimpleNamespace(name="a"),
+                        tracks=lambda limit=50, offset=0: [],
+                    )
+                    for i in span
+                ]
+            }
         if name == "artist":
-            return {"artists": [SimpleNamespace(id=i, name=f"artista {i}",
-                                                get_top_tracks=lambda limit=50, offset=0: [])
-                                for i in span]}
-        return {"playlists": [SimpleNamespace(id=f"p{i}", name=f"lista {i}", num_tracks=i,
-                                              tracks=lambda limit=50, offset=0: [])
-                              for i in span]}
+            return {
+                "artists": [
+                    SimpleNamespace(
+                        id=i,
+                        name=f"artista {i}",
+                        get_top_tracks=lambda limit=50, offset=0: [],
+                    )
+                    for i in span
+                ]
+            }
+        return {
+            "playlists": [
+                SimpleNamespace(
+                    id=f"p{i}",
+                    name=f"lista {i}",
+                    num_tracks=i,
+                    tracks=lambda limit=50, offset=0: [],
+                )
+                for i in span
+            ]
+        }
 
 
 def favourite_tracks_level(session) -> list[Row]:
     rows = library.root(session)
-    return [r for r in rows if r.label == "Pistas favoritas"][0].loader()
+    return next(r for r in rows if r.label == "Pistas favoritas").loader()
 
 
 def test_a_short_page_has_no_more_row():
@@ -279,7 +300,7 @@ def test_search_categories_are_cached_per_query():
 def playlists_level(session, monkeypatch) -> list[Row]:
     monkeypatch.setattr(library.tidalapi, "Playlist", FakePlaylistPrototype)
     rows = library.root(session)
-    return [r for r in rows if r.label == "Mis playlists"][0].loader()
+    return next(r for r in rows if r.label == "Mis playlists").loader()
 
 
 def test_the_playlist_list_costs_one_request_per_page(monkeypatch):
@@ -395,7 +416,8 @@ def test_a_track_row_favourites_the_track():
 
     assert library.favourite(session, row, add=True) == "TOOL - Schism"
     assert library.favourite(session, row, add=False) == "TOOL - Schism"
-    assert favorites.calls == [("add_track", 42), ("remove_track", 42)]
+    # As a string: tidalapi joins ids with "," and types the argument as str.
+    assert favorites.calls == [("add_track", "42"), ("remove_track", "42")]
 
 
 @pytest.mark.parametrize(
@@ -408,7 +430,7 @@ def test_a_track_row_favourites_the_track():
 )
 def test_a_container_row_favourites_by_the_kind_in_its_key(key, added, removed):
     session, favorites = writer_session()
-    row = Row(label="Lateralus", key=key, loader=lambda: [])
+    row = Row(label="Lateralus", key=key, loader=list)
 
     library.favourite(session, row, add=True)
     library.favourite(session, row, add=False)
@@ -420,7 +442,7 @@ def test_a_container_row_favourites_by_the_kind_in_its_key(key, added, removed):
 @pytest.mark.parametrize("key", ["", "playlists", "fav:tracks", "search:albums:tool"])
 def test_a_heading_is_not_a_thing_you_can_favourite(key):
     session, favorites = writer_session()
-    row = Row(label="Mis playlists", key=key, loader=lambda: [])
+    row = Row(label="Mis playlists", key=key, loader=list)
 
     with pytest.raises(library.NotFavouritable):
         library.favourite(session, row)
@@ -430,5 +452,5 @@ def test_a_heading_is_not_a_thing_you_can_favourite(key):
 def test_a_more_row_is_not_favouritable():
     session, favorites = writer_session()
     with pytest.raises(library.NotFavouritable):
-        library.favourite(session, Row(label="más…", more=lambda: []))
+        library.favourite(session, Row(label="más…", more=list))
     assert favorites.calls == []

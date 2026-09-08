@@ -70,7 +70,7 @@ def test_invalid_or_incomplete_omarchy_theme_falls_back_safely(tmp_path):
 def test_minimal_omarchy_palette_never_mixes_in_classic_colors(tmp_path):
     colors = tmp_path / "colors.toml"
     colors.write_text(
-        '\n'.join(
+        "\n".join(
             (
                 'accent = "#112233"',
                 'background = "#223344"',

@@ -3,12 +3,13 @@ without hitting TIDAL."""
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
+from conftest import FakeTrack
 
 from tidalamp import stream
 from tidalamp.stream import StreamUnavailable, cleanup_playlists, resolve
-
-from conftest import FakeTrack
 
 
 class FakeManifest:
@@ -53,7 +54,9 @@ def cache_dir(tmp_path, monkeypatch):
 
 
 def test_bts_manifest_uses_the_first_url():
-    playable = resolve(track_with(FakeManifest(urls=["https://cdn/a", "https://cdn/b"]), "HIGH"))
+    playable = resolve(
+        track_with(FakeManifest(urls=["https://cdn/a", "https://cdn/b"]), "HIGH")
+    )
     assert playable.url == "https://cdn/a"
     assert playable.manifest == "BTS"
     assert playable.khz == "44"
@@ -203,7 +206,9 @@ def test_the_media_segments_keep_their_order_and_durations():
 
 
 def test_a_playlist_that_already_has_a_map_is_left_alone():
-    already = '#EXTM3U\n#EXT-X-MAP:URI="https://cdn/0.mp4"\n#EXTINF:1,\nhttps://cdn/1.mp4\n'
+    already = (
+        '#EXTM3U\n#EXT-X-MAP:URI="https://cdn/0.mp4"\n#EXTINF:1,\nhttps://cdn/1.mp4\n'
+    )
     assert stream._to_fmp4_hls(already) == already
 
 
@@ -214,5 +219,5 @@ def test_a_playlist_too_short_to_split_is_left_alone():
 
 def test_the_mpd_branch_writes_the_rewritten_playlist(cache_dir):
     playable = resolve(track_with(FakeManifest(is_mpd=True, hls=TIDALAPI_HLS)))
-    written = open(playable.url, encoding="utf-8").read()
+    written = Path(playable.url).read_text(encoding="utf-8")
     assert "#EXT-X-MAP:" in written

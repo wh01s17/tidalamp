@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 import shutil
 import socket
 import subprocess
@@ -139,14 +138,16 @@ class Mpv:
                     continue
                 # Async events share the stream; skip anything that is not ours.
                 if message.get("request_id") == rid:
-                    return message.get("data") if message.get("error") == "success" else None
+                    return (
+                        message.get("data") if message.get("error") == "success" else None
+                    )
             return None
 
     def _readline(self) -> bytes | None:
         while b"\n" not in self._buf:
             try:
                 chunk = self._sock.recv(65536)  # type: ignore[union-attr]
-            except (socket.timeout, OSError):
+            except (TimeoutError, OSError):
                 return None
             if not chunk:
                 return None

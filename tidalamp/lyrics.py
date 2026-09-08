@@ -71,7 +71,9 @@ def _plain_lines(text: str) -> tuple[LyricLine, ...]:
     return tuple(LyricLine(None, line) for line in raw)
 
 
-def parse_lyrics(text: str = "", subtitles: str = "", provider: str = "") -> LyricsDocument:
+def parse_lyrics(
+    text: str = "", subtitles: str = "", provider: str = ""
+) -> LyricsDocument:
     """Parse TIDAL's LRC subtitles, falling back to its plain lyric text."""
     timed: list[LyricLine] = []
     for raw in subtitles.splitlines():

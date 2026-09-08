@@ -21,8 +21,9 @@ import base64
 import hashlib
 import logging
 import os
+from collections.abc import Mapping
 from dataclasses import dataclass
-from enum import Enum
+from enum import StrEnum
 from pathlib import Path
 
 from .config import CACHE_DIR
@@ -42,7 +43,7 @@ Pixel = tuple[int, int, int]
 Matrix = tuple[tuple[Pixel, ...], ...]
 
 
-class Protocol(str, Enum):
+class Protocol(StrEnum):
     """How this terminal can show an image."""
 
     KITTY = "kitty"
@@ -58,9 +59,7 @@ _KITTY_PROGRAMS = ("ghostty", "WezTerm", "wezterm")
 _SIXEL_TERMS = ("foot", "mlterm", "contour", "yaft", "sixel")
 
 
-def detect_protocol(
-    env: dict[str, str] | None = None, configured: str = ""
-) -> Protocol:
+def detect_protocol(env: dict[str, str] | None = None, configured: str = "") -> Protocol:
     """Decide how to draw the cover, from the environment alone.
 
     Querying the terminal is the accurate way, but the reply would land in
@@ -70,9 +69,9 @@ def detect_protocol(
     ``TIDALAMP_ART``) overrides everything, including ``off``; ``auto`` means
     "guess".
     """
-    env = os.environ if env is None else env
+    values: Mapping[str, str] = os.environ if env is None else env
 
-    forced = (configured or env.get("TIDALAMP_ART") or "").strip().lower()
+    forced = (configured or values.get("TIDALAMP_ART") or "").strip().lower()
     if forced == "auto":
         forced = ""
     if forced in {"off", "none"}:
@@ -82,9 +81,13 @@ def detect_protocol(
     if forced:
         log.warning("TIDALAMP_ART=%r no es un protocolo conocido; se ignora", forced)
 
-    term = env.get("TERM", "")
-    program = env.get("TERM_PROGRAM", "")
-    if env.get("KITTY_WINDOW_ID") or term in _KITTY_TERMS or program in _KITTY_PROGRAMS:
+    term = values.get("TERM", "")
+    program = values.get("TERM_PROGRAM", "")
+    if (
+        values.get("KITTY_WINDOW_ID")
+        or term in _KITTY_TERMS
+        or program in _KITTY_PROGRAMS
+    ):
         return Protocol.KITTY
     if any(name in term for name in _SIXEL_TERMS):
         return Protocol.SIXEL
@@ -164,13 +167,13 @@ def decode(data: bytes, cols: int, rows: int, *, cell: tuple[int, int] = CELL):
     width = max(1, cols * cell[0])
     height = max(1, rows * cell[1])
     try:
-        image = Image.open(io.BytesIO(data))
-        image.load()
+        opened = Image.open(io.BytesIO(data))
+        opened.load()
     except Exception as exc:  # A broken download is not worth a traceback.
         log.warning("carátula ilegible: %s", exc)
         return None
 
-    image = image.convert("RGB")
+    image = opened.convert("RGB")
     # Centre-crop to the target aspect, then scale: covers are square and the
     # box rarely is, and letterboxing would show the panel through the middle.
     src_w, src_h = image.size
@@ -184,7 +187,7 @@ def decode(data: bytes, cols: int, rows: int, *, cell: tuple[int, int] = CELL):
         new_h = max(1, int(src_w / want))
         top = (src_h - new_h) // 2
         image = image.crop((0, top, src_w, top + new_h))
-    return image.resize((width, height), Image.LANCZOS)
+    return image.resize((width, height), Image.Resampling.LANCZOS)
 
 
 # ------------------------------------------------------------------ half blocks
@@ -261,7 +264,6 @@ def sixel_escape(image, colors: int = 255) -> str:
     ``-``. Runs are collapsed with ``!n``, which is what keeps a flat album
     cover from producing hundreds of kilobytes.
     """
-    from PIL import Image
 
     quantized = image.convert("RGB").quantize(colors=max(2, min(colors, 255)))
     width, height = quantized.size

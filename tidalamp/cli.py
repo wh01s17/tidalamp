@@ -26,7 +26,8 @@ def login() -> None:
         typer.echo(f"Caduca en {int(expires_in / 60)} minutos. Esperando…")
 
     session = do_login(show)
-    typer.secho(f"Sesión guardada para {session.user.id}.", fg=typer.colors.GREEN)
+    user_id = getattr(session.user, "id", "?")
+    typer.secho(f"Sesión guardada para {user_id}.", fg=typer.colors.GREEN)
 
 
 @app.command()
@@ -41,13 +42,13 @@ def tui() -> None:
         session = load_session()
     except NotLoggedIn as exc:
         typer.secho(str(exc), fg=typer.colors.RED)
-        raise typer.Exit(1)
+        raise typer.Exit(1) from exc
 
     try:
         mpv = Mpv()
     except MpvNotFound as exc:
         typer.secho(str(exc), fg=typer.colors.RED)
-        raise typer.Exit(1)
+        raise typer.Exit(1) from exc
 
     try:
         TidalAmp(session, mpv).run()
@@ -80,8 +81,7 @@ def show_config() -> None:
     unknown = unknown_key_actions()
     if unknown:
         typer.secho(
-            "\nEstas acciones de [keys] no existen y se ignoran: "
-            + ", ".join(unknown),
+            "\nEstas acciones de [keys] no existen y se ignoran: " + ", ".join(unknown),
             fg=typer.colors.YELLOW,
         )
 
@@ -92,7 +92,8 @@ def search(query: str, limit: int = 10) -> None:
     session = load_session()
     results = session.search(query, limit=limit)
     for track in results.get("tracks", []):
-        typer.echo(f"{track.id:>10}  {track.artist.name} - {track.name}")
+        artist = getattr(track.artist, "name", "")
+        typer.echo(f"{track.id:>10}  {artist} - {track.name}")
 
 
 def main() -> None:

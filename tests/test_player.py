@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import os
 import signal
 import sys
@@ -28,10 +29,8 @@ def mpv(tmp_path, monkeypatch):
 
     instance = Mpv()
     yield instance
-    try:
+    with contextlib.suppress(Exception):
         instance.close()
-    except Exception:
-        pass
 
 
 def test_properties_survive_the_async_event_noise(mpv):

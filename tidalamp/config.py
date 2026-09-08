@@ -96,7 +96,7 @@ KEYS: dict[str, str] = {
 }
 
 
-TEMPLATE = '''\
+TEMPLATE = """\
 # Configuración de tidalamp. Todo es opcional: lo que no esté aquí usa su valor
 # por defecto, y una variable de entorno gana siempre sobre este fichero.
 
@@ -115,7 +115,7 @@ debug = false
 # comas. Las de navegación (flechas, RePág/AvPág, Enter, Esc) no se cambian.
 [keys]
 %(keys)s
-'''
+"""
 
 
 def write_template(path: Path | None = None) -> Path:
@@ -150,7 +150,9 @@ def setup_logging() -> None:
         return
     ensure_dirs()
     handler = logging.FileHandler(LOG_FILE, encoding="utf-8")
-    handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s"))
+    handler.setFormatter(
+        logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s")
+    )
     logger = logging.getLogger("tidalamp")
     logger.setLevel(logging.DEBUG)
     logger.addHandler(handler)

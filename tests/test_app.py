@@ -8,9 +8,9 @@ import threading
 from textual.screen import Screen
 from textual.widgets import Static
 
+from tidalamp import library
 from tidalamp.app import BrowserScreen, TidalAmp
 from tidalamp.artwork import Cover, Protocol
-from tidalamp import library
 from tidalamp.library import Row
 from tidalamp.queue import Entry, Queue
 from tidalamp.settings import Settings
@@ -266,7 +266,9 @@ def test_artwork_off_never_asks_for_a_cover(monkeypatch):
         application = TidalAmp(object(), FakeMpv())
         async with application.run_test() as pilot:
             await pilot.pause()
-            application._load_art(Entry(id=1, title="t", artist="a", art_url="https://c/1.jpg"))
+            application._load_art(
+                Entry(id=1, title="t", artist="a", art_url="https://c/1.jpg")
+            )
             assert asked == []
 
     asyncio.run(scenario())
@@ -359,7 +361,7 @@ def test_the_browser_says_what_it_is_loading_and_stops_when_it_lands(monkeypatch
 
     def slow_root():
         release.wait(5)
-        return [Row(label="Mi playlist", loader=lambda: [])]
+        return [Row(label="Mi playlist", loader=list)]
 
     async def scenario() -> None:
         application = TidalAmp(object(), FakeMpv())
@@ -419,6 +421,7 @@ def test_going_back_stops_a_spinner_for_a_level_nobody_is_waiting_for(monkeypatc
     async def scenario() -> None:
         application = TidalAmp(object(), FakeMpv())
         async with application.run_test() as pilot:
+
             def blocked():
                 release.wait(5)
                 return []
@@ -507,7 +510,7 @@ def test_reload_drops_the_cached_level_and_asks_again(monkeypatch):
 
     def loader():
         calls.append(1)
-        return [Row(label="Mi playlist", loader=lambda: [])]
+        return [Row(label="Mi playlist", loader=list)]
 
     async def scenario() -> None:
         application = TidalAmp(object(), FakeMpv())
@@ -686,7 +689,9 @@ def test_a_favourite_that_fails_reaches_the_status_line(monkeypatch):
 def test_favouriting_drops_the_cached_favourites_levels(monkeypatch):
     """The level on disk is now a lie; the next visit must ask again."""
     isolate_runtime(monkeypatch)
-    monkeypatch.setattr("tidalamp.library.favourite", lambda s, r, add=True: r.entry.label)
+    monkeypatch.setattr(
+        "tidalamp.library.favourite", lambda s, r, add=True: r.entry.label
+    )
     monkeypatch.setattr("tidalamp.app.ensure_fresh", lambda session: False)
 
     async def scenario() -> None:

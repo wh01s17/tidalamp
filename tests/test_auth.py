@@ -84,7 +84,9 @@ def test_a_valid_session_is_returned_untouched(session_file, monkeypatch):
     assert fake.refresh_calls == []
 
 
-def test_an_expired_access_token_is_refreshed_instead_of_refused(session_file, monkeypatch):
+def test_an_expired_access_token_is_refreshed_instead_of_refused(
+    session_file, monkeypatch
+):
     """Opening the app the next day is the common case, not a dead session."""
     session_file.write_text("{}", encoding="utf-8")
     fake = install(monkeypatch, FakeSession(valid=False, refresh_token="r0"))
@@ -128,7 +130,9 @@ def test_a_handshake_that_still_fails_says_to_log_in(session_file, monkeypatch):
         load_session()
 
 
-def test_an_expired_session_with_nothing_to_refresh_says_to_log_in(session_file, monkeypatch):
+def test_an_expired_session_with_nothing_to_refresh_says_to_log_in(
+    session_file, monkeypatch
+):
     session_file.write_text("{}", encoding="utf-8")
     install(monkeypatch, FakeSession(valid=False, refresh_token=""))
 

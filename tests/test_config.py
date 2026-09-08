@@ -28,7 +28,9 @@ def fresh(monkeypatch, tmp_path, contents: str | None = None, **env: str):
     spec.loader.exec_module(module)
     # exec_module reassigns CONFIG_FILE from XDG; re-read against ours.
     module.FILE = module.read_file(path)
-    module.DEFAULT_QUALITY = module.setting("quality", "TIDALAMP_QUALITY", "HI_RES_LOSSLESS")
+    module.DEFAULT_QUALITY = module.setting(
+        "quality", "TIDALAMP_QUALITY", "HI_RES_LOSSLESS"
+    )
     module.ARTWORK = module.setting("artwork", "TIDALAMP_ART", "auto")
     module.DEBUG = module.flag("debug", "TIDALAMP_DEBUG")
     module.KEYS = {str(a): str(k) for a, k in (module.FILE.get("keys") or {}).items()}

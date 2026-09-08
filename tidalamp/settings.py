@@ -62,7 +62,7 @@ class Settings:
         """
         parts = [
             f"equalizer=f={freq}:t=q:w=1.0:g={gain:g}"
-            for freq, gain in zip(BANDS, self.gains)
+            for freq, gain in zip(BANDS, self.gains, strict=True)
             if abs(gain) >= 0.05
         ]
         return ",".join(parts) if parts else None
@@ -85,7 +85,7 @@ class Settings:
             pass
 
     @classmethod
-    def load(cls) -> "Settings":
+    def load(cls) -> Settings:
         try:
             raw = json.loads(SETTINGS_FILE.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError):

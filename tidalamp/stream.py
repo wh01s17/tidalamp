@@ -57,7 +57,9 @@ class Playable:
 
     @property
     def khz(self) -> str:
-        return f"{round((self.sample_rate or 44100) / 1000)}" if self.sample_rate else "44"
+        return (
+            f"{round((self.sample_rate or 44100) / 1000)}" if self.sample_rate else "44"
+        )
 
     @property
     def kbps(self) -> str:
@@ -127,7 +129,9 @@ def _to_fmp4_hls(playlist: str) -> str:
 
 def _write_hls(playlist: str, track_id: int) -> str:
     ensure_dirs()
-    path = Path(tempfile.mkstemp(dir=CACHE_DIR, prefix=f"track-{track_id}-", suffix=".m3u8")[1])
+    path = Path(
+        tempfile.mkstemp(dir=CACHE_DIR, prefix=f"track-{track_id}-", suffix=".m3u8")[1]
+    )
     path.write_text(playlist, encoding="utf-8")
     return str(path)
 
@@ -137,7 +141,9 @@ def resolve(track: tidalapi.Track) -> Playable:
     try:
         stream = with_retries(track.get_stream)
     except Exception as exc:  # tidalapi raises a grab-bag of API errors here
-        raise StreamUnavailable(f"TIDAL no devolvió stream para «{track.name}»: {exc}") from exc
+        raise StreamUnavailable(
+            f"TIDAL no devolvió stream para «{track.name}»: {exc}"
+        ) from exc
 
     manifest = stream.get_stream_manifest()
 

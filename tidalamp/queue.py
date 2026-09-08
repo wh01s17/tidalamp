@@ -10,14 +10,14 @@ from __future__ import annotations
 
 import json
 import random
+from collections.abc import Iterator
 from dataclasses import dataclass, field
-from enum import Enum
-from typing import Any, Iterator
+from enum import StrEnum
+from typing import Any
 
 import tidalapi
 
 from .config import QUEUE_FILE, ensure_dirs
-
 
 # Queue rows need an identity of their own: the same song can sit in the queue
 # twice, MPRIS TrackList addresses rows by id, and those ids have to survive a
@@ -38,14 +38,14 @@ def _claim_uid(value: int) -> int:
     return value
 
 
-class Repeat(str, Enum):
+class Repeat(StrEnum):
     """Repeat mode. The values match MPRIS ``LoopStatus`` exactly."""
 
     NONE = "None"
     TRACK = "Track"
     QUEUE = "Playlist"
 
-    def next(self) -> "Repeat":
+    def next(self) -> Repeat:
         order = [Repeat.NONE, Repeat.QUEUE, Repeat.TRACK]
         return order[(order.index(self) + 1) % len(order)]
 
@@ -66,7 +66,7 @@ class Entry:
     _track: tidalapi.Track | None = field(default=None, repr=False, compare=False)
 
     @classmethod
-    def from_track(cls, track: tidalapi.Track) -> "Entry":
+    def from_track(cls, track: tidalapi.Track) -> Entry:
         album = getattr(track, "album", None)
         art = ""
         if album is not None:
@@ -97,7 +97,9 @@ class Entry:
     def resolve(self, session: tidalapi.Session) -> tidalapi.Track:
         """Fetch the real Track, hitting the API only on a restored entry."""
         if self._track is None:
-            self._track = session.track(self.id)
+            # tidalapi types the id as a string; the API takes both and every
+            # track id we hold came back from it as an int.
+            self._track = session.track(str(self.id))
         return self._track
 
     def to_dict(self) -> dict[str, Any]:
@@ -112,7 +114,7 @@ class Entry:
         }
 
     @classmethod
-    def from_dict(cls, raw: dict[str, Any]) -> "Entry":
+    def from_dict(cls, raw: dict[str, Any]) -> Entry:
         return cls(
             id=int(raw["id"]),
             title=raw.get("title", ""),

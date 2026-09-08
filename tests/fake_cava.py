@@ -11,12 +11,14 @@ import os
 import sys
 import time
 
+
 def main():
     config = sys.argv[sys.argv.index("-p") + 1]
     bars, frames = 19, None
-    for line in open(config, encoding="utf-8"):
-        if line.startswith("bars"):
-            bars = int(line.split("=")[1])
+    with open(config, encoding="utf-8") as handle:
+        for line in handle:
+            if line.startswith("bars"):
+                bars = int(line.split("=")[1])
     frames = int(os.environ.get("FAKE_CAVA_FRAMES", "0"))  # 0 = forever
 
     sent = 0

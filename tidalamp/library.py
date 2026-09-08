@@ -8,8 +8,10 @@ from a worker thread, never on the UI loop.
 
 from __future__ import annotations
 
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
-from typing import Callable, Iterable
+from functools import partial
+from typing import Any, cast
 
 import tidalapi
 
@@ -21,20 +23,46 @@ from .queue import Entry
 # without pulling it whole on open.
 PAGE = 100
 
+
+def _me(session: tidalapi.Session) -> tidalapi.user.LoggedInUser:
+    """The logged-in user.
+
+    ``session.user`` is typed as a union that includes ``None``, because a
+    tidalapi session need not be logged in. Ours always is: ``load_session``
+    refuses to return one that is not.
+    """
+    return cast("tidalapi.user.LoggedInUser", session.user)
+
+
+def _count_of(item: object) -> int | None:
+    """How many tracks a playlist or an album holds, when it says so."""
+    count = getattr(item, "num_tracks", None)
+    return int(count) if count is not None else None
+
+
+def _page_of(item: Any, offset: int, limit: int) -> list:
+    """One page of the tracks inside a playlist or an album."""
+    return item.tracks(limit=limit, offset=offset)
+
+
+def _top_tracks_of(artist: Any, offset: int, limit: int) -> list:
+    return artist.get_top_tracks(limit=limit, offset=offset)
+
+
 # Levels already fetched, so walking back into one is instant. In memory only:
 # it dies with the process, which is the right lifetime for a view of a library
 # the user can change from another device. `R` in the browser forces a refetch.
-_LEVELS: dict[str, list["Row"]] = {}
+_LEVELS: dict[str, list[Row]] = {}
 
 
-def cached(key: str, loader: Callable[[], list["Row"]]) -> Callable[[], list["Row"]]:
+def cached(key: str, loader: Callable[[], list[Row]]) -> Callable[[], list[Row]]:
     """Memoise one level's rows under ``key``.
 
     The cached list is handed out as-is, not copied, on purpose: loading
     another page mutates the level in place (see ``RowList.extend_at``), so the
     pages the user already pulled are still there when they come back."""
 
-    def load() -> list["Row"]:
+    def load() -> list[Row]:
         rows = _LEVELS.get(key)
         if rows is None:
             rows = loader()
@@ -59,13 +87,13 @@ class Row:
     label: str
     detail: str = ""
     entry: Entry | None = None
-    loader: Callable[[], list["Row"]] | None = None
+    loader: Callable[[], list[Row]] | None = None
     # Identifies the level ``loader`` returns, for the cache above and for the
     # browser's reload key. Empty means "do not cache this".
     key: str = ""
     # Fetches the next page and gets appended to *this* level in place,
     # replacing the row itself.
-    more: Callable[[], list["Row"]] | None = None
+    more: Callable[[], list[Row]] | None = None
 
     @property
     def is_playable(self) -> bool:
@@ -130,17 +158,15 @@ def _playlist_rows(playlists: Iterable[tidalapi.Playlist]) -> list[Row]:
         count = playlist.num_tracks or 0
         rows.append(
             Row(
-                label=playlist.name,
+                label=playlist.name or "",
                 detail=f"{count} pistas",
                 key=f"playlist:{playlist.id}",
                 loader=cached(
                     f"playlist:{playlist.id}",
                     _paged(
-                        lambda offset, limit, p=playlist: p.tracks(
-                            limit=limit, offset=offset
-                        ),
+                        partial(_page_of, playlist),
                         _tracks_to_rows,
-                        count=lambda p=playlist: p.num_tracks,
+                        count=partial(_count_of, playlist),
                     ),
                 ),
             )
@@ -164,7 +190,7 @@ def _playlists_level(session: tidalapi.Session) -> Callable[[], list[Row]]:
         response = with_retries(
             lambda: session.request.request(
                 "GET",
-                f"users/{session.user.id}/playlists",
+                f"users/{_me(session).id}/playlists",
                 params={"limit": limit, "offset": offset},
             )
         )
@@ -177,7 +203,7 @@ def _playlists_level(session: tidalapi.Session) -> Callable[[], list[Row]]:
         response = with_retries(
             lambda: session.request.request(
                 "GET",
-                f"users/{session.user.id}/playlists",
+                f"users/{_me(session).id}/playlists",
                 params={"limit": 1, "offset": 0},
             )
         )
@@ -192,17 +218,15 @@ def _album_rows(albums: Iterable[tidalapi.Album]) -> list[Row]:
         artist = getattr(getattr(album, "artist", None), "name", "") or ""
         rows.append(
             Row(
-                label=f"{artist} - {album.name}" if artist else album.name,
+                label=f"{artist} - {album.name}" if artist else (album.name or ""),
                 detail=str(getattr(album, "year", "") or ""),
                 key=f"album:{album.id}",
                 loader=cached(
                     f"album:{album.id}",
                     _paged(
-                        lambda offset, limit, a=album: a.tracks(
-                            limit=limit, offset=offset
-                        ),
+                        partial(_page_of, album),
                         _tracks_to_rows,
-                        count=lambda a=album: getattr(a, "num_tracks", None),
+                        count=partial(_count_of, album),
                     ),
                 ),
             )
@@ -215,15 +239,13 @@ def _artist_rows(artists: Iterable[tidalapi.Artist]) -> list[Row]:
     for artist in artists:
         rows.append(
             Row(
-                label=artist.name,
+                label=artist.name or "",
                 detail="artista",
                 key=f"artist:{artist.id}",
                 loader=cached(
                     f"artist:{artist.id}",
                     _paged(
-                        lambda offset, limit, a=artist: a.get_top_tracks(
-                            limit=limit, offset=offset
-                        ),
+                        partial(_top_tracks_of, artist),
                         _tracks_to_rows,
                     ),
                 ),
@@ -234,7 +256,7 @@ def _artist_rows(artists: Iterable[tidalapi.Artist]) -> list[Row]:
 
 def root(session: tidalapi.Session) -> list[Row]:
     """The top level of the browser."""
-    favorites = session.user.favorites
+    favorites = _me(session).favorites
     return [
         Row(
             "Mis playlists",
@@ -299,14 +321,15 @@ def favourite(session: tidalapi.Session, row: Row, add: bool = True) -> str:
     Returns a label for the status line; raises :class:`NotFavouritable` for a
     row that is a heading, a "más…" or a level rather than a piece of music.
     """
-    favorites = session.user.favorites
-    if row.entry is not None:
-        call = favorites.add_track if add else favorites.remove_track
-        with_retries(lambda: call(row.entry.id))
-        return row.entry.label
+    favorites = _me(session).favorites
+    entry = row.entry
+    if entry is not None:
+        track = favorites.add_track if add else favorites.remove_track
+        with_retries(lambda: track(str(entry.id)))
+        return entry.label
 
     kind, _, ident = row.key.partition(":")
-    calls = {
+    calls: dict[str, tuple[Callable[[str], bool], Callable[[str], bool]]] = {
         "album": (favorites.add_album, favorites.remove_album),
         "artist": (favorites.add_artist, favorites.remove_artist),
         "playlist": (favorites.add_playlist, favorites.remove_playlist),
@@ -331,7 +354,8 @@ def _search_level(
         results = with_retries(
             lambda: session.search(query, models=[model], limit=limit, offset=offset)
         )
-        return results.get(bucket, [])
+        # SearchResults is a TypedDict and we index it by a runtime key.
+        return list(cast("dict[str, list]", results).get(bucket, []))
 
     return _paged(fetch, render)
 
@@ -345,7 +369,7 @@ def search_rows(session: tidalapi.Session, query: str) -> list[Row]:
     the tracks are fetched on open. Each category costs a request when, and
     only when, it is opened.
     """
-    categories = [
+    categories: list[tuple[str, type, str, Callable[[list], list[Row]]]] = [
         ("Álbumes", tidalapi.Album, "albums", _album_rows),
         ("Artistas", tidalapi.Artist, "artists", _artist_rows),
         ("Playlists", tidalapi.Playlist, "playlists", _playlist_rows),

@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import Callable
+from collections.abc import Callable
+from typing import cast
 
 import tidalapi
 from rich.text import Text
@@ -61,7 +62,7 @@ class RowList(Widget):
         user's scroll position."""
         if not 0 <= index < len(self.rows):
             return
-        self.rows[index:index + 1] = rows
+        self.rows[index : index + 1] = rows
         self.cursor = min(index, max(0, len(self.rows) - 1))
         self.refresh()
 
@@ -95,9 +96,7 @@ class RowList(Widget):
             if i == self.cursor:
                 out.append(
                     line,
-                    style=(
-                        f"bold {palette['active_foreground']} on {palette['accent']}"
-                    ),
+                    style=(f"bold {palette['active_foreground']} on {palette['accent']}"),
                 )
             elif i == self.marked:
                 out.append(line, style=f"bold {palette['accent']}")
@@ -156,6 +155,11 @@ class BrowserScreen(ModalScreen[tuple | None]):
         Binding("f", "favourite", "favorito", show=False),
         Binding("F", "unfavourite", "quitar favorito", show=False),
     ]
+
+    @property
+    def player(self) -> TidalAmp:
+        """The app this screen belongs to. Textual only types it as ``App``."""
+        return cast("TidalAmp", self.app)
 
     def __init__(self, title: str, loader, key: str = "") -> None:
         super().__init__()
@@ -329,7 +333,7 @@ class BrowserScreen(ModalScreen[tuple | None]):
     @work(thread=True, exclusive=True, group="favourite")
     def _favourite_worker(self, row: Row, add: bool) -> None:
         try:
-            message = favourite_message(self.app.session, row, add)
+            message = favourite_message(self.player.session, row, add)
         except Exception as exc:
             self.app.call_from_thread(self._favourite_done, f"favoritos: {exc}")
             return
@@ -337,7 +341,7 @@ class BrowserScreen(ModalScreen[tuple | None]):
 
     def _favourite_done(self, message: str) -> None:
         self._idle()
-        self.app.status = message
+        self.player.status = message
 
     @work(thread=True, exclusive=True)
     def _append_container(self, loader) -> None:
@@ -652,7 +656,7 @@ class MainPanel(Vertical):
     """
 
     def on_resize(self, event) -> None:
-        self.app._check_size()
+        cast("TidalAmp", self.app)._check_size()
 
 
 class TidalAmp(App):
@@ -749,7 +753,9 @@ class TidalAmp(App):
                 id="transport",
             )
             yield Static("", id="modes")
-            yield Static("▓ PLAYLIST ▓   d quitar   C vaciar   alt+↑↓ mover", id="pl-title")
+            yield Static(
+                "▓ PLAYLIST ▓   d quitar   C vaciar   alt+↑↓ mover", id="pl-title"
+            )
             yield RowList(id="playlist")
             with Horizontal(id="statusbar"):
                 yield Spinner(id="busy")
@@ -931,9 +937,7 @@ class TidalAmp(App):
         """Push the queue into the playlist widget."""
         playlist = self.query_one("#playlist", RowList)
         cursor = playlist.cursor
-        playlist.rows = [
-            Row(label=e.label, detail=e.length, entry=e) for e in self.queue
-        ]
+        playlist.rows = [Row(label=e.label, detail=e.length, entry=e) for e in self.queue]
         playlist.cursor = max(0, min(cursor, len(playlist.rows) - 1))
         playlist.marked = self.queue.playing
         playlist.refresh()
@@ -1070,8 +1074,11 @@ class TidalAmp(App):
         self.queue.repeat = self.queue.repeat.next()
         self.queue.save()
         self._refresh_modes()
-        names = {Repeat.NONE: "sin repetición", Repeat.QUEUE: "repetir cola",
-                 Repeat.TRACK: "repetir pista"}
+        names = {
+            Repeat.NONE: "sin repetición",
+            Repeat.QUEUE: "repetir cola",
+            Repeat.TRACK: "repetir pista",
+        }
         self.status = names[self.queue.repeat]
 
     def _play_index(self, index: int) -> None:
@@ -1162,7 +1169,7 @@ class TidalAmp(App):
         self._art_hidden = False
         widget.show(self._pending_art)
 
-    def push_screen(self, screen, callback=None, wait_for_dismiss=False, *, mode=None):  # type: ignore[override]
+    def push_screen(self, screen, callback=None, wait_for_dismiss=False, *, mode=None):
         self._hide_art()
         return super().push_screen(screen, callback, wait_for_dismiss, mode=mode)
 
@@ -1250,13 +1257,19 @@ class TidalAmp(App):
 
     def _eq_closed(self, _: None) -> None:
         self.settings.save()
-        self.status = "ecualizador activo" if self.settings.eq_active else "ecualizador plano"
+        self.status = (
+            "ecualizador activo" if self.settings.eq_active else "ecualizador plano"
+        )
 
     def _nudge_balance(self, delta: float) -> None:
         value = self.settings.set_balance(self.settings.balance + delta)
         self._apply_audio()
         self.settings.save()
-        side = "centro" if value == 0 else (f"{abs(int(value * 100))}% " + ("izq" if value < 0 else "der"))
+        side = (
+            "centro"
+            if value == 0
+            else (f"{abs(int(value * 100))}% " + ("izq" if value < 0 else "der"))
+        )
         self.status = f"balance: {side}"
 
     def action_balance_left(self) -> None:
@@ -1308,8 +1321,10 @@ class TidalAmp(App):
         clock = self.query_one(TimeDisplay)
         clock.countdown = not clock.countdown
 
-    def action_quit(self) -> None:
-        self.run_worker(self._shutdown(), exclusive=False)
+    async def action_quit(self) -> None:
+        # Async because Textual's own action_quit is: saving the queue, closing
+        # mpv and dropping off the bus are things to finish, not to fire off.
+        await self._shutdown()
 
     async def _shutdown(self) -> None:
         self.queue.save()
@@ -1412,4 +1427,6 @@ class TidalAmp(App):
         self.mpris.seeked(position)
 
     def mpris_quit(self) -> None:
-        self.action_quit()
+        # Comes in on the bus, not from the keyboard: hand the shutdown to the
+        # loop rather than awaiting it inside a D-Bus method call.
+        self.run_worker(self._shutdown(), exclusive=False)

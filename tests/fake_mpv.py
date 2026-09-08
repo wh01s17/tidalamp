@@ -9,11 +9,11 @@ us before (the reply we want is not necessarily the first line back).
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import socket
 import sys
-import threading
 
 # Labelled filters currently in the chain, so the tests can assert on what
 # set_filter() actually sent.
@@ -89,7 +89,11 @@ def serve(path):
             data, error = handle(message["command"], conn)
             conn.sendall(
                 json.dumps(
-                    {"data": data, "error": error, "request_id": message.get("request_id")}
+                    {
+                        "data": data,
+                        "error": error,
+                        "request_id": message.get("request_id"),
+                    }
                 ).encode()
                 + b"\n"
             )
@@ -108,10 +112,8 @@ def main():
     try:
         serve(path)
     finally:
-        try:
+        with contextlib.suppress(OSError):
             os.unlink(path)
-        except OSError:
-            pass
 
 
 if __name__ == "__main__":

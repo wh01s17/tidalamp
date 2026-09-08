@@ -1,3 +1,4 @@
+import pytest
 import requests
 
 from tidalamp.net import with_retries
@@ -54,10 +55,8 @@ def test_a_404_is_not_retried(monkeypatch):
         calls.append(1)
         raise _http_error(404)
 
-    try:
+    with pytest.raises(requests.HTTPError):
         with_retries(not_found)
-    except requests.HTTPError:
-        pass
     assert len(calls) == 1
 
 
@@ -69,8 +68,6 @@ def test_a_503_is_retried(monkeypatch):
         calls.append(1)
         raise _http_error(503)
 
-    try:
+    with pytest.raises(requests.HTTPError):
         with_retries(unavailable)
-    except requests.HTTPError:
-        pass
     assert len(calls) == 3

@@ -5,13 +5,14 @@ dependencia real y `cava` como opcional, y PyPI para el resto, donde no se puede
 
 ## Publicar una versión
 
-1. Subir `version` en `pyproject.toml` y `pkgver` en `packaging/aur/PKGBUILD`.
-2. Regenerar el `.SRCINFO`: `cd packaging/aur && makepkg --printsrcinfo > .SRCINFO`.
-3. Commit, `git tag vX.Y.Z`, `git push --tags`.
-4. El tag dispara `.github/workflows/release.yml`, que comprueba que el tag coincide
+1. Cerrar la sección «Sin publicar» de `CHANGELOG.md` con el número y la fecha.
+2. Subir `version` en `pyproject.toml` y `pkgver` en `packaging/aur/PKGBUILD`.
+3. Regenerar el `.SRCINFO`: `cd packaging/aur && makepkg --printsrcinfo > .SRCINFO`.
+4. Commit, `git tag vX.Y.Z`, `git push --tags`.
+5. El tag dispara `.github/workflows/release.yml`, que comprueba que el tag coincide
    con la versión del `pyproject.toml`, construye sdist y wheel, pasa `twine check` y
    publica en PyPI.
-5. Actualizar el `sha256sums` del PKGBUILD (§AUR) y subirlo al AUR.
+6. Actualizar el `sha256sums` del PKGBUILD (§AUR) y subirlo al AUR.
 
 ## PyPI (Trusted Publishing)
 
