@@ -524,10 +524,6 @@ class TidalAmp(App):
         seek = self.query_one(SeekBar)
         seek.position, seek.total = position, duration
         self.query_one("#volume", Slider).value = self.mpv.volume
-        balance = self.query_one("#balance", Slider)
-        balance.label = "BAL"
-        balance.centred = True
-        self._apply_audio()
         self.query_one("#status", Static).update(f" {self._status_line()}")
 
         # mpv going idle after having played something means the track ended.
