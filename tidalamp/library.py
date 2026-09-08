@@ -21,6 +21,36 @@ from .queue import Entry
 # without pulling it whole on open.
 PAGE = 100
 
+# Levels already fetched, so walking back into one is instant. In memory only:
+# it dies with the process, which is the right lifetime for a view of a library
+# the user can change from another device. `R` in the browser forces a refetch.
+_LEVELS: dict[str, list["Row"]] = {}
+
+
+def cached(key: str, loader: Callable[[], list["Row"]]) -> Callable[[], list["Row"]]:
+    """Memoise one level's rows under ``key``.
+
+    The cached list is handed out as-is, not copied, on purpose: loading
+    another page mutates the level in place (see ``RowList.extend_at``), so the
+    pages the user already pulled are still there when they come back."""
+
+    def load() -> list["Row"]:
+        rows = _LEVELS.get(key)
+        if rows is None:
+            rows = loader()
+            _LEVELS[key] = rows
+        return rows
+
+    return load
+
+
+def forget(key: str = "") -> None:
+    """Drop one cached level, or all of them when ``key`` is empty."""
+    if key:
+        _LEVELS.pop(key, None)
+    else:
+        _LEVELS.clear()
+
 
 @dataclass(slots=True)
 class Row:
@@ -30,6 +60,9 @@ class Row:
     detail: str = ""
     entry: Entry | None = None
     loader: Callable[[], list["Row"]] | None = None
+    # Identifies the level ``loader`` returns, for the cache above and for the
+    # browser's reload key. Empty means "do not cache this".
+    key: str = ""
     # Fetches the next page and gets appended to *this* level in place,
     # replacing the row itself.
     more: Callable[[], list["Row"]] | None = None
@@ -70,22 +103,55 @@ def _tracks_to_rows(tracks: Iterable[tidalapi.Track]) -> list[Row]:
     return rows
 
 
-def _playlist_rows(session: tidalapi.Session) -> list[Row]:
-    # user.playlists() has no offset in tidalapi; it returns them all.
+def _playlist_rows(playlists: Iterable[tidalapi.Playlist]) -> list[Row]:
     rows = []
-    for playlist in with_retries(session.user.playlists):
+    for playlist in playlists:
         count = playlist.num_tracks or 0
         rows.append(
             Row(
                 label=playlist.name,
                 detail=f"{count} pistas",
-                loader=_paged(
-                    lambda offset, limit, p=playlist: p.tracks(limit=limit, offset=offset),
-                    _tracks_to_rows,
+                key=f"playlist:{playlist.id}",
+                loader=cached(
+                    f"playlist:{playlist.id}",
+                    _paged(
+                        lambda offset, limit, p=playlist: p.tracks(
+                            limit=limit, offset=offset
+                        ),
+                        _tracks_to_rows,
+                    ),
                 ),
             )
         )
     return rows
+
+
+def _playlists_level(session: tidalapi.Session) -> Callable[[], list[Row]]:
+    """The playlists the user created, one page per request.
+
+    ``session.user.playlists()`` looks like a single call and is not: parsing
+    each item runs it through ``Playlist.factory()``, which for a playlist you
+    own builds a ``UserPlaylist``, and *that* constructor fetches the playlist
+    again just to read its ETag. Measured on a real account: 110 playlists,
+    111 HTTP requests, twenty seconds. We never edit playlists, so we parse the
+    listing ourselves and skip the factory — one request, a quarter of a
+    second — and paginate it like every other level.
+    """
+
+    def fetch(offset: int, limit: int) -> list[tidalapi.Playlist]:
+        response = with_retries(
+            lambda: session.request.request(
+                "GET",
+                f"users/{session.user.id}/playlists",
+                params={"limit": limit, "offset": offset},
+            )
+        )
+        # parse() fills a Playlist from the listing without asking the API for
+        # anything; it is factory() that costs a request per row.
+        prototype = tidalapi.Playlist(session, None)
+        return [prototype.parse(item) for item in response.json().get("items", [])]
+
+    return _paged(fetch, _playlist_rows)
 
 
 def _album_rows(albums: Iterable[tidalapi.Album]) -> list[Row]:
@@ -96,9 +162,15 @@ def _album_rows(albums: Iterable[tidalapi.Album]) -> list[Row]:
             Row(
                 label=f"{artist} - {album.name}" if artist else album.name,
                 detail=str(getattr(album, "year", "") or ""),
-                loader=_paged(
-                    lambda offset, limit, a=album: a.tracks(limit=limit, offset=offset),
-                    _tracks_to_rows,
+                key=f"album:{album.id}",
+                loader=cached(
+                    f"album:{album.id}",
+                    _paged(
+                        lambda offset, limit, a=album: a.tracks(
+                            limit=limit, offset=offset
+                        ),
+                        _tracks_to_rows,
+                    ),
                 ),
             )
         )
@@ -112,11 +184,15 @@ def _artist_rows(artists: Iterable[tidalapi.Artist]) -> list[Row]:
             Row(
                 label=artist.name,
                 detail="artista",
-                loader=_paged(
-                    lambda offset, limit, a=artist: a.get_top_tracks(
-                        limit=limit, offset=offset
+                key=f"artist:{artist.id}",
+                loader=cached(
+                    f"artist:{artist.id}",
+                    _paged(
+                        lambda offset, limit, a=artist: a.get_top_tracks(
+                            limit=limit, offset=offset
+                        ),
+                        _tracks_to_rows,
                     ),
-                    _tracks_to_rows,
                 ),
             )
         )
@@ -127,29 +203,46 @@ def root(session: tidalapi.Session) -> list[Row]:
     """The top level of the browser."""
     favorites = session.user.favorites
     return [
-        Row("Mis playlists", "", loader=lambda: _playlist_rows(session)),
+        Row(
+            "Mis playlists",
+            "",
+            key="playlists",
+            loader=cached("playlists", _playlists_level(session)),
+        ),
         Row(
             "Pistas favoritas",
             "",
-            loader=_paged(
-                lambda offset, limit: favorites.tracks(limit=limit, offset=offset),
-                _tracks_to_rows,
+            key="fav:tracks",
+            loader=cached(
+                "fav:tracks",
+                _paged(
+                    lambda offset, limit: favorites.tracks(limit=limit, offset=offset),
+                    _tracks_to_rows,
+                ),
             ),
         ),
         Row(
             "Álbumes favoritos",
             "",
-            loader=_paged(
-                lambda offset, limit: favorites.albums(limit=limit, offset=offset),
-                _album_rows,
+            key="fav:albums",
+            loader=cached(
+                "fav:albums",
+                _paged(
+                    lambda offset, limit: favorites.albums(limit=limit, offset=offset),
+                    _album_rows,
+                ),
             ),
         ),
         Row(
             "Artistas favoritos",
             "",
-            loader=_paged(
-                lambda offset, limit: favorites.artists(limit=limit, offset=offset),
-                _artist_rows,
+            key="fav:artists",
+            loader=cached(
+                "fav:artists",
+                _paged(
+                    lambda offset, limit: favorites.artists(limit=limit, offset=offset),
+                    _artist_rows,
+                ),
             ),
         ),
     ]

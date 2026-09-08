@@ -34,3 +34,13 @@ def queue_file(tmp_path, monkeypatch):
     monkeypatch.setattr(queue_module, "QUEUE_FILE", path)
     monkeypatch.setattr(queue_module, "ensure_dirs", lambda: None)
     return path
+
+
+@pytest.fixture(autouse=True)
+def clean_library_cache():
+    """The browser's level cache is module state; keep it out of other tests."""
+    from tidalamp import library
+
+    library.forget()
+    yield
+    library.forget()

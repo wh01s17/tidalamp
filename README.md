@@ -89,6 +89,18 @@ fila es `más…` y `↵` sobre ella carga la siguiente **en el mismo nivel**, s
 posición del cursor. Así una playlist de 500 pistas es alcanzable sin descargarla
 entera al abrirla.
 
+Cada nivel que abres se recuerda mientras la aplicación viva, así que volver a
+entrar es instantáneo. `R` lo vuelve a pedir a TIDAL, que es lo que necesitas si has
+creado una playlist desde el móvil.
+
+Detalle que costaba veinte segundos: `tidalapi` ofrece `user.playlists()`, que parece
+una llamada y no lo es. Al parsear cada playlist la pasa por `Playlist.factory()`, que
+para una playlist tuya construye un `UserPlaylist`, y **ese constructor vuelve a pedir
+la playlist entera sólo para leer su ETag**. Con 110 playlists eran 111 peticiones
+HTTP. Como no editamos playlists, parseamos el listado nosotros y nos saltamos la
+factoría: una petición, y además paginada como todo lo demás. Medido en una cuenta
+real: 19,87 s → 0,39 s.
+
 `alt+↑` y `alt+↓` mueven la pista seleccionada dentro de la cola. Con shuffle activo el
 orden de reproducción se remapea en lugar de regenerarse: mover una fila no vuelve a
 barajar lo que sonará después.
@@ -166,6 +178,7 @@ Son las de Winamp, a propósito.
 | `/` | buscar en TIDAL |
 | `↑` `↓` `Enter` | navegar y reproducir |
 | `l` | navegador de biblioteca |
+| `R` | recargar el nivel (ignora la caché) |
 | `y` | letra de la pista actual |
 | `s` `r` | shuffle / repeat |
 | `d` | quitar de la cola |

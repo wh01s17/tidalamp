@@ -145,14 +145,17 @@ class BrowserScreen(ModalScreen[tuple | None]):
         Binding("backspace,left", "back", "atrás", show=False),
         Binding("a", "append_one", "añadir", show=False),
         Binding("A", "append_all", "añadir todo", show=False),
+        Binding("R", "reload", "recargar", show=False),
     ]
 
-    def __init__(self, title: str, loader) -> None:
+    def __init__(self, title: str, loader, key: str = "") -> None:
         super().__init__()
         self._root_title = title
         self._root_loader = loader
-        # Stack of (title, rows) so backspace can walk back up.
-        self._stack: list[tuple[str, list[Row]]] = []
+        self._root_key = key
+        # Stack of (title, rows, key, loader) so backspace can walk back up and
+        # `R` can refetch the level it is looking at.
+        self._stack: list[tuple[str, list[Row], str, object]] = []
 
     def compose(self) -> ComposeResult:
         with Vertical(id="browser-box"):
@@ -161,15 +164,15 @@ class BrowserScreen(ModalScreen[tuple | None]):
                 yield Spinner(id="browser-spinner")
             yield RowList(id="browser-list")
             yield Static(
-                " ↵ abrir/reproducir   a añadir   A añadir todo   ⌫ atrás   esc cerrar"
-                "   (más… carga otra página)",
+                " ↵ abrir/reproducir   a añadir   A añadir todo   ⌫ atrás"
+                "   R recargar   esc cerrar",
                 id="browser-hint",
             )
 
     def on_mount(self) -> None:
         self.query_one(RowList).empty_text = "cargando…"
         self._busy(f"cargando {self._root_title.lower()}…")
-        self._load(self._root_title, self._root_loader)
+        self._load(self._root_title, self._root_loader, self._root_key)
 
     def _busy(self, label: str) -> None:
         self.query_one(Spinner).start(label)
@@ -178,13 +181,13 @@ class BrowserScreen(ModalScreen[tuple | None]):
         self.query_one(Spinner).stop()
 
     @work(thread=True, exclusive=True)
-    def _load(self, title: str, loader) -> None:
+    def _load(self, title: str, loader, key: str = "") -> None:
         try:
             rows = loader()
         except Exception as exc:
             self.app.call_from_thread(self._failed, exc)
             return
-        self.app.call_from_thread(self._push, title, rows)
+        self.app.call_from_thread(self._push, title, rows, key, loader)
 
     def _failed(self, exc: Exception) -> None:
         self._idle()
@@ -192,9 +195,9 @@ class BrowserScreen(ModalScreen[tuple | None]):
         widget.empty_text = f"error: {exc}"
         widget.refresh()
 
-    def _push(self, title: str, rows: list[Row]) -> None:
+    def _push(self, title: str, rows: list[Row], key: str = "", loader=None) -> None:
         self._idle()
-        self._stack.append((title, rows))
+        self._stack.append((title, rows, key, loader))
         widget = self.query_one(RowList)
         widget.empty_text = "vacío"
         widget.set_rows(rows)
@@ -222,13 +225,30 @@ class BrowserScreen(ModalScreen[tuple | None]):
         # lands, is for a level the user has left.
         self._idle()
         self._stack.pop()
-        title, rows = self._stack[-1]
+        title, rows, _, _ = self._stack[-1]
         widget = self.query_one(RowList)
         widget.set_rows(rows)
         self.query_one("#browser-title", Static).update(title)
 
     def action_close(self) -> None:
         self.dismiss(None)
+
+    def action_reload(self) -> None:
+        """Refetch this level, past the cache.
+
+        Levels are cached for the whole session, which is what makes walking
+        the library feel instant — but a playlist created on the phone would
+        otherwise never show up until tidalamp restarts. This is the way back.
+        """
+        if not self._stack:
+            return
+        title, _, key, loader = self._stack[-1]
+        if loader is None:
+            return
+        library.forget(key)
+        self._stack.pop()
+        self._busy(f"recargando {title}…")
+        self._load(title, loader, key)
 
     def action_choose(self) -> None:
         widget = self.query_one(RowList)
@@ -244,7 +264,7 @@ class BrowserScreen(ModalScreen[tuple | None]):
         if row.loader is not None:
             self.query_one(RowList).empty_text = "cargando…"
             self._busy(f"abriendo {row.label}…")
-            self._load(row.label, row.loader)
+            self._load(row.label, row.loader, row.key)
             return
         # Play this track, queueing the whole level so the rest follows.
         entries = [r.entry for r in widget.rows if r.entry is not None]
@@ -267,8 +287,8 @@ class BrowserScreen(ModalScreen[tuple | None]):
         # The stack holds the level so backspace can restore it; keep it in
         # sync with what is now on screen.
         if self._stack:
-            title, _ = self._stack[-1]
-            self._stack[-1] = (title, widget.rows)
+            title, _, key, loader = self._stack[-1]
+            self._stack[-1] = (title, widget.rows, key, loader)
             self.query_one("#browser-title", Static).update(title)
 
     def action_append_one(self) -> None:

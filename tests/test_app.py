@@ -10,6 +10,7 @@ from textual.widgets import Static
 
 from tidalamp.app import BrowserScreen, TidalAmp
 from tidalamp.artwork import Cover, Protocol
+from tidalamp import library
 from tidalamp.library import Row
 from tidalamp.queue import Entry, Queue
 from tidalamp.settings import Settings
@@ -492,5 +493,39 @@ def test_resolving_a_track_says_so_and_stops_saying_it(monkeypatch):
             application._resolve_failed("error: sin red")
             assert not busy.busy
             assert application.status == "error: sin red"
+
+    asyncio.run(scenario())
+
+
+def test_reload_drops_the_cached_level_and_asks_again(monkeypatch):
+    """The cache lasts the session; `R` is the way to see a new playlist."""
+    isolate_runtime(monkeypatch)
+    calls: list[int] = []
+
+    def loader():
+        calls.append(1)
+        return [Row(label="Mi playlist", loader=lambda: [])]
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(100, 40)) as pilot:
+            screen = BrowserScreen(
+                "MI BIBLIOTECA", library.cached("playlists", loader), "playlists"
+            )
+            application.push_screen(screen)
+            await pilot.pause()
+            spinner = application.screen.query_one(Spinner)
+            await settle(pilot, lambda: not spinner.busy)
+            assert calls == [1]
+
+            await pilot.press("R")
+            await settle(pilot, lambda: not spinner.busy and len(calls) == 2)
+
+            assert calls == [1, 1]
+            # One level on the stack, not two: reloading replaces, it does not
+            # drill in.
+            assert len(screen._stack) == 1
+            title = application.screen.query_one("#browser-title", Static).content
+            assert str(title) == "MI BIBLIOTECA"
 
     asyncio.run(scenario())

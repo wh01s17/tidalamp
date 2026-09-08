@@ -4,8 +4,8 @@ Documento de traspaso. Describe qué existe, qué está verificado, qué falta y
 criterio se tomaron las decisiones, para que cualquiera (humano o modelo) pueda
 retomar el trabajo sin contexto previo.
 
-**Última actualización:** 2026-09-08 (indicador de carga y la barra de estado, que
-estaba fuera de pantalla; antes, `TrackList` de MPRIS, carátula y empaquetado)
+**Última actualización:** 2026-09-08 (la lista de playlists pasó de 20 s a 0,4 s y los
+niveles se cachean; antes, indicador de carga, `TrackList`, carátula y empaquetado)
 
 ---
 
@@ -192,6 +192,19 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
       corta es el final; un total múltiplo exacto de 100 ofrece una página vacía, que es
       preferible a mentir sobre el recuento.
 - [x] La búsqueda también pagina.
+- [x] **«Mis playlists» costaba 20 s con 110 playlists.** `session.user.playlists()`
+      parece una llamada y no lo es: al parsear cada elemento lo pasa por
+      `Playlist.factory()`, que para una playlist propia construye un `UserPlaylist`,
+      y ese constructor **vuelve a pedir la playlist entera para leer el ETag**. Medido
+      con cProfile contra la cuenta real: 111 peticiones HTTP, 19,87 s, de las cuales
+      la red útil eran 0,25 s. Como no editamos playlists, `_playlists_level()` parsea
+      el listado con `Playlist.parse()` (que no pide nada) y se salta la factoría.
+      Además ahora pagina como el resto. Resultado en la app real: **0,39 s**.
+- [x] Caché de niveles en memoria (`library.cached` / `library.forget`): volver a
+      entrar en un nivel ya visitado es instantáneo. Sólo en memoria, porque una
+      biblioteca cambia desde otros dispositivos; `R` en el navegador olvida el nivel y
+      lo vuelve a pedir. La lista cacheada se entrega tal cual, no copiada, para que
+      las páginas que el usuario ya cargó con «más…» sigan ahí al volver.
 
 ### Robustez — `net.py`, `player.py`, `auth.py`
 
@@ -274,7 +287,7 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
 
 ### Tests — `tests/`
 
-- [x] `pytest`, 143 pruebas, sin red y sin TIDAL. `pip install -e ".[dev]"`.
+- [x] `pytest`, 151 pruebas, sin red y sin TIDAL. `pip install -e ".[dev]"`.
 - [x] `tests/fake_mpv.py`: un mpv falso que habla el IPC JSON real y **emite eventos
       asíncronos antes de cada respuesta**, que es justo la trampa del §7. Lleva la
       cuenta de los filtros con etiqueta y rechaza la sintaxis con la etiqueta detrás.
@@ -345,6 +358,7 @@ Distinguir esto importa: parte del código nunca se ha ejecutado contra TIDAL re
 | Empaquetado (sdist / wheel / AUR)  | **Verificado salvo la publicación** | `python -m build` + `twine check` en ambos artefactos; 89 pruebas desde el sdist extraído; `bash -n` y `makepkg --printsrcinfo` sobre el PKGBUILD; `pacman -Si` confirma que todas las dependencias están en `extra`. No se ha ejecutado `makepkg -si` ni se ha publicado nada: el tag no existe todavía. |
 | Carátula                           | **Verificado salvo la vista** | Unidades sobre los tres codificadores, incluida una vuelta completa de sixel a píxeles; la app real bajo un pty con `TERM=xterm-kitty` emite el APC gráfico anclado en la esquina del widget, y en medios bloques pyte muestra el recuadro de 18×9 con el resto del display intacto. Nadie ha mirado todavía una portada real en una ventana de kitty. |
 | Indicador de carga y barra de estado | **Verificado**                  | Unitarias del `Spinner` y de los tres momentos del navegador (raíz, abrir un nivel, volver atrás) con un loader bloqueado a propósito; la app real bajo pty midió `#statusbar` dentro de la pantalla y pintó `⠦ resolviendo «Schism»…` en la última fila. |
+| «Mis playlists» y caché de niveles | **Verificado contra TIDAL real**  | cProfile sobre la cuenta del usuario localizó las 111 peticiones; tras el cambio, la app real bajo un pty abre «Mis playlists» en 0,39 s (antes 19,87 s) y en 0,13 s la segunda vez. Unitarias: una petición por página, paginación, claves de caché y `R`. |
 
 **Ojo con la sesión:** `~/.config/tidalamp/session.json` **ya no existe** (comprobado
 el 2026-09-08, después de la sesión en la que el usuario reprodujo música). Todo lo que
@@ -504,6 +518,13 @@ Cosas que ya costaron tiempo una vez:
 - **`Segment(texto, None, True)` es un segmento de control**: mide cero celdas, así
   que cabe dentro de una línea que el compositor ya está pintando sin descuadrarla.
   Que sobreviva al recorte de `Strip` no era evidente: está comprobado bajo un pty.
+- **En `tidalapi`, parsear puede costar una petición por elemento.**
+  `Playlist.factory()` convierte en `UserPlaylist` toda playlist tuya, y ese
+  constructor hace un GET para leer el ETag. Cualquier listado que se sienta lento
+  merece un cProfile antes que una teoría: aquí el 99 % del tiempo estaba en `send()`,
+  no en el parseo, aunque el síntoma pareciera «parsear 110 objetos».
+- **La caché de niveles es estado de módulo.** Las pruebas la limpian con una fixture
+  autouse en `conftest.py`; sin ella, un test se lleva las filas del anterior.
 - **Un widget de altura `auto` que pinta lo que le den crece sin freno.** `RowList`
   dibuja `size.height` filas, así que medirlo en `auto` daba una altura enorme y
   empujaba la barra de estado fuera de la pantalla. Los paneles que llenan hueco van
@@ -520,7 +541,7 @@ Cosas que ya costaron tiempo una vez:
 - Arch Linux, Hyprland (Omarchy). Python 3.14, mpv y ffmpeg en el sistema.
 - Venv en `.venv/`, rehecho tras el renombrado; `.venv/bin/tidalamp` funciona de nuevo.
   Lleva el paquete en editable más `pytest` y `pyte`.
-- Tests: `.venv/bin/python -m pytest` (143 pruebas, ~8 s, sin red ni bus de usuario).
+- Tests: `.venv/bin/python -m pytest` (151 pruebas, ~8 s, sin red ni bus de usuario).
   El extra `dev` arrastra Pillow, así que las pruebas de carátula corren de verdad; si
   falta, se saltan solas.
 - `cava` está instalado en `/usr/bin/cava`; arranca con la configuración real de 19
