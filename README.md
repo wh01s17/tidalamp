@@ -195,3 +195,34 @@ abrir el sink, se vuelve al vúmetro sin interrumpir la reproducción.
 
 Un matiz honesto: cava escucha el **sink**, no nuestro proceso mpv. Muestra lo que
 suene en la máquina, que casi siempre es sólo nosotros.
+
+## Licencia
+
+GPL-3.0-or-later. El texto completo está en [LICENSE](LICENSE).
+
+En corto: puedes usarlo, estudiarlo, modificarlo y redistribuirlo; si distribuyes una
+versión modificada, tienes que publicar también su código bajo la misma licencia. Se
+distribuye sin garantía de ningún tipo.
+
+La elección no es casual: esto es una aplicación de usuario final que vive en un
+ecosistema copyleft (mpv es GPL, `tidalapi` es LGPL-3.0-or-later), y la GPL mantiene
+libre cualquier versión que alguien reparta.
+
+## Descargo
+
+`tidalamp` es un proyecto independiente. **No está afiliado, patrocinado ni respaldado
+por TIDAL, Aspiro, Square, ni por los titulares de la marca Winamp.** Los nombres se
+usan sólo de forma descriptiva, para decir con qué habla el programa y a qué se parece.
+
+- Necesitas **tu propia suscripción de TIDAL**. Esto no da acceso a nada que tu cuenta
+  no tenga ya.
+- **No elude ninguna protección técnica.** Las pistas con manifiesto cifrado (Widevine)
+  se rechazan con un mensaje, no se intentan descifrar. Esa línea es deliberada y no se
+  va a cruzar: los parches que añadan descifrado o descarga a fichero no se aceptan.
+- **No descarga ni redistribuye música.** Se reproduce en streaming; lo único que toca
+  el disco es una playlist HLS temporal, que contiene URLs, no audio.
+- Se apoya en el flujo de autorización de dispositivo vía `tidalapi`, no en la API para
+  desarrolladores. Usar un cliente no oficial puede ir contra las condiciones de
+  servicio de TIDAL; quien lo ejecuta asume esa decisión y el riesgo sobre su cuenta.
+
+La licencia cubre este código. No es, ni puede ser, un permiso de TIDAL.

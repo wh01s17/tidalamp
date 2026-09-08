@@ -1,4 +1,11 @@
-"""tidalamp: a Winamp-flavoured TIDAL client for the terminal."""
+"""tidalamp: a Winamp-flavoured TIDAL client for the terminal.
+
+Copyright (C) 2026 wh01s17.
+
+Free software under the GNU General Public License, version 3 or later; see
+the LICENSE file. No warranty of any kind. Not affiliated with TIDAL, Aspiro,
+or the Winamp trademark holders.
+"""
 
 import logging
 

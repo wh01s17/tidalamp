@@ -2,7 +2,15 @@
 name = "tidalamp"
 version = "0.1.0"
 description = "Cliente TIDAL para terminal con interfaz estilo Winamp"
+readme = "README.md"
 requires-python = ">=3.11"
+license = "GPL-3.0-or-later"
+license-files = ["LICENSE"]
+classifiers = [
+    "Environment :: Console :: Curses",
+    "Intended Audience :: End Users/Desktop",
+    "Topic :: Multimedia :: Sound/Audio :: Players",
+]
 dependencies = [
     "tidalapi>=0.8.11",
     "textual>=0.80",
