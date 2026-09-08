@@ -513,7 +513,7 @@ dejará de importar y con él no arranca la aplicación entera.
 - [x] Interfaz bilingüe español/inglés según el locale, incluidos errores, CLI y la
       plantilla de configuración; README público en inglés.
 - [x] Empaquetado, dos canales que se complementan. El procedimiento completo de
-      publicación está en `packaging/README.md`; aquí sólo el estado.
+      publicación está en `publish.md`; aquí sólo el estado.
       - [x] `packaging/aur/PKGBUILD` + `.SRCINFO`. Construye desde el tarball del tag de
             GitHub con `python -m build --no-isolation`, corre la suite en `check()` e
             instala con `python -m installer`. `mpv` es dependencia real y `cava`

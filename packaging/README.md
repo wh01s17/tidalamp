@@ -4,6 +4,10 @@ Dos canales que se complementan: el AUR para Arch, donde se puede declarar `mpv`
 dependencia real y `cava` como opcional, y PyPI para el resto de distribuciones Linux,
 donde no se puede. Windows no es compatible y macOS no está soportado ni probado.
 
+La guía completa, paso a paso, para preparar la versión, configurar PyPI, crear el
+GitHub Release y publicar en el AUR está en [`../publish.md`](../publish.md). Este
+archivo conserva el resumen y las decisiones específicas del empaquetado.
+
 ## Publicar una versión
 
 1. Cerrar la sección «Sin publicar» de `CHANGELOG.md` con el número y la fecha.

@@ -6,8 +6,8 @@ versionado es [semántico](https://semver.org/lang/es/).
 ## [Sin publicar]
 
 Todavía no hay ninguna versión publicada en PyPI ni en el AUR. Cuando la haya, esta
-sección se cierra con su número y su fecha; el procedimiento está en
-[`packaging/README.md`](packaging/README.md).
+sección se cierra con su número y su fecha; el procedimiento completo está en
+[`publish.md`](publish.md).
 
 ### Añadido
 

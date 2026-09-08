@@ -245,7 +245,8 @@ python -m venv .venv && .venv/bin/pip install -e .
 .venv/bin/tidalamp tui
 ```
 
-The release process for both channels is documented in
+The complete release process for PyPI, GitHub Releases, and the AUR is documented in
+[`publish.md`](publish.md). Packaging-specific notes are kept in
 [`packaging/README.md`](packaging/README.md).
 
 ### Minimum size
