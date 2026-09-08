@@ -5,6 +5,34 @@ and no browser in the middle: device flow + mpv.
 
 ![TidalAmp adapting to different Omarchy themes](img/tidalamp-banner.svg)
 
+## Contents
+
+- [How it works](#how-it-works)
+- [Desktop integration (MPRIS)](#desktop-integration-mpris)
+- [Queue and library](#queue-and-library)
+- [Quality](#quality)
+  - [Two traps in the hi-res path](#two-traps-in-the-hi-res-path)
+- [Important limitation: DRM](#important-limitation-drm)
+- [Themes and colours](#themes-and-colours)
+- [Platform support](#platform-support)
+- [Installation](#installation)
+  - [Arch Linux (AUR)](#arch-linux-aur)
+  - [Other Linux distributions (PyPI)](#other-linux-distributions-pypi)
+  - [From the repository](#from-the-repository)
+  - [Minimum size](#minimum-size)
+- [Configuration](#configuration)
+  - [Language](#language)
+- [Keys](#keys)
+- [While something is loading](#while-something-is-loading)
+- [When something fails](#when-something-fails)
+- [Lyrics](#lyrics)
+- [Tests](#tests)
+- [Equalizer and balance](#equalizer-and-balance)
+- [About the analyzer](#about-the-analyzer)
+- [Cover art](#cover-art)
+- [License](#license)
+- [Disclaimer](#disclaimer)
+
 ## How it works
 
 The application is split into independent layers:
