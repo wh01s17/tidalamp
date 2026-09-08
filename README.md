@@ -67,6 +67,11 @@ Si ya hay otro `tidalamp` en el bus, la segunda instancia se registra como
 `org.mpris.MediaPlayer2.tidalamp.instance<pid>` en lugar de quedarse muda. Si no hay bus de sesión,
 la aplicación arranca igual y lo indica en la barra de estado.
 
+El paquete instala también `tidalamp.desktop` y su icono. No es decoración: la
+metadata MPRIS declara `DesktopEntry=tidalamp`, y los clientes usan ese fichero para
+poner nombre e icono al reproductor. Sin él, Waybar y las notificaciones muestran un
+reproductor anónimo.
+
 Nota: lanzamos mpv con `--load-scripts=no` a propósito. Si tienes `mpv-mpris` instalado
 en el sistema, sin esa opción mpv publicaría un segundo reproductor duplicado en el bus.
 
@@ -205,6 +210,12 @@ python -m venv .venv && .venv/bin/pip install -e .
 
 El proceso de publicación de ambos canales está en
 [`packaging/README.md`](packaging/README.md).
+
+### Tamaño mínimo
+
+La interfaz necesita **76×20** celdas. Por debajo de eso el layout no encoge, se
+solapa, así que en vez de dibujar algo roto la aplicación tapa la pantalla y dice qué
+tamaño tienes y cuál hace falta. Al agrandar la ventana vuelve sola.
 
 ## Teclas
 

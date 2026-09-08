@@ -554,3 +554,55 @@ def test_a_quality_downgrade_reaches_the_status_line(monkeypatch):
             assert "320" in str(badges.content) and "HIGH" in str(badges.content)
 
     asyncio.run(scenario())
+
+
+# ------------------------------------------------------------- terminal size
+
+
+def test_a_small_terminal_gets_an_explanation_not_a_broken_layout(monkeypatch):
+    isolate_runtime(monkeypatch)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(60, 18)) as pilot:
+            await pilot.pause()
+            notice = application.query_one("#too-small", Static)
+            assert notice.display is True
+            text = str(notice.content)
+            assert "60×18" in text
+            assert f"{TidalAmp.MIN_WIDTH}×{TidalAmp.MIN_HEIGHT}" in text
+
+    asyncio.run(scenario())
+
+
+def test_a_terminal_big_enough_shows_nothing_extra(monkeypatch):
+    isolate_runtime(monkeypatch)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(100, 40)) as pilot:
+            await pilot.pause()
+            assert application.query_one("#too-small", Static).display is False
+
+    asyncio.run(scenario())
+
+
+def test_the_notice_appears_and_clears_as_the_window_is_resized(monkeypatch):
+    isolate_runtime(monkeypatch)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(100, 40)) as pilot:
+            await pilot.pause()
+            notice = application.query_one("#too-small", Static)
+            assert notice.display is False
+
+            await pilot.resize_terminal(70, 40)
+            await pilot.pause()
+            assert notice.display is True
+
+            await pilot.resize_terminal(100, 40)
+            await pilot.pause()
+            assert notice.display is False
+
+    asyncio.run(scenario())

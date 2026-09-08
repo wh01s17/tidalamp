@@ -2,6 +2,17 @@
 
 Screen {
     background: $tidalamp-screen;
+    layers: base notice;
+}
+
+/* Sits above everything so a broken layout is never what the user sees. */
+#too-small {
+    layer: notice;
+    display: none;
+    width: 100%;
+    height: 100%;
+    background: $tidalamp-screen;
+    color: $tidalamp-accent;
 }
 
 #main {

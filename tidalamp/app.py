@@ -554,11 +554,29 @@ def _entry_metadata(entry: Entry) -> dict:
     }
 
 
+class MainPanel(Vertical):
+    """The whole UI, in one container that watches its own size.
+
+    ``Resize`` does not bubble and never reaches the App, so the check for a
+    terminal too small to draw has to hang off something that is laid out.
+    This panel is width and height 100%, which makes it the screen's stand-in.
+    """
+
+    def on_resize(self, event) -> None:
+        self.app._check_size()
+
+
 class TidalAmp(App):
     """Main application."""
 
     CSS_PATH = "winamp.tcss"
     TITLE = "TIDAL AMP"
+
+    # The display alone needs 18 columns of cover, 24 of clock and room for the
+    # readout; below this the layout does not shrink, it overlaps. Saying so is
+    # better than drawing something broken and letting the user guess.
+    MIN_WIDTH = 76
+    MIN_HEIGHT = 20
 
     # Winamp's own transport keys, kept as muscle memory.
     BINDINGS = [
@@ -621,7 +639,7 @@ class TidalAmp(App):
     # ------------------------------------------------------------------ layout
 
     def compose(self) -> ComposeResult:
-        with Vertical(id="main"):
+        with MainPanel(id="main"):
             yield Static("░▒▓ TIDAL AMP ▓▒░", id="titlebar")
             with Horizontal(id="display"):
                 yield Artwork(id="art")
@@ -644,8 +662,27 @@ class TidalAmp(App):
             with Horizontal(id="statusbar"):
                 yield Spinner(id="busy")
                 yield Static("", id="status")
+        yield Static("", id="too-small")
+
+    def _check_size(self) -> None:
+        """Cover the UI with an explanation when the terminal is too small."""
+        width, height = self.size.width, self.size.height
+        too_small = width < self.MIN_WIDTH or height < self.MIN_HEIGHT
+        notice = self.query_one("#too-small", Static)
+        notice.display = too_small
+        if too_small:
+            notice.update(
+                Text(
+                    f"\n  La ventana es de {width}×{height}.\n"
+                    f"  TIDAL AMP necesita al menos "
+                    f"{self.MIN_WIDTH}×{self.MIN_HEIGHT}.\n\n"
+                    "  Agranda el terminal o reduce el tamaño de letra.\n",
+                    style=f"bold {self.tidalamp_palette['accent']}",
+                )
+            )
 
     def on_mount(self) -> None:
+        self._check_size()
         playlist = self.query_one("#playlist", RowList)
         playlist.empty_text = "cola vacía — / para buscar, l para tu biblioteca"
         self.query_one("#volume", Slider).value = self.mpv.volume

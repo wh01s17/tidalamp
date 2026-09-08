@@ -1,0 +1,15 @@
+[Desktop Entry]
+Type=Application
+Version=1.5
+Name=TidalAmp
+GenericName=Music Player
+GenericName[es]=Reproductor de música
+Comment=TIDAL client for the terminal with a Winamp 2.x interface
+Comment[es]=Cliente de TIDAL para terminal con interfaz estilo Winamp 2.x
+Exec=tidalamp tui
+Icon=tidalamp
+Terminal=true
+Categories=AudioVideo;Audio;Player;ConsoleOnly;
+Keywords=tidal;music;player;winamp;mpris;
+Keywords[es]=tidal;música;reproductor;winamp;mpris;
+StartupNotify=false

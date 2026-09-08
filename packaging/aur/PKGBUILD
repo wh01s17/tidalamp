@@ -39,4 +39,10 @@ package() {
   cd "$srcdir/$pkgname-$pkgver"
   python -m installer --destdir="$pkgdir" dist/*.whl
   install -Dm644 README.md "$pkgdir/usr/share/doc/$pkgname/README.md"
+  # MPRIS publishes DesktopEntry=tidalamp; without these two the desktop has
+  # a player it cannot name or draw an icon for.
+  install -Dm644 packaging/tidalamp.desktop \
+    "$pkgdir/usr/share/applications/$pkgname.desktop"
+  install -Dm644 packaging/tidalamp.svg \
+    "$pkgdir/usr/share/icons/hicolor/scalable/apps/$pkgname.svg"
 }
