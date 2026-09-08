@@ -139,6 +139,38 @@ BrowserScreen {
     height: 1;
 }
 
+LyricsScreen {
+    align: center middle;
+}
+
+#lyrics-box {
+    width: 84;
+    height: 28;
+    background: #1c1c22;
+    border: outer #4a4a55;
+}
+
+#lyrics-title {
+    background: #2b3a4a;
+    color: #b8c8d8;
+    text-style: bold;
+    height: 1;
+    padding: 0 1;
+}
+
+#lyrics-body {
+    background: #000000;
+    color: #9fcfa7;
+    height: 1fr;
+    padding: 1 2;
+}
+
+#lyrics-hint {
+    background: #2a2a33;
+    color: #9fb8a7;
+    height: 1;
+}
+
 EqScreen {
     align: center middle;
 }

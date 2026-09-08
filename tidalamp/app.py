@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Callable
+
 import tidalapi
 from rich.text import Text
 from textual import work
@@ -16,6 +18,7 @@ from textual.widgets import Input, Static
 from . import library
 from .auth import NotLoggedIn, ensure_fresh
 from .library import Row
+from .lyrics import LyricsDocument, load_lyrics
 from .mpris import MprisService
 from .net import with_retries
 from .player import Mpv
@@ -364,6 +367,107 @@ class EqScreen(ModalScreen[None]):
         self.dismiss(None)
 
 
+class LyricsScreen(ModalScreen[None]):
+    """Lyrics for one track, synchronized to the player when LRC is present."""
+
+    BINDINGS = [
+        Binding("escape,y", "close", "cerrar"),
+        Binding("up", "up", "arriba", show=False),
+        Binding("down", "down", "abajo", show=False),
+        Binding("pageup", "page_up", "", show=False),
+        Binding("pagedown", "page_down", "", show=False),
+    ]
+
+    def __init__(
+        self,
+        title: str,
+        loader: Callable[[], LyricsDocument],
+        position: Callable[[], float],
+    ) -> None:
+        super().__init__()
+        self._track_title = title
+        self._loader = loader
+        self._position = position
+        self._document: LyricsDocument | None = None
+        self._plain_offset = 0
+
+    def compose(self) -> ComposeResult:
+        with Vertical(id="lyrics-box"):
+            yield Static(f"▓ LETRA ▓  {self._track_title}", id="lyrics-title")
+            yield Static("  cargando…", id="lyrics-body")
+            yield Static(" ↑↓ desplazar   y/esc cerrar", id="lyrics-hint")
+
+    def on_mount(self) -> None:
+        self._load()
+        self.set_interval(1 / 4, self._refresh_lyrics)
+
+    @work(thread=True, exclusive=True)
+    def _load(self) -> None:
+        try:
+            document = self._loader()
+        except Exception as exc:
+            self.app.call_from_thread(self._failed, exc)
+            return
+        self.app.call_from_thread(self._loaded, document)
+
+    def _loaded(self, document: LyricsDocument) -> None:
+        self._document = document
+        mode = "sincronizada" if document.synced else "texto"
+        provider = f" · {document.provider}" if document.provider else ""
+        self.query_one("#lyrics-title", Static).update(
+            f"▓ LETRA ▓  {self._track_title} · {mode}{provider}"
+        )
+        self._refresh_lyrics()
+
+    def _failed(self, exc: Exception) -> None:
+        self.query_one("#lyrics-body", Static).update(f"  {exc}")
+
+    def _refresh_lyrics(self) -> None:
+        document = self._document
+        if document is None:
+            return
+        body = self.query_one("#lyrics-body", Static)
+        height = max(5, body.size.height)
+        if document.synced:
+            start, lines, active = document.window(self._position(), height)
+        else:
+            self._plain_offset = max(
+                0, min(self._plain_offset, max(0, len(document.lines) - height))
+            )
+            start = self._plain_offset
+            lines = document.lines[start : start + height]
+            active = None
+
+        rendered = Text()
+        for offset, line in enumerate(lines):
+            index = start + offset
+            marker = "▶ " if index == active else "  "
+            style = "bold black on #00ff4c" if index == active else "#9fcfa7"
+            rendered.append(f"{marker}{line.text}\n", style=style)
+        body.update(rendered)
+
+    def _scroll_plain(self, amount: int) -> None:
+        if self._document is None or self._document.synced:
+            return
+        self._plain_offset += amount
+        self._refresh_lyrics()
+
+    def action_up(self) -> None:
+        self._scroll_plain(-1)
+
+    def action_down(self) -> None:
+        self._scroll_plain(1)
+
+    def action_page_up(self) -> None:
+        self._scroll_plain(-8)
+
+    def action_page_down(self) -> None:
+        self._scroll_plain(8)
+
+    def action_close(self) -> None:
+        self.dismiss(None)
+
+
 class TidalAmp(App):
     """Main application."""
 
@@ -379,6 +483,7 @@ class TidalAmp(App):
         Binding("b", "next", "siguiente"),
         Binding("slash", "search", "buscar"),
         Binding("l", "library", "biblioteca"),
+        Binding("y", "lyrics", "letra"),
         Binding("e", "equalizer", "ecualizador"),
         Binding("s", "shuffle", "shuffle"),
         Binding("r", "repeat", "repeat"),
@@ -410,6 +515,7 @@ class TidalAmp(App):
         self.mpv = mpv
         self.queue = Queue()
         self.settings = Settings.load()
+        self._lyrics_cache: dict[int, LyricsDocument] = {}
         self._was_idle = True
         self.mpris = MprisService(self)
         self._mpris_ready = False
@@ -431,8 +537,8 @@ class TidalAmp(App):
             yield Slider(id="volume")
             yield Slider(id="balance")
             yield Static(
-                "  z ◀◀   x ▶   c ‖   v ■   b ▶▶   / buscar  l lib  e eq  s shuf"
-                "  r rep  q salir",
+                "  z ◀◀   x ▶   c ‖   v ■   b ▶▶   / buscar  l lib  y letra  e eq"
+                "  s shuf  r rep  q salir",
                 id="transport",
             )
             yield Static("▓ PLAYLIST ▓   d quitar   C vaciar   alt+↑↓ mover", id="pl-title")
@@ -760,6 +866,29 @@ class TidalAmp(App):
 
     def action_vol_down(self) -> None:
         self.mpv.volume = self.mpv.volume - 5
+
+    def _lyrics_for(self, entry: Entry) -> LyricsDocument:
+        cached = self._lyrics_cache.get(entry.id)
+        if cached is not None:
+            return cached
+        ensure_fresh(self.session)
+        track = with_retries(lambda: entry.resolve(self.session))
+        document = load_lyrics(track)
+        self._lyrics_cache[entry.id] = document
+        return document
+
+    def action_lyrics(self) -> None:
+        entry = self.queue.current
+        if entry is None:
+            self.status = "no hay una pista reproduciéndose"
+            return
+        self.push_screen(
+            LyricsScreen(
+                entry.label,
+                lambda: self._lyrics_for(entry),
+                lambda: self.mpv.position,
+            )
+        )
 
     def action_equalizer(self) -> None:
         self.push_screen(EqScreen(self.settings, self._apply_audio), self._eq_closed)
