@@ -31,6 +31,7 @@ Tres capas independientes:
 | Red | Reintentos con backoff sobre las llamadas a TIDAL | `net.py` |
 | Espectro | cava contra el sink, cuando está instalado | `spectrum.py` |
 | Audio | Balance y ecualizador como filtros de mpv | `settings.py` |
+| Letras | Carga, parseo LRC y fallback a texto plano | `lyrics.py` |
 
 **Autenticación**: no usa la API oficial de `developer.tidal.com` (que exige registrar
 una app y ni siquiera entrega URLs de stream). Usa el mismo *device authorization
@@ -126,6 +127,7 @@ Son las de Winamp, a propósito.
 | `/` | buscar en TIDAL |
 | `↑` `↓` `Enter` | navegar y reproducir |
 | `l` | navegador de biblioteca |
+| `y` | letra de la pista actual |
 | `s` `r` | shuffle / repeat |
 | `d` | quitar de la cola |
 | `alt+↑` `alt+↓` | mover la pista en la cola |
@@ -153,6 +155,17 @@ Para depurar, `TIDALAMP_DEBUG=1 tidalamp tui` escribe un registro en
 imprimir). Ahí queda anotado, entre otras cosas, qué rama de manifiesto — `BTS` o
 `MPD` — se usó en cada pista.
 
+## Letras
+
+`y` abre la letra de la pista actual sin detener la reproducción. Si TIDAL entrega
+subtítulos LRC, la línea activa se resalta y la ventana avanza con la posición de mpv;
+si sólo hay texto, se puede desplazar con `↑`, `↓`, `PageUp` y `PageDown`. La consulta
+se hace en un worker para no bloquear la TUI, aplica la misma política de reintentos
+que el resto del catálogo y se conserva en memoria durante la sesión.
+
+No todas las pistas tienen letras ni todas las licencias regionales las exponen. En
+ese caso la ventana muestra un error y la reproducción continúa normalmente.
+
 ## Tests
 
 ```sh
@@ -162,7 +175,8 @@ imprimir). Ahí queda anotado, entre otras cosas, qué rama de manifiesto — `B
 
 No tocan la red ni TIDAL: las sesiones y los manifiestos son dobles, y `player.py` se
 prueba contra un mpv falso (`tests/fake_mpv.py`) que habla el mismo IPC JSON — eventos
-asíncronos incluidos, que es justo la parte del protocolo que da problemas.
+asíncronos incluidos, que es justo la parte del protocolo que da problemas. El parser
+de letras se prueba con LRC fijado y texto plano, incluidas las caídas transitorias.
 
 ## Ecualizador y balance
 
