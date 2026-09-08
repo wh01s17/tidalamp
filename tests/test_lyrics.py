@@ -59,6 +59,14 @@ def test_active_line_and_window_follow_playback_position():
     ]
 
 
+def test_no_line_is_active_before_the_first_timestamp():
+    document = parse_lyrics(subtitles="[00:05.00]primera\n[00:10.00]segunda")
+    start, lines, active = document.window(2.0, height=5)
+    assert active is None
+    assert start == 0
+    assert [line.text for line in lines] == ["primera", "segunda"]
+
+
 def test_load_lyrics_maps_the_tidal_object():
     raw = SimpleNamespace(text="texto", subtitles="", provider="TIDAL")
     track = SimpleNamespace(name="Schism", lyrics=lambda: raw)

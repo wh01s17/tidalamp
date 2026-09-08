@@ -42,9 +42,9 @@ class LyricsDocument:
         """Return the line active at ``position``, or None for plain lyrics."""
         if not self.synced:
             return None
-        timestamps = [line.at for line in self.lines]
+        timestamps = [line.at for line in self.lines if line.at is not None]
         index = bisect_right(timestamps, max(0.0, position)) - 1
-        return max(0, index)
+        return index if index >= 0 else None
 
     def window(
         self, position: float, height: int
