@@ -1,0 +1,102 @@
+/* Classic Winamp 2.x palette: black LCD, phosphor green, grey chrome. */
+
+Screen {
+    background: #000000;
+}
+
+#main {
+    background: #1c1c22;
+    border: outer #4a4a55;
+    height: 100%;
+}
+
+#titlebar {
+    background: #2b3a4a;
+    color: #b8c8d8;
+    text-align: center;
+    text-style: bold;
+    height: 1;
+}
+
+#display {
+    background: #000000;
+    height: 9;
+    padding: 0 1;
+}
+
+#clock {
+    width: 24;
+    height: 4;
+    padding: 1 0 0 1;
+}
+
+#readout {
+    width: 1fr;
+    padding: 1 1 0 1;
+}
+
+#badges {
+    color: #7f9f87;
+    height: 1;
+}
+
+#seek {
+    background: #14141a;
+    padding: 0 1;
+    height: 1;
+}
+
+#volume {
+    background: #14141a;
+    padding: 0 1;
+    width: 44;
+    height: 1;
+}
+
+#transport {
+    background: #2a2a33;
+    color: #9fb8a7;
+    height: 1;
+}
+
+#pl-title {
+    background: #2b3a4a;
+    color: #b8c8d8;
+    text-style: bold;
+    height: 1;
+}
+
+#playlist {
+    background: #000000;
+    padding: 0 1;
+}
+
+#status {
+    background: #14141a;
+    color: #6f8f77;
+    height: 1;
+}
+
+SearchScreen {
+    align: center middle;
+}
+
+#search-box {
+    width: 60;
+    height: auto;
+    background: #1c1c22;
+    border: outer #4a4a55;
+    padding: 1 2;
+}
+
+#search-title {
+    color: #00ff4c;
+    text-style: bold;
+    height: 1;
+}
+
+#search-input {
+    background: #000000;
+    color: #00ff4c;
+    border: tall #3f5f47;
+}
