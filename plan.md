@@ -4,9 +4,9 @@ Documento de traspaso. Describe qué existe, qué está verificado, qué falta y
 criterio se tomaron las decisiones, para que cualquiera (humano o modelo) pueda
 retomar el trabajo sin contexto previo.
 
-**Última actualización:** 2026-09-08 (hi-res verificado contra TIDAL real: dos fallos
-que impedían reproducirlo y la calidad por defecto corregida; antes, el rendimiento de
-la biblioteca, el indicador de carga, `TrackList`, carátula y empaquetado)
+**Última actualización:** 2026-09-08 (refresco del token verificado contra TIDAL: la
+app se negaba a arrancar con un access token caducado; antes, el hi-res, el rendimiento
+de la biblioteca, el indicador de carga, `TrackList`, carátula y empaquetado)
 
 ---
 
@@ -237,6 +237,14 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
 - [x] `auth.ensure_fresh()`: comprueba la sesión antes de resolver cada pista y la
       refresca con el refresh token si el access token caducó, reguardando el fichero.
       Sólo exige `tidalamp login` cuando ya no queda nada que refrescar.
+- [x] **`load_session()` también refresca al arrancar.** Antes no: un access token
+      caducado —lo normal al abrir la app al día siguiente— hacía que
+      `load_session_from_file()` de tidalapi validara el token con una petición y
+      dejara escapar un `HTTPError 401` crudo, así que el usuario veía un traceback con
+      un refresh token perfectamente bueno al lado. Ahora se atrapa, se refresca y se
+      **rehace el handshake**: `token_refresh()` sólo cambia el access token, y sin
+      `load_oauth_session()` la sesión vuelve a medias, sin usuario, país ni session id.
+      El refresh token se lee del propio fichero si la carga falló antes de asignarlo.
 - [x] Registro opcional: `TIDALAMP_DEBUG=1` escribe en
       `~/.local/state/tidalamp/tidalamp.log`. Sin él, un `NullHandler` en el paquete
       evita que el handler de último recurso de `logging` pinte sobre la TUI.
@@ -306,7 +314,7 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
 
 ### Tests — `tests/`
 
-- [x] `pytest`, 164 pruebas, sin red y sin TIDAL. `pip install -e ".[dev]"`.
+- [x] `pytest`, 174 pruebas, sin red y sin TIDAL. `pip install -e ".[dev]"`.
 - [x] `tests/fake_mpv.py`: un mpv falso que habla el IPC JSON real y **emite eventos
       asíncronos antes de cada respuesta**, que es justo la trampa del §7. Lleva la
       cuenta de los filtros con etiqueta y rechaza la sintaxis con la etiqueta detrás.
@@ -370,7 +378,7 @@ Distinguir esto importa: parte del código nunca se ha ejecutado contra TIDAL re
 | Reintentos de red                  | **Verificado**                    | Unitarias: reintenta conexión/timeout/503, no reintenta 404, se rinde al tercer intento.                                                                                        |
 | Letras sincronizadas               | **Verificado con dobles**         | 9 pruebas de LRC, texto plano, ventanas, carga y fallos transitorios; el trabajo de red queda fuera del loop. Falta probar una letra real de TIDAL.                             |
 | Tema Omarchy / fallback             | **Verificado**                    | Unitarias con paletas temporales y montaje Textual; la máquina cambió de Wh01s17 a Tokyo Night y el lector tomó el nuevo acento.                                               |
-| Refresco del token                 | **Sin verificar contra TIDAL**    | La ruta se ejerce con dobles; nunca se ha dejado caducar un token real.                                                                                                         |
+| Refresco del token                 | **VERIFICADO CONTRA TIDAL REAL**  | Copia de la sesión real con el access token invalidado a mano: la app arranca, reescribe el token, completa el handshake (user id y país) y la API responde. El fichero real quedó intacto. Además 10 unitarias con dobles, incluida la del 401 que tidalapi deja escapar. |
 | **`login` y reproducción real**    | **VERIFICADO POR EL USUARIO**     | El usuario ejecutó `tidalamp tui` con su cuenta y reprodujo TOOL - Schism (Lateralus) el 2026-09-08. Login, búsqueda, `stream.resolve()` y salida de audio funcionan de verdad. |
 | Reproducción real (`ao` de verdad) | **Verificado sólo con `ao=null`** | Nunca se ha sacado sonido por PipeWire en esta sesión.                                                                                                                          |
 | Ruta MPD -> HLS                    | **PARCIAL**                       | Ambas ramas están cubiertas por tests con manifiestos fijados, y `stream.resolve()` ya registra cuál toma. Falta una reproducción real con `TIDALAMP_DEBUG=1` para leerlo.      |
@@ -431,7 +439,8 @@ sigue el vúmetro RMS y la insignia `FFT`/`RMS` dice cuál es cuál. Pendientes:
 Ver §4: reinicio de mpv, refresco del token, reintentos con backoff y suite de
 `pytest` con mpv falso y manifiestos fijados. Queda menor:
 
-- [ ] Dejar caducar un token real para verificar `ensure_fresh` contra TIDAL.
+- [x] Verificado contra TIDAL real, invalidando el token de una copia de la sesión.
+      Descubrió que `load_session()` ni siquiera llegaba a `ensure_fresh`: ver §4.
 
 ### ~~P6 — Migrar de `dbus-next` a `dbus-fast`~~ ✅ HECHO
 
@@ -538,6 +547,12 @@ Cosas que ya costaron tiempo una vez:
 - **`Segment(texto, None, True)` es un segmento de control**: mide cero celdas, así
   que cabe dentro de una línea que el compositor ya está pintando sin descuadrarla.
   Que sobreviva al recorte de `Strip` no era evidente: está comprobado bajo un pty.
+- **`tidalapi` valida el token guardado con una petición, y deja escapar el 401.**
+  `load_session_from_file()` no «carga» sin más: llama a `load_oauth_session()`, que
+  hace `GET /sessions` y revienta con `HTTPError` si el token caducó. Su docstring dice
+  que refresca automáticamente; no lo hace. Y `token_refresh()` sólo cambia el access
+  token: hay que rehacer el handshake o la sesión queda sin `user`, `country_code` ni
+  `session_id`.
 - **Pedir una calidad no es obtenerla.** Con el cliente del device flow, `LOSSLESS`
   vuelve como `HIGH` siempre. Sólo `HI_RES_LOSSLESS` alcanza la rama MPD, y sólo en
   pistas etiquetadas `HIRES_LOSSLESS`. Cualquier medida sobre «lossless» que no mire
@@ -575,7 +590,7 @@ Cosas que ya costaron tiempo una vez:
 - Arch Linux, Hyprland (Omarchy). Python 3.14, mpv y ffmpeg en el sistema.
 - Venv en `.venv/`, rehecho tras el renombrado; `.venv/bin/tidalamp` funciona de nuevo.
   Lleva el paquete en editable más `pytest` y `pyte`.
-- Tests: `.venv/bin/python -m pytest` (164 pruebas, ~8 s, sin red ni bus de usuario).
+- Tests: `.venv/bin/python -m pytest` (174 pruebas, ~8 s, sin red ni bus de usuario).
   El extra `dev` arrastra Pillow, así que las pruebas de carátula corren de verdad; si
   falta, se saltan solas.
 - `cava` está instalado en `/usr/bin/cava`; arranca con la configuración real de 19

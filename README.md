@@ -246,9 +246,10 @@ cuando llegue, ya es de un nivel que has dejado.
 - **mpv se muere**: la app lo detecta en el siguiente tick, lo relanza con el volumen
   que tenías y recarga la pista en curso, en vez de quedarse congelada contra un socket
   muerto.
-- **El token caduca a media sesión**: antes de resolver cada pista se comprueba la
-  sesión y, si hace falta, se refresca con el refresh token y se vuelve a guardar. Sólo
-  se pide `tidalamp login` cuando ya no hay nada que refrescar.
+- **El token caduca**: da igual si es al arrancar o a media sesión. Al abrir, la sesión
+  guardada se refresca si hace falta —`tidalapi` en ese caso lanza un 401 crudo, así que
+  lo atrapamos y rehacemos el handshake— y antes de resolver cada pista se vuelve a
+  comprobar. Sólo se pide `tidalamp login` cuando ya no hay nada que refrescar.
 - **La red falla**: las llamadas a TIDAL se reintentan tres veces con backoff ante
   errores de conexión, timeouts, 429 y 5xx. Un 404 o un 401 no se reintentan.
 
