@@ -96,3 +96,36 @@ def test_restart_brings_it_back_with_the_same_volume(mpv):
     mpv.restart()
     assert mpv.alive is True
     assert mpv.volume == 33
+
+
+# ------------------------------------------------------------------ filters
+
+
+def filters(mpv):
+    return mpv._command("get_filters")
+
+
+def test_set_filter_uses_the_label_first_syntax(mpv):
+    mpv.set_filter("eq", "equalizer=f=60:t=q:w=1.0:g=6")
+    # Label in front: "@eq:lavfi=[…]". The other order makes real mpv abort at
+    # startup, so the fake rejects it too.
+    assert filters(mpv) == {"eq": "lavfi=[equalizer=f=60:t=q:w=1.0:g=6]"}
+
+
+def test_set_filter_replaces_rather_than_stacking(mpv):
+    mpv.set_filter("eq", "equalizer=f=60:t=q:w=1.0:g=6")
+    mpv.set_filter("eq", "equalizer=f=60:t=q:w=1.0:g=-6")
+    assert filters(mpv) == {"eq": "lavfi=[equalizer=f=60:t=q:w=1.0:g=-6]"}
+
+
+def test_a_none_graph_removes_the_filter(mpv):
+    mpv.set_filter("balance", "pan=stereo|c0=1.00*c0|c1=0.50*c1")
+    mpv.set_filter("balance", None)
+    assert filters(mpv) == {}
+
+
+def test_filters_are_independent(mpv):
+    mpv.set_filter("balance", "pan=stereo|c0=0.50*c0|c1=1.00*c1")
+    mpv.set_filter("eq", "equalizer=f=1000:t=q:w=1.0:g=3")
+    mpv.set_filter("balance", None)
+    assert list(filters(mpv)) == ["eq"]

@@ -15,6 +15,10 @@ import socket
 import sys
 import threading
 
+# Labelled filters currently in the chain, so the tests can assert on what
+# set_filter() actually sent.
+filters: dict[str, str] = {}
+
 props = {
     "pause": False,
     "idle-active": True,
@@ -44,6 +48,21 @@ def handle(command, conn):
     if name == "seek":
         props["time-pos"] = float(command[1])
         return None, "success"
+    if name == "af":
+        action, spec = command[1], command[2]
+        if action == "remove":
+            filters.pop(spec.lstrip("@"), None)
+        elif action == "add":
+            # The real mpv wants "@label:filter"; anything else is a bug.
+            if not spec.startswith("@") or ":" not in spec:
+                return None, "error"
+            label, graph = spec[1:].split(":", 1)
+            filters[label] = graph
+        else:
+            return None, "error"
+        return None, "success"
+    if name == "get_filters":  # not mpv; the tests use it to inspect state
+        return dict(filters), "success"
     if name == "quit":
         return None, "success"
     return None, "unsupported"

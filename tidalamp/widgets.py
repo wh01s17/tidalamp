@@ -250,20 +250,37 @@ class SeekBar(Widget):
 
 
 class Slider(Widget):
-    """A labelled horizontal level, used for volume."""
+    """A labelled horizontal level.
+
+    Volume fills from the left; balance is ``centred``, filling outwards from
+    the middle in whichever direction it leans, which is the only way a value
+    that can be negative reads correctly at a glance.
+    """
 
     DEFAULT_CSS = "Slider { height: 1; }"
 
     value = reactive(0)
     maximum = reactive(100)
     label = reactive("VOL")
+    centred = reactive(False)
 
     def render(self) -> Text:
         width = max(8, self.size.width)
         track = width - len(self.label) - 6
-        filled = int((self.value / self.maximum) * track) if self.maximum else 0
         bar = Text(f"{self.label} ", style="#7f9f87")
-        bar.append("█" * filled, style="#00ff4c")
-        bar.append("░" * max(0, track - filled), style="#2f3f35")
+        if self.centred:
+            half = track // 2
+            offset = int((self.value / self.maximum) * half) if self.maximum else 0
+            left = max(0, min(half, -offset))
+            right = max(0, min(half, offset))
+            bar.append("░" * (half - left), style="#2f3f35")
+            bar.append("█" * left, style="#00ff4c")
+            bar.append("│", style="#5f7f67")
+            bar.append("█" * right, style="#00ff4c")
+            bar.append("░" * (half - right), style="#2f3f35")
+        else:
+            filled = int((self.value / self.maximum) * track) if self.maximum else 0
+            bar.append("█" * filled, style="#00ff4c")
+            bar.append("░" * max(0, track - filled), style="#2f3f35")
         bar.append(f" {self.value:>3}", style="#7f9f87")
         return bar

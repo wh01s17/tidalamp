@@ -20,9 +20,10 @@ from .mpris import MprisService
 from .net import with_retries
 from .player import Mpv
 from .queue import Entry, Queue, Repeat
+from .settings import BAND_LABELS, GAIN_LIMIT, Settings
 from .spectrum import Cava, SpectrumUnavailable
 from .stream import StreamUnavailable, cleanup_playlists, resolve
-from .widgets import Analyzer, Marquee, SeekBar, Slider, TimeDisplay
+from .widgets import Analyzer, EqualizerBars, Marquee, SeekBar, Slider, TimeDisplay
 
 
 class RowList(Widget):
@@ -264,6 +265,105 @@ class BrowserScreen(ModalScreen[tuple | None]):
         self.action_append_one()
 
 
+class EqScreen(ModalScreen[None]):
+    """The equaliser window: ten bands and a balance, applied live.
+
+    Every change goes straight to mpv rather than waiting for an OK button —
+    an equaliser you cannot hear while you move it is useless.
+    """
+
+    BINDINGS = [
+        Binding("escape,e", "close", "cerrar"),
+        Binding("left", "prev_band", "banda anterior", show=False),
+        Binding("right", "next_band", "banda siguiente", show=False),
+        Binding("up", "boost", "subir", show=False),
+        Binding("down", "cut", "bajar", show=False),
+        Binding("0", "reset", "plano", show=False),
+        Binding("comma", "balance_left", "balance izq", show=False),
+        Binding("full_stop", "balance_right", "balance der", show=False),
+        Binding("backslash", "balance_centre", "centrar", show=False),
+    ]
+
+    def __init__(self, settings: Settings, apply) -> None:
+        super().__init__()
+        self.settings = settings
+        self._apply = apply
+
+    def compose(self) -> ComposeResult:
+        with Vertical(id="eq-box"):
+            yield Static("▓ ECUALIZADOR ▓", id="eq-title")
+            yield EqualizerBars(id="eq-bars")
+            yield Slider(id="eq-balance")
+            yield Static(
+                " ←→ banda  ↑↓ ±1 dB  0 plano  ,. balance  \\ centro  esc",
+                id="eq-hint",
+            )
+
+    def on_mount(self) -> None:
+        bars = self.query_one(EqualizerBars)
+        bars.labels = BAND_LABELS
+        bars.limit = GAIN_LIMIT
+        balance = self.query_one("#eq-balance", Slider)
+        balance.label = "BAL"
+        balance.centred = True
+        self._redraw()
+
+    def _redraw(self) -> None:
+        bars = self.query_one(EqualizerBars)
+        bars.gains = list(self.settings.gains)
+        self.query_one("#eq-balance", Slider).value = int(self.settings.balance * 100)
+        bars.refresh()
+
+    def _band(self) -> int:
+        return self.query_one(EqualizerBars).selected
+
+    def _nudge(self, delta: float) -> None:
+        band = self._band()
+        self.settings.set_gain(band, self.settings.gains[band] + delta)
+        self._apply()
+        self._redraw()
+
+    def action_prev_band(self) -> None:
+        bars = self.query_one(EqualizerBars)
+        bars.selected = max(0, bars.selected - 1)
+        bars.refresh()
+
+    def action_next_band(self) -> None:
+        bars = self.query_one(EqualizerBars)
+        bars.selected = min(len(self.settings.gains) - 1, bars.selected + 1)
+        bars.refresh()
+
+    def action_boost(self) -> None:
+        self._nudge(1.0)
+
+    def action_cut(self) -> None:
+        self._nudge(-1.0)
+
+    def action_reset(self) -> None:
+        self.settings.reset_eq()
+        self._apply()
+        self._redraw()
+
+    def _slide(self, delta: float) -> None:
+        self.settings.set_balance(self.settings.balance + delta)
+        self._apply()
+        self._redraw()
+
+    def action_balance_left(self) -> None:
+        self._slide(-0.1)
+
+    def action_balance_right(self) -> None:
+        self._slide(0.1)
+
+    def action_balance_centre(self) -> None:
+        self.settings.set_balance(0.0)
+        self._apply()
+        self._redraw()
+
+    def action_close(self) -> None:
+        self.dismiss(None)
+
+
 class TidalAmp(App):
     """Main application."""
 
@@ -279,6 +379,7 @@ class TidalAmp(App):
         Binding("b", "next", "siguiente"),
         Binding("slash", "search", "buscar"),
         Binding("l", "library", "biblioteca"),
+        Binding("e", "equalizer", "ecualizador"),
         Binding("s", "shuffle", "shuffle"),
         Binding("r", "repeat", "repeat"),
         Binding("up", "cursor_up", "arriba", show=False),
@@ -294,6 +395,9 @@ class TidalAmp(App):
         Binding("right", "seek_fwd", "+5s", show=False),
         Binding("plus,equals_sign", "vol_up", "vol+", show=False),
         Binding("minus", "vol_down", "vol-", show=False),
+        Binding("comma", "balance_left", "balance izq", show=False),
+        Binding("full_stop", "balance_right", "balance der", show=False),
+        Binding("backslash", "balance_centre", "centrar balance", show=False),
         Binding("t", "toggle_time", "tiempo", show=False),
         Binding("q,ctrl+c", "quit", "salir"),
     ]
@@ -305,6 +409,7 @@ class TidalAmp(App):
         self.session = session
         self.mpv = mpv
         self.queue = Queue()
+        self.settings = Settings.load()
         self._was_idle = True
         self.mpris = MprisService(self)
         self._mpris_ready = False
@@ -324,9 +429,10 @@ class TidalAmp(App):
                     yield Analyzer(id="analyzer")
             yield SeekBar(id="seek")
             yield Slider(id="volume")
+            yield Slider(id="balance")
             yield Static(
-                "  z ◀◀   x ▶   c ‖   v ■   b ▶▶    / buscar  l biblioteca  s shuffle"
-                "  r repeat  q salir",
+                "  z ◀◀   x ▶   c ‖   v ■   b ▶▶   / buscar  l lib  e eq  s shuf"
+                "  r rep  q salir",
                 id="transport",
             )
             yield Static("▓ PLAYLIST ▓   d quitar   C vaciar   alt+↑↓ mover", id="pl-title")
@@ -337,6 +443,10 @@ class TidalAmp(App):
         playlist = self.query_one("#playlist", RowList)
         playlist.empty_text = "cola vacía — / para buscar, l para tu biblioteca"
         self.query_one("#volume", Slider).value = self.mpv.volume
+        balance = self.query_one("#balance", Slider)
+        balance.label = "BAL"
+        balance.centred = True
+        self._apply_audio()
         self._start_spectrum()
         self.set_interval(1 / 10, self._tick_fast)
         self.set_interval(1 / 4, self._tick_slow)
@@ -346,6 +456,16 @@ class TidalAmp(App):
             self._sync_queue()
             playlist.cursor = max(0, self.queue.resume_at)
             self.status = f"cola restaurada ({len(self.queue)} pistas)"
+
+    def _apply_audio(self) -> None:
+        """Push balance and EQ into mpv's filter chain and redraw the slider.
+
+        Also called after mpv is respawned: a fresh process starts with an
+        empty chain, so the settings would silently stop applying otherwise.
+        """
+        self.mpv.set_filter("balance", self.settings.balance_graph())
+        self.mpv.set_filter("eq", self.settings.eq_graph())
+        self.query_one("#balance", Slider).value = int(self.settings.balance * 100)
 
     def _start_spectrum(self) -> None:
         """Use cava for a real FFT when it is available. Its absence is not an
@@ -404,6 +524,10 @@ class TidalAmp(App):
         seek = self.query_one(SeekBar)
         seek.position, seek.total = position, duration
         self.query_one("#volume", Slider).value = self.mpv.volume
+        balance = self.query_one("#balance", Slider)
+        balance.label = "BAL"
+        balance.centred = True
+        self._apply_audio()
         self.query_one("#status", Static).update(f" {self._status_line()}")
 
         # mpv going idle after having played something means the track ended.
@@ -424,6 +548,7 @@ class TidalAmp(App):
             self.status = f"mpv murió y no se pudo reiniciar ({exc})"
             return
         self._was_idle = True
+        self._apply_audio()
         index = self.queue.playing
         if 0 <= index < len(self.queue):
             self.status = "mpv se reinició; recargando la pista"
@@ -640,6 +765,32 @@ class TidalAmp(App):
     def action_vol_down(self) -> None:
         self.mpv.volume = self.mpv.volume - 5
 
+    def action_equalizer(self) -> None:
+        self.push_screen(EqScreen(self.settings, self._apply_audio), self._eq_closed)
+
+    def _eq_closed(self, _: None) -> None:
+        self.settings.save()
+        self.status = "ecualizador activo" if self.settings.eq_active else "ecualizador plano"
+
+    def _nudge_balance(self, delta: float) -> None:
+        value = self.settings.set_balance(self.settings.balance + delta)
+        self._apply_audio()
+        self.settings.save()
+        side = "centro" if value == 0 else (f"{abs(int(value * 100))}% " + ("izq" if value < 0 else "der"))
+        self.status = f"balance: {side}"
+
+    def action_balance_left(self) -> None:
+        self._nudge_balance(-0.1)
+
+    def action_balance_right(self) -> None:
+        self._nudge_balance(0.1)
+
+    def action_balance_centre(self) -> None:
+        self.settings.set_balance(0.0)
+        self._apply_audio()
+        self.settings.save()
+        self.status = "balance: centro"
+
     def action_toggle_time(self) -> None:
         clock = self.query_one(TimeDisplay)
         clock.countdown = not clock.countdown
@@ -649,6 +800,7 @@ class TidalAmp(App):
 
     async def _shutdown(self) -> None:
         self.queue.save()
+        self.settings.save()
         if self._mpris_ready:
             await self.mpris.stop()
         self._stop_spectrum()
