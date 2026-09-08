@@ -1,6 +1,6 @@
 # tidalamp
 
-A terminal TIDAL client with a Winamp 2.x look. No official API app registration
+A terminal TIDAL client for Linux with a Winamp 2.x look. No official API app registration
 and no browser in the middle: device flow + mpv.
 
 ![TidalAmp adapting to different Omarchy themes](img/tidalamp-banner.svg)
@@ -194,6 +194,27 @@ On other distributions, or when the file is missing or invalid, tidalamp uses it
 original green-on-black Winamp palette. The integration only reads Omarchy state; it
 does not modify themes or require the `omarchy` command.
 
+## Platform support
+
+tidalamp is a Linux application. Real playback has been tested on Arch Linux with
+Omarchy, and the automated test suite runs on Ubuntu. It should work on other desktop
+Linux distributions that provide Python 3.11 or newer and `mpv`, although real
+playback has not yet been tested on each of them.
+
+| Platform | Status |
+|---|---|
+| Arch Linux / Omarchy | Supported and tested; the AUR is the recommended installation channel |
+| Debian / Ubuntu | Supported through PyPI; the automated suite runs on Ubuntu |
+| Fedora, openSUSE, and other desktop Linux distributions | Expected to work through PyPI, but not yet tested with real playback |
+| WSL2 | Best effort; audio must be configured separately and desktop integration may be unavailable |
+| macOS | Unsupported and untested; the core may run, but the Linux desktop and audio integrations will not |
+| Windows | Not compatible: mpv is controlled through a Unix socket and desktop integration uses D-Bus/MPRIS |
+| BSD and Android/Termux | Unsupported and untested |
+
+A missing D-Bus session only disables MPRIS and desktop media controls; it does not
+stop playback. Cover art also falls back to terminal blocks when kitty graphics and
+sixel are unavailable.
+
 ## Installation
 
 **pip does not install `mpv`.** It must be present on the system; without it, tidalamp
@@ -209,7 +230,7 @@ yay -S tidalamp        # installs mpv and the other dependencies
 This is the recommended channel on Arch because it can declare `mpv` as a real
 dependency and `cava` as optional.
 
-### Other distributions (PyPI)
+### Other Linux distributions (PyPI)
 
 ```sh
 sudo apt install mpv          # or the equivalent for your distribution

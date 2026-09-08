@@ -1,7 +1,8 @@
 # Empaquetado
 
 Dos canales que se complementan: el AUR para Arch, donde se puede declarar `mpv` como
-dependencia real y `cava` como opcional, y PyPI para el resto, donde no se puede.
+dependencia real y `cava` como opcional, y PyPI para el resto de distribuciones Linux,
+donde no se puede. Windows no es compatible y macOS no está soportado ni probado.
 
 ## Publicar una versión
 

@@ -1,7 +1,7 @@
 [project]
 name = "tidalamp"
 version = "0.1.0"
-description = "Terminal TIDAL client with a Winamp-style interface (requires system mpv)"
+description = "Linux terminal TIDAL client with a Winamp-style interface (requires system mpv)"
 readme = "README.md"
 requires-python = ">=3.11"
 license = "GPL-3.0-or-later"
