@@ -1,7 +1,7 @@
 [project]
 name = "tidalamp"
 version = "0.1.0"
-description = "Cliente TIDAL para terminal con interfaz estilo Winamp (requiere mpv en el sistema)"
+description = "Terminal TIDAL client with a Winamp-style interface (requires system mpv)"
 readme = "README.md"
 requires-python = ">=3.11"
 license = "GPL-3.0-or-later"
@@ -11,6 +11,7 @@ classifiers = [
     "Development Status :: 4 - Beta",
     "Environment :: Console :: Curses",
     "Intended Audience :: End Users/Desktop",
+    "Natural Language :: English",
     "Natural Language :: Spanish",
     "Operating System :: POSIX :: Linux",
     "Programming Language :: Python :: 3",
@@ -70,8 +71,8 @@ target-version = "py311"
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "N", "UP", "B", "SIM", "C4", "PIE", "RUF"]
 ignore = [
-    # The interface, the comments and the docs are in Spanish. « » — ¿ are not
-    # ambiguous here, they are the language.
+    # Spanish is the source language for the interface, and some maintainer
+    # documentation remains Spanish. « » — ¿ are not ambiguous there.
     "RUF001",
     "RUF002",
     "RUF003",

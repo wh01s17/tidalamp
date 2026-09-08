@@ -19,6 +19,8 @@ from dbus_fast.aio import MessageBus
 from dbus_fast.constants import PropertyAccess, RequestNameReply
 from dbus_fast.service import ServiceInterface, dbus_property, method, signal
 
+from .i18n import _
+
 BUS_NAME = "org.mpris.MediaPlayer2.tidalamp"
 OBJECT_PATH = "/org/mpris/MediaPlayer2"
 
@@ -342,7 +344,11 @@ class MprisService:
                 RequestNameReply.PRIMARY_OWNER,
                 RequestNameReply.ALREADY_OWNER,
             ):
-                raise RuntimeError(f"no se pudo reclamar un nombre MPRIS ({reply.name})")
+                raise RuntimeError(
+                    _("no se pudo reclamar un nombre MPRIS ({reply})").format(
+                        reply=reply.name
+                    )
+                )
         return self.bus_name
 
     def publish(self) -> None:

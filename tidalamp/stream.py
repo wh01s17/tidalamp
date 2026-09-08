@@ -31,6 +31,7 @@ from pathlib import Path
 import tidalapi
 
 from .config import CACHE_DIR, DEFAULT_QUALITY, ensure_dirs
+from .i18n import _
 from .net import with_retries
 
 log = logging.getLogger("tidalamp.stream")
@@ -142,15 +143,19 @@ def resolve(track: tidalapi.Track) -> Playable:
         stream = with_retries(track.get_stream)
     except Exception as exc:  # tidalapi raises a grab-bag of API errors here
         raise StreamUnavailable(
-            f"TIDAL no devolvió stream para «{track.name}»: {exc}"
+            _("TIDAL no devolvió stream para «{name}»: {error}").format(
+                name=track.name, error=exc
+            )
         ) from exc
 
     manifest = stream.get_stream_manifest()
 
     if manifest.is_encrypted:
         raise StreamUnavailable(
-            f"«{track.name}» viene con DRM (Widevine); mpv no puede reproducirla. "
-            "Prueba con TIDALAMP_QUALITY=HIGH."
+            _(
+                "«{name}» viene con DRM (Widevine); mpv no puede reproducirla. "
+                "Prueba con TIDALAMP_QUALITY=HIGH."
+            ).format(name=track.name)
         )
 
     if manifest.is_mpd:
@@ -160,7 +165,9 @@ def resolve(track: tidalapi.Track) -> Playable:
         kind = "BTS"
         urls = manifest.get_urls()
         if not urls:
-            raise StreamUnavailable(f"Manifiesto vacío para «{track.name}»")
+            raise StreamUnavailable(
+                _("Manifiesto vacío para «{name}»").format(name=track.name)
+            )
         url = urls[0]
 
     log.debug(

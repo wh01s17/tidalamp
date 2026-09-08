@@ -17,6 +17,7 @@ import time
 from typing import Any
 
 from .config import IPC_SOCKET, ensure_dirs
+from .i18n import _
 
 log = logging.getLogger("tidalamp.player")
 
@@ -41,7 +42,7 @@ class MpvNotFound(RuntimeError):
 class Mpv:
     def __init__(self) -> None:
         if shutil.which("mpv") is None:
-            raise MpvNotFound("mpv no está instalado (pacman -S mpv)")
+            raise MpvNotFound(_("mpv no está instalado (pacman -S mpv)"))
         ensure_dirs()
         self._lock = threading.Lock()
         self._sock: socket.socket | None = None
@@ -88,7 +89,7 @@ class Mpv:
                 except OSError:
                     pass
             time.sleep(0.05)
-        raise MpvNotFound("mpv no abrió el socket IPC a tiempo")
+        raise MpvNotFound(_("mpv no abrió el socket IPC a tiempo"))
 
     @property
     def alive(self) -> bool:

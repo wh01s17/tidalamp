@@ -12,6 +12,7 @@ from bisect import bisect_right
 from dataclasses import dataclass
 from typing import Any
 
+from .i18n import _
 from .net import with_retries
 
 _TIMESTAMP = re.compile(
@@ -93,11 +94,13 @@ def parse_lyrics(
 
 def load_lyrics(track: Any) -> LyricsDocument:
     """Fetch and parse lyrics for ``track`` without leaking API exceptions."""
-    name = getattr(track, "name", "esta pista")
+    name = getattr(track, "name", _("esta pista"))
     try:
         raw = with_retries(track.lyrics)
     except Exception as exc:
-        raise LyricsUnavailable(f"Letra no disponible para «{name}»: {exc}") from exc
+        raise LyricsUnavailable(
+            _("Letra no disponible para «{name}»: {error}").format(name=name, error=exc)
+        ) from exc
 
     document = parse_lyrics(
         text=getattr(raw, "text", "") or "",
@@ -105,5 +108,5 @@ def load_lyrics(track: Any) -> LyricsDocument:
         provider=getattr(raw, "provider", "") or "",
     )
     if not document.lines:
-        raise LyricsUnavailable(f"Letra no disponible para «{name}»")
+        raise LyricsUnavailable(_("Letra no disponible para «{name}»").format(name=name))
     return document

@@ -15,6 +15,7 @@ from typing import Any, cast
 
 import tidalapi
 
+from .i18n import _
 from .net import with_retries
 from .queue import Entry
 
@@ -130,11 +131,11 @@ def _paged(
         if more:
             rows.append(
                 Row(
-                    label="más…",
+                    label=_("más…"),
                     detail=(
-                        f"siguientes {PAGE} de {total}"
+                        _("siguientes {page} de {total}").format(page=PAGE, total=total)
                         if total is not None
-                        else f"siguientes {PAGE}"
+                        else _("siguientes {page}").format(page=PAGE)
                     ),
                     more=lambda: level(offset + PAGE, total),
                 )
@@ -159,7 +160,7 @@ def _playlist_rows(playlists: Iterable[tidalapi.Playlist]) -> list[Row]:
         rows.append(
             Row(
                 label=playlist.name or "",
-                detail=f"{count} pistas",
+                detail=_("{count} pistas").format(count=count),
                 key=f"playlist:{playlist.id}",
                 loader=cached(
                     f"playlist:{playlist.id}",
@@ -240,7 +241,7 @@ def _artist_rows(artists: Iterable[tidalapi.Artist]) -> list[Row]:
         rows.append(
             Row(
                 label=artist.name or "",
-                detail="artista",
+                detail=_("artista"),
                 key=f"artist:{artist.id}",
                 loader=cached(
                     f"artist:{artist.id}",
@@ -259,13 +260,13 @@ def root(session: tidalapi.Session) -> list[Row]:
     favorites = _me(session).favorites
     return [
         Row(
-            "Mis playlists",
+            _("Mis playlists"),
             "",
             key="playlists",
             loader=cached("playlists", _playlists_level(session)),
         ),
         Row(
-            "Pistas favoritas",
+            _("Pistas favoritas"),
             "",
             key="fav:tracks",
             loader=cached(
@@ -278,7 +279,7 @@ def root(session: tidalapi.Session) -> list[Row]:
             ),
         ),
         Row(
-            "Álbumes favoritos",
+            _("Álbumes favoritos"),
             "",
             key="fav:albums",
             loader=cached(
@@ -291,7 +292,7 @@ def root(session: tidalapi.Session) -> list[Row]:
             ),
         ),
         Row(
-            "Artistas favoritos",
+            _("Artistas favoritos"),
             "",
             key="fav:artists",
             loader=cached(
@@ -328,14 +329,16 @@ def favourite(session: tidalapi.Session, row: Row, add: bool = True) -> str:
         with_retries(lambda: track(str(entry.id)))
         return entry.label
 
-    kind, _, ident = row.key.partition(":")
+    kind, _separator, ident = row.key.partition(":")
     calls: dict[str, tuple[Callable[[str], bool], Callable[[str], bool]]] = {
         "album": (favorites.add_album, favorites.remove_album),
         "artist": (favorites.add_artist, favorites.remove_artist),
         "playlist": (favorites.add_playlist, favorites.remove_playlist),
     }
     if kind not in calls or not ident:
-        raise NotFavouritable("eso no es una pista, un álbum, un artista ni una playlist")
+        raise NotFavouritable(
+            _("eso no es una pista, un álbum, un artista ni una playlist")
+        )
     call = calls[kind][0 if add else 1]
     with_retries(lambda: call(ident))
     return row.label
@@ -370,14 +373,14 @@ def search_rows(session: tidalapi.Session, query: str) -> list[Row]:
     only when, it is opened.
     """
     categories: list[tuple[str, type, str, Callable[[list], list[Row]]]] = [
-        ("Álbumes", tidalapi.Album, "albums", _album_rows),
-        ("Artistas", tidalapi.Artist, "artists", _artist_rows),
-        ("Playlists", tidalapi.Playlist, "playlists", _playlist_rows),
+        (_("Álbumes"), tidalapi.Album, "albums", _album_rows),
+        (_("Artistas"), tidalapi.Artist, "artists", _artist_rows),
+        (_("Playlists"), tidalapi.Playlist, "playlists", _playlist_rows),
     ]
     rows = [
         Row(
-            f"{label} con «{query}»",
-            "abrir",
+            _("{label} con «{query}»").format(label=label, query=query),
+            _("abrir"),
             key=f"search:{bucket}:{query}",
             loader=cached(
                 f"search:{bucket}:{query}",

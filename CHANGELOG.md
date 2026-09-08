@@ -31,6 +31,8 @@ sección se cierra con su número y su fecha; el procedimiento está en
 - Fichero de configuración `config.toml` y teclas rebindables.
 - Entrada de escritorio e icono, y aviso cuando el terminal es más pequeño de 76×20.
 - Empaquetado para el AUR y para PyPI, con publicación por *Trusted Publishing*.
+- Interfaz y CLI bilingües español/inglés según el locale, con fallback al español.
+- README público en inglés.
 
 ### Corregido
 

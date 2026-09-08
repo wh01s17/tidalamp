@@ -1,223 +1,222 @@
 # tidalamp
 
-Un cliente de TIDAL para terminal con la estética de Winamp 2.x. Sin registrar apps
-en la API oficial y sin navegador de por medio: device flow + mpv.
+A terminal TIDAL client with a Winamp 2.x look. No official API app registration
+and no browser in the middle: device flow + mpv.
 
-![TidalAmp adaptándose a diferentes temas de Omarchy](img/tidalamp-banner.svg)
+![TidalAmp adapting to different Omarchy themes](img/tidalamp-banner.svg)
 
-## Cómo funciona
+## How it works
 
-Tres capas independientes:
+The application is split into independent layers:
 
-| Capa | Qué hace | Módulo |
+| Layer | Responsibility | Module |
 |---|---|---|
-| Auth | Device flow de TIDAL, sin registrar ninguna app | `auth.py` |
-| Stream | Resuelve una pista a algo que mpv pueda abrir | `stream.py` |
-| Playback | Un `mpv --idle` de larga vida controlado por socket IPC | `player.py` |
-| UI | TUI en Textual con la estética de Winamp | `app.py`, `widgets.py` |
-| Cola | Orden, shuffle, repeat y persistencia | `queue.py` |
-| Biblioteca | Playlists, favoritos, álbumes y artistas | `library.py` |
-| MPRIS | Servicio D-Bus para el resto del escritorio | `mpris.py` |
-| Red | Reintentos con backoff sobre las llamadas a TIDAL | `net.py` |
-| Espectro | cava contra el sink, cuando está instalado | `spectrum.py` |
-| Audio | Balance y ecualizador como filtros de mpv | `settings.py` |
-| Letras | Carga, parseo LRC y fallback a texto plano | `lyrics.py` |
-| Carátula | Descarga, cache y pintado en el terminal | `artwork.py` |
-| Tema | Paleta Omarchy activa o fallback clásico | `theme.py` |
+| Auth | TIDAL device flow, without registering an app | `auth.py` |
+| Stream | Resolves a track to something mpv can open | `stream.py` |
+| Playback | One long-lived `mpv --idle` process controlled over IPC | `player.py` |
+| UI | Textual TUI with a Winamp-inspired look | `app.py`, `widgets.py` |
+| Queue | Ordering, shuffle, repeat, and persistence | `queue.py` |
+| Library | Playlists, favourites, albums, and artists | `library.py` |
+| MPRIS | D-Bus service for desktop integration | `mpris.py` |
+| Network | Retries with backoff around TIDAL calls | `net.py` |
+| Spectrum | cava connected to the audio sink, when installed | `spectrum.py` |
+| Audio | Balance and equalizer as mpv filters | `settings.py` |
+| Lyrics | Loading, LRC parsing, and plain-text fallback | `lyrics.py` |
+| Cover art | Downloading, caching, and terminal rendering | `artwork.py` |
+| Theme | Active Omarchy palette or a classic fallback | `theme.py` |
 
-**Búsqueda**: `/` busca pistas y las muestra directamente, con álbumes, artistas y
-playlists en tres filas propias encima. Cada categoría se pide sólo al abrirla, así que
-buscar sigue costando una única petición.
+**Search:** `/` searches for tracks and displays them directly, with albums, artists,
+and playlists in three category rows above. A category is fetched only when opened,
+so the initial search still costs a single request.
 
-**Autenticación**: no usa la API oficial de `developer.tidal.com` (que exige registrar
-una app y ni siquiera entrega URLs de stream). Usa el mismo *device authorization
-flow* que los clientes oficiales de TV/escritorio, vía `tidalapi`. Abres un enlace una
-vez, autorizas, y la sesión refrescable queda en `~/.config/tidalamp/session.json`.
+**Authentication:** tidalamp does not use the official `developer.tidal.com` API,
+which requires app registration and does not provide stream URLs. Instead, `tidalapi`
+drives the same device authorization flow used by official TV and desktop clients.
+Open a link once, authorize access, and the refreshable session is stored at
+`~/.config/tidalamp/session.json`.
 
-**Streaming**: TIDAL devuelve dos formas de manifiesto. `BTS` es una lista de URLs
-progresivas que mpv abre directamente. `MPD` es DASH segmentado, el que trae el hi-res;
-`tidalapi` ya parsea los segmentos, así que los volcamos como una playlist HLS local y
-le pasamos ese fichero a mpv. Ver [Calidad](#calidad), porque esa ruta tenía dos
-trampas.
+**Streaming:** TIDAL returns two kinds of manifest. `BTS` contains progressive URLs
+that mpv opens directly. `MPD` is segmented DASH, used for hi-res audio; `tidalapi`
+already parses the segments, so tidalamp writes them to a local HLS playlist and
+passes that file to mpv. See [Quality](#quality), because this path had two traps.
 
-## Integración con el escritorio (MPRIS)
+## Desktop integration (MPRIS)
 
-Al arrancar, `tidalamp` publica `org.mpris.MediaPlayer2.tidalamp` en el bus de sesión.
-Eso lo hace visible para todo lo que hable MPRIS, sin configuración adicional:
+On startup, tidalamp publishes `org.mpris.MediaPlayer2.tidalamp` on the session bus.
+Anything that speaks MPRIS can see it without extra configuration:
 
 ```sh
 playerctl -p tidalamp play-pause
 playerctl -p tidalamp metadata
 ```
 
-Con ello funcionan las teclas multimedia de Hyprland, el módulo `mpris` de Waybar
-(que además muestra la carátula, porque exportamos `mpris:artUrl`), y cualquier widget
-externo — un frontend en Quickshell lo consume con `Quickshell.Services.Mpris` sin
-necesidad de IPC propio.
+This supports Hyprland media keys, Waybar's `mpris` module (including cover art through
+`mpris:artUrl`), and external widgets. A Quickshell frontend, for example, can consume
+it through `Quickshell.Services.Mpris` without a separate IPC protocol.
 
-Se exportan `PlaybackStatus`, `Metadata`, `Position`, `Volume`, `LoopStatus`, `Shuffle`
-y las capacidades, y se emite `PropertiesChanged` sólo cuando algo cambia de verdad.
+The service exports `PlaybackStatus`, `Metadata`, `Position`, `Volume`, `LoopStatus`,
+`Shuffle`, and the capability properties. It emits `PropertiesChanged` only when a
+value actually changes.
 
-La cola entera se publica además como `org.mpris.MediaPlayer2.TrackList`: `Tracks` da
-la lista de identificadores en el orden visible, `GetTracksMetadata` los resuelve y
-`GoTo` salta a cualquier fila. Cada fila tiene identificador propio, no el de la pista
-de TIDAL, porque la misma canción puede estar dos veces en la cola y MPRIS exige que no
-se repitan; y ese identificador sobrevive a reordenar la cola. `CanEditTracks` es
-`False` a propósito: `AddTrack` recibe una URI y no publicamos ningún esquema que
-sepamos reproducir, así que decir `True` prometería algo que no podemos cumplir. Los
-cambios se anuncian con `TrackListReplaced`, que es la señal que la especificación pide
-para esto — la cola cambia entera a menudo (shuffle, mover, vaciar).
-Si ya hay otro `tidalamp` en el bus, la segunda instancia se registra como
-`org.mpris.MediaPlayer2.tidalamp.instance<pid>` en lugar de quedarse muda. Si no hay bus de sesión,
-la aplicación arranca igual y lo indica en la barra de estado.
+The complete queue is also published as `org.mpris.MediaPlayer2.TrackList`. `Tracks`
+returns row identifiers in visible order, `GetTracksMetadata` resolves them, and
+`GoTo` jumps to any row. Each row has its own identifier rather than reusing the TIDAL
+track ID: the same song may appear twice, and MPRIS requires distinct IDs. These IDs
+also survive queue reordering. `CanEditTracks` is deliberately `False`; `AddTrack`
+takes a URI and tidalamp does not advertise any playable URI scheme, so `True` would
+promise a feature it cannot provide. Queue changes use `TrackListReplaced`, the signal
+required by the specification for this case.
 
-El paquete instala también `tidalamp.desktop` y su icono. No es decoración: la
-metadata MPRIS declara `DesktopEntry=tidalamp`, y los clientes usan ese fichero para
-poner nombre e icono al reproductor. Sin él, Waybar y las notificaciones muestran un
-reproductor anónimo.
+If another tidalamp process already owns the base bus name, the second instance uses
+`org.mpris.MediaPlayer2.tidalamp.instance<pid>`. If there is no session bus, playback
+still starts and the status bar reports that MPRIS is unavailable.
 
-Nota: lanzamos mpv con `--load-scripts=no` a propósito. Si tienes `mpv-mpris` instalado
-en el sistema, sin esa opción mpv publicaría un segundo reproductor duplicado en el bus.
+The package installs `tidalamp.desktop` and its icon as well. This is functional
+metadata: MPRIS declares `DesktopEntry=tidalamp`, and clients use that file for the
+player name and icon. Without it, Waybar and notifications show an anonymous player.
 
-## Cola y biblioteca
+mpv is started with `--load-scripts=no` on purpose. If `mpv-mpris` is installed on the
+system, allowing scripts would publish a duplicate player on the bus.
 
-`l` abre el navegador de tu biblioteca: playlists, pistas favoritas, álbumes y
-artistas. Se navega hacia dentro con `↵` y hacia fuera con `⌫`.
+## Queue and library
 
-- `↵` sobre una pista la reproduce **y encola el nivel entero**, así que el resto del
-  álbum o de la playlist sigue sonando detrás.
-- `a` añade al final de la cola sin tocar lo que suena. Sobre una playlist o un álbum
-  añade todo su contenido.
-- `A` añade todas las pistas del nivel actual.
+Press `l` to open the library browser: playlists, favourite tracks, albums, and
+artists. Enter a level with `↵` and go back with `⌫`.
 
-La cola se guarda en `~/.local/state/tidalamp/queue.json` y se restaura al arrancar,
-con el cursor donde lo dejaste. Sólo se guardan los metadatos: el objeto `Track` de la
-API se pide al reproducir, así que restaurar una cola larga es instantáneo.
+- `↵` on a track plays it **and queues the entire level**, so the rest of the album or
+  playlist follows it.
+- `a` appends an item without interrupting the current track. On a playlist or album,
+  it appends all of its contents.
+- `A` appends every track in the current level.
 
-Los niveles largos se paginan de 100 en 100: la última fila es `más…` y `↵` sobre ella
-carga la siguiente **en el mismo nivel**, sin perder la posición del cursor. Así una
-playlist de 500 pistas es alcanzable sin descargarla entera al abrirla.
+The queue is stored at `~/.local/state/tidalamp/queue.json` and restored on startup,
+including the previous cursor. Only metadata is saved; the API `Track` object is
+resolved when playback starts, so restoring a long queue is immediate.
 
-**Una página corta no significa que se acabó.** TIDAL aplica el límite y *después*
-filtra la ventana: pedir 100 pistas favoritas devuelve 90, de 766. Por eso, cuando el
-nivel sabe decir cuántos elementos tiene (favoritos, playlists, álbumes), es ese
-recuento el que decide si hay otra página, y el offset avanza de 100 en 100 porque
-TIDAL cuenta los offsets sobre la colección sin filtrar. Donde no hay recuento —las
-mejores pistas de un artista, una búsqueda— una página llena ofrece otra, y un múltiplo
-exacto ofrece una página vacía; es preferible a mentir sobre el total.
+Long levels are paginated in groups of 100. The final row is `more…`; pressing `↵` on
+it loads the next page **into the same level** without losing the cursor position. A
+500-track playlist is therefore reachable without fetching it all up front.
 
-Cada nivel que abres se recuerda mientras la aplicación viva, así que volver a
-entrar es instantáneo. `R` lo vuelve a pedir a TIDAL, que es lo que necesitas si has
-creado una playlist desde el móvil.
+**A short page does not mean the list has ended.** TIDAL applies the limit and then
+filters the resulting window: asking for 100 favourite tracks can return 90 out of
+766. When a level exposes its total count (favourites, playlists, albums), that count
+decides whether another page exists, and the offset still advances by 100 because
+TIDAL counts against the unfiltered collection. Without a count—artist top tracks or
+search—a full page offers another one. An exact multiple may offer one empty page,
+which is better than claiming the list is complete when it is not.
 
-Detalle que costaba veinte segundos: `tidalapi` ofrece `user.playlists()`, que parece
-una llamada y no lo es. Al parsear cada playlist la pasa por `Playlist.factory()`, que
-para una playlist tuya construye un `UserPlaylist`, y **ese constructor vuelve a pedir
-la playlist entera sólo para leer su ETag**. Con 110 playlists eran 111 peticiones
-HTTP. Como no editamos playlists, parseamos el listado nosotros y nos saltamos la
-factoría: una petición, y además paginada como todo lo demás. Medido en una cuenta
-real: 19,87 s → 0,39 s.
+Opened levels are cached for the lifetime of the application, so returning to one is
+instant. `R` fetches the current level again, which is useful after creating a
+playlist on another device.
 
-`alt+↑` y `alt+↓` mueven la pista seleccionada dentro de la cola. Con shuffle activo el
-orden de reproducción se remapea en lugar de regenerarse: mover una fila no vuelve a
-barajar lo que sonará después.
+One non-obvious optimization saves roughly twenty seconds: `tidalapi`'s
+`user.playlists()` looks like one call, but parsing each owned playlist through
+`Playlist.factory()` constructs a `UserPlaylist`, whose constructor fetches the full
+playlist again just to read its ETag. With 110 playlists that became 111 HTTP
+requests. tidalamp never edits playlists, so it parses the listing directly and skips
+the factory. The result is one paginated request; measured on a real account, opening
+the list fell from 19.87 s to 0.39 s.
 
-`f` añade a tus favoritos de TIDAL lo que tengas seleccionado —una pista, un álbum, un
-artista o una playlist— y `F` lo quita. Son dos teclas y no un interruptor a propósito:
-la API de TIDAL no ofrece ninguna forma de preguntar «¿esto ya es favorito?», así que un
-interruptor tendría que descargarse la lista entera o adivinar, y adivinar mal borra
-algo que querías conservar. Dos verbos explícitos no mienten.
+`alt+↑` and `alt+↓` move the selected track in the queue. With shuffle enabled, the
+playback order is remapped instead of regenerated, so moving a row does not reshuffle
+what comes next.
 
-`s` alterna shuffle y `r` cicla el modo de repetición (ninguna → cola → pista). El
-estado queda siempre visible en una franja propia: `SHUF ON/OFF` y
-`REP OFF/ALL/1`. Los modos activos se iluminan en verde y ambos se exponen por MPRIS
-como `Shuffle` y `LoopStatus`.
+`f` adds the selected track, album, artist, or playlist to TIDAL favourites; `F`
+removes it. These are separate commands rather than a toggle because the API cannot
+answer whether an item is already a favourite. A toggle would have to download the
+entire favourites list or guess, and a wrong guess could delete something you wanted.
 
-## Calidad
+`s` toggles shuffle and `r` cycles repeat (off → queue → track). Their state remains
+visible as `SHUF ON/OFF` and `REP OFF/ALL/1`; active modes are highlighted and both are
+also exposed through MPRIS as `Shuffle` and `LoopStatus`.
 
-Por defecto se pide `HI_RES_LOSSLESS`. Medido contra una cuenta real el 2026-09-08:
+## Quality
 
-| Se pide | Pista con `HIRES_LOSSLESS` | Pista sólo `LOSSLESS` |
+The default requested quality is `HI_RES_LOSSLESS`. Measured against a real account on
+2026-09-08:
+
+| Requested | `HIRES_LOSSLESS` track | `LOSSLESS`-only track |
 |---|---|---|
-| `LOW` | BTS, LOW, 96 kbps | igual |
-| `HIGH` | BTS, HIGH, 320 kbps | igual |
+| `LOW` | BTS, LOW, 96 kbps | same |
+| `HIGH` | BTS, HIGH, 320 kbps | same |
 | `LOSSLESS` | BTS, **HIGH** | BTS, **HIGH** |
-| `HI_RES_LOSSLESS` | **MPD**, FLAC 24 bit / 96 kHz | BTS, HIGH |
+| `HI_RES_LOSSLESS` | **MPD**, FLAC 24-bit / 96 kHz | BTS, HIGH |
 
-Es decir: **pedir `LOSSLESS` nunca devuelve lossless** con el cliente del device flow;
-TIDAL contesta `HIGH` incluso en pistas que él mismo etiqueta como `LOSSLESS`. Pedir
-`HI_RES_LOSSLESS` sí da FLAC donde lo hay, y `HIGH` donde no. Por eso ése es el valor
-por defecto — el anterior era `LOSSLESS`, que no producía lossless jamás.
+In other words, **requesting `LOSSLESS` never produced lossless audio** through the
+device-flow client: TIDAL returned `HIGH` even for tracks it labels `LOSSLESS`.
+Requesting `HI_RES_LOSSLESS` yields FLAC where available and `HIGH` otherwise, so it is
+strictly better than the old default.
 
-Cuando TIDAL entrega menos de lo pedido, la barra de estado lo dice
-(`TIDAL entregó HIGH, no HI_RES_LOSSLESS`) en vez de dejar que la insignia lo insinúe.
+When TIDAL delivers less than requested, the status bar says so (`TIDAL delivered
+HIGH, not HI_RES_LOSSLESS`) instead of leaving the badge to imply it.
 
 ```sh
 TIDALAMP_QUALITY=HIGH tidalamp tui
 ```
 
-Los valores válidos son `LOW`, `HIGH`, `LOSSLESS` y `HI_RES_LOSSLESS`.
+Valid values are `LOW`, `HIGH`, `LOSSLESS`, and `HI_RES_LOSSLESS`.
 
-### Dos trampas de la ruta hi-res
+### Two traps in the hi-res path
 
-Ninguna pista hi-res sonaba, y no era evidente por qué:
+No hi-res track played until both of these were addressed:
 
-1. **Faltaba `#EXT-X-MAP`.** El primer segmento de un DASH es la inicialización
-   (`ftyp`+`moov`); los demás son `moof`+`mdat`, audio sin cabecera propia. El HLS que
-   genera `tidalapi` lista el de inicialización como si fuera audio, así que ffmpeg
-   abre cada segmento por separado, no encuentra el `trex` y aborta con
-   *error reading header*. Lo reescribimos: el primero pasa a `#EXT-X-MAP` y la
-   playlist declara versión 7, que es lo que exige el MP4 fragmentado.
-2. **ffmpeg bloquea `https` desde una playlist local.** La lista de protocolos
-   permitidos se hereda del protocolo padre, así que un `.m3u8` abierto como `file:`
-   sólo puede seguir `file,crypto,data` y cada segmento falla con
-   *Protocol 'https' not on whitelist*. mpv arranca con `--demuxer-lavf-o` para
-   ampliarla — con el escape `%<longitud>%` de mpv, porque el valor lleva comas y si no
-   la opción se parte y nunca llega a ffmpeg.
+1. **`#EXT-X-MAP` was missing.** The first DASH segment is initialization data
+   (`ftyp` + `moov`); subsequent `moof` + `mdat` segments contain audio without their
+   own header. The HLS generated by `tidalapi` lists the initialization segment as
+   audio, so ffmpeg opens each media segment independently, cannot find `trex`, and
+   aborts with *error reading header*. tidalamp rewrites the playlist: the first
+   segment becomes `#EXT-X-MAP`, and the playlist declares version 7 as required for
+   fragmented MP4.
+2. **ffmpeg blocks `https` from a local playlist.** Allowed protocols are inherited
+   from the parent protocol, so an `.m3u8` opened as `file:` may only follow
+   `file,crypto,data`; every remote segment then fails with *Protocol 'https' not on
+   whitelist*. mpv receives an expanded `--demuxer-lavf-o` whitelist, using mpv's
+   `%<length>%` escaping because commas would otherwise split the option before it
+   reaches ffmpeg.
 
-## Limitación importante: DRM
+## Important limitation: DRM
 
-Las pistas cuyo manifiesto viene cifrado (Widevine) **no se pueden reproducir con
-mpv** — no hay CDM que las descifre. El cliente lo detecta y te lo dice en la barra de
-estado en vez de fallar con un error de códec. Si te topas con muchas, baja la calidad
-con `TIDALAMP_QUALITY=HIGH` (ver [Calidad](#calidad)).
+Tracks with encrypted Widevine manifests **cannot be played by mpv** because there is
+no CDM to decrypt them. tidalamp detects this and reports it in the status bar instead
+of failing with a codec error. If it happens frequently, lower the quality with
+`TIDALAMP_QUALITY=HIGH` (see [Quality](#quality)).
 
-## Tema y colores
+## Themes and colours
 
-En Omarchy, `tidalamp` lee la paleta activa desde
-`$XDG_STATE_HOME/omarchy/current/theme/colors.toml` (o
-`~/.local/state/omarchy/current/theme/colors.toml`) y aplica sus fondos,
-foregrounds, acento y colores semánticos a toda la interfaz: CSS, listas, reloj,
-analizador, sliders, letras y ecualizador. Si cambias el tema mientras la TUI está
-abierta, la paleta se actualiza en un máximo de dos segundos sin tocar la reproducción.
+On Omarchy, tidalamp reads the active palette from
+`$XDG_STATE_HOME/omarchy/current/theme/colors.toml` (or
+`~/.local/state/omarchy/current/theme/colors.toml`) and applies its backgrounds,
+foregrounds, accent, and semantic colours throughout the UI: CSS, lists, clock,
+analyzer, sliders, lyrics, and equalizer. Changing the theme while the TUI is open
+updates the palette within two seconds without disturbing playback.
 
-En otra distribución, si el archivo no existe o no contiene una paleta válida, se usa
-la combinación Winamp verde/negro que tenía originalmente. La integración sólo lee el
-estado de Omarchy; no modifica sus temas ni requiere tener el comando `omarchy`.
+On other distributions, or when the file is missing or invalid, tidalamp uses its
+original green-on-black Winamp palette. The integration only reads Omarchy state; it
+does not modify themes or require the `omarchy` command.
 
-## Instalación
+## Installation
 
-**`mpv` no se instala con pip.** Tiene que estar en el sistema; sin él, `tidalamp`
-aborta al arrancar con `MpvNotFound`. Además hace falta Python 3.11+, y `cava` si
-quieres espectro real en lugar del vúmetro.
+**pip does not install `mpv`.** It must be present on the system; without it, tidalamp
+exits on startup with `MpvNotFound`. Python 3.11 or newer is also required. Install
+`cava` if you want a real spectrum instead of the RMS meter.
 
 ### Arch Linux (AUR)
 
 ```sh
-yay -S tidalamp        # arrastra mpv y el resto de dependencias
+yay -S tidalamp        # installs mpv and the other dependencies
 ```
 
-Es el canal recomendado en Arch: es el único que puede declarar `mpv` como dependencia
-de verdad y `cava` como opcional.
+This is the recommended channel on Arch because it can declare `mpv` as a real
+dependency and `cava` as optional.
 
-### Resto de distribuciones (PyPI)
+### Other distributions (PyPI)
 
 ```sh
-sudo apt install mpv       # o el gestor que corresponda
-pipx install "tidalamp[art]"   # el extra `art` añade Pillow, para la carátula
+sudo apt install mpv          # or the equivalent for your distribution
+pipx install "tidalamp[art]"  # the art extra adds Pillow for cover rendering
 ```
 
-### Desde el repositorio
+### From the repository
 
 ```sh
 python -m venv .venv && .venv/bin/pip install -e .
@@ -225,103 +224,117 @@ python -m venv .venv && .venv/bin/pip install -e .
 .venv/bin/tidalamp tui
 ```
 
-El proceso de publicación de ambos canales está en
+The release process for both channels is documented in
 [`packaging/README.md`](packaging/README.md).
 
-### Tamaño mínimo
+### Minimum size
 
-La interfaz necesita **76×20** celdas. Por debajo de eso el layout no encoge, se
-solapa, así que en vez de dibujar algo roto la aplicación tapa la pantalla y dice qué
-tamaño tienes y cuál hace falta. Al agrandar la ventana vuelve sola.
+The interface needs **76×20** cells. Below that size the fixed layout would overlap,
+so tidalamp covers it with a message showing the current and required dimensions.
+The normal interface returns automatically when the terminal is enlarged.
 
-## Configuración
+## Configuration
 
-Todo es opcional. `tidalamp config` muestra los ajustes en uso y crea el fichero si no
-existe, en `~/.config/tidalamp/config.toml`:
+Everything is optional. `tidalamp config` displays the effective settings and creates
+`~/.config/tidalamp/config.toml` if it does not exist:
 
 ```toml
-quality = "HI_RES_LOSSLESS"   # LOW, HIGH, LOSSLESS o HI_RES_LOSSLESS
-artwork = "auto"              # auto, kitty, sixel, blocks u off
-debug = false                 # registro en ~/.local/state/tidalamp/tidalamp.log
+quality = "HI_RES_LOSSLESS"   # LOW, HIGH, LOSSLESS, or HI_RES_LOSSLESS
+artwork = "auto"              # auto, kitty, sixel, blocks, or off
+debug = false                 # log to ~/.local/state/tidalamp/tidalamp.log
 
 [keys]
 play = "p"
 quit = "ctrl+q"
 ```
 
-El orden de precedencia es **entorno → fichero → valor por defecto**: las variables
-`TIDALAMP_QUALITY`, `TIDALAMP_ART` y `TIDALAMP_DEBUG` siguen funcionando y ganan sobre
-el fichero, que es lo que quieres para una ejecución suelta. Un fichero con un error de
-sintaxis no impide arrancar: se anota en el registro y mandan los valores por defecto.
+Precedence is **environment → file → default**. `TIDALAMP_QUALITY`, `TIDALAMP_ART`,
+and `TIDALAMP_DEBUG` therefore override the file for one-off runs. A syntax error in
+the file does not prevent startup; it is logged and the defaults take over.
 
-En `[keys]` la izquierda es la acción y la derecha la tecla; varias se separan con
-comas. Las acciones válidas son las de la tabla de abajo, y `tidalamp config` avisa de
-las que no existan. **Las teclas de navegación no se cambian** —flechas, RePág/AvPág,
-Enter, Esc—: son lo que hace navegable el navegador, y un error ahí te deja fuera.
+Under `[keys]`, the action is on the left and the key on the right; separate multiple
+keys with commas. Valid actions are listed in the table below, and `tidalamp config`
+warns about unknown ones. **Navigation keys are fixed**—arrows, Page Up/Down, Enter,
+and Esc—because a typo there could make the browser unusable.
 
-## Teclas
+### Language
 
-Son las de Winamp, a propósito. Se pueden cambiar (ver arriba).
+The interface and command-line messages follow the standard `LANGUAGE`, `LC_ALL`,
+`LC_MESSAGES`, and `LANG` variables. English and Spanish are built in; Spanish is the
+source language and the fallback for unsupported or neutral locales. To override the
+language for one run:
 
-| Tecla | Acción |
+```sh
+LANGUAGE=es tidalamp tui
+LANGUAGE=en tidalamp tui
+```
+
+No gettext catalogue or compiled locale files are required; translations ship inside
+the pure-Python wheel.
+
+## Keys
+
+The defaults deliberately match Winamp and may be changed as described above.
+
+| Key | Action |
 |---|---|
-| `z` `x` `c` `v` `b` | anterior / play / pausa / stop / siguiente |
-| `/` | buscar en TIDAL |
-| `↑` `↓` `Enter` | navegar y reproducir |
-| `l` | navegador de biblioteca |
-| `f` `F` | añadir / quitar de favoritos |
-| `R` | recargar el nivel (ignora la caché) |
-| `y` | letra de la pista actual |
+| `z` `x` `c` `v` `b` | previous / play / pause / stop / next |
+| `/` | search TIDAL |
+| `↑` `↓` `Enter` | navigate and play |
+| `l` | open the library browser |
+| `f` `F` | add to / remove from favourites |
+| `R` | reload the level, bypassing the cache |
+| `y` | show lyrics for the current track |
 | `s` `r` | shuffle / repeat |
-| `d` | quitar de la cola |
-| `alt+↑` `alt+↓` | mover la pista en la cola |
-| `e` | ventana del ecualizador |
-| `,` `.` `\` | balance izquierda / derecha / centro |
-| `C` | vaciar la cola |
-| `←` `→` | ±5 segundos |
-| `+` `-` | volumen |
-| `t` | alternar tiempo transcurrido / restante |
-| `q` | salir |
+| `d` | remove from the queue |
+| `alt+↑` `alt+↓` | move the track in the queue |
+| `e` | open the equalizer |
+| `,` `.` `\` | balance left / right / centre |
+| `C` | clear the queue |
+| `←` `→` | seek ±5 seconds |
+| `+` `-` | change volume |
+| `t` | toggle elapsed / remaining time |
+| `q` | quit |
 
-## Mientras carga
+## While something is loading
 
-Todo lo que tarda —abrir la biblioteca, entrar en una playlist, pedir otra página,
-resolver una pista, buscar la letra— ocurre en un hilo aparte para que la interfaz
-siga respondiendo. El efecto secundario es que una espera se parecía mucho a un
-cuelgue, así que ahora hay un indicador animado que dice **qué** se está esperando:
-`⠋ abriendo Mi playlist…`, en la barra de título del navegador o en la de estado.
+Every slow operation—opening the library, entering a playlist, requesting another
+page, resolving a track, or fetching lyrics—runs in a worker thread so the interface
+remains responsive. Because a wait could otherwise look like a hang, an animated
+spinner says **what** is pending, for example `⠋ opening My playlist…`, in either the
+browser title bar or the main status bar.
 
-El título del nivel no se sustituye por «cargando»: es lo único que te dice dónde
-estás. Y si vuelves atrás mientras algo carga, el indicador se apaga — la respuesta,
-cuando llegue, ya es de un nivel que has dejado.
+The level title is never replaced with “loading”; it is the only label that says where
+you are. Going back while a level is loading stops its spinner because the eventual
+result belongs to a level you have already left.
 
-## Cuando algo falla
+## When something fails
 
-- **mpv se muere**: la app lo detecta en el siguiente tick, lo relanza con el volumen
-  que tenías y recarga la pista en curso, en vez de quedarse congelada contra un socket
-  muerto.
-- **El token caduca**: da igual si es al arrancar o a media sesión. Al abrir, la sesión
-  guardada se refresca si hace falta —`tidalapi` en ese caso lanza un 401 crudo, así que
-  lo atrapamos y rehacemos el handshake— y antes de resolver cada pista se vuelve a
-  comprobar. Sólo se pide `tidalamp login` cuando ya no hay nada que refrescar.
-- **La red falla**: las llamadas a TIDAL se reintentan tres veces con backoff ante
-  errores de conexión, timeouts, 429 y 5xx. Un 404 o un 401 no se reintentan.
+- **mpv dies:** the next tick detects it, starts a fresh process with the previous
+  volume, and reloads the current track instead of leaving the UI attached to a dead
+  socket.
+- **The token expires:** whether at startup or during a session, tidalamp refreshes it.
+  On startup, it catches the raw 401 that `tidalapi` lets escape and rebuilds the
+  handshake; it checks again before resolving each track. `tidalamp login` is required
+  only when there is no usable refresh token.
+- **The network fails:** TIDAL calls are retried three times with backoff for connection
+  errors, timeouts, 429 responses, and 5xx responses. A 401 or 404 is not retried.
 
-Para depurar, `TIDALAMP_DEBUG=1 tidalamp tui` escribe un registro en
-`~/.local/state/tidalamp/tidalamp.log` (la TUI ocupa el terminal, así que no hay dónde
-imprimir). Ahí queda anotado, entre otras cosas, qué rama de manifiesto — `BTS` o
-`MPD` — se usó en cada pista.
+For diagnostics, `TIDALAMP_DEBUG=1 tidalamp tui` writes to
+`~/.local/state/tidalamp/tidalamp.log`. The TUI owns the terminal, so logging goes to a
+file. Among other details, the log records whether each track used the `BTS` or `MPD`
+manifest path.
 
-## Letras
+## Lyrics
 
-`y` abre la letra de la pista actual sin detener la reproducción. Si TIDAL entrega
-subtítulos LRC, la línea activa se resalta y la ventana avanza con la posición de mpv;
-si sólo hay texto, se puede desplazar con `↑`, `↓`, `PageUp` y `PageDown`. La consulta
-se hace en un worker para no bloquear la TUI, aplica la misma política de reintentos
-que el resto del catálogo y se conserva en memoria durante la sesión.
+`y` opens lyrics for the current track without stopping playback. When TIDAL provides
+LRC subtitles, the active line is highlighted and the window follows mpv's position.
+Plain text can be scrolled with `↑`, `↓`, `PageUp`, and `PageDown`. The request runs in
+a worker, uses the same retry policy as the rest of the catalogue, and is cached in
+memory for the session.
 
-No todas las pistas tienen letras ni todas las licencias regionales las exponen. En
-ese caso la ventana muestra un error y la reproducción continúa normalmente.
+Not every track has lyrics, and regional licences do not always expose them. In that
+case, the window displays an error and playback continues normally.
 
 ## Tests
 
@@ -330,112 +343,112 @@ ese caso la ventana muestra un error y la reproducción continúa normalmente.
 .venv/bin/python -m pytest
 ```
 
-Las cuatro comprobaciones que corren en CI, y que conviene pasar antes de un commit:
+The four CI checks to run before a commit are:
 
 ```sh
-.venv/bin/ruff format --check .   # formato
-.venv/bin/ruff check .            # linter
-.venv/bin/mypy                    # tipos
-.venv/bin/python -m pytest --cov  # pruebas, con un suelo de cobertura del 70 %
+.venv/bin/ruff format --check .   # formatting
+.venv/bin/ruff check .            # lint
+.venv/bin/mypy                    # types
+.venv/bin/python -m pytest --cov  # tests, with a 70% coverage floor
 ```
 
-No tocan la red ni TIDAL: las sesiones y los manifiestos son dobles, y `player.py` se
-prueba contra un mpv falso (`tests/fake_mpv.py`) que habla el mismo IPC JSON — eventos
-asíncronos incluidos, que es justo la parte del protocolo que da problemas. El parser
-de letras se prueba con LRC fijado y texto plano, incluidas las caídas transitorias.
-MPRIS se valida contra un D-Bus temporal aislado, nunca contra el bus del escritorio
-del usuario.
+Tests never contact TIDAL or the network. Sessions and manifests are stand-ins, while
+`player.py` is tested against `tests/fake_mpv.py`, which speaks the real JSON IPC
+protocol—including asynchronous events, the part most likely to go wrong. Lyrics are
+tested with fixed LRC and plain text, including transient failures. MPRIS runs against
+an isolated temporary D-Bus rather than the user's desktop bus.
 
-## Ecualizador y balance
+## Equalizer and balance
 
-`e` abre el ecualizador: diez bandas (60 Hz … 16 kHz, las de Winamp) de ±12 dB, con
-`←→` para elegir banda, `↑↓` para moverla y `0` para dejarla plana. Los cambios se
-aplican mientras los mueves; un ecualizador que no se oye hasta pulsar «aceptar» no
-sirve de nada.
+`e` opens a ten-band equalizer (60 Hz … 16 kHz, matching Winamp) with a ±12 dB range.
+Use `←→` to select a band, `↑↓` to adjust it, and `0` to flatten it. Changes are applied
+while you move them; an equalizer you cannot hear until pressing “OK” is not useful.
 
-`,` y `.` mueven el balance y `\` lo centra, también desde la ventana principal.
+`,` and `.` move the balance, and `\` centres it, including from the main window.
 
-Por debajo, ambos son filtros de mpv: el balance es un `pan` y cada banda no plana es
-un `equalizer` encadenado. Una banda a 0 dB no se añade al grafo, y con todo neutro no
-hay filtro ninguno — la cadena sólo se reconstruye cuando de verdad hace falta. Ambos
-ajustes se guardan en `~/.local/state/tidalamp/settings.json` y se reaplican al
-arrancar y después de un reinicio de mpv.
+Both features are mpv filters internally: balance uses `pan`, and each non-flat band
+adds an `equalizer` filter. A 0 dB band is omitted; with every control neutral there is
+no filter graph at all. The chain is rebuilt only when needed. Settings are stored in
+`~/.local/state/tidalamp/settings.json` and reapplied on startup and after an mpv
+restart.
 
-## Sobre el analizador
+## About the analyzer
 
-Hay dos modos, y la insignia junto a la calidad dice cuál está activo:
+The quality display identifies which of two modes is active:
 
-- **`FFT`** — con [cava](https://github.com/karlstav/cava) instalado, `tidalamp` lo
-  lanza contra el sink de audio y dibuja el espectro que mide. Es una FFT de verdad.
-- **`RMS`** — sin cava, mpv sólo expone niveles por el filtro `astats`, así que el
-  analizador es un vúmetro repartido en bandas con balística de ataque rápido y caída
-  lenta. Reacciona a la música, pero no es un desglose por frecuencias, y la insignia
-  lo dice en vez de fingir lo contrario.
+- **`FFT`:** with [cava](https://github.com/karlstav/cava) installed, tidalamp runs it
+  against the audio sink and draws the measured spectrum—a real FFT.
+- **`RMS`:** without cava, mpv exposes only levels through its `astats` filter. The
+  analyzer becomes a band-shaped meter with fast attack and slow decay. It reacts to
+  music but is not a frequency breakdown, and the badge says so.
 
-`pacman -S cava` basta; no hay que configurar nada. Si cava falta, muere o no puede
-abrir el sink, se vuelve al vúmetro sin interrumpir la reproducción.
+On Arch, `pacman -S cava` is enough; no configuration is needed. If cava is missing,
+dies, or cannot open the sink, tidalamp returns to the RMS meter without interrupting
+playback.
 
-Un matiz honesto: cava escucha el **sink**, no nuestro proceso mpv. Muestra lo que
-suene en la máquina, que casi siempre es sólo nosotros.
+One honest caveat: cava listens to the **sink**, not specifically to tidalamp's mpv
+process. It displays everything playing on the machine, which is usually just
+tidalamp.
 
-## Carátula
+## Cover art
 
-La portada del álbum se dibuja a la izquierda del display, en un recuadro de 18×9
-celdas. Cómo se pinta depende de lo que sepa hacer tu terminal, y se decide solo:
+Album art is drawn to the left of the display in an 18×9-cell box. The renderer is
+selected automatically from the terminal's capabilities:
 
-| Protocolo | Terminales | Qué se ve |
+| Protocol | Terminals | Result |
 |---|---|---|
-| kitty graphics | kitty, Ghostty, WezTerm | píxeles de verdad |
-| sixel | foot, mlterm, contour, yaft | píxeles de verdad |
-| medios bloques | cualquier otro | `▀` con dos colores por celda |
+| kitty graphics | kitty, Ghostty, WezTerm | real pixels |
+| sixel | foot, mlterm, contour, yaft | real pixels |
+| half blocks | any other terminal | `▀` with two colours per cell |
 
-La detección se hace leyendo `$TERM`, `$TERM_PROGRAM` y `$KITTY_WINDOW_ID`. Preguntar
-al terminal sería más exacto, pero la respuesta entraría por la misma vía que el
-teclado y Textual la leería como pulsaciones. Si acierta mal, el peor caso son medios
-bloques, que se ven razonablemente bien en cualquier sitio. Para forzarlo:
+Detection reads `$TERM`, `$TERM_PROGRAM`, and `$KITTY_WINDOW_ID`. Querying the
+terminal would be more exact, but the reply would arrive through the same channel as
+keyboard input and Textual could interpret it as keystrokes. A wrong guess falls back
+to half blocks, which work reasonably well everywhere. To force a renderer:
 
 ```sh
 TIDALAMP_ART=blocks tidalamp tui   # kitty | sixel | blocks | off
 ```
 
-Hace falta **Pillow** para descodificar la imagen (`pip install pillow`, o
-`pacman -S python-pillow`). Sin él no hay carátula y no cambia nada más: es el mismo
-trato que cava con el espectro. Las portadas se cachean en
-`~/.cache/tidalamp/art/`, con la URL como clave — TIDAL pone el id de la imagen en la
-ruta, así que una URL nunca cambia de contenido.
+**Pillow** is required to decode images (`pip install pillow` or
+`pacman -S python-pillow`). Without it, cover art is omitted and everything else keeps
+working—the same treatment as a missing cava. Covers are cached under
+`~/.cache/tidalamp/art/`, keyed by URL. TIDAL includes the image ID in the path, so a
+URL never changes its content.
 
-Un detalle de implementación que se nota: las imágenes de kitty y sixel viven en una
-capa por encima del texto, de la que el compositor de Textual no sabe nada. Por eso la
-carátula se retira al abrir cualquier ventana modal y vuelve al cerrarla; si no, la
-letra o el ecualizador se abrirían por debajo de ella.
+Kitty and sixel images occupy a layer above text that Textual's compositor does not
+know about. tidalamp therefore removes the cover while any modal window is open and
+restores it on close; otherwise lyrics or the equalizer would appear underneath it.
 
-## Licencia
+## License
 
-GPL-3.0-or-later. El texto completo está en [LICENSE](LICENSE).
+GPL-3.0-or-later. See [LICENSE](LICENSE) for the complete text.
 
-En corto: puedes usarlo, estudiarlo, modificarlo y redistribuirlo; si distribuyes una
-versión modificada, tienes que publicar también su código bajo la misma licencia. Se
-distribuye sin garantía de ningún tipo.
+In short, you may use, study, modify, and redistribute tidalamp. If you distribute a
+modified version, you must also publish its source under the same licence. The program
+is provided without warranty of any kind.
 
-La elección no es casual: esto es una aplicación de usuario final que vive en un
-ecosistema copyleft (mpv es GPL, `tidalapi` es LGPL-3.0-or-later), y la GPL mantiene
-libre cualquier versión que alguien reparta.
+This choice is deliberate: tidalamp is an end-user application in a copyleft
+ecosystem (mpv is GPL and `tidalapi` is LGPL-3.0-or-later), and the GPL keeps
+redistributed versions free.
 
-## Descargo
+## Disclaimer
 
-`tidalamp` es un proyecto independiente. **No está afiliado, patrocinado ni respaldado
-por TIDAL, Aspiro, Square, ni por los titulares de la marca Winamp.** Los nombres se
-usan sólo de forma descriptiva, para decir con qué habla el programa y a qué se parece.
+tidalamp is an independent project. **It is not affiliated with, sponsored by, or
+endorsed by TIDAL, Aspiro, Square, or the owners of the Winamp trademark.** Names are
+used only descriptively to identify the service it communicates with and the
+interface it resembles.
 
-- Necesitas **tu propia suscripción de TIDAL**. Esto no da acceso a nada que tu cuenta
-  no tenga ya.
-- **No elude ninguna protección técnica.** Las pistas con manifiesto cifrado (Widevine)
-  se rechazan con un mensaje, no se intentan descifrar. Esa línea es deliberada y no se
-  va a cruzar: los parches que añadan descifrado o descarga a fichero no se aceptan.
-- **No descarga ni redistribuye música.** Se reproduce en streaming; lo único que toca
-  el disco es una playlist HLS temporal, que contiene URLs, no audio.
-- Se apoya en el flujo de autorización de dispositivo vía `tidalapi`, no en la API para
-  desarrolladores. Usar un cliente no oficial puede ir contra las condiciones de
-  servicio de TIDAL; quien lo ejecuta asume esa decisión y el riesgo sobre su cuenta.
+- You need **your own TIDAL subscription**. tidalamp provides no access beyond what
+  your account already has.
+- tidalamp **does not circumvent technical protection measures**. Tracks with
+  encrypted Widevine manifests are rejected with a message; no decryption is
+  attempted. This boundary is deliberate, and patches that add decryption or download
+  audio to files will not be accepted.
+- tidalamp **does not download or redistribute music**. Audio is streamed. The only
+  on-disk playback artifact is a temporary HLS playlist containing URLs, not audio.
+- Authentication uses TIDAL's device authorization flow through `tidalapi`, not the
+  developer API. Using an unofficial client may conflict with TIDAL's terms of
+  service; users accept that decision and any risk to their account.
 
-La licencia cubre este código. No es, ni puede ser, un permiso de TIDAL.
+The licence applies to this code. It is not, and cannot be, permission from TIDAL.

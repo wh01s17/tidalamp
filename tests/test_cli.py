@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 from typer.testing import CliRunner
 
-from tidalamp import cli, config
+from tidalamp import cli, config, i18n
 from tidalamp.auth import NotLoggedIn
 from tidalamp.player import MpvNotFound
 
@@ -44,6 +44,17 @@ def test_config_warns_about_actions_that_do_not_exist(xdg, monkeypatch):
     result = runner.invoke(cli.app, ["config"])
 
     assert "no existen y se ignoran: reproducir" in result.output
+
+
+def test_config_output_and_new_template_follow_the_selected_language(xdg):
+    i18n.use("en")
+
+    result = runner.invoke(cli.app, ["config"])
+
+    assert result.exit_code == 0
+    assert "Settings in use:" in result.output
+    assert "Keys: all defaults." in result.output
+    assert xdg.read_text(encoding="utf-8").startswith("# tidalamp configuration.")
 
 
 def test_tui_without_a_session_says_to_log_in(monkeypatch):

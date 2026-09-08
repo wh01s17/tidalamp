@@ -24,6 +24,7 @@ import threading
 from pathlib import Path
 
 from .config import CACHE_DIR, ensure_dirs
+from .i18n import _
 
 log = logging.getLogger("tidalamp.spectrum")
 
@@ -66,7 +67,7 @@ class Cava:
         source: str = "auto",
     ) -> None:
         if shutil.which("cava") is None:
-            raise SpectrumUnavailable("cava no está instalado (pacman -S cava)")
+            raise SpectrumUnavailable(_("cava no está instalado (pacman -S cava)"))
         self.bars = bars
         self._frame = [0.0] * bars
         self._lock = threading.Lock()

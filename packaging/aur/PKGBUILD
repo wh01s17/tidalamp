@@ -2,7 +2,7 @@
 pkgname=tidalamp
 pkgver=0.1.0
 pkgrel=1
-pkgdesc="Cliente TIDAL para terminal con interfaz estilo Winamp 2.x"
+pkgdesc="Terminal TIDAL client with a Winamp 2.x interface"
 arch=('any')
 url="https://github.com/wh01s17/tidalamp"
 license=('GPL-3.0-or-later')
@@ -16,8 +16,8 @@ depends=(
   'mpv'
 )
 optdepends=(
-  'cava: analizador de espectro real en vez del vúmetro RMS'
-  'python-pillow: carátula del álbum en el display'
+  'cava: real spectrum analyzer instead of the RMS meter'
+  'python-pillow: album cover art in the display'
 )
 makedepends=('python-build' 'python-installer' 'python-wheel' 'python-hatchling')
 checkdepends=('python-pytest')

@@ -96,38 +96,17 @@ KEYS: dict[str, str] = {
 }
 
 
-TEMPLATE = """\
-# Configuración de tidalamp. Todo es opcional: lo que no esté aquí usa su valor
-# por defecto, y una variable de entorno gana siempre sobre este fichero.
-
-# LOW, HIGH, LOSSLESS o HI_RES_LOSSLESS.
-# Ojo: pedir LOSSLESS al cliente del device flow devuelve HIGH siempre. Ver el
-# README, sección «Calidad».
-quality = "HI_RES_LOSSLESS"
-
-# Cómo dibujar la carátula: auto, kitty, sixel, blocks u off.
-artwork = "auto"
-
-# Registro en ~/.local/state/tidalamp/tidalamp.log.
-debug = false
-
-# Teclas. La izquierda es la acción, la derecha la tecla; varias se separan con
-# comas. Las de navegación (flechas, RePág/AvPág, Enter, Esc) no se cambian.
-[keys]
-%(keys)s
-"""
-
-
 def write_template(path: Path | None = None) -> Path:
     """Write a commented config file. Never overwrites an existing one."""
     from .app import DEFAULT_KEYS
+    from .i18n import config_template
 
     path = CONFIG_FILE if path is None else path
     if path.exists():
         return path
     path.parent.mkdir(parents=True, exist_ok=True)
     keys = "\n".join(f'# {action} = "{key}"' for action, key in DEFAULT_KEYS.items())
-    path.write_text(TEMPLATE % {"keys": keys}, encoding="utf-8")
+    path.write_text(config_template() % {"keys": keys}, encoding="utf-8")
     return path
 
 

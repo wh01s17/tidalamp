@@ -44,3 +44,17 @@ def clean_library_cache():
     library.forget()
     yield
     library.forget()
+
+
+@pytest.fixture(autouse=True)
+def spanish_interface():
+    """The tests assert the strings as they are written in the source.
+
+    Which language the interface picks depends on the developer's locale, and
+    a suite that passes or fails on $LANG is no suite at all.
+    """
+    from tidalamp import i18n
+
+    i18n.use("es")
+    yield
+    i18n.use(i18n._language())

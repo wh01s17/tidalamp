@@ -18,6 +18,7 @@ from textual.widgets import Input, Static
 
 from . import artwork, config, library
 from .auth import NotLoggedIn, ensure_fresh
+from .i18n import _
 from .library import Row
 from .lyrics import LyricsDocument, load_lyrics
 from .mpris import MprisService
@@ -111,12 +112,12 @@ class RowList(Widget):
 class SearchScreen(ModalScreen[str]):
     """The search prompt."""
 
-    BINDINGS = [Binding("escape", "dismiss_search", "cancelar")]
+    BINDINGS = [Binding("escape", "dismiss_search", _("cancelar"))]
 
     def compose(self) -> ComposeResult:
         with Vertical(id="search-box"):
-            yield Static("BUSCAR EN TIDAL", id="search-title")
-            yield Input(placeholder="artista, canción o álbum…", id="search-input")
+            yield Static(_("BUSCAR EN TIDAL"), id="search-title")
+            yield Input(placeholder=_("artista, canción o álbum…"), id="search-input")
 
     def on_mount(self) -> None:
         self.query_one(Input).focus()
@@ -132,7 +133,9 @@ def favourite_message(session, row: Row, add: bool) -> str:
     """Do the favourite and phrase the result. Shared by both screens."""
     ensure_fresh(session)
     label = library.favourite(session, row, add)
-    return f"«{label}» {'añadido a' if add else 'quitado de'} favoritos"
+    if add:
+        return _("«{label}» añadido a favoritos").format(label=label)
+    return _("«{label}» quitado de favoritos").format(label=label)
 
 
 class BrowserScreen(ModalScreen[tuple | None]):
@@ -142,18 +145,18 @@ class BrowserScreen(ModalScreen[tuple | None]):
     """
 
     BINDINGS = [
-        Binding("escape", "close", "cerrar"),
-        Binding("up", "up", "arriba", show=False),
-        Binding("down", "down", "abajo", show=False),
+        Binding("escape", "close", _("cerrar")),
+        Binding("up", "up", _("arriba"), show=False),
+        Binding("down", "down", _("abajo"), show=False),
         Binding("pageup", "page_up", "", show=False),
         Binding("pagedown", "page_down", "", show=False),
-        Binding("enter", "choose", "abrir/reproducir", show=False),
-        Binding("backspace,left", "back", "atrás", show=False),
-        Binding("a", "append_one", "añadir", show=False),
-        Binding("A", "append_all", "añadir todo", show=False),
-        Binding("R", "reload", "recargar", show=False),
-        Binding("f", "favourite", "favorito", show=False),
-        Binding("F", "unfavourite", "quitar favorito", show=False),
+        Binding("enter", "choose", _("abrir/reproducir"), show=False),
+        Binding("backspace,left", "back", _("atrás"), show=False),
+        Binding("a", "append_one", _("añadir"), show=False),
+        Binding("A", "append_all", _("añadir todo"), show=False),
+        Binding("R", "reload", _("recargar"), show=False),
+        Binding("f", "favourite", _("favorito"), show=False),
+        Binding("F", "unfavourite", _("quitar favorito"), show=False),
     ]
 
     @property
@@ -177,14 +180,16 @@ class BrowserScreen(ModalScreen[tuple | None]):
                 yield Spinner(id="browser-spinner")
             yield RowList(id="browser-list")
             yield Static(
-                " ↵ abrir/reproducir   a añadir   A añadir todo   f/F favorito"
-                "   ⌫ atrás   R recargar   esc cerrar",
+                _(
+                    " ↵ abrir/reproducir   a añadir   A añadir todo   f/F favorito"
+                    "   ⌫ atrás   R recargar   esc cerrar"
+                ),
                 id="browser-hint",
             )
 
     def on_mount(self) -> None:
-        self.query_one(RowList).empty_text = "cargando…"
-        self._busy(f"cargando {self._root_title.lower()}…")
+        self.query_one(RowList).empty_text = _("cargando…")
+        self._busy(_("cargando {level}…").format(level=self._root_title.lower()))
         self._load(self._root_title, self._root_loader, self._root_key)
 
     def _busy(self, label: str) -> None:
@@ -205,14 +210,14 @@ class BrowserScreen(ModalScreen[tuple | None]):
     def _failed(self, exc: Exception) -> None:
         self._idle()
         widget = self.query_one(RowList)
-        widget.empty_text = f"error: {exc}"
+        widget.empty_text = _("error: {error}").format(error=exc)
         widget.refresh()
 
     def _push(self, title: str, rows: list[Row], key: str = "", loader=None) -> None:
         self._idle()
         self._stack.append((title, rows, key, loader))
         widget = self.query_one(RowList)
-        widget.empty_text = "vacío"
+        widget.empty_text = _("vacío")
         widget.set_rows(rows)
         self.query_one("#browser-title", Static).update(title)
 
@@ -238,7 +243,7 @@ class BrowserScreen(ModalScreen[tuple | None]):
         # lands, is for a level the user has left.
         self._idle()
         self._stack.pop()
-        title, rows, _, _ = self._stack[-1]
+        title, rows, _key, _loader = self._stack[-1]
         widget = self.query_one(RowList)
         widget.set_rows(rows)
         self.query_one("#browser-title", Static).update(title)
@@ -255,12 +260,12 @@ class BrowserScreen(ModalScreen[tuple | None]):
         """
         if not self._stack:
             return
-        title, _, key, loader = self._stack[-1]
+        title, _rows, key, loader = self._stack[-1]
         if loader is None:
             return
         library.forget(key)
         self._stack.pop()
-        self._busy(f"recargando {title}…")
+        self._busy(_("recargando {level}…").format(level=title))
         self._load(title, loader, key)
 
     def action_choose(self) -> None:
@@ -271,12 +276,12 @@ class BrowserScreen(ModalScreen[tuple | None]):
         if row.more is not None:
             # The title stays put: losing it to say "loading" costs the user
             # the one label that says where they are.
-            self._busy("cargando más…")
+            self._busy(_("cargando más…"))
             self._load_more(widget.cursor, row.more)
             return
         if row.loader is not None:
-            self.query_one(RowList).empty_text = "cargando…"
-            self._busy(f"abriendo {row.label}…")
+            self.query_one(RowList).empty_text = _("cargando…")
+            self._busy(_("abriendo {label}…").format(label=row.label))
             self._load(row.label, row.loader, row.key)
             return
         # Play this track, queueing the whole level so the rest follows.
@@ -300,7 +305,7 @@ class BrowserScreen(ModalScreen[tuple | None]):
         # The stack holds the level so backspace can restore it; keep it in
         # sync with what is now on screen.
         if self._stack:
-            title, _, key, loader = self._stack[-1]
+            title, _rows, key, loader = self._stack[-1]
             self._stack[-1] = (title, widget.rows, key, loader)
             self.query_one("#browser-title", Static).update(title)
 
@@ -312,7 +317,7 @@ class BrowserScreen(ModalScreen[tuple | None]):
             self.dismiss(("append", [row.entry], 0))
         elif row.loader is not None:
             # Appending a container means appending everything inside it.
-            self._busy(f"añadiendo {row.label}…")
+            self._busy(_("añadiendo {label}…").format(label=row.label))
             self._append_container(row.loader)
 
     def action_favourite(self) -> None:
@@ -325,7 +330,7 @@ class BrowserScreen(ModalScreen[tuple | None]):
         row = self.query_one(RowList).current
         if row is None:
             return
-        self._busy(("añadiendo a" if add else "quitando de") + " favoritos…")
+        self._busy(_("añadiendo a favoritos…") if add else _("quitando de favoritos…"))
         self._favourite_worker(row, add)
 
     # Its own group again: an exclusive worker cancels its group, and the
@@ -335,7 +340,9 @@ class BrowserScreen(ModalScreen[tuple | None]):
         try:
             message = favourite_message(self.player.session, row, add)
         except Exception as exc:
-            self.app.call_from_thread(self._favourite_done, f"favoritos: {exc}")
+            self.app.call_from_thread(
+                self._favourite_done, _("favoritos: {error}").format(error=exc)
+            )
             return
         self.app.call_from_thread(self._favourite_done, message)
 
@@ -372,15 +379,15 @@ class EqScreen(ModalScreen[None]):
     """
 
     BINDINGS = [
-        Binding("escape,e", "close", "cerrar"),
-        Binding("left", "prev_band", "banda anterior", show=False),
-        Binding("right", "next_band", "banda siguiente", show=False),
-        Binding("up", "boost", "subir", show=False),
-        Binding("down", "cut", "bajar", show=False),
-        Binding("0", "reset", "plano", show=False),
-        Binding("comma", "balance_left", "balance izq", show=False),
-        Binding("full_stop", "balance_right", "balance der", show=False),
-        Binding("backslash", "balance_centre", "centrar", show=False),
+        Binding("escape,e", "close", _("cerrar")),
+        Binding("left", "prev_band", _("banda anterior"), show=False),
+        Binding("right", "next_band", _("banda siguiente"), show=False),
+        Binding("up", "boost", _("subir"), show=False),
+        Binding("down", "cut", _("bajar"), show=False),
+        Binding("0", "reset", _("plano"), show=False),
+        Binding("comma", "balance_left", _("balance izq"), show=False),
+        Binding("full_stop", "balance_right", _("balance der"), show=False),
+        Binding("backslash", "balance_centre", _("centrar"), show=False),
     ]
 
     def __init__(self, settings: Settings, apply) -> None:
@@ -390,11 +397,11 @@ class EqScreen(ModalScreen[None]):
 
     def compose(self) -> ComposeResult:
         with Vertical(id="eq-box"):
-            yield Static("▓ ECUALIZADOR ▓", id="eq-title")
+            yield Static(_("▓ ECUALIZADOR ▓"), id="eq-title")
             yield EqualizerBars(id="eq-bars")
             yield Slider(id="eq-balance")
             yield Static(
-                " ←→ banda  ↑↓ ±1 dB  0 plano  ,. balance  \\ centro  esc",
+                _(" ←→ banda  ↑↓ ±1 dB  0 plano  ,. balance  \\ centro  esc"),
                 id="eq-hint",
             )
 
@@ -467,9 +474,9 @@ class LyricsScreen(ModalScreen[None]):
     """Lyrics for one track, synchronized to the player when LRC is present."""
 
     BINDINGS = [
-        Binding("escape,y", "close", "cerrar"),
-        Binding("up", "up", "arriba", show=False),
-        Binding("down", "down", "abajo", show=False),
+        Binding("escape,y", "close", _("cerrar")),
+        Binding("up", "up", _("arriba"), show=False),
+        Binding("down", "down", _("abajo"), show=False),
         Binding("pageup", "page_up", "", show=False),
         Binding("pagedown", "page_down", "", show=False),
     ]
@@ -490,13 +497,16 @@ class LyricsScreen(ModalScreen[None]):
     def compose(self) -> ComposeResult:
         with Vertical(id="lyrics-box"):
             with Horizontal(id="lyrics-head"):
-                yield Static(f"▓ LETRA ▓  {self._track_title}", id="lyrics-title")
+                yield Static(
+                    _("▓ LETRA ▓  {title}").format(title=self._track_title),
+                    id="lyrics-title",
+                )
                 yield Spinner(id="lyrics-spinner")
-            yield Static("  cargando…", id="lyrics-body")
-            yield Static(" ↑↓ desplazar   y/esc cerrar", id="lyrics-hint")
+            yield Static("  " + _("cargando…"), id="lyrics-body")
+            yield Static(_(" ↑↓ desplazar   y/esc cerrar"), id="lyrics-hint")
 
     def on_mount(self) -> None:
-        self.query_one(Spinner).start("buscando la letra…")
+        self.query_one(Spinner).start(_("buscando la letra…"))
         self._load()
         self.set_interval(1 / 4, self._refresh_lyrics)
 
@@ -512,10 +522,12 @@ class LyricsScreen(ModalScreen[None]):
     def _loaded(self, document: LyricsDocument) -> None:
         self.query_one(Spinner).stop()
         self._document = document
-        mode = "sincronizada" if document.synced else "texto"
+        mode = _("sincronizada") if document.synced else _("texto")
         provider = f" · {document.provider}" if document.provider else ""
         self.query_one("#lyrics-title", Static).update(
-            f"▓ LETRA ▓  {self._track_title} · {mode}{provider}"
+            _("▓ LETRA ▓  {title} · {mode}{provider}").format(
+                title=self._track_title, mode=mode, provider=provider
+            )
         )
         self._refresh_lyrics()
 
@@ -634,7 +646,7 @@ def keys_for(action: str) -> str:
     if override:
         return override
     if action not in DEFAULT_KEYS:
-        raise KeyError(f"acción desconocida: {action}")
+        raise KeyError(_("acción desconocida: {action}").format(action=action))
     return DEFAULT_KEYS[action]
 
 
@@ -674,40 +686,40 @@ class TidalAmp(App):
     # Winamp's own transport keys, kept as muscle memory. Rebindable ones come
     # from DEFAULT_KEYS through the config file; navigation stays fixed.
     BINDINGS = [
-        _bind("prev", "anterior", show=True),
+        _bind("prev", _("anterior"), show=True),
         _bind("play", "play", show=True),
-        _bind("pause", "pausa", show=True),
+        _bind("pause", _("pausa"), show=True),
         _bind("stop", "stop", show=True),
-        _bind("next", "siguiente", show=True),
-        _bind("search", "buscar", show=True),
-        _bind("library", "biblioteca", show=True),
-        _bind("lyrics", "letra", show=True),
-        _bind("equalizer", "ecualizador", show=True),
+        _bind("next", _("siguiente"), show=True),
+        _bind("search", _("buscar"), show=True),
+        _bind("library", _("biblioteca"), show=True),
+        _bind("lyrics", _("letra"), show=True),
+        _bind("equalizer", _("ecualizador"), show=True),
         _bind("shuffle", "shuffle", show=True),
         _bind("repeat", "repeat", show=True),
-        Binding("up", "cursor_up", "arriba", show=False),
-        Binding("down", "cursor_down", "abajo", show=False),
+        Binding("up", "cursor_up", _("arriba"), show=False),
+        Binding("down", "cursor_down", _("abajo"), show=False),
         Binding("pageup", "cursor_page_up", "", show=False),
         Binding("pagedown", "cursor_page_down", "", show=False),
-        Binding("enter", "play_selected", "reproducir", show=False),
-        _bind("remove", "quitar"),
-        _bind("move_up", "subir"),
-        _bind("move_down", "bajar"),
-        _bind("clear", "vaciar"),
+        Binding("enter", "play_selected", _("reproducir"), show=False),
+        _bind("remove", _("quitar")),
+        _bind("move_up", _("subir")),
+        _bind("move_down", _("bajar")),
+        _bind("clear", _("vaciar")),
         _bind("seek_back", "-5s"),
         _bind("seek_fwd", "+5s"),
         _bind("vol_up", "vol+"),
         _bind("vol_down", "vol-"),
-        _bind("balance_left", "balance izq"),
-        _bind("balance_right", "balance der"),
-        _bind("balance_centre", "centrar balance"),
-        _bind("toggle_time", "tiempo"),
-        _bind("favourite", "favorito"),
-        _bind("unfavourite", "quitar favorito"),
-        _bind("quit", "salir", show=True),
+        _bind("balance_left", _("balance izq")),
+        _bind("balance_right", _("balance der")),
+        _bind("balance_centre", _("centrar balance")),
+        _bind("toggle_time", _("tiempo")),
+        _bind("favourite", _("favorito")),
+        _bind("unfavourite", _("quitar favorito")),
+        _bind("quit", _("salir"), show=True),
     ]
 
-    status = reactive("listo")
+    status = reactive(_("listo"))
 
     def __init__(self, session: tidalapi.Session, mpv: Mpv) -> None:
         self.tidalamp_palette: ThemePalette = load_palette()
@@ -748,13 +760,15 @@ class TidalAmp(App):
             yield Slider(id="volume")
             yield Slider(id="balance")
             yield Static(
-                "  z ◀◀   x ▶   c ‖   v ■   b ▶▶   / buscar  l lib  y letra  e eq"
-                "  f/F favorito  s shuf  r rep  q salir",
+                _(
+                    "  z ◀◀   x ▶   c ‖   v ■   b ▶▶   / buscar  l lib  y letra  e eq"
+                    "  f/F favorito  s shuf  r rep  q salir"
+                ),
                 id="transport",
             )
             yield Static("", id="modes")
             yield Static(
-                "▓ PLAYLIST ▓   d quitar   C vaciar   alt+↑↓ mover", id="pl-title"
+                _("▓ PLAYLIST ▓   d quitar   C vaciar   alt+↑↓ mover"), id="pl-title"
             )
             yield RowList(id="playlist")
             with Horizontal(id="statusbar"):
@@ -771,10 +785,16 @@ class TidalAmp(App):
         if too_small:
             notice.update(
                 Text(
-                    f"\n  La ventana es de {width}×{height}.\n"
-                    f"  TIDAL AMP necesita al menos "
-                    f"{self.MIN_WIDTH}×{self.MIN_HEIGHT}.\n\n"
-                    "  Agranda el terminal o reduce el tamaño de letra.\n",
+                    _(
+                        "\n  La ventana es de {width}×{height}.\n"
+                        "  TIDAL AMP necesita al menos {min_width}×{min_height}.\n\n"
+                        "  Agranda el terminal o reduce el tamaño de letra.\n"
+                    ).format(
+                        width=width,
+                        height=height,
+                        min_width=self.MIN_WIDTH,
+                        min_height=self.MIN_HEIGHT,
+                    ),
                     style=f"bold {self.tidalamp_palette['accent']}",
                 )
             )
@@ -782,7 +802,7 @@ class TidalAmp(App):
     def on_mount(self) -> None:
         self._check_size()
         playlist = self.query_one("#playlist", RowList)
-        playlist.empty_text = "cola vacía — / para buscar, l para tu biblioteca"
+        playlist.empty_text = _("cola vacía — / para buscar, l para tu biblioteca")
         self.query_one("#volume", Slider).value = self.mpv.volume
         balance = self.query_one("#balance", Slider)
         balance.label = "BAL"
@@ -797,7 +817,9 @@ class TidalAmp(App):
         if self.queue.load():
             self._sync_queue()
             playlist.cursor = max(0, self.queue.resume_at)
-            self.status = f"cola restaurada ({len(self.queue)} pistas)"
+            self.status = _("cola restaurada ({count} pistas)").format(
+                count=len(self.queue)
+            )
         self._refresh_modes()
 
     def _refresh_theme(self) -> None:
@@ -844,12 +866,14 @@ class TidalAmp(App):
         try:
             name = await self.mpris.start()
         except Exception as exc:
-            self.status = f"MPRIS no disponible ({exc})"
+            self.status = _("MPRIS no disponible ({error})").format(error=exc)
             return
         self._mpris_ready = True
         if name != "org.mpris.MediaPlayer2.tidalamp":
             # Another tidalamp already holds the plain name.
-            self.status = f"MPRIS como {name} (ya había otra instancia)"
+            self.status = _("MPRIS como {name} (ya había otra instancia)").format(
+                name=name
+            )
 
     # ------------------------------------------------------------------- ticks
 
@@ -898,16 +922,18 @@ class TidalAmp(App):
         try:
             self.mpv.restart()
         except Exception as exc:
-            self.status = f"mpv murió y no se pudo reiniciar ({exc})"
+            self.status = _("mpv murió y no se pudo reiniciar ({error})").format(
+                error=exc
+            )
             return
         self._was_idle = True
         self._apply_audio()
         index = self.queue.playing
         if 0 <= index < len(self.queue):
-            self.status = "mpv se reinició; recargando la pista"
+            self.status = _("mpv se reinició; recargando la pista")
             self._play_index(index)
         else:
-            self.status = "mpv se reinició"
+            self.status = _("mpv se reinició")
 
     def _refresh_modes(self) -> None:
         """Render persistent, legible shuffle and repeat state badges."""
@@ -953,7 +979,7 @@ class TidalAmp(App):
             return
         self.push_screen(
             BrowserScreen(
-                f"BUSCAR: {query}",
+                _("BUSCAR: {query}").format(query=query),
                 lambda: library.search_rows(self.session, query),
             ),
             self._browser_result,
@@ -961,7 +987,7 @@ class TidalAmp(App):
 
     def action_library(self) -> None:
         self.push_screen(
-            BrowserScreen("MI BIBLIOTECA", lambda: library.root(self.session)),
+            BrowserScreen(_("MI BIBLIOTECA"), lambda: library.root(self.session)),
             self._browser_result,
         )
 
@@ -970,7 +996,7 @@ class TidalAmp(App):
             return
         action, entries, index = result
         if not entries:
-            self.status = "nada que añadir"
+            self.status = _("nada que añadir")
             return
         if action == "play":
             self.queue.replace(entries, start=-1)
@@ -979,7 +1005,7 @@ class TidalAmp(App):
         else:
             added = self.queue.append(entries)
             self._sync_queue()
-            self.status = f"{added} pistas añadidas a la cola"
+            self.status = _("{count} pistas añadidas a la cola").format(count=added)
 
     # --------------------------------------------------------------- transport
 
@@ -1007,14 +1033,14 @@ class TidalAmp(App):
 
     def action_pause(self) -> None:
         self.mpv.toggle_pause()
-        self.status = "pausa" if self.mpv.paused else "reproduciendo"
+        self.status = _("pausa") if self.mpv.paused else _("reproduciendo")
 
     def action_stop(self) -> None:
         self.mpv.stop()
         self.queue.playing = -1
         self._sync_queue()
         self.query_one(Marquee).text = ""
-        self.status = "detenido"
+        self.status = _("detenido")
 
     def action_next(self) -> None:
         index = self.queue.next_index()
@@ -1033,7 +1059,7 @@ class TidalAmp(App):
         if len(self.queue):
             self.queue.remove(playlist.cursor)
             self._sync_queue()
-            self.status = "pista quitada de la cola"
+            self.status = _("pista quitada de la cola")
 
     def _move_entry(self, delta: int) -> None:
         playlist = self.query_one("#playlist", RowList)
@@ -1062,22 +1088,24 @@ class TidalAmp(App):
         widget = self._artwork()
         if widget is not None:
             widget.show(None)
-        self.status = "cola vaciada"
+        self.status = _("cola vaciada")
 
     def action_shuffle(self) -> None:
         self.queue.shuffle = not self.queue.shuffle
         self.queue.save()
         self._refresh_modes()
-        self.status = "shuffle activado" if self.queue.shuffle else "shuffle desactivado"
+        self.status = (
+            _("shuffle activado") if self.queue.shuffle else _("shuffle desactivado")
+        )
 
     def action_repeat(self) -> None:
         self.queue.repeat = self.queue.repeat.next()
         self.queue.save()
         self._refresh_modes()
         names = {
-            Repeat.NONE: "sin repetición",
-            Repeat.QUEUE: "repetir cola",
-            Repeat.TRACK: "repetir pista",
+            Repeat.NONE: _("sin repetición"),
+            Repeat.QUEUE: _("repetir cola"),
+            Repeat.TRACK: _("repetir pista"),
         }
         self.status = names[self.queue.repeat]
 
@@ -1094,7 +1122,9 @@ class TidalAmp(App):
         # The spinner carries the message while we wait; repeating it in the
         # status text next to it would just say the same thing twice.
         self.status = ""
-        self.query_one("#busy", Spinner).start(f"resolviendo «{entry.title}»…")
+        self.query_one("#busy", Spinner).start(
+            _("resolviendo «{title}»…").format(title=entry.title)
+        )
         self.queue.save()
         self._load_art(entry)
         self._resolve_worker(entry)
@@ -1133,7 +1163,9 @@ class TidalAmp(App):
             )
         except Exception as exc:
             # A missing cover is decoration; it never touches the audio path.
-            self.call_from_thread(setattr, self, "status", f"sin carátula: {exc}")
+            self.call_from_thread(
+                setattr, self, "status", _("sin carátula: {error}").format(error=exc)
+            )
             return
         if url == self._art_url:
             self.call_from_thread(widget.show, cover)
@@ -1179,7 +1211,7 @@ class TidalAmp(App):
             # An access token only lasts a few hours, less than a listening
             # session; refresh it here rather than letting the next call fail.
             if ensure_fresh(self.session):
-                self.call_from_thread(setattr, self, "status", "sesión refrescada")
+                self.call_from_thread(setattr, self, "status", _("sesión refrescada"))
             # A restored entry has no Track yet; this is where we pay for it.
             track = with_retries(lambda: entry.resolve(self.session))
             playable = resolve(track)
@@ -1190,7 +1222,9 @@ class TidalAmp(App):
             self.call_from_thread(self._resolve_failed, str(exc))
             return
         except Exception as exc:
-            self.call_from_thread(self._resolve_failed, f"error: {exc}")
+            self.call_from_thread(
+                self._resolve_failed, _("error: {error}").format(error=exc)
+            )
             return
         self.call_from_thread(self._start, entry, playable)
 
@@ -1206,13 +1240,12 @@ class TidalAmp(App):
             f"{playable.kbps}  {playable.khz}kHz  {playable.quality}"
             f"  {self.query_one(Analyzer).source}"
         )
-        self.status = f"reproduciendo {entry.label}"
+        self.status = _("reproduciendo {label}").format(label=entry.label)
         if getattr(playable, "downgraded", False):
             # Say it out loud. The badge shows what arrived, which on its own
             # reads as if it were what we asked for.
-            self.status = (
-                f"{self.status} · TIDAL entregó {playable.quality}, "
-                f"no {playable.requested}"
+            self.status = _("{status} · TIDAL entregó {got}, no {asked}").format(
+                status=self.status, got=playable.quality, asked=playable.requested
             )
 
     # ----------------------------------------------------------------- fiddles
@@ -1242,7 +1275,7 @@ class TidalAmp(App):
     def action_lyrics(self) -> None:
         entry = self.queue.current
         if entry is None:
-            self.status = "no hay una pista reproduciéndose"
+            self.status = _("no hay una pista reproduciéndose")
             return
         self.push_screen(
             LyricsScreen(
@@ -1255,10 +1288,10 @@ class TidalAmp(App):
     def action_equalizer(self) -> None:
         self.push_screen(EqScreen(self.settings, self._apply_audio), self._eq_closed)
 
-    def _eq_closed(self, _: None) -> None:
+    def _eq_closed(self, _result: None) -> None:
         self.settings.save()
         self.status = (
-            "ecualizador activo" if self.settings.eq_active else "ecualizador plano"
+            _("ecualizador activo") if self.settings.eq_active else _("ecualizador plano")
         )
 
     def _nudge_balance(self, delta: float) -> None:
@@ -1266,11 +1299,14 @@ class TidalAmp(App):
         self._apply_audio()
         self.settings.save()
         side = (
-            "centro"
+            _("centro")
             if value == 0
-            else (f"{abs(int(value * 100))}% " + ("izq" if value < 0 else "der"))
+            else (
+                f"{abs(int(value * 100))}% "
+                + (_("izquierda") if value < 0 else _("derecha"))
+            )
         )
-        self.status = f"balance: {side}"
+        self.status = _("balance: {value}").format(value=side)
 
     def action_balance_left(self) -> None:
         self._nudge_balance(-0.1)
@@ -1282,7 +1318,7 @@ class TidalAmp(App):
         self.settings.set_balance(0.0)
         self._apply_audio()
         self.settings.save()
-        self.status = "balance: centro"
+        self.status = _("balance: {value}").format(value=_("centro"))
 
     def action_favourite(self) -> None:
         self._favourite_selected(True)
@@ -1294,10 +1330,10 @@ class TidalAmp(App):
         """Favourite the track under the playlist cursor."""
         row = self.query_one("#playlist", RowList).current
         if row is None or row.entry is None:
-            self.status = "no hay ninguna pista seleccionada"
+            self.status = _("no hay ninguna pista seleccionada")
             return
         self.query_one("#busy", Spinner).start(
-            ("añadiendo a" if add else "quitando de") + " favoritos…"
+            _("añadiendo a favoritos…") if add else _("quitando de favoritos…")
         )
         self._favourite_worker(row, add)
 
@@ -1306,7 +1342,9 @@ class TidalAmp(App):
         try:
             message = favourite_message(self.session, row, add)
         except Exception as exc:
-            self.call_from_thread(self._favourite_done, f"favoritos: {exc}")
+            self.call_from_thread(
+                self._favourite_done, _("favoritos: {error}").format(error=exc)
+            )
             return
         self.call_from_thread(self._favourite_done, message)
 

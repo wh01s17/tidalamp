@@ -50,7 +50,8 @@ docstring, y eso es deliberado.
 
 ## Documentación
 
-- `README.md` es para quien usa el programa. `README.en.md` es su traducción.
+- `README.md` es la documentación pública en inglés. `plan.md` sigue siendo el
+  documento de traspaso en español para el mantenedor original.
 - `plan.md` es el documento de traspaso: qué existe, qué está verificado y **con qué
   criterio se tomó cada decisión**. Si tomas una decisión de arquitectura, va ahí, con
   el motivo. Si pierdes una tarde con una trampa, va a §7, para que nadie la repita.

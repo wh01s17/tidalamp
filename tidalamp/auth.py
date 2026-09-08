@@ -13,6 +13,7 @@ import logging
 import tidalapi
 
 from .config import DEFAULT_QUALITY, SESSION_FILE, ensure_dirs
+from .i18n import _
 
 log = logging.getLogger("tidalamp.auth")
 
@@ -51,17 +52,19 @@ def _revive(session: tidalapi.Session) -> None:
     refresh_token = getattr(session, "refresh_token", None) or _stored_refresh_token()
     if not refresh_token:
         raise NotLoggedIn(
-            "La sesión expiró y no hay refresh token. Ejecuta: tidalamp login"
+            _("La sesión expiró y no hay refresh token. Ejecuta: tidalamp login")
         )
 
     try:
         refreshed = session.token_refresh(refresh_token)
     except Exception as exc:  # tidalapi raises AuthenticationError on a bad token
         raise NotLoggedIn(
-            f"No se pudo refrescar la sesión ({exc}). Ejecuta: tidalamp login"
+            _("No se pudo refrescar la sesión ({error}). Ejecuta: tidalamp login").format(
+                error=exc
+            )
         ) from exc
     if not refreshed:
-        raise NotLoggedIn("No se pudo refrescar la sesión. Ejecuta: tidalamp login")
+        raise NotLoggedIn(_("No se pudo refrescar la sesión. Ejecuta: tidalamp login"))
 
     if not session.load_oauth_session(
         session.token_type or "Bearer",
@@ -69,7 +72,9 @@ def _revive(session: tidalapi.Session) -> None:
         refresh_token,
         is_pkce=getattr(session, "is_pkce", False),
     ):
-        raise NotLoggedIn("La sesión refrescada no fue aceptada. Ejecuta: tidalamp login")
+        raise NotLoggedIn(
+            _("La sesión refrescada no fue aceptada. Ejecuta: tidalamp login")
+        )
     _save(session)
 
 
@@ -94,7 +99,7 @@ def load_session() -> tidalapi.Session:
     left to refresh is really dead.
     """
     if not SESSION_FILE.exists():
-        raise NotLoggedIn("No hay sesión guardada. Ejecuta: tidalamp login")
+        raise NotLoggedIn(_("No hay sesión guardada. Ejecuta: tidalamp login"))
 
     session = _new_session()
     try:
@@ -123,10 +128,10 @@ def ensure_fresh(session: tidalapi.Session) -> bool:
     refresh_token = getattr(session, "refresh_token", None)
     if not refresh_token:
         raise NotLoggedIn(
-            "La sesión expiró y no hay refresh token. Ejecuta: tidalamp login"
+            _("La sesión expiró y no hay refresh token. Ejecuta: tidalamp login")
         )
     if not session.token_refresh(refresh_token):
-        raise NotLoggedIn("No se pudo refrescar la sesión. Ejecuta: tidalamp login")
+        raise NotLoggedIn(_("No se pudo refrescar la sesión. Ejecuta: tidalamp login"))
     _save(session)
     return True
 

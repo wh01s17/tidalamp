@@ -4,9 +4,8 @@ Documento de traspaso. Describe qué existe, qué está verificado, qué falta y
 criterio se tomaron las decisiones, para que cualquiera (humano o modelo) pueda
 retomar el trabajo sin contexto previo.
 
-**Última actualización:** 2026-09-08 (acabado del punto 1 de la auditoría: `.desktop`,
-tamaño mínimo, búsqueda por categorías, favoritos — y una paginación rota que dejaba
-fuera 676 de 766 favoritos)
+**Última actualización:** 2026-09-08 (interfaz bilingüe español/inglés terminada,
+catálogo i18n comprobado por AST y README público traducido al inglés)
 
 ---
 
@@ -63,6 +62,7 @@ tidalamp/
   theme.py      Paleta semántica: tema Omarchy activo o fallback clásico validado.
   artwork.py    Carátula: descarga con cache, y codificación kitty / sixel /
                 medios bloques. Sin Textual ni tidalapi.
+  i18n.py       Español como fuente y fallback, catálogo inglés y detección de locale.
   mpris.py      Servicio MPRIS2 en D-Bus. Habla con la app por el Protocol
                 PlayerBackend, así que no conoce Textual ni tidalapi.
   cli.py        Entrypoint typer: login / tui / search.
@@ -328,7 +328,7 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
 
 ### Tests — `tests/`
 
-- [x] `pytest`, 211 pruebas, sin red y sin TIDAL. `pip install -e ".[dev]"`.
+- [x] `pytest`, 224 pruebas, sin red y sin TIDAL. `pip install -e ".[dev]"`.
 - [x] `tests/fake_mpv.py`: un mpv falso que habla el IPC JSON real y **emite eventos
       asíncronos antes de cada respuesta**, que es justo la trampa del §7. Lleva la
       cuenta de los filtros con etiqueta y rechaza la sintaxis con la etiqueta detrás.
@@ -378,6 +378,19 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
 ### CLI — `cli.py`
 
 - [x] `tidalamp login`, `tidalamp tui`, `tidalamp config`, `tidalamp search <query>`.
+- [x] Ayuda, mensajes y plantilla de configuración siguen el locale del proceso.
+
+### Internacionalización — `i18n.py`
+
+- [x] Interfaz TUI, navegador, CLI y errores visibles en español e inglés. El español
+      sigue escrito directamente en el código como idioma fuente y es el fallback para
+      locales no soportados.
+- [x] Detección por `LANGUAGE` → `LC_ALL` → `LC_MESSAGES` → `LANG`, con override
+      sencillo para pruebas y ejecuciones puntuales.
+- [x] El catálogo no usa gettext ni artefactos compilados. Una prueba recorre el AST,
+      exige que cada llamada a `_()` sea literal y tenga exactamente una traducción,
+      comprueba los placeholders y prohíbe sombrear la función `_`.
+- [x] `README.md` está en inglés y documenta cómo forzar ambos idiomas.
 
 ## 5. Estado de verificación
 
@@ -388,6 +401,7 @@ Distinguir esto importa: parte del código nunca se ha ejecutado contra TIDAL re
 | IPC de mpv                         | **Verificado**                    | Script directo: get/set de volumen, `idle`, `paused`.                                                                                                                           |
 | Medición RMS                       | **Verificado**                    | Tono de 440 Hz generado con ffmpeg; devuelve −21 dBFS estable.                                                                                                                  |
 | Layout y render de la TUI          | **Verificado**                    | La app real corriendo en un pty, con `pyte` emulando el terminal y datos stub.                                                                                                  |
+| i18n español / inglés              | **Verificado**                    | Catálogo exhaustivo por AST, igualdad de placeholders, precedencia de locale, fallback y CLI/plantilla en ambos idiomas.                                                       |
 | MPRIS: registro y propiedades      | **Verificado con `dbus-fast`**    | Integración automatizada contra un `dbus-daemon` temporal más la comprobación manual previa con `gdbus`.                                                                        |
 | MPRIS: controles                   | **Verificado con `dbus-fast`**    | Play y Volume cruzan el bus real; todos los transportes y setters están cubiertos con backend falso.                                                                            |
 | MPRIS: señales                     | **Verificado con `dbus-fast`**    | El bus aislado recibe un solo `PropertiesChanged`, ninguno si no cambia el estado, y `Seeked` conserva microsegundos.                                                           |
@@ -460,7 +474,7 @@ Ver §4. Paginación y reordenado con `Alt+↑/↓` incluidos. Queda uno menor:
 sigue el vúmetro RMS y la insignia `FFT`/`RMS` dice cuál es cuál. Pendientes:
 
 - [x] Arrancar el cava real instalado: proceso vivo y frame de 19 bandas.
-- [ ] Observar el frame con señal de audio real para validar la captura del sink.
+- [x] Observar el frame con señal de audio real para validar la captura del sink.
 - [ ] cava escucha el sink, no nuestro mpv: si suena otra cosa a la vez, se cuela. Se
       arreglaría enrutando mpv a un sink propio de PipeWire, a cambio de un nodo por
       ejecución. No parece que compense todavía.
@@ -491,11 +505,13 @@ dejará de importar y con él no arranca la aplicación entera.
 - [x] Slider de balance (`,` `.` `\`), como filtro `pan`.
 - [x] Ventana de ecualizador de 10 bandas (`e`) sobre el filtro `equalizer`.
 - [x] Carátula en el terminal vía protocolo Kitty/sixel, con medios bloques como
-      fallback universal. Ver §4. Queda por mirar con los ojos en un kitty de verdad,
-      y por decidir si el recuadro debe seguir el tamaño del terminal en vez de ser
+      fallback universal. Ver §4. Ya se verificó a la vista en kitty; queda como posible
+      mejora decidir si el recuadro debe seguir el tamaño del terminal en vez de ser
       18×9 fijo.
 - [x] Letras sincronizadas y fallback a texto plano (`y`).
 - [x] Colores adaptados al tema Omarchy activo, con cambio en vivo y fallback clásico.
+- [x] Interfaz bilingüe español/inglés según el locale, incluidos errores, CLI y la
+      plantilla de configuración; README público en inglés.
 - [x] Empaquetado, dos canales que se complementan. El procedimiento completo de
       publicación está en `packaging/README.md`; aquí sólo el estado.
       - [x] `packaging/aur/PKGBUILD` + `.SRCINFO`. Construye desde el tarball del tag de
@@ -638,7 +654,7 @@ instalado nada sin comprobarlo.
   del sonido. No es un fallo del analizador.
 - Venv en `.venv/`, rehecho tras el renombrado; `.venv/bin/tidalamp` funciona de nuevo.
   Lleva el paquete en editable más `pytest` y `pyte`.
-- Tests: `.venv/bin/python -m pytest` (211 pruebas, ~12 s, sin red ni bus de usuario).
+- Tests: `.venv/bin/python -m pytest` (224 pruebas, ~10 s, sin red ni bus de usuario).
   El extra `dev` arrastra Pillow, así que las pruebas de carátula corren de verdad; si
   falta, se saltan solas.
 - En la primera máquina `cava` sí estaba, en `/usr/bin/cava`, y arrancó con la
