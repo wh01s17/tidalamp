@@ -366,25 +366,25 @@ Distinguir esto importa: parte del código nunca se ha ejecutado contra TIDAL re
 | MPRIS: señales                     | **Verificado con `dbus-fast`**    | El bus aislado recibe un solo `PropertiesChanged`, ninguno si no cambia el estado, y `Seeked` conserva microsegundos.                                                           |
 | MPRIS: LoopStatus / Shuffle        | **Verificado con `dbus-fast`**    | Lectura/escritura del adaptador, más la integración Textual de sus indicadores persistentes.                                                                                    |
 | MPRIS: colisión de nombre          | **Verificado con `dbus-fast`**    | Dos conexiones reales al bus aislado: la segunda reclama `.instance<pid>`.                                                                                                     |
-| MPRIS: TrackList                   | **Verificado con `dbus-fast`**    | `Tracks`, `GetTracksMetadata`, `GoTo` y `CanEditTracks` contra el bus aislado, con `TrackListReplaced` recibido por un cliente real; más unitarias de identidad de fila (dos veces la misma canción, reordenado, ida y vuelta a disco) y una que fija que el tick no construye metadata. |
+| MPRIS: TrackList                   | **VERIFICADO EN LA INSTANCIA REAL** | Lectura del bus del usuario con la app corriendo: `HasTrackList` True, 100 filas con ids **todos distintos** pese a haber cinco pistas llamadas «Thriller», `GetTracksMetadata` responde y `Shuffle` coincide con el `SHUF ON` de la pantalla. Antes: `Tracks`, `GetTracksMetadata`, `GoTo` y `CanEditTracks` contra el bus aislado, con `TrackListReplaced` recibido por un cliente real; más unitarias de identidad de fila (dos veces la misma canción, reordenado, ida y vuelta a disco) y una que fija que el tick no construye metadata. |
 | Cola: shuffle / repeat             | **Verificado**                    | Unitarias de recorrido en los tres modos y prueba Textual de indicadores persistentes por teclado y setters MPRIS.                                                             |
 | Cola: persistencia                 | **Verificado**                    | Ida y vuelta a disco, y dos sesiones reales de la app encadenadas.                                                                                                              |
 | Navegador de biblioteca            | **Verificado**                    | Drill-down, `↵`, `a` y `A` con una sesión simulada.                                                                                                                             |
 | Paginación de la biblioteca        | **Verificado**                    | Unitarias sobre `_paged`, y la app real headless: nivel de 103 pistas → 101 filas con `más…`, `↵` sobre ella → 103 filas sin `más…`.                                            |
 | Reordenar la cola                  | **Verificado**                    | Unitarias de `Queue.move` (bordes, cursor, shuffle intacto) y `alt+↓` en la app real.                                                                                           |
 | Reinicio de mpv                    | **Verificado**                    | SIGKILL a mpv con la app corriendo: el tick lo relanza con otro PID y la pista vuelve a sonar.                                                                                  |
-| Espectro con cava                  | **Parcial con cava real**         | Unitarias con frames normalizados y muerte del doble. El binario real está instalado y produjo un proceso vivo con 19 bandas; falta observar señal mientras suena audio.       |
+| Espectro con cava                  | **VERIFICADO CON AUDIO REAL**     | El usuario instaló cava 0.10.7 y reprodujo Thriller: la insignia dice `FFT` y las bandas dibujan un espectro con forma, graves y agudos por separado. `pgrep` confirma `cava -p ~/.cache/tidalamp/cava.conf` vivo junto al mpv de la app. |
 | Balance y ecualizador              | **Verificado**                    | Grafos validados con `ffmpeg -af` de verdad; en la app real los filtros llegan a mpv, se guardan, y se reaplican tras reiniciar mpv.                                            |
 | Reintentos de red                  | **Verificado**                    | Unitarias: reintenta conexión/timeout/503, no reintenta 404, se rinde al tercer intento.                                                                                        |
 | Letras sincronizadas               | **Verificado con dobles**         | 9 pruebas de LRC, texto plano, ventanas, carga y fallos transitorios; el trabajo de red queda fuera del loop. Falta probar una letra real de TIDAL.                             |
 | Tema Omarchy / fallback             | **Verificado**                    | Unitarias con paletas temporales y montaje Textual; la máquina cambió de Wh01s17 a Tokyo Night y el lector tomó el nuevo acento.                                               |
 | Refresco del token                 | **VERIFICADO CONTRA TIDAL REAL**  | Copia de la sesión real con el access token invalidado a mano: la app arranca, reescribe el token, completa el handshake (user id y país) y la API responde. El fichero real quedó intacto. Además 10 unitarias con dobles, incluida la del 401 que tidalapi deja escapar. |
 | **`login` y reproducción real**    | **VERIFICADO POR EL USUARIO**     | El usuario ejecutó `tidalamp tui` con su cuenta y reprodujo TOOL - Schism (Lateralus) el 2026-09-08. Login, búsqueda, `stream.resolve()` y salida de audio funcionan de verdad. |
-| Reproducción real (`ao` de verdad) | **Verificado sólo con `ao=null`** | Nunca se ha sacado sonido por PipeWire en esta sesión.                                                                                                                          |
+| Reproducción real (`ao` de verdad) | **VERIFICADO**                    | Sale sonido por PipeWire, y la prueba es el propio analizador: cava lee el **monitor del sink**, no nuestro mpv, así que un espectro con forma sólo puede venir de audio que llegó al sink. Sink Bluetooth. |
 | Ruta MPD -> HLS                    | **PARCIAL**                       | Ambas ramas están cubiertas por tests con manifiestos fijados, y `stream.resolve()` ya registra cuál toma. Falta una reproducción real con `TIDALAMP_DEBUG=1` para leerlo.      |
 | Ruta MPD -> HLS (hi-res)           | **VERIFICADO CONTRA TIDAL REAL**  | Matriz de las cuatro calidades sobre dos pistas reales; con `HI_RES_LOSSLESS` la rama es MPD, FLAC 24 bit/96 kHz, 69 segmentos. `ffprobe` sobre la playlist reescrita da flac/96000/24 y `ffmpeg` decodifica 3 s a un WAV de 1.152.102 bytes (exactamente 96000×3×2×2). La app real con mpv de verdad: insignias `24bit 96kHz HI_RES_LOSSLESS`, posición 12,3 s de 266 s, RMS −19,2 dBFS. La playlist sin reescribir falla con *error reading header* en el mismo ffmpeg. |
 | Empaquetado (sdist / wheel / AUR)  | **Verificado salvo la publicación** | `python -m build` + `twine check` en ambos artefactos; 89 pruebas desde el sdist extraído; `bash -n` y `makepkg --printsrcinfo` sobre el PKGBUILD; `pacman -Si` confirma que todas las dependencias están en `extra`. No se ha ejecutado `makepkg -si` ni se ha publicado nada: el tag no existe todavía. |
-| Carátula                           | **Verificado salvo la vista** | Unidades sobre los tres codificadores, incluida una vuelta completa de sixel a píxeles; la app real bajo un pty con `TERM=xterm-kitty` emite el APC gráfico anclado en la esquina del widget, y en medios bloques pyte muestra el recuadro de 18×9 con el resto del display intacto. Nadie ha mirado todavía una portada real en una ventana de kitty. |
+| Carátula                           | **VERIFICADO A LA VISTA**     | Captura del usuario en kitty: la portada de Thriller se dibuja con el protocolo gráfico en su recuadro, a la izquierda del reloj, sin invadir el marquee ni el analizador. Además: | Unidades sobre los tres codificadores, incluida una vuelta completa de sixel a píxeles; la app real bajo un pty con `TERM=xterm-kitty` emite el APC gráfico anclado en la esquina del widget, y en medios bloques pyte muestra el recuadro de 18×9 con el resto del display intacto. Nadie ha mirado todavía una portada real en una ventana de kitty. |
 | Indicador de carga y barra de estado | **Verificado**                  | Unitarias del `Spinner` y de los tres momentos del navegador (raíz, abrir un nivel, volver atrás) con un loader bloqueado a propósito; la app real bajo pty midió `#statusbar` dentro de la pantalla y pintó `⠦ resolviendo «Schism»…` en la última fila. |
 | «Mis playlists» y caché de niveles | **Verificado contra TIDAL real**  | cProfile sobre la cuenta del usuario localizó las 111 peticiones; tras el cambio, la app real bajo un pty abre «Mis playlists» en 0,39 s (antes 19,87 s) y en 0,13 s la segunda vez. Unitarias: una petición por página, paginación, claves de caché y `R`. |
 
@@ -618,11 +618,17 @@ instalado nada sin comprobarlo.
 
 ## 9. Qué queda para el usuario
 
-Tres comprobaciones que no se pueden automatizar desde aquí porque necesitan altavoces
-o un par de ojos. Ninguna es un cambio de código: son la última columna de §5.
-(El alta en PyPI y la subida al AUR quedan aparte, para cuando el proyecto esté cerrado.)
+**Las tres comprobaciones de esta sección están hechas** (2026-09-08). El usuario
+instaló cava, reprodujo Michael Jackson – Thriller en hi-res y mandó una captura:
+carátula dibujada con el protocolo de kitty, insignias `24bit 176kHz HI_RES_LOSSLESS`,
+analizador en `FFT` con espectro real, barra de estado visible con
+«reproduciendo Michael Jackson – Thriller». Se conserva el procedimiento por si hay que
+repetirlo tras un cambio.
 
-### 9.1 Espectro real de cava — necesita sonido
+Sólo queda §9.4, que es una decisión, no una prueba. Y el alta en PyPI y la subida al
+AUR, aparte, para cuando el proyecto esté cerrado.
+
+### 9.1 Espectro real de cava — HECHO
 
 En esta máquina `cava` no está instalado (en la otra sí lo estaba; ver §8):
 
@@ -646,7 +652,7 @@ Reproduce algo y mira la insignia del display, a la derecha del `HI_RES_LOSSLESS
 Qué anotar: si con música sonando las bandas responden a la música de verdad. Es lo
 único que valida que cava está capturando el sink y no leyendo silencio.
 
-### 9.2 Carátula en kitty — necesita ojos
+### 9.2 Carátula en kitty — HECHO
 
 En la misma sesión, la portada va a la izquierda del reloj, en un recuadro de 18×9. Tu
 terminal es kitty, así que se dibuja con su protocolo gráfico: píxeles de verdad.
@@ -666,7 +672,7 @@ Qué mirar:
 
 Si no aparece nada, es que falta Pillow: `.venv/bin/pip install pillow`.
 
-### 9.3 Salida de audio real
+### 9.3 Salida de audio real — HECHO
 
 Todo lo verificado hasta ahora ha sido con `ao=null`: mpv decodifica de verdad (RMS
 −19,2 dBFS sobre una pista hi-res) pero no ha salido sonido por PipeWire en ninguna
