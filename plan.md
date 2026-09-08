@@ -593,9 +593,10 @@ Cosas que ya costaron tiempo una vez:
 - Tests: `.venv/bin/python -m pytest` (174 pruebas, ~8 s, sin red ni bus de usuario).
   El extra `dev` arrastra Pillow, así que las pruebas de carátula corren de verdad; si
   falta, se saltan solas.
-- `cava` está instalado en `/usr/bin/cava`; arranca con la configuración real de 19
-  bandas. Las pruebas automatizadas siguen usando `tests/fake_cava.py` y falta validar
-  visualmente una señal de audio del sink.
+- **`cava` ya NO está instalado** (comprobado el 2026-09-08: ni el binario ni el
+  paquete). En su día lo estuvo y arrancó con la configuración real de 19 bandas. Las
+  pruebas automatizadas usan `tests/fake_cava.py` y no lo necesitan; para ver el
+  espectro real hay que `sudo pacman -S cava`.
 - Para ver el layout sin terminal interactivo hay un atajo más corto que pyte:
   `app.export_screenshot()` dentro de `run_test()` da un SVG del que se saca el texto.
 - Smoke headless de la app entera (mpv falso + sesión doble) en el scratchpad de la
@@ -604,3 +605,64 @@ Cosas que ya costaron tiempo una vez:
   sesión temporal, conecta dos servicios y un cliente, y lo destruye al terminar.
 - Para verificar la TUI sin terminal interactivo: correr la app bajo `pty.fork()` y
   emular la pantalla con `pyte`. Es como se generaron las capturas de este repo.
+
+
+## 9. Qué queda para el usuario
+
+Tres comprobaciones que no se pueden automatizar desde aquí porque necesitan altavoces
+o un par de ojos. Ninguna es un cambio de código: son la última columna de §5.
+(El alta en PyPI y la subida al AUR quedan aparte, para cuando el proyecto esté cerrado.)
+
+### 9.1 Espectro real de cava — necesita sonido
+
+`cava` no está instalado:
+
+```sh
+sudo pacman -S cava
+cd ~/Documents/workspace/tidalamp && .venv/bin/tidalamp tui
+```
+
+Reproduce algo y mira la insignia del display, a la derecha del `HI_RES_LOSSLESS`:
+
+- Dice **`FFT`** → cava arrancó y el analizador pinta su espectro. Las bandas graves y
+  agudas se mueven por separado.
+- Dice **`RMS`** → cava no arrancó y estás viendo el vúmetro repartido en bandas: todas
+  suben y bajan a la vez. Si pasa esto, `pgrep -a cava` dice si el proceso vive, y
+  `TIDALAMP_DEBUG=1 .venv/bin/tidalamp tui` deja el motivo en
+  `~/.local/state/tidalamp/tidalamp.log`.
+
+Qué anotar: si con música sonando las bandas responden a la música de verdad. Es lo
+único que valida que cava está capturando el sink y no leyendo silencio.
+
+### 9.2 Carátula en kitty — necesita ojos
+
+En la misma sesión, la portada va a la izquierda del reloj, en un recuadro de 18×9. Tu
+terminal es kitty, así que se dibuja con su protocolo gráfico: píxeles de verdad.
+
+```sh
+.venv/bin/tidalamp tui                      # kitty, píxeles
+TIDALAMP_ART=blocks .venv/bin/tidalamp tui  # medios bloques, para comparar
+```
+
+Qué mirar:
+
+1. Que la imagen caiga dentro del recuadro y no se monte sobre el reloj ni el marquee.
+2. Que **desaparezca** al abrir `l`, `y` o `e`, y **vuelva** al cerrar la ventana. Es
+   deliberado: una imagen de kitty se pinta por encima del texto y si no, el modal se
+   abriría por debajo.
+3. Que al cambiar de pista se sustituya, sin acumular imágenes ni dejar restos al salir.
+
+Si no aparece nada, es que falta Pillow: `.venv/bin/pip install pillow`.
+
+### 9.3 Salida de audio real
+
+Todo lo verificado hasta ahora ha sido con `ao=null`: mpv decodifica de verdad (RMS
+−19,2 dBFS sobre una pista hi-res) pero no ha salido sonido por PipeWire en ninguna
+sesión automatizada. Basta con reproducir una pista hi-res y una normal, y comprobar
+que se oyen y que las insignias dicen `24bit 96kHz HI_RES_LOSSLESS` en la primera.
+
+### 9.4 Decisión pendiente, no comprobación
+
+cava escucha el **sink**, no nuestro mpv: si suena otra cosa a la vez, se cuela en el
+analizador. Se arreglaría enrutando mpv a un sink propio de PipeWire, a cambio de un
+nodo por ejecución. Sigue sin parecer que compense; la decisión es tuya.
