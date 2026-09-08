@@ -3,6 +3,8 @@
 Un cliente de TIDAL para terminal con la estética de Winamp 2.x. Sin registrar apps
 en la API oficial y sin navegador de por medio: device flow + mpv.
 
+![TidalAmp reproduciendo TOOL – Stinkfist](tidalamp.png)
+
 ```
  ░▒▓ TIDAL AMP ▓▒░
    _   _       _   _      3. Burial - Archangel (3:51)
