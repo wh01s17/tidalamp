@@ -92,8 +92,9 @@ orden de reproducción se remapea en lugar de regenerarse: mover una fila no vue
 barajar lo que sonará después.
 
 `s` alterna shuffle y `r` cicla el modo de repetición (ninguna → cola → pista). El
-estado se muestra en la barra inferior como `[SHUF REP:ALL]`, y ambos se exponen por
-MPRIS como `Shuffle` y `LoopStatus`.
+estado queda siempre visible en una franja propia: `SHUF ON/OFF` y
+`REP OFF/ALL/1`. Los modos activos se iluminan en verde y ambos se exponen por MPRIS
+como `Shuffle` y `LoopStatus`.
 
 ## Limitación importante: DRM
 

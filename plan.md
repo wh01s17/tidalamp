@@ -1,24 +1,25 @@
 # plan.md — estado del proyecto `tidalamp`
 
-Documento de traspaso. Describe qué existe, qué está verificado, qué falta y con qué  
-criterio se tomaron las decisiones, para que cualquiera (humano o modelo) pueda  
+Documento de traspaso. Describe qué existe, qué está verificado, qué falta y con qué
+criterio se tomaron las decisiones, para que cualquiera (humano o modelo) pueda
 retomar el trabajo sin contexto previo.
 
-**Última actualización:** 2026-09-08 (P3 espectro con cava, y balance + ecualizador de P5)
+**Última actualización:** 2026-09-08 (cava real disponible, letras sincronizadas,
+indicadores persistentes y estabilidad de los filtros de audio)
 
 ---
 
 ## 1. Qué es esto
 
-Cliente de TIDAL para terminal con interfaz estilo Winamp 2.x (TUI). Reproduce audio  
+Cliente de TIDAL para terminal con interfaz estilo Winamp 2.x (TUI). Reproduce audio
 con `mpv` y obtiene catálogo y streams con `tidalapi`.
 
-Antes se llamaba `tidal-cli-omarchy` porque se pensó como plugin de Omarchy. Se  
-renombró a `tidalamp` al decidir que el producto es una TUI autónoma. El directorio ya  
+Antes se llamaba `tidal-cli-omarchy` porque se pensó como plugin de Omarchy. Se
+renombró a `tidalamp` al decidir que el producto es una TUI autónoma. El directorio ya
 está renombrado a `~/workspace/tidalamp`.
 
-**Secuela del renombrado (ya resuelta):** el venv se había creado en la ruta antigua y  
-los scripts de `.venv/bin` llevaban un shebang inexistente (`bad interpreter`). Se  
+**Secuela del renombrado (ya resuelta):** el venv se había creado en la ruta antigua y
+los scripts de `.venv/bin` llevaban un shebang inexistente (`bad interpreter`). Se
 rehizo el 2026-09-08 con `python -m venv .venv && .venv/bin/python -m pip install -e ".[dev]" pyte`. Si vuelve a pasar tras mover el directorio, la cura es esa.
 
 ## 2. Decisiones de arquitectura (y por qué)
@@ -28,15 +29,15 @@ Estas son las decisiones que **no** hay que volver a litigar sin motivo nuevo:
 | Decisión                                                 | Motivo                                                                                                                                                                                                                                                           |
 | -------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **No usar la API oficial** (`developer.tidal.com`)       | Exige registrar una app, y aun así no entrega URLs de stream. Sólo sirve para metadata.                                                                                                                                                                          |
-| **Usar el device flow vía `tidalapi**`                   | Es el mismo OAuth que los clientes oficiales de TV/escritorio. No requiere registrar nada: el usuario abre un enlace, autoriza, y la sesión refrescable se cachea.                                                                                               |
+| **Usar el device flow vía `tidalapi`**                   | Es el mismo OAuth que los clientes oficiales de TV/escritorio. No requiere registrar nada: el usuario abre un enlace, autoriza, y la sesión refrescable se cachea.                                                                                               |
 | **mpv como motor, no un player embebido**                | Maneja HLS/DASH/FLAC sin que nosotros toquemos códecs. Un solo proceso `--idle` de larga vida sobrevive a los cambios de pista.                                                                                                                                  |
 | **IPC por socket unix con JSON**, no `python-mpv`/libmpv | Cero dependencias nativas, y da acceso directo a las propiedades (`time-pos`, `volume`, `af-metadata`) que necesita el display.                                                                                                                                  |
 | **Textual para la TUI**                                  | Tiene CSS, que hace tratable clonar la estética de Winamp.                                                                                                                                                                                                       |
 | **GPL-3.0-or-later** (2026-09-08)                        | Aplicación de usuario final en un ecosistema copyleft (mpv es GPL, `tidalapi` LGPL-3). Mantiene libre cualquier versión redistribuida. La LGPL de `tidalapi` no obligaba a nada —en Python se importa, no se enlaza—, así que fue elección, no imposición.       |
 | **No cruzar la línea del DRM**                           | `stream.py` rechaza los manifiestos cifrados en vez de descifrarlos, y no se descarga audio a disco. Es lo que mantiene el proyecto fuera de las leyes anti-elusión (DMCA §1201 y equivalentes); el README lo declara y los parches que lo crucen no se aceptan. |
 
-Alternativas descartadas y su motivo: `tidal-hifi` + MPRIS (mete un Electron de por  
-medio), Puppeteer sobre `listen.tidal.com` (Widevine, frágil), Mopidy (demasiadas  
+Alternativas descartadas y su motivo: `tidal-hifi` + MPRIS (mete un Electron de por
+medio), Puppeteer sobre `listen.tidal.com` (Widevine, frágil), Mopidy (demasiadas
 piezas).
 
 ## 3. Mapa de ficheros
@@ -48,7 +49,7 @@ tidalamp/
   stream.py     Track -> Playable (URL o playlist HLS local). Lanza StreamUnavailable.
   player.py     Clase Mpv: spawn del proceso, socket IPC, transporte, medición RMS.
   widgets.py    TimeDisplay, Marquee, Analyzer, SeekBar, Slider. Sin lógica de negocio.
-  app.py        TidalAmp (App de Textual), Playlist, SearchScreen, Entry.
+  app.py        TidalAmp y sus modales de búsqueda, biblioteca, letras y ecualizador.
   winamp.tcss   Paleta y layout.
   queue.py      Entry (metadatos serializables + Track perezoso) y Queue (orden,
                 shuffle, repeat, persistencia). No conoce la UI.
@@ -56,14 +57,20 @@ tidalamp/
   net.py        with_retries(): reintentos con backoff para las llamadas a TIDAL.
   spectrum.py   Cava: proceso cava + lector de frames. Opcional por diseño.
   settings.py   Balance y ecualizador: grafos de filtro y persistencia.
+  lyrics.py     Carga de letras, parseo LRC y modelo de sincronización. Sin Textual.
   mpris.py      Servicio MPRIS2 en D-Bus. Habla con la app por el Protocol
                 PlayerBackend, así que no conoce Textual ni tidalapi.
   cli.py        Entrypoint typer: login / tui / search.
 ```
 
-Dependencia en un solo sentido:  
-`cli -> app -> {player, stream, widgets, mpris, library, spectrum, settings}        -> {queue, net} -> {auth, config}`.  
-`widgets.py` no conoce TIDAL ni mpv; recibe valores por reactives. Mantener esa  
+Dependencia en un solo sentido:
+
+```text
+cli -> app -> {player, stream, widgets, mpris, library, lyrics, spectrum, settings}
+       app -> {queue, net} -> {auth, config}
+```
+
+`widgets.py` no conoce TIDAL ni mpv; recibe valores por reactives. Mantener esa
 separación: es lo que permitiría añadir otro frontend (ver §6).
 
 ## 4. Implementado
@@ -101,7 +108,10 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
 - [x] Playlist con cursor, marcador de pista en curso y scroll centrado.
 - [x] Búsqueda en TIDAL en modal, ejecutada en hilo para no bloquear la UI.
 - [x] Avance automático al terminar la pista (se detecta por `idle-active` de mpv).
-- [x] Teclas de Winamp: `z` `x` `c` `v` `b`, más `/` `↑` `↓` `Enter` `←` `→` `+` `-` `t` `q`.
+- [x] Teclas de Winamp: `z` `x` `c` `v` `b`, más `/` `l` `y` `e`, navegación,
+      balance, volumen, shuffle/repeat y salida.
+- [x] Indicadores persistentes `SHUF ON/OFF` y `REP OFF/ALL/1`, con resaltado para el
+      modo activo y actualización inmediata por teclado o MPRIS.
 
 ### MPRIS — `mpris.py`
 
@@ -188,10 +198,22 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
       balance también ahí. Se aplica en vivo.
 - [x] Persistencia en `~/.local/state/tidalamp/settings.json`, y reaplicado tras un
       reinicio de mpv (un proceso nuevo arranca con la cadena vacía).
+- [x] Los filtros sólo se reconstruyen al arrancar, cambiar un ajuste o reiniciar mpv;
+      el tick de sondeo no toca la cadena y evita cortes de audio periódicos.
+
+### Letras — `lyrics.py`, `app.py`
+
+- [x] `y` abre un modal para la pista actual; la carga se ejecuta en un worker y no
+      bloquea la reproducción ni el loop de Textual.
+- [x] Parseo de subtítulos LRC con varias marcas por línea, fracciones de distinta
+      precisión, orden cronológico y resaltado según `mpv.position` a 4 Hz.
+- [x] Fallback a texto plano con scroll manual cuando TIDAL no entrega timestamps.
+- [x] Reutiliza refresco de sesión, reintentos de red y una cache por pista durante la
+      sesión. Una letra ausente muestra un error local sin afectar al reproductor.
 
 ### Tests — `tests/`
 
-- [x] `pytest`, 64 pruebas, sin red y sin TIDAL. `pip install -e ".[dev]"`.
+- [x] `pytest`, 75 pruebas, sin red y sin TIDAL. `pip install -e ".[dev]"`.
 - [x] `tests/fake_mpv.py`: un mpv falso que habla el IPC JSON real y **emite eventos
       asíncronos antes de cada respuesta**, que es justo la trampa del §7. Lleva la
       cuenta de los filtros con etiqueta y rechaza la sintaxis con la etiqueta detrás.
@@ -201,7 +223,8 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
       biblioteca, las dos ramas de `stream.resolve()` más DRM y manifiesto vacío,
       política de reintentos, `player` contra el mpv falso incluida la muerte y el
       reinicio del proceso y los filtros con etiqueta, `spectrum` contra el cava falso,
-      y `settings` (recortes, grafos y persistencia).
+      `settings` (recortes, grafos y persistencia), letras LRC/texto, indicadores de
+      shuffle/repeat y la garantía de que el tick lento no reinstala filtros.
 
 ### Navegador y cola en la UI — `app.py`
 
@@ -233,34 +256,41 @@ Distinguir esto importa: parte del código nunca se ha ejecutado contra TIDAL re
 | MPRIS: señales                     | **Verificado**                    | `gdbus monitor`: 5 `PropertiesChanged` para 5 cambios reales, ninguna de más.                                                                                                   |
 | MPRIS: LoopStatus / Shuffle        | **Verificado**                    | Lectura, escritura y señales contra una instancia aislada.                                                                                                                      |
 | MPRIS: colisión de nombre          | **Verificado**                    | Dos instancias a la vez: la segunda cae a `.instance<pid>`.                                                                                                                     |
-| Cola: shuffle / repeat             | **Verificado**                    | Pruebas unitarias de `next_index`/`prev_index` en los tres modos.                                                                                                               |
+| Cola: shuffle / repeat             | **Verificado**                    | Unitarias de recorrido en los tres modos y prueba Textual de indicadores persistentes por teclado y setters MPRIS.                                                             |
 | Cola: persistencia                 | **Verificado**                    | Ida y vuelta a disco, y dos sesiones reales de la app encadenadas.                                                                                                              |
 | Navegador de biblioteca            | **Verificado**                    | Drill-down, `↵`, `a` y `A` con una sesión simulada.                                                                                                                             |
 | Paginación de la biblioteca        | **Verificado**                    | Unitarias sobre `_paged`, y la app real headless: nivel de 103 pistas → 101 filas con `más…`, `↵` sobre ella → 103 filas sin `más…`.                                            |
 | Reordenar la cola                  | **Verificado**                    | Unitarias de `Queue.move` (bordes, cursor, shuffle intacto) y `alt+↓` en la app real.                                                                                           |
 | Reinicio de mpv                    | **Verificado**                    | SIGKILL a mpv con la app corriendo: el tick lo relanza con otro PID y la pista vuelve a sonar.                                                                                  |
-| Espectro con cava                  | **Verificado con cava falso**     | Frames normalizados, config generada, muerte del proceso → vuelta a RMS. En esta máquina **cava no está instalado**, así que nunca se ha visto contra el binario real.          |
+| Espectro con cava                  | **Parcial con cava real**         | Unitarias con frames normalizados y muerte del doble. El binario real está instalado y produjo un proceso vivo con 19 bandas; falta observar señal mientras suena audio.       |
 | Balance y ecualizador              | **Verificado**                    | Grafos validados con `ffmpeg -af` de verdad; en la app real los filtros llegan a mpv, se guardan, y se reaplican tras reiniciar mpv.                                            |
 | Reintentos de red                  | **Verificado**                    | Unitarias: reintenta conexión/timeout/503, no reintenta 404, se rinde al tercer intento.                                                                                        |
+| Letras sincronizadas               | **Verificado con dobles**         | 9 pruebas de LRC, texto plano, ventanas, carga y fallos transitorios; el trabajo de red queda fuera del loop. Falta probar una letra real de TIDAL.                             |
 | Refresco del token                 | **Sin verificar contra TIDAL**    | La ruta se ejerce con dobles; nunca se ha dejado caducar un token real.                                                                                                         |
 | **`login` y reproducción real**    | **VERIFICADO POR EL USUARIO**     | El usuario ejecutó `tidalamp tui` con su cuenta y reprodujo TOOL - Schism (Lateralus) el 2026-09-08. Login, búsqueda, `stream.resolve()` y salida de audio funcionan de verdad. |
-| Reproducción real (`ao` de verdad) | **Verificado sólo con `ao=null**` | Nunca se ha sacado sonido por PipeWire en esta sesión.                                                                                                                          |
+| Reproducción real (`ao` de verdad) | **Verificado sólo con `ao=null`** | Nunca se ha sacado sonido por PipeWire en esta sesión.                                                                                                                          |
 | Ruta MPD -> HLS                    | **PARCIAL**                       | Ambas ramas están cubiertas por tests con manifiestos fijados, y `stream.resolve()` ya registra cuál toma. Falta una reproducción real con `TIDALAMP_DEBUG=1` para leerlo.      |
 
-**Ya no hay ningún bloqueo de credenciales:** la sesión está guardada y la  
-reproducción real está confirmada. La instrumentación de la rama de manifiesto ya está  
-puesta: queda ejecutar `TIDALAMP_DEBUG=1 tidalamp tui`, reproducir una pista en cada  
-calidad y leer `~/.local/state/tidalamp/tidalamp.log`. Es lo primero que debería hacer  
+**Ya no hay ningún bloqueo de credenciales:** la sesión está guardada y la
+reproducción real está confirmada. La instrumentación de la rama de manifiesto ya está
+puesta: queda ejecutar `TIDALAMP_DEBUG=1 tidalamp tui`, reproducir una pista en cada
+calidad y leer `~/.local/state/tidalamp/tidalamp.log`. Es lo primero que debería hacer
 quien retome esto delante de un terminal de verdad.
 
 ## 6. Pendiente
 
-Ordenado por valor. Los tres primeros son los que de verdad cambian el producto.
+P1–P4 están cerradas: lo que queda no es funcionalidad que falte para que el
+reproductor sirva, sino acabado, distribución y confirmar contra TIDAL real cosas hoy
+probadas sólo con dobles.
+
+**Orden propuesto (2026-09-08):** P6 (dbus-fast) → P5 empaquetado (AUR y PyPI) → las
+verificaciones reales cuando haya un terminal delante → carátula al final, como
+opcional. El razonamiento: P6 es media hora contra una rotura futura garantizada,
+mientras que la carátula es una sesión entera con riesgo de acabar en «no compensa».
 
 ### ~~P1 — Exponer MPRIS en D-Bus~~ ✅ HECHO
 
-Implementado en `mpris.py` con `dbus-next`. Ver §4 y §5.  
-Pendiente menor: `LoopStatus` y `Shuffle` sólo tendrán sentido cuando exista P2.
+Implementado en `mpris.py` con `dbus-next`. Ver §4 y §5.
 
 ### ~~P2 — Colas y biblioteca~~ ✅ HECHO
 
@@ -272,89 +302,117 @@ Ver §4. Paginación y reordenado con `Alt+↑/↓` incluidos. Queda uno menor:
 
 ### ~~P3 — Espectro real~~ ✅ HECHO
 
-`spectrum.py` lanza cava contra el sink y el analizador dibuja sus frames; sin cava  
+`spectrum.py` lanza cava contra el sink y el analizador dibuja sus frames; sin cava
 sigue el vúmetro RMS y la insignia `FFT`/`RMS` dice cuál es cuál. Pendientes:
 
-- [x] Probarlo con el cava real (`pacman -S cava`); aquí sólo se ha visto contra el
-      doble.
+- [x] Arrancar el cava real instalado: proceso vivo y frame de 19 bandas.
+- [ ] Observar el frame con señal de audio real para validar la captura del sink.
 - [ ] cava escucha el sink, no nuestro mpv: si suena otra cosa a la vez, se cuela. Se
       arreglaría enrutando mpv a un sink propio de PipeWire, a cambio de un nodo por
       ejecución. No parece que compense todavía.
 
 ### ~~P4 — Robustez~~ ✅ HECHO
 
-Ver §4: reinicio de mpv, refresco del token, reintentos con backoff y suite de  
+Ver §4: reinicio de mpv, refresco del token, reintentos con backoff y suite de
 `pytest` con mpv falso y manifiestos fijados. Queda menor:
 
 - [ ] Dejar caducar un token real para verificar `ensure_fresh` contra TIDAL.
+
+### P6 — Migrar de `dbus-next` a `dbus-fast` (lo más urgente)
+
+`dbus-next` **no publica una versión desde julio de 2021** y usa
+`typing.no_type_check_decorator`, deprecado y **marcado para eliminación en Python
+3.15**: son los 34 avisos de la suite. Cuando Arch actualice el intérprete, `mpris.py`
+dejará de importar y con él no arranca la aplicación entera.
+
+- [ ] Cambiar a `dbus-fast` (fork mantenido de la misma API — su propia descripción es
+      «A faster version of dbus-next»; release de junio de 2026). Debería ser poco más
+      que el import y la dependencia en `pyproject.toml`.
+- [ ] Volver a pasar las verificaciones de MPRIS de §5 con `gdbus`: registro,
+      propiedades, controles, señales y colisión de nombre. Es una sustitución de la
+      capa D-Bus, así que no vale con que la suite pase.
 
 ### P5 — Acabado
 
 - [x] Slider de balance (`,` `.` `\`), como filtro `pan`.
 - [x] Ventana de ecualizador de 10 bandas (`e`) sobre el filtro `equalizer`.
 - [ ] Carátula en el terminal vía protocolo Kitty/sixel.
-- [ ] Letras sincronizadas (`track.lyrics()` existe en tidalapi).
-- [ ] Empaquetado: PKGBUILD para AUR.
+- [x] Letras sincronizadas y fallback a texto plano (`y`).
+- [ ] Empaquetado, dos canales que se complementan:
+      - [ ] PKGBUILD para el AUR. Es el bueno para Arch: puede declarar `mpv` como
+            dependencia real y `cava` como opcional, que es justo lo que pip no puede.
+      - [ ] PyPI (`pipx install tidalamp`), para el resto. El nombre está libre
+            (comprobado el 2026-09-08) y la metadata ya lleva licencia y readme. Falta
+            añadir URLs y keywords, construir sdist y wheel para comprobar que el
+            paquete queda bien formado, y publicar con Trusted Publishing (OIDC de
+            GitHub Actions) en vez de un token de larga vida.
+      - Aviso para quien lo haga: `mpv` no se instala con pip. Quien haga
+        `pip install tidalamp` sin mpv se encuentra un `MpvNotFound` al arrancar, así
+        que hay que decirlo arriba del todo en la descripción del paquete.
 
 ## 7. Trampas conocidas
 
 Cosas que ya costaron tiempo una vez:
 
-- **Sintaxis de la etiqueta de filtro en mpv**: es `--af=@etiqueta:lavfi=[...]`, con la  
-  etiqueta **delante**. Ponerla detrás (`lavfi=[...]@etiqueta`) hace que mpv aborte al  
+- **Sintaxis de la etiqueta de filtro en mpv**: es `--af=@etiqueta:lavfi=[...]`, con la
+  etiqueta **delante**. Ponerla detrás (`lavfi=[...]@etiqueta`) hace que mpv aborte al
   arrancar y el socket IPC nunca aparece.
-- **`box-sizing` de Textual es `border-box**`: el `padding`come de la altura  
-declarada. Un widget con`height: 3`y`padding-top: 1` sólo pinta 2 filas.
-- **El socket IPC comparte stream con los eventos async de mpv**: hay que leer líneas  
-  hasta encontrar la que lleva nuestro `request_id`, no asumir que la primera respuesta  
+- **`box-sizing` de Textual es `border-box`**: el `padding` come de la altura
+  declarada. Un widget con `height: 3` y `padding-top: 1` sólo pinta 2 filas.
+- **El socket IPC comparte stream con los eventos async de mpv**: hay que leer líneas
+  hasta encontrar la que lleva nuestro `request_id`, no asumir que la primera respuesta
   es la nuestra.
-- **Un selector CSS agrupado (`#a, #b {}`) editado con sed** puede dejar reglas  
+- **Un selector CSS agrupado (`#a, #b {}`) editado con sed** puede dejar reglas
   aplicadas al widget equivocado. Pasó con `#seek, #volume`.
-- **dbus-next exige anotaciones de tipo que sean constantes de cadena.** Un método  
-  D-Bus que devuelve void no lleva anotación **ninguna**: poner `-> None` hace que  
+- **dbus-next exige anotaciones de tipo que sean constantes de cadena.** Un método
+  D-Bus que devuelve void no lleva anotación **ninguna**: poner `-> None` hace que
   falle al importar el módulo, porque intenta leerlo como firma de salida.
-- **zsh no hace word-splitting de variables sin comillas.** Guardar flags en una  
-  variable (`D="-d foo -o /bar"`) y pasarla como `$D` los entrega como un único  
+- **zsh no hace word-splitting de variables sin comillas.** Guardar flags en una
+  variable (`D="-d foo -o /bar"`) y pasarla como `$D` los entrega como un único
   argumento. Usar arrays de bash en los scripts de prueba.
-- **Cuidado con `pkill -f <patrón>` / `pgrep -f` en estos scripts**: el patrón suele  
-  aparecer en la propia línea de comandos del shell que lo ejecuta, y el shell se mata  
+- **Cuidado con `pkill -f <patrón>` / `pgrep -f` en estos scripts**: el patrón suele
+  aparecer en la propia línea de comandos del shell que lo ejecuta, y el shell se mata
   a sí mismo. Matar por PID. (Esta trampa ya mordió dos veces.)
-- **`request_name` de D-Bus no lanza excepción si el nombre está ocupado**: devuelve  
-  un `RequestNameReply` distinto de `PRIMARY_OWNER` y la instancia se queda muda  
+- **`request_name` de D-Bus no lanza excepción si el nombre está ocupado**: devuelve
+  un `RequestNameReply` distinto de `PRIMARY_OWNER` y la instancia se queda muda
   mientras todo el tráfico va a la primera. Hay que comprobar la respuesta.
-- **Al probar por D-Bus, verifica a QUIÉN estás preguntando.** Una prueba contra  
-  `org.mpris.MediaPlayer2.tidalamp` puede acabar hablando con la instancia real del  
-  usuario y modificándole el estado. Usa el nombre con sufijo de instancia y compara  
+- **Al probar por D-Bus, verifica a QUIÉN estás preguntando.** Una prueba contra
+  `org.mpris.MediaPlayer2.tidalamp` puede acabar hablando con la instancia real del
+  usuario y modificándole el estado. Usa el nombre con sufijo de instancia y compara
   el PID dueño antes de escribir nada.
-- **`af set` reemplaza toda la cadena de filtros de mpv.** Usarlo para el ecualizador  
-  se llevaría por delante el `astats` del que vive el vúmetro. Para cambiar un filtro  
+- **`af set` reemplaza toda la cadena de filtros de mpv.** Usarlo para el ecualizador
+  se llevaría por delante el `astats` del que vive el vúmetro. Para cambiar un filtro
   con etiqueta: `af remove @etiqueta` y luego `af add @etiqueta:lavfi=[…]`.
-- **Las rutas de socket unix se cortan en ~108 bytes.** El directorio de scratchpad de  
-  la sesión ya gasta casi todo el presupuesto, así que un `--input-ipc-server` ahí  
-  falla con `AF_UNIX path too long`. Los scripts de prueba crean el socket en un  
+- **No reaplicar filtros desde un tick de sondeo.** `af remove` + `af add` reinicializa
+  el filtro y puede introducir un hueco audible. `_apply_audio()` sólo corresponde al
+  montaje, a un cambio explícito y al reinicio de mpv.
+- **Las rutas de socket unix se cortan en ~108 bytes.** El directorio de scratchpad de
+  la sesión ya gasta casi todo el presupuesto, así que un `--input-ipc-server` ahí
+  falla con `AF_UNIX path too long`. Los scripts de prueba crean el socket en un
   `mkdtemp()` corto.
-- **`logging` tiene un handler de último recurso que escribe a stderr.** Un  
-  `log.warning` sin handlers propios pinta encima de la TUI. Por eso `__init__.py`  
-  registra un `NullHandler` en el logger `tidalamp`: basta con que exista uno en la  
+- **`logging` tiene un handler de último recurso que escribe a stderr.** Un
+  `log.warning` sin handlers propios pinta encima de la TUI. Por eso `__init__.py`
+  registra un `NullHandler` en el logger `tidalamp`: basta con que exista uno en la
   cadena para que el de último recurso no entre.
-- **Textual captura stdout mientras la app corre**: un `print` dentro de `run_test()`  
-  no aparece hasta que el bloque termina. Para sacar datos de una app que sigue viva,  
+- **Textual captura stdout mientras la app corre**: un `print` dentro de `run_test()`
+  no aparece hasta que el bloque termina. Para sacar datos de una app que sigue viva,
   escribe a un fichero.
 
 ## 8. Entorno
 
 - Arch Linux, Hyprland (Omarchy). Python 3.14, mpv y ffmpeg en el sistema.
-- Venv en `.venv/`, rehecho tras el renombrado; `.venv/bin/tidalamp` funciona de nuevo.  
+- Venv en `.venv/`, rehecho tras el renombrado; `.venv/bin/tidalamp` funciona de nuevo.
   Lleva el paquete en editable más `pytest` y `pyte`.
-- Tests: `.venv/bin/python -m pytest` (64 pruebas, ~1,5 s, sin red).
-- `cava` **no** está instalado en esta máquina; el espectro sólo se ha probado contra  
-  `tests/fake_cava.py`.
-- Para ver el layout sin terminal interactivo hay un atajo más corto que pyte:  
+- Tests: `.venv/bin/python -m pytest` (75 pruebas, ~1,5 s, sin red).
+- `cava` está instalado en `/usr/bin/cava`; arranca con la configuración real de 19
+  bandas. Las pruebas automatizadas siguen usando `tests/fake_cava.py` y falta validar
+  visualmente una señal de audio del sink.
+- Para ver el layout sin terminal interactivo hay un atajo más corto que pyte:
   `app.export_screenshot()` dentro de `run_test()` da un SVG del que se saca el texto.
-- Smoke headless de la app entera (mpv falso + sesión doble) en el scratchpad de la  
+- Smoke headless de la app entera (mpv falso + sesión doble) en el scratchpad de la
   sesión: ejerce paginación, reordenado y muerte/reinicio de mpv sobre la app real.
-- Para probar MPRIS sin terminal interactivo: `app.run_test()` de Textual levanta la  
-  app headless en el mismo proceso, y desde fuera se interroga con `gdbus call` /  
+- Para probar MPRIS sin terminal interactivo: `app.run_test()` de Textual levanta la
+  app headless en el mismo proceso, y desde fuera se interroga con `gdbus call` /
   `gdbus monitor`. El script usado está en el scratchpad de la sesión.
-- Para verificar la TUI sin terminal interactivo: correr la app bajo `pty.fork()` y  
+- Para verificar la TUI sin terminal interactivo: correr la app bajo `pty.fork()` y
   emular la pantalla con `pyte`. Es como se generaron las capturas de este repo.
