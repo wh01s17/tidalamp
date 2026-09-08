@@ -4,8 +4,8 @@ Documento de traspaso. Describe qué existe, qué está verificado, qué falta y
 criterio se tomaron las decisiones, para que cualquiera (humano o modelo) pueda
 retomar el trabajo sin contexto previo.
 
-**Última actualización:** 2026-09-08 (carátula en el terminal: kitty, sixel y medios
-bloques; antes, el empaquetado para el AUR y PyPI)
+**Última actualización:** 2026-09-08 (interfaz `TrackList` de MPRIS; antes, la
+carátula en el terminal y el empaquetado para el AUR y PyPI)
 
 ---
 
@@ -136,6 +136,20 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
       SetPosition; propiedades PlaybackStatus, Metadata, Position, Volume (lectura y
       escritura), CanGoNext/CanGoPrevious.
 - [x] Metadata completa incluida `mpris:artUrl` (carátula, que Waybar muestra).
+- [x] Interfaz `org.mpris.MediaPlayer2.TrackList` (`HasTrackList` ya es True):
+      `Tracks`, `GetTracksMetadata` y `GoTo`. `CanEditTracks` es False a propósito —
+      `AddTrack` recibe una URI y no publicamos esquemas soportados, y la
+      especificación ata los dos métodos de edición a esa misma bandera, así que decir
+      True prometería un `AddTrack` que no podemos cumplir. `GoTo` no depende de ella.
+- [x] `mpris:trackid` pasa a identificar **la fila**, no la pista: `Entry.uid`, un
+      contador persistido en `queue.json`. La misma canción puede estar dos veces en la
+      cola y MPRIS exige identificadores distintos; el uid además sobrevive a
+      reordenar. Una cola guardada antes de esto recibe uids nuevos al cargarla, y el
+      contador se coloca por delante de lo restaurado para no reutilizar ninguno.
+- [x] Los cambios de cola se anuncian con `TrackListReplaced`, no con
+      `PropertiesChanged` — es lo que pide la especificación para `Tracks` — y el
+      diff se hace sobre los identificadores, sin construir metadata, porque eso corre
+      en el tick de 4 Hz.
 - [x] `PropertiesChanged` emitido por diferencia contra la última emisión, no en cada
       tick — los clientes MPRIS repintan con cada señal.
 - [x] Degradación limpia: sin bus de sesión la app arranca igual y lo dice en la barra
@@ -250,7 +264,7 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
 
 ### Tests — `tests/`
 
-- [x] `pytest`, 122 pruebas, sin red y sin TIDAL. `pip install -e ".[dev]"`.
+- [x] `pytest`, 137 pruebas, sin red y sin TIDAL. `pip install -e ".[dev]"`.
 - [x] `tests/fake_mpv.py`: un mpv falso que habla el IPC JSON real y **emite eventos
       asíncronos antes de cada respuesta**, que es justo la trampa del §7. Lleva la
       cuenta de los filtros con etiqueta y rechaza la sintaxis con la etiqueta detrás.
@@ -302,6 +316,7 @@ Distinguir esto importa: parte del código nunca se ha ejecutado contra TIDAL re
 | MPRIS: señales                     | **Verificado con `dbus-fast`**    | El bus aislado recibe un solo `PropertiesChanged`, ninguno si no cambia el estado, y `Seeked` conserva microsegundos.                                                           |
 | MPRIS: LoopStatus / Shuffle        | **Verificado con `dbus-fast`**    | Lectura/escritura del adaptador, más la integración Textual de sus indicadores persistentes.                                                                                    |
 | MPRIS: colisión de nombre          | **Verificado con `dbus-fast`**    | Dos conexiones reales al bus aislado: la segunda reclama `.instance<pid>`.                                                                                                     |
+| MPRIS: TrackList                   | **Verificado con `dbus-fast`**    | `Tracks`, `GetTracksMetadata`, `GoTo` y `CanEditTracks` contra el bus aislado, con `TrackListReplaced` recibido por un cliente real; más unitarias de identidad de fila (dos veces la misma canción, reordenado, ida y vuelta a disco) y una que fija que el tick no construye metadata. |
 | Cola: shuffle / repeat             | **Verificado**                    | Unitarias de recorrido en los tres modos y prueba Textual de indicadores persistentes por teclado y setters MPRIS.                                                             |
 | Cola: persistencia                 | **Verificado**                    | Ida y vuelta a disco, y dos sesiones reales de la app encadenadas.                                                                                                              |
 | Navegador de biblioteca            | **Verificado**                    | Drill-down, `↵`, `a` y `A` con una sesión simulada.                                                                                                                             |
@@ -353,9 +368,7 @@ Implementado en `mpris.py` con `dbus-fast`. Ver §4 y §5.
 
 Ver §4. Paginación y reordenado con `Alt+↑/↓` incluidos. Queda uno menor:
 
-- [ ] `TrackList` de MPRIS (`HasTrackList` sigue en False). Es la interfaz
-      `org.mpris.MediaPlayer2.TrackList`: exponer la cola como lista de trackids y
-      permitir `GoTo`. Poco cliente la consume; por eso sigue abajo del todo.
+- [x] `TrackList` de MPRIS. Hecho: ver §4 y §5.
 
 ### ~~P3 — Espectro real~~ ✅ HECHO
 
@@ -489,7 +502,7 @@ Cosas que ya costaron tiempo una vez:
 - Arch Linux, Hyprland (Omarchy). Python 3.14, mpv y ffmpeg en el sistema.
 - Venv en `.venv/`, rehecho tras el renombrado; `.venv/bin/tidalamp` funciona de nuevo.
   Lleva el paquete en editable más `pytest` y `pyte`.
-- Tests: `.venv/bin/python -m pytest` (122 pruebas, ~5 s, sin red ni bus de usuario).
+- Tests: `.venv/bin/python -m pytest` (137 pruebas, ~6 s, sin red ni bus de usuario).
   El extra `dev` arrastra Pillow, así que las pruebas de carátula corren de verdad; si
   falta, se saltan solas.
 - `cava` está instalado en `/usr/bin/cava`; arranca con la configuración real de 19

@@ -121,3 +121,48 @@ def test_entry_dict_roundtrip():
     clone = Entry.from_dict(entry.to_dict())
     assert clone == entry
     assert clone.length == "2:05"
+
+
+# --------------------------------------------------------------------- row ids
+
+
+def test_every_row_gets_its_own_id_even_for_the_same_song():
+    q = Queue()
+    q.append([Entry(id=7, title="x", artist="y"), Entry(id=7, title="x", artist="y")])
+    assert q[0].uid != q[1].uid
+
+
+def test_a_row_id_survives_a_reorder():
+    q = Queue()
+    q.append([Entry(id=i, title=f"t{i}", artist="a") for i in range(3)])
+    uids = [e.uid for e in q]
+
+    q.move(0, 1)
+
+    assert [e.uid for e in q] == [uids[1], uids[0], uids[2]]
+
+
+def test_row_ids_survive_a_save_and_never_collide_afterwards(queue_file, entries):
+    q = Queue()
+    q.append(entries)
+    saved = [e.uid for e in q]
+    q.save()
+
+    restored = Queue()
+    assert restored.load() is True
+    assert [e.uid for e in restored] == saved
+
+    # The counter has to come back ahead of what was on disk, or the next row
+    # added would reuse an id that MPRIS clients still hold.
+    fresh = Entry(id=99, title="new", artist="a")
+    assert fresh.uid not in saved
+
+
+def test_a_queue_written_before_row_ids_still_loads(queue_file):
+    queue_file.write_text(
+        '{"entries": [{"id": 1, "title": "x", "artist": "y"}], "playing": 0}',
+        encoding="utf-8",
+    )
+    restored = Queue()
+    assert restored.load() is True
+    assert restored[0].uid > 0

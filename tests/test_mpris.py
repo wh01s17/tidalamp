@@ -30,6 +30,15 @@ class FakeBackend:
         self.shuffle = False
         self.can_go_next = True
         self.can_go_previous = False
+        self.tracks = [
+            dict(self.metadata),
+            {
+                "trackid": "/org/mpris/MediaPlayer2/track/43",
+                "length": 100.0,
+                "title": "Parabola",
+                "artist": "TOOL",
+            },
+        ]
         self.calls: list[tuple[str, object | None]] = []
 
     def mpris_status(self) -> str:
@@ -91,6 +100,23 @@ class FakeBackend:
 
     def mpris_quit(self) -> None:
         self.calls.append(("quit", None))
+
+    def mpris_track_ids(self) -> list[str]:
+        return [t["trackid"] for t in self.tracks]
+
+    def mpris_tracks(self) -> list[dict[str, object]]:
+        return self.tracks
+
+    def mpris_go_to(self, track_id: str) -> None:
+        self.calls.append(("go_to", track_id))
+
+
+class RecordingTrackList:
+    def __init__(self) -> None:
+        self.replaced: list[tuple[list[str], str]] = []
+
+    def TrackListReplaced(self, tracks: list[str], current: str) -> None:  # noqa: N802
+        self.replaced.append((tracks, current))
 
 
 class RecordingPlayer:
@@ -219,7 +245,13 @@ def test_name_collision_claims_a_reachable_instance_name(monkeypatch):
         "org.mpris.MediaPlayer2.tidalamp",
         "org.mpris.MediaPlayer2.tidalamp.instance4321",
     ]
-    assert [path for path, _ in bus.exports] == [mpris.OBJECT_PATH, mpris.OBJECT_PATH]
+    # Root, Player and TrackList all live at the one MPRIS object path.
+    assert [path for path, _ in bus.exports] == [mpris.OBJECT_PATH] * 3
+    assert [type(interface).__name__ for _, interface in bus.exports] == [
+        "_Root",
+        "_Player",
+        "_TrackList",
+    ]
 
 
 @pytest.fixture
@@ -302,3 +334,156 @@ def test_real_bus_exposes_properties_controls_signals_and_collision(
             await primary.stop()
 
     asyncio.run(scenario())
+
+
+# --------------------------------------------------------------------- TrackList
+
+
+def test_the_root_now_advertises_a_track_list():
+    assert mpris._Root(FakeBackend()).HasTrackList is True
+
+
+def test_tracks_are_the_queue_in_order():
+    backend = FakeBackend()
+    tracklist = mpris._TrackList(backend)
+
+    assert tracklist.Tracks == [
+        "/org/mpris/MediaPlayer2/track/42",
+        "/org/mpris/MediaPlayer2/track/43",
+    ]
+    # AddTrack and RemoveTrack are declared but inert, and CanEditTracks says so.
+    assert tracklist.CanEditTracks is False
+
+
+def test_metadata_comes_back_in_the_order_asked_and_skips_stale_ids():
+    packed = mpris._metadata_for(
+        FakeBackend().tracks,
+        [
+            "/org/mpris/MediaPlayer2/track/43",
+            "/org/mpris/MediaPlayer2/track/999",
+            "/org/mpris/MediaPlayer2/track/42",
+        ],
+    )
+
+    assert [m["xesam:title"].value for m in packed] == ["Parabola", "Schism"]
+
+
+def test_go_to_reaches_the_backend():
+    backend = FakeBackend()
+    mpris._TrackList(backend).GoTo("/org/mpris/MediaPlayer2/track/43")
+    assert backend.calls == [("go_to", "/org/mpris/MediaPlayer2/track/43")]
+
+
+def test_editing_methods_are_inert_rather_than_wrong():
+    backend = FakeBackend()
+    tracklist = mpris._TrackList(backend)
+
+    tracklist.AddTrack("https://example.test/song.flac", mpris.NO_TRACK, True)
+    tracklist.RemoveTrack("/org/mpris/MediaPlayer2/track/42")
+
+    assert backend.calls == []
+    assert backend.tracks[0]["trackid"] == "/org/mpris/MediaPlayer2/track/42"
+
+
+def test_the_queue_is_announced_once_per_actual_change():
+    backend = FakeBackend()
+    tracklist = RecordingTrackList()
+    service = mpris.MprisService(backend)
+    service._tracklist = tracklist
+
+    service.publish_tracks()
+    service.publish_tracks()
+    backend.tracks = backend.tracks[:1]
+    service.publish_tracks()
+
+    assert len(tracklist.replaced) == 2
+    assert tracklist.replaced[0][1] == "/org/mpris/MediaPlayer2/track/42"
+    assert tracklist.replaced[1][0] == ["/org/mpris/MediaPlayer2/track/42"]
+
+
+def test_an_empty_queue_still_reports_a_current_track_path():
+    backend = FakeBackend()
+    backend.tracks = []
+    backend.metadata = {}
+    # Nothing playing: the spec's NoTrack path is the honest answer.
+    tracklist = RecordingTrackList()
+    service = mpris.MprisService(backend)
+    service._tracklist = tracklist
+
+    service.publish_tracks()
+
+    assert tracklist.replaced == [([], mpris.NO_TRACK)]
+
+
+def test_real_bus_serves_the_track_list(isolated_session_bus):
+    async def scenario() -> None:
+        backend = FakeBackend()
+        service = mpris.MprisService(backend)
+        client = None
+        try:
+            await service.start()
+            client = await MessageBus(bus_address=isolated_session_bus).connect()
+            introspection = await client.introspect(mpris.BUS_NAME, mpris.OBJECT_PATH)
+            proxy = client.get_proxy_object(
+                mpris.BUS_NAME, mpris.OBJECT_PATH, introspection
+            )
+            root = proxy.get_interface("org.mpris.MediaPlayer2")
+            tracklist = proxy.get_interface("org.mpris.MediaPlayer2.TrackList")
+
+            assert await root.get_has_track_list() is True
+            assert await tracklist.get_can_edit_tracks() is False
+            assert await tracklist.get_tracks() == [
+                "/org/mpris/MediaPlayer2/track/42",
+                "/org/mpris/MediaPlayer2/track/43",
+            ]
+
+            metadata = await tracklist.call_get_tracks_metadata(
+                ["/org/mpris/MediaPlayer2/track/43"]
+            )
+            assert metadata[0]["xesam:title"].value == "Parabola"
+
+            replaced: list[tuple[list[str], str]] = []
+            tracklist.on_track_list_replaced(
+                lambda tracks, current: replaced.append((tracks, current))
+            )
+
+            await tracklist.call_go_to("/org/mpris/MediaPlayer2/track/43")
+            backend.tracks = backend.tracks[:1]
+            service.publish_tracks()
+            await asyncio.sleep(0.05)
+
+            assert backend.calls == [("go_to", "/org/mpris/MediaPlayer2/track/43")]
+            assert replaced == [
+                (
+                    ["/org/mpris/MediaPlayer2/track/42"],
+                    "/org/mpris/MediaPlayer2/track/42",
+                )
+            ]
+        finally:
+            if client is not None:
+                client.disconnect()
+            await service.stop()
+
+    asyncio.run(scenario())
+
+
+def test_the_tick_does_not_build_metadata_just_to_find_nothing_moved():
+    """publish_tracks runs four times a second; it must stay cheap."""
+
+    class CountingBackend(FakeBackend):
+        def __init__(self) -> None:
+            super().__init__()
+            self.metadata_builds = 0
+
+        def mpris_tracks(self) -> list[dict[str, object]]:
+            self.metadata_builds += 1
+            return self.tracks
+
+    backend = CountingBackend()
+    service = mpris.MprisService(backend)
+    service._tracklist = RecordingTrackList()
+
+    for _ in range(10):
+        service.publish_tracks()
+
+    assert backend.metadata_builds == 0

@@ -52,6 +52,16 @@ necesidad de IPC propio.
 
 Se exportan `PlaybackStatus`, `Metadata`, `Position`, `Volume`, `LoopStatus`, `Shuffle`
 y las capacidades, y se emite `PropertiesChanged` sólo cuando algo cambia de verdad.
+
+La cola entera se publica además como `org.mpris.MediaPlayer2.TrackList`: `Tracks` da
+la lista de identificadores en el orden visible, `GetTracksMetadata` los resuelve y
+`GoTo` salta a cualquier fila. Cada fila tiene identificador propio, no el de la pista
+de TIDAL, porque la misma canción puede estar dos veces en la cola y MPRIS exige que no
+se repitan; y ese identificador sobrevive a reordenar la cola. `CanEditTracks` es
+`False` a propósito: `AddTrack` recibe una URI y no publicamos ningún esquema que
+sepamos reproducir, así que decir `True` prometería algo que no podemos cumplir. Los
+cambios se anuncian con `TrackListReplaced`, que es la señal que la especificación pide
+para esto — la cola cambia entera a menudo (shuffle, mover, vaciar).
 Si ya hay otro `tidalamp` en el bus, la segunda instancia se registra como
 `org.mpris.MediaPlayer2.tidalamp.instance<pid>` en lugar de quedarse muda. Si no hay bus de sesión,
 la aplicación arranca igual y lo indica en la barra de estado.

@@ -19,6 +19,25 @@ import tidalapi
 from .config import QUEUE_FILE, ensure_dirs
 
 
+# Queue rows need an identity of their own: the same song can sit in the queue
+# twice, MPRIS TrackList addresses rows by id, and those ids have to survive a
+# reorder. A counter is enough — it only has to be unique within one queue.
+_next_uid = 0
+
+
+def _new_uid() -> int:
+    global _next_uid
+    _next_uid += 1
+    return _next_uid
+
+
+def _claim_uid(value: int) -> int:
+    """Take a uid restored from disk, keeping the counter ahead of it."""
+    global _next_uid
+    _next_uid = max(_next_uid, value)
+    return value
+
+
 class Repeat(str, Enum):
     """Repeat mode. The values match MPRIS ``LoopStatus`` exactly."""
 
@@ -41,6 +60,9 @@ class Entry:
     album: str = ""
     duration: int = 0
     art_url: str = ""
+    # Identity of this row, not of the song. Excluded from equality so two
+    # rows for the same track still compare equal, as they always have.
+    uid: int = field(default_factory=_new_uid, compare=False)
     _track: tidalapi.Track | None = field(default=None, repr=False, compare=False)
 
     @classmethod
@@ -86,6 +108,7 @@ class Entry:
             "album": self.album,
             "duration": self.duration,
             "art_url": self.art_url,
+            "uid": self.uid,
         }
 
     @classmethod
@@ -97,6 +120,8 @@ class Entry:
             album=raw.get("album", ""),
             duration=int(raw.get("duration", 0)),
             art_url=raw.get("art_url", ""),
+            # A queue written before uids existed simply gets fresh ones.
+            uid=_claim_uid(int(raw["uid"])) if "uid" in raw else _new_uid(),
         )
 
 

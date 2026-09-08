@@ -259,3 +259,52 @@ def test_pushing_a_screen_before_the_ui_exists_is_harmless(monkeypatch):
     application._hide_art()
     application._restore_art()
     assert application._artwork() is None
+
+
+# -------------------------------------------------------------- MPRIS TrackList
+
+
+def test_the_track_list_is_the_queue_with_one_id_per_row(monkeypatch):
+    isolate_runtime(monkeypatch)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test() as pilot:
+            await pilot.pause()
+            # The same song twice: the ids still have to differ, or a client
+            # could not tell the two rows apart.
+            application.queue.append(
+                [
+                    Entry(id=7, title="Schism", artist="TOOL"),
+                    Entry(id=7, title="Schism", artist="TOOL"),
+                ]
+            )
+
+            tracks = application.mpris_tracks()
+            ids = [t["trackid"] for t in tracks]
+            assert len(set(ids)) == 2
+            assert all(t["title"] == "Schism" for t in tracks)
+
+    asyncio.run(scenario())
+
+
+def test_go_to_plays_the_row_with_that_id(monkeypatch):
+    isolate_runtime(monkeypatch)
+    played: list[int] = []
+    monkeypatch.setattr(TidalAmp, "_play_index", lambda self, index: played.append(index))
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test() as pilot:
+            await pilot.pause()
+            application.queue.append(
+                [Entry(id=i, title=f"t{i}", artist="a") for i in range(3)]
+            )
+
+            application.mpris_go_to(application.mpris_tracks()[2]["trackid"])
+            # An id we never handed out is ignored, not an index error.
+            application.mpris_go_to("/org/mpris/MediaPlayer2/tidalamp/track/999999")
+
+            assert played == [2]
+
+    asyncio.run(scenario())

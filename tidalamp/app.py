@@ -488,6 +488,27 @@ class LyricsScreen(ModalScreen[None]):
         self.dismiss(None)
 
 
+def _track_path(entry: Entry) -> str:
+    """The D-Bus object path for one queue row.
+
+    Keyed on the row's uid, not on the TIDAL track id: the same song can be in
+    the queue twice, and MPRIS requires the ids in a TrackList to be distinct.
+    """
+    return f"/org/mpris/MediaPlayer2/tidalamp/track/{entry.uid}"
+
+
+def _entry_metadata(entry: Entry) -> dict:
+    return {
+        "trackid": _track_path(entry),
+        "length": float(entry.duration),
+        "title": entry.title,
+        "artist": entry.artist,
+        "album": entry.album,
+        "art_url": entry.art_url,
+        "url": f"tidal://track/{entry.id}",
+    }
+
+
 class TidalAmp(App):
     """Main application."""
 
@@ -687,6 +708,7 @@ class TidalAmp(App):
 
         if self._mpris_ready:
             self.mpris.publish()
+            self.mpris.publish_tracks()
 
     def _recover_mpv(self) -> None:
         """mpv died under us. Respawn it instead of freezing the UI on a dead
@@ -1084,17 +1106,21 @@ class TidalAmp(App):
 
     def mpris_metadata(self) -> dict:
         entry = self.queue.current
-        if entry is None:
-            return {}
-        return {
-            "trackid": f"/org/mpris/MediaPlayer2/tidalamp/track/{entry.id}",
-            "length": float(entry.duration),
-            "title": entry.title,
-            "artist": entry.artist,
-            "album": entry.album,
-            "art_url": entry.art_url,
-            "url": f"tidal://track/{entry.id}",
-        }
+        return {} if entry is None else _entry_metadata(entry)
+
+    def mpris_track_ids(self) -> list[str]:
+        """Just the ids, which is all the TrackList property and the diff need."""
+        return [_track_path(entry) for entry in self.queue]
+
+    def mpris_tracks(self) -> list[dict]:
+        """The whole queue, in visible order, for ``GetTracksMetadata``."""
+        return [_entry_metadata(entry) for entry in self.queue]
+
+    def mpris_go_to(self, track_id: str) -> None:
+        for index, entry in enumerate(self.queue):
+            if _track_path(entry) == track_id:
+                self._play_index(index)
+                return
 
     def mpris_position(self) -> float:
         return self.mpv.position
