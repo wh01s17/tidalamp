@@ -100,3 +100,34 @@ SearchScreen {
     color: #00ff4c;
     border: tall #3f5f47;
 }
+
+BrowserScreen {
+    align: center middle;
+}
+
+#browser-box {
+    width: 84;
+    height: 26;
+    background: #1c1c22;
+    border: outer #4a4a55;
+}
+
+#browser-title {
+    background: #2b3a4a;
+    color: #b8c8d8;
+    text-style: bold;
+    height: 1;
+    padding: 0 1;
+}
+
+#browser-list {
+    background: #000000;
+    height: 1fr;
+    padding: 0 1;
+}
+
+#browser-hint {
+    background: #2a2a33;
+    color: #9fb8a7;
+    height: 1;
+}

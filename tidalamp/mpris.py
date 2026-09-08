@@ -37,6 +37,10 @@ class PlayerBackend(Protocol):
     def mpris_position(self) -> float: ...
     def mpris_volume(self) -> float: ...
     def mpris_set_volume(self, value: float) -> None: ...
+    def mpris_loop_status(self) -> str: ...
+    def mpris_set_loop_status(self, value: str) -> None: ...
+    def mpris_shuffle(self) -> bool: ...
+    def mpris_set_shuffle(self, value: bool) -> None: ...
     def mpris_can_go_next(self) -> bool: ...
     def mpris_can_go_previous(self) -> bool: ...
     def mpris_play(self) -> None: ...
@@ -167,6 +171,22 @@ class _Player(ServiceInterface):
     def Volume(self, value: "d"):  # noqa: N802, F821
         self._backend.mpris_set_volume(value)
 
+    @dbus_property()
+    def LoopStatus(self) -> "s":  # noqa: N802, F821
+        return self._backend.mpris_loop_status()
+
+    @LoopStatus.setter
+    def LoopStatus(self, value: "s"):  # noqa: N802, F821
+        self._backend.mpris_set_loop_status(value)
+
+    @dbus_property()
+    def Shuffle(self) -> "b":  # noqa: N802, F821
+        return self._backend.mpris_shuffle()
+
+    @Shuffle.setter
+    def Shuffle(self, value: "b"):  # noqa: N802, F821
+        self._backend.mpris_set_shuffle(value)
+
     @dbus_property(access=PropertyAccess.READ)
     def Rate(self) -> "d":  # noqa: N802, F821
         return 1.0
@@ -255,6 +275,8 @@ class MprisService:
             "Volume": round(self._backend.mpris_volume(), 3),
             "CanGoNext": self._backend.mpris_can_go_next(),
             "CanGoPrevious": self._backend.mpris_can_go_previous(),
+            "LoopStatus": self._backend.mpris_loop_status(),
+            "Shuffle": self._backend.mpris_shuffle(),
         }
         changed = {k: v for k, v in current.items() if self._last.get(k) != v}
         if not changed:

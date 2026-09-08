@@ -2,9 +2,8 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-
 import tidalapi
+from rich.text import Text
 from textual import work
 from textual.app import App, ComposeResult
 from textual.binding import Binding
@@ -14,88 +13,63 @@ from textual.screen import ModalScreen
 from textual.widget import Widget
 from textual.widgets import Input, Static
 
+from . import library
+from .library import Row
 from .mpris import MprisService
 from .player import Mpv
+from .queue import Entry, Queue, Repeat
 from .stream import StreamUnavailable, cleanup_playlists, resolve
 from .widgets import Analyzer, Marquee, SeekBar, Slider, TimeDisplay
 
 
-@dataclass(slots=True)
-class Entry:
-    """One playlist row."""
-
-    track: tidalapi.Track
-
-    @property
-    def title(self) -> str:
-        return f"{self.track.artist.name} - {self.track.name}"
-
-    @property
-    def duration(self) -> str:
-        minutes, secs = divmod(int(self.track.duration or 0), 60)
-        return f"{minutes}:{secs:02d}"
-
-    @property
-    def album(self) -> str:
-        album = getattr(self.track, "album", None)
-        return getattr(album, "name", "") or ""
-
-    @property
-    def art_url(self) -> str:
-        """Cover art URL, or empty when the album has no artwork."""
-        album = getattr(self.track, "album", None)
-        if album is None:
-            return ""
-        try:
-            return album.image(320) or ""
-        except Exception:
-            # tidalapi raises when the album carries no cover id.
-            return ""
-
-
-class Playlist(Widget):
-    """The playlist editor pane."""
-
-    DEFAULT_CSS = "Playlist { height: 1fr; }"
+class RowList(Widget):
+    """A scrolling list of rows with a cursor. Used by both panes."""
 
     cursor = reactive(0)
-    playing = reactive(-1)
+    marked = reactive(-1)
 
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
-        self.entries: list[Entry] = []
+        self.rows: list[Row] = []
+        self.empty_text = ""
 
-    def replace(self, entries: list[Entry]) -> None:
-        self.entries = entries
+    def set_rows(self, rows: list[Row]) -> None:
+        self.rows = rows
         self.cursor = 0
         self.refresh()
 
     def move(self, delta: int) -> None:
-        if self.entries:
-            self.cursor = max(0, min(len(self.entries) - 1, self.cursor + delta))
+        if self.rows:
+            self.cursor = max(0, min(len(self.rows) - 1, self.cursor + delta))
             self.refresh()
 
-    def render(self):
-        from rich.text import Text
+    @property
+    def current(self) -> Row | None:
+        if 0 <= self.cursor < len(self.rows):
+            return self.rows[self.cursor]
+        return None
 
-        if not self.entries:
-            return Text("  playlist vacía — pulsa / para buscar en TIDAL", style="#5f7f67")
+    def render(self) -> Text:
+        if not self.rows:
+            return Text(f"  {self.empty_text}", style="#5f7f67")
 
-        rows = max(1, self.size.height)
+        height = max(1, self.size.height)
+        width = max(20, self.size.width)
         # Keep the cursor in view without a full scrolling container.
-        start = max(0, min(self.cursor - rows // 2, len(self.entries) - rows))
+        start = max(0, min(self.cursor - height // 2, len(self.rows) - height))
         out = Text()
-        for i in range(start, min(len(self.entries), start + rows)):
-            entry = self.entries[i]
-            marker = "▶" if i == self.playing else " "
-            line = f"{marker}{i + 1:>3}. {entry.title}"
-            width = max(20, self.size.width)
-            pad = max(1, width - len(line) - len(entry.duration) - 1)
-            line = f"{line}{' ' * pad}{entry.duration}"[:width]
+        for i in range(start, min(len(self.rows), start + height)):
+            row = self.rows[i]
+            marker = "▶" if i == self.marked else (" " if row.is_playable else "›")
+            line = f"{marker}{i + 1:>3}. {row.label}"
+            pad = max(1, width - len(line) - len(row.detail) - 1)
+            line = f"{line}{' ' * pad}{row.detail}"[:width]
             if i == self.cursor:
                 out.append(line, style="bold black on #00ff4c")
-            elif i == self.playing:
+            elif i == self.marked:
                 out.append(line, style="bold #00ff4c")
+            elif not row.is_playable:
+                out.append(line, style="#9fd8ff")
             else:
                 out.append(line, style="#7fbf8f")
             out.append("\n")
@@ -122,6 +96,137 @@ class SearchScreen(ModalScreen[str]):
         self.dismiss("")
 
 
+class BrowserScreen(ModalScreen[tuple | None]):
+    """Drill-down browser over the library and over search results.
+
+    Dismisses with ``("play", entries, index)`` or ``("append", entries, 0)``.
+    """
+
+    BINDINGS = [
+        Binding("escape", "close", "cerrar"),
+        Binding("up", "up", "arriba", show=False),
+        Binding("down", "down", "abajo", show=False),
+        Binding("pageup", "page_up", "", show=False),
+        Binding("pagedown", "page_down", "", show=False),
+        Binding("enter", "choose", "abrir/reproducir", show=False),
+        Binding("backspace,left", "back", "atrás", show=False),
+        Binding("a", "append_one", "añadir", show=False),
+        Binding("A", "append_all", "añadir todo", show=False),
+    ]
+
+    def __init__(self, title: str, loader) -> None:
+        super().__init__()
+        self._root_title = title
+        self._root_loader = loader
+        # Stack of (title, rows) so backspace can walk back up.
+        self._stack: list[tuple[str, list[Row]]] = []
+
+    def compose(self) -> ComposeResult:
+        with Vertical(id="browser-box"):
+            yield Static(self._root_title, id="browser-title")
+            yield RowList(id="browser-list")
+            yield Static(
+                " ↵ abrir/reproducir   a añadir   A añadir todo   ⌫ atrás   esc cerrar",
+                id="browser-hint",
+            )
+
+    def on_mount(self) -> None:
+        self.query_one(RowList).empty_text = "cargando…"
+        self._load(self._root_title, self._root_loader)
+
+    @work(thread=True, exclusive=True)
+    def _load(self, title: str, loader) -> None:
+        try:
+            rows = loader()
+        except Exception as exc:
+            self.app.call_from_thread(self._failed, exc)
+            return
+        self.app.call_from_thread(self._push, title, rows)
+
+    def _failed(self, exc: Exception) -> None:
+        widget = self.query_one(RowList)
+        widget.empty_text = f"error: {exc}"
+        widget.refresh()
+
+    def _push(self, title: str, rows: list[Row]) -> None:
+        self._stack.append((title, rows))
+        widget = self.query_one(RowList)
+        widget.empty_text = "vacío"
+        widget.set_rows(rows)
+        self.query_one("#browser-title", Static).update(title)
+
+    # ------------------------------------------------------------------ keys
+
+    def action_up(self) -> None:
+        self.query_one(RowList).move(-1)
+
+    def action_down(self) -> None:
+        self.query_one(RowList).move(1)
+
+    def action_page_up(self) -> None:
+        self.query_one(RowList).move(-10)
+
+    def action_page_down(self) -> None:
+        self.query_one(RowList).move(10)
+
+    def action_back(self) -> None:
+        if len(self._stack) <= 1:
+            self.dismiss(None)
+            return
+        self._stack.pop()
+        title, rows = self._stack[-1]
+        widget = self.query_one(RowList)
+        widget.set_rows(rows)
+        self.query_one("#browser-title", Static).update(title)
+
+    def action_close(self) -> None:
+        self.dismiss(None)
+
+    def action_choose(self) -> None:
+        widget = self.query_one(RowList)
+        row = widget.current
+        if row is None:
+            return
+        if row.loader is not None:
+            self.query_one(RowList).empty_text = "cargando…"
+            self._load(row.label, row.loader)
+            return
+        # Play this track, queueing the whole level so the rest follows.
+        entries = [r.entry for r in widget.rows if r.entry is not None]
+        index = entries.index(row.entry) if row.entry in entries else 0
+        self.dismiss(("play", entries, index))
+
+    def action_append_one(self) -> None:
+        row = self.query_one(RowList).current
+        if row is None:
+            return
+        if row.entry is not None:
+            self.dismiss(("append", [row.entry], 0))
+        elif row.loader is not None:
+            # Appending a container means appending everything inside it.
+            self._append_container(row.loader)
+
+    @work(thread=True, exclusive=True)
+    def _append_container(self, loader) -> None:
+        try:
+            rows = loader()
+        except Exception as exc:
+            self.app.call_from_thread(self._failed, exc)
+            return
+        entries = [r.entry for r in rows if r.entry is not None]
+        self.app.call_from_thread(self.dismiss, ("append", entries, 0))
+
+    def action_append_all(self) -> None:
+        widget = self.query_one(RowList)
+        entries = [r.entry for r in widget.rows if r.entry is not None]
+        if entries:
+            self.dismiss(("append", entries, 0))
+            return
+        # A level made only of containers has nothing to append wholesale, so
+        # fall back to appending the container under the cursor.
+        self.action_append_one()
+
+
 class TidalAmp(App):
     """Main application."""
 
@@ -136,9 +241,16 @@ class TidalAmp(App):
         Binding("v", "stop", "stop"),
         Binding("b", "next", "siguiente"),
         Binding("slash", "search", "buscar"),
+        Binding("l", "library", "biblioteca"),
+        Binding("s", "shuffle", "shuffle"),
+        Binding("r", "repeat", "repeat"),
         Binding("up", "cursor_up", "arriba", show=False),
         Binding("down", "cursor_down", "abajo", show=False),
+        Binding("pageup", "cursor_page_up", "", show=False),
+        Binding("pagedown", "cursor_page_down", "", show=False),
         Binding("enter", "play_selected", "reproducir", show=False),
+        Binding("d,delete", "remove", "quitar", show=False),
+        Binding("C", "clear", "vaciar", show=False),
         Binding("left", "seek_back", "-5s", show=False),
         Binding("right", "seek_fwd", "+5s", show=False),
         Binding("plus,equals_sign", "vol_up", "vol+", show=False),
@@ -153,6 +265,7 @@ class TidalAmp(App):
         super().__init__()
         self.session = session
         self.mpv = mpv
+        self.queue = Queue()
         self._was_idle = True
         self.mpris = MprisService(self)
         self._mpris_ready = False
@@ -171,18 +284,26 @@ class TidalAmp(App):
             yield SeekBar(id="seek")
             yield Slider(id="volume")
             yield Static(
-                "  z ◀◀   x ▶   c ‖   v ■   b ▶▶      / buscar   t tiempo   q salir",
+                "  z ◀◀   x ▶   c ‖   v ■   b ▶▶    / buscar  l biblioteca  s shuffle"
+                "  r repeat  q salir",
                 id="transport",
             )
             yield Static("▓ PLAYLIST ▓", id="pl-title")
-            yield Playlist(id="playlist")
+            yield RowList(id="playlist")
             yield Static("", id="status")
 
     def on_mount(self) -> None:
+        playlist = self.query_one("#playlist", RowList)
+        playlist.empty_text = "cola vacía — / para buscar, l para tu biblioteca"
         self.query_one("#volume", Slider).value = self.mpv.volume
         self.set_interval(1 / 10, self._tick_fast)
         self.set_interval(1 / 4, self._tick_slow)
         self.run_worker(self._start_mpris(), exclusive=False)
+
+        if self.queue.load():
+            self._sync_queue()
+            playlist.cursor = max(0, self.queue.resume_at)
+            self.status = f"cola restaurada ({len(self.queue)} pistas)"
 
     async def _start_mpris(self) -> None:
         """Claim the MPRIS bus name. A desktop without a session bus is not an
@@ -211,10 +332,7 @@ class TidalAmp(App):
         seek = self.query_one(SeekBar)
         seek.position, seek.total = position, duration
         self.query_one("#volume", Slider).value = self.mpv.volume
-        self.query_one("#status", Static).update(f" {self.status}")
-
-        if self._mpris_ready:
-            self.mpris.publish()
+        self.query_one("#status", Static).update(f" {self._status_line()}")
 
         # mpv going idle after having played something means the track ended.
         idle = self.mpv.idle
@@ -222,50 +340,93 @@ class TidalAmp(App):
             self.action_next()
         self._was_idle = idle
 
+        if self._mpris_ready:
+            self.mpris.publish()
+
+    def _status_line(self) -> str:
+        flags = []
+        if self.queue.shuffle:
+            flags.append("SHUF")
+        if self.queue.repeat is not Repeat.NONE:
+            flags.append("REP:" + ("1" if self.queue.repeat is Repeat.TRACK else "ALL"))
+        prefix = f"[{' '.join(flags)}] " if flags else ""
+        return f"{prefix}{self.status}"
+
+    # ------------------------------------------------------------------ queue
+
+    def _sync_queue(self) -> None:
+        """Push the queue into the playlist widget."""
+        playlist = self.query_one("#playlist", RowList)
+        cursor = playlist.cursor
+        playlist.rows = [
+            Row(label=e.label, detail=e.length, entry=e) for e in self.queue
+        ]
+        playlist.cursor = max(0, min(cursor, len(playlist.rows) - 1))
+        playlist.marked = self.queue.playing
+        playlist.refresh()
+        self.queue.save()
+
     # ------------------------------------------------------------------ search
 
     def action_search(self) -> None:
         self.push_screen(SearchScreen(), self._run_search)
 
     def _run_search(self, query: str | None) -> None:
-        if query:
-            self.status = f"buscando «{query}»…"
-            self._search_worker(query)
-
-    @work(thread=True, exclusive=True)
-    def _search_worker(self, query: str) -> None:
-        try:
-            results = self.session.search(query, models=[tidalapi.Track], limit=50)
-            tracks = results.get("tracks", [])
-        except Exception as exc:
-            self.call_from_thread(setattr, self, "status", f"error de búsqueda: {exc}")
+        if not query:
             return
-        entries = [Entry(track) for track in tracks]
-        self.call_from_thread(self._apply_results, query, entries)
+        self.push_screen(
+            BrowserScreen(
+                f"BUSCAR: {query}",
+                lambda: library.search_rows(self.session, query),
+            ),
+            self._browser_result,
+        )
 
-    def _apply_results(self, query: str, entries: list[Entry]) -> None:
-        self.query_one(Playlist).replace(entries)
-        self.status = f"{len(entries)} resultados para «{query}»"
+    def action_library(self) -> None:
+        self.push_screen(
+            BrowserScreen("MI BIBLIOTECA", lambda: library.root(self.session)),
+            self._browser_result,
+        )
+
+    def _browser_result(self, result: tuple | None) -> None:
+        if result is None:
+            return
+        action, entries, index = result
+        if not entries:
+            self.status = "nada que añadir"
+            return
+        if action == "play":
+            self.queue.replace(entries, start=-1)
+            self._sync_queue()
+            self._play_index(index)
+        else:
+            added = self.queue.append(entries)
+            self._sync_queue()
+            self.status = f"{added} pistas añadidas a la cola"
 
     # --------------------------------------------------------------- transport
 
     def action_cursor_up(self) -> None:
-        self.query_one(Playlist).move(-1)
+        self.query_one("#playlist", RowList).move(-1)
 
     def action_cursor_down(self) -> None:
-        self.query_one(Playlist).move(1)
+        self.query_one("#playlist", RowList).move(1)
+
+    def action_cursor_page_up(self) -> None:
+        self.query_one("#playlist", RowList).move(-10)
+
+    def action_cursor_page_down(self) -> None:
+        self.query_one("#playlist", RowList).move(10)
 
     def action_play_selected(self) -> None:
-        playlist = self.query_one(Playlist)
-        if playlist.entries:
-            self._play_index(playlist.cursor)
+        if len(self.queue):
+            self._play_index(self.query_one("#playlist", RowList).cursor)
 
     def action_play(self) -> None:
-        playlist = self.query_one(Playlist)
-        if playlist.playing >= 0 and self.mpv.paused:
+        if self.queue.current is not None and self.mpv.paused:
             self.mpv.toggle_pause()
-        elif playlist.entries:
-            self._play_index(playlist.cursor)
+        elif len(self.queue):
+            self._play_index(self.query_one("#playlist", RowList).cursor)
 
     def action_pause(self) -> None:
         self.mpv.toggle_pause()
@@ -273,47 +434,83 @@ class TidalAmp(App):
 
     def action_stop(self) -> None:
         self.mpv.stop()
-        self.query_one(Playlist).playing = -1
+        self.queue.playing = -1
+        self._sync_queue()
         self.query_one(Marquee).text = ""
         self.status = "detenido"
 
     def action_next(self) -> None:
-        playlist = self.query_one(Playlist)
-        if playlist.playing + 1 < len(playlist.entries):
-            self._play_index(playlist.playing + 1)
-        else:
+        index = self.queue.next_index()
+        if index is None:
             self.action_stop()
+        else:
+            self._play_index(index)
 
     def action_prev(self) -> None:
-        playlist = self.query_one(Playlist)
-        if playlist.playing > 0:
-            self._play_index(playlist.playing - 1)
+        index = self.queue.prev_index()
+        if index is not None:
+            self._play_index(index)
+
+    def action_remove(self) -> None:
+        playlist = self.query_one("#playlist", RowList)
+        if len(self.queue):
+            self.queue.remove(playlist.cursor)
+            self._sync_queue()
+            self.status = "pista quitada de la cola"
+
+    def action_clear(self) -> None:
+        self.action_stop()
+        self.queue.clear()
+        self._sync_queue()
+        self.status = "cola vaciada"
+
+    def action_shuffle(self) -> None:
+        self.queue.shuffle = not self.queue.shuffle
+        self.queue.save()
+        self.status = "shuffle activado" if self.queue.shuffle else "shuffle desactivado"
+
+    def action_repeat(self) -> None:
+        self.queue.repeat = self.queue.repeat.next()
+        self.queue.save()
+        names = {Repeat.NONE: "sin repetición", Repeat.QUEUE: "repetir cola",
+                 Repeat.TRACK: "repetir pista"}
+        self.status = names[self.queue.repeat]
 
     def _play_index(self, index: int) -> None:
-        playlist = self.query_one(Playlist)
-        entry = playlist.entries[index]
-        playlist.playing = index
+        if not 0 <= index < len(self.queue):
+            return
+        entry = self.queue[index]
+        self.queue.playing = index
+        playlist = self.query_one("#playlist", RowList)
         playlist.cursor = index
+        playlist.marked = index
         playlist.refresh()
-        self.query_one(Marquee).text = f"{index + 1}. {entry.title} ({entry.duration})"
-        self.status = f"resolviendo «{entry.track.name}»…"
+        self.query_one(Marquee).text = f"{index + 1}. {entry.label} ({entry.length})"
+        self.status = f"resolviendo «{entry.title}»…"
+        self.queue.save()
         self._resolve_worker(entry)
 
     @work(thread=True, exclusive=True)
     def _resolve_worker(self, entry: Entry) -> None:
         try:
-            playable = resolve(entry.track)
+            # A restored entry has no Track yet; this is where we pay for it.
+            track = entry.resolve(self.session)
+            playable = resolve(track)
         except StreamUnavailable as exc:
             self.call_from_thread(setattr, self, "status", str(exc))
+            return
+        except Exception as exc:
+            self.call_from_thread(setattr, self, "status", f"error: {exc}")
             return
         self.call_from_thread(self._start, entry, playable)
 
     def _start(self, entry: Entry, playable) -> None:
         self.mpv.load(playable.url)
         self._was_idle = False
-        badges = f"{playable.kbps}  {playable.khz}kHz  {playable.quality}"
-        self.query_one("#badges", Static).update(badges)
-        self.status = f"reproduciendo {entry.title}"
+        self.query_one("#badges", Static).update(
+            f"{playable.kbps}  {playable.khz}kHz  {playable.quality}"
+        )
+        self.status = f"reproduciendo {entry.label}"
 
     # ----------------------------------------------------------------- fiddles
 
@@ -337,6 +534,7 @@ class TidalAmp(App):
         self.run_worker(self._shutdown(), exclusive=False)
 
     async def _shutdown(self) -> None:
+        self.queue.save()
         if self._mpris_ready:
             await self.mpris.stop()
         self.mpv.close()
@@ -345,29 +543,23 @@ class TidalAmp(App):
 
     # ------------------------------------------------------------------ MPRIS
 
-    def _current_entry(self) -> Entry | None:
-        playlist = self.query_one(Playlist)
-        if 0 <= playlist.playing < len(playlist.entries):
-            return playlist.entries[playlist.playing]
-        return None
-
     def mpris_status(self) -> str:
-        if self._current_entry() is None or self.mpv.idle:
+        if self.queue.current is None or self.mpv.idle:
             return "Stopped"
         return "Paused" if self.mpv.paused else "Playing"
 
     def mpris_metadata(self) -> dict:
-        entry = self._current_entry()
+        entry = self.queue.current
         if entry is None:
             return {}
         return {
-            "trackid": f"/org/mpris/MediaPlayer2/tidalamp/track/{entry.track.id}",
-            "length": float(entry.track.duration or 0),
-            "title": entry.track.name,
-            "artist": entry.track.artist.name,
+            "trackid": f"/org/mpris/MediaPlayer2/tidalamp/track/{entry.id}",
+            "length": float(entry.duration),
+            "title": entry.title,
+            "artist": entry.artist,
             "album": entry.album,
             "art_url": entry.art_url,
-            "url": f"tidal://track/{entry.track.id}",
+            "url": f"tidal://track/{entry.id}",
         }
 
     def mpris_position(self) -> float:
@@ -381,11 +573,27 @@ class TidalAmp(App):
         self.mpv.volume = int(max(0.0, min(1.3, value)) * 100)
 
     def mpris_can_go_next(self) -> bool:
-        playlist = self.query_one(Playlist)
-        return playlist.playing + 1 < len(playlist.entries)
+        return self.queue.has_next()
 
     def mpris_can_go_previous(self) -> bool:
-        return self.query_one(Playlist).playing > 0
+        return self.queue.has_prev()
+
+    def mpris_loop_status(self) -> str:
+        return self.queue.repeat.value
+
+    def mpris_set_loop_status(self, value: str) -> None:
+        try:
+            self.queue.repeat = Repeat(value)
+        except ValueError:
+            return
+        self.queue.save()
+
+    def mpris_shuffle(self) -> bool:
+        return self.queue.shuffle
+
+    def mpris_set_shuffle(self, value: bool) -> None:
+        self.queue.shuffle = value
+        self.queue.save()
 
     def mpris_play(self) -> None:
         if self.mpv.paused:
