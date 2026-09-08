@@ -5,7 +5,7 @@ desktop talk to us: ``playerctl``, the Waybar media module, Hyprland's media
 keys, and any external frontend (a Quickshell widget consumes MPRIS natively,
 so it needs no IPC of our own).
 
-dbus-next is asyncio-based and Textual already runs an asyncio loop, so the
+dbus-fast is asyncio-based and Textual already runs an asyncio loop, so the
 service lives on that same loop rather than in a thread.
 """
 
@@ -15,10 +15,10 @@ from typing import Any, Protocol
 
 import os
 
-from dbus_next import Variant
-from dbus_next.aio import MessageBus
-from dbus_next.constants import PropertyAccess, RequestNameReply
-from dbus_next.service import ServiceInterface, dbus_property, method, signal
+from dbus_fast import Variant
+from dbus_fast.aio import MessageBus
+from dbus_fast.constants import PropertyAccess, RequestNameReply
+from dbus_fast.service import ServiceInterface, dbus_property, method, signal
 
 BUS_NAME = "org.mpris.MediaPlayer2.tidalamp"
 OBJECT_PATH = "/org/mpris/MediaPlayer2"
