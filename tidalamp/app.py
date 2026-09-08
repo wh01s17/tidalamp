@@ -26,6 +26,7 @@ from .queue import Entry, Queue, Repeat
 from .settings import BAND_LABELS, GAIN_LIMIT, Settings
 from .spectrum import Cava, SpectrumUnavailable
 from .stream import StreamUnavailable, cleanup_playlists, resolve
+from .theme import ThemePalette, load_palette, palette_for
 from .widgets import Analyzer, EqualizerBars, Marquee, SeekBar, Slider, TimeDisplay
 
 
@@ -67,8 +68,9 @@ class RowList(Widget):
         return None
 
     def render(self) -> Text:
+        palette = palette_for(self)
         if not self.rows:
-            return Text(f"  {self.empty_text}", style="#5f7f67")
+            return Text(f"  {self.empty_text}", style=palette["empty"])
 
         height = max(1, self.size.height)
         width = max(20, self.size.width)
@@ -82,13 +84,18 @@ class RowList(Widget):
             pad = max(1, width - len(line) - len(row.detail) - 1)
             line = f"{line}{' ' * pad}{row.detail}"[:width]
             if i == self.cursor:
-                out.append(line, style="bold black on #00ff4c")
+                out.append(
+                    line,
+                    style=(
+                        f"bold {palette['active_foreground']} on {palette['accent']}"
+                    ),
+                )
             elif i == self.marked:
-                out.append(line, style="bold #00ff4c")
+                out.append(line, style=f"bold {palette['accent']}")
             elif not row.is_playable:
-                out.append(line, style="#9fd8ff")
+                out.append(line, style=palette["container"])
             else:
-                out.append(line, style="#7fbf8f")
+                out.append(line, style=palette["playable"])
             out.append("\n")
         return out
 
@@ -439,10 +446,15 @@ class LyricsScreen(ModalScreen[None]):
             active = None
 
         rendered = Text()
+        palette = palette_for(self)
         for offset, line in enumerate(lines):
             index = start + offset
             marker = "▶ " if index == active else "  "
-            style = "bold black on #00ff4c" if index == active else "#9fcfa7"
+            style = (
+                f"bold {palette['active_foreground']} on {palette['accent']}"
+                if index == active
+                else palette["body"]
+            )
             rendered.append(f"{marker}{line.text}\n", style=style)
         body.update(rendered)
 
@@ -510,6 +522,7 @@ class TidalAmp(App):
     status = reactive("listo")
 
     def __init__(self, session: tidalapi.Session, mpv: Mpv) -> None:
+        self.tidalamp_palette: ThemePalette = load_palette()
         super().__init__()
         self.session = session
         self.mpv = mpv
@@ -521,6 +534,10 @@ class TidalAmp(App):
         self._mpris_ready = False
         # cava, when it is installed. None means the RMS fallback.
         self.cava: Cava | None = None
+
+    def get_theme_variable_defaults(self) -> dict[str, str]:
+        """Expose the detected palette to the static TCSS stylesheet."""
+        return self.tidalamp_palette.css_variables()
 
     # ------------------------------------------------------------------ layout
 
@@ -557,6 +574,7 @@ class TidalAmp(App):
         self._start_spectrum()
         self.set_interval(1 / 10, self._tick_fast)
         self.set_interval(1 / 4, self._tick_slow)
+        self.set_interval(2, self._refresh_theme)
         self.run_worker(self._start_mpris(), exclusive=False)
 
         if self.queue.load():
@@ -564,6 +582,16 @@ class TidalAmp(App):
             playlist.cursor = max(0, self.queue.resume_at)
             self.status = f"cola restaurada ({len(self.queue)} pistas)"
         self._refresh_modes()
+
+    def _refresh_theme(self) -> None:
+        """Follow an Omarchy theme switch without disturbing other state."""
+        palette = load_palette()
+        if palette.colors == self.tidalamp_palette.colors:
+            return
+        self.tidalamp_palette = palette
+        self.refresh_css(animate=False)
+        self._refresh_modes()
+        self.screen.refresh()
 
     def _apply_audio(self) -> None:
         """Push balance and EQ into mpv's filter chain and redraw the slider.
@@ -662,8 +690,9 @@ class TidalAmp(App):
 
     def _refresh_modes(self) -> None:
         """Render persistent, legible shuffle and repeat state badges."""
-        active = "bold black on #00ff4c"
-        inactive = "bold #718078 on #14141a"
+        palette = self.tidalamp_palette
+        active = f"bold {palette['active_foreground']} on {palette['accent']}"
+        inactive = f"bold {palette['inactive']} on {palette['track_background']}"
         repeat = {
             Repeat.NONE: "OFF",
             Repeat.QUEUE: "ALL",

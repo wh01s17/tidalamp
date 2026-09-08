@@ -8,6 +8,8 @@ from rich.text import Text
 from textual.reactive import reactive
 from textual.widget import Widget
 
+from .theme import palette_for
+
 # Classic seven-segment glyphs, three rows tall and three columns wide.
 _SEGMENTS: dict[str, tuple[str, str, str]] = {
     "0": (" _ ", "| |", "|_|"),
@@ -48,7 +50,7 @@ class TimeDisplay(Widget):
             glyph = _SEGMENTS.get(char, _SEGMENTS[" "])
             for i in range(3):
                 rows[i] += glyph[i] + " "
-        return Text("\n".join(rows), style="bold #00ff4c")
+        return Text("\n".join(rows), style=f"bold {palette_for(self)['accent']}")
 
 
 class Marquee(Widget):
@@ -72,13 +74,14 @@ class Marquee(Widget):
 
     def render(self) -> Text:
         width = max(1, self.size.width)
+        style = f"bold {palette_for(self)['accent']}"
         if not self.text:
-            return Text("TIDAL AMP", style="bold #00ff4c")
+            return Text("TIDAL AMP", style=style)
         padded = f"{self.text}   ***   "
         if len(padded) <= width:
-            return Text(self.text[:width], style="bold #00ff4c")
+            return Text(self.text[:width], style=style)
         doubled = padded + padded
-        return Text(doubled[self._offset : self._offset + width], style="bold #00ff4c")
+        return Text(doubled[self._offset : self._offset + width], style=style)
 
 
 class Analyzer(Widget):
@@ -148,14 +151,16 @@ class Analyzer(Widget):
         self.refresh()
 
     def _bar_style(self, height_ratio: float) -> str:
+        palette = palette_for(self)
         if height_ratio > 0.8:
-            return "#ff3b3b"
+            return palette["danger"]
         if height_ratio > 0.55:
-            return "#ffd500"
-        return "#00ff4c"
+            return palette["warning"]
+        return palette["accent"]
 
     def render(self) -> Text:
         rows = max(1, self.size.height)
+        palette = palette_for(self)
         out = Text()
         for row in range(rows):
             # Row 0 is the top of the analyser.
@@ -171,7 +176,7 @@ class Analyzer(Widget):
                     glyph = " "
                 peak_here = int(self._peaks[i] * rows) == (rows - row - 1)
                 if glyph == " " and peak_here and self._peaks[i] > 0.02:
-                    out.append("▁", style="#8fd8a0")
+                    out.append("▁", style=palette["peak"])
                 else:
                     out.append(glyph, style=self._bar_style(value))
                 out.append(" ")
@@ -198,6 +203,7 @@ class EqualizerBars(Widget):
         gains = list(self.gains)
         if not gains:
             return Text("")
+        palette = palette_for(self)
         rows = max(3, self.size.height - 2)
         middle = rows // 2
         out = Text()
@@ -206,24 +212,33 @@ class EqualizerBars(Widget):
                 # How far from the centre line this band reaches, in rows.
                 extent = int(round((gain / self.limit) * middle))
                 if row == middle:
-                    glyph, style = "─", "#5f7f67"
+                    glyph, style = "─", palette["empty"]
                 elif extent > 0 and middle - extent <= row < middle:
-                    glyph, style = "█", "#00ff4c"
+                    glyph, style = "█", palette["accent"]
                 elif extent < 0 and middle < row <= middle - extent:
-                    glyph, style = "█", "#ffd500"
+                    glyph, style = "█", palette["warning"]
                 else:
-                    glyph, style = "·", "#2f3f35"
+                    glyph, style = "·", palette["bar_empty"]
                 if band == self.selected:
-                    style = f"bold {style} on #123a1c" if glyph != "·" else "#4f6f57 on #123a1c"
+                    foreground = style if glyph != "·" else palette["eq_inactive"]
+                    style = f"bold {foreground} on {palette['eq_background']}"
                 out.append(f" {glyph}  ", style=style)
             out.append("\n")
 
         for band, label in enumerate(self.labels):
-            style = "bold #00ff4c" if band == self.selected else "#7f9f87"
+            style = (
+                f"bold {palette['accent']}"
+                if band == self.selected
+                else palette["muted"]
+            )
             out.append(f"{label:>3} ", style=style)
         out.append("\n")
         for band, gain in enumerate(gains):
-            style = "bold #00ff4c" if band == self.selected else "#7f9f87"
+            style = (
+                f"bold {palette['accent']}"
+                if band == self.selected
+                else palette["muted"]
+            )
             out.append(f"{gain:>+3.0f} ", style=style)
         return out
 
@@ -238,14 +253,15 @@ class SeekBar(Widget):
 
     def render(self) -> Text:
         width = max(4, self.size.width)
+        palette = palette_for(self)
         ratio = (self.position / self.total) if self.total else 0.0
         thumb = int(ratio * (width - 1))
         bar = Text()
         for i in range(width):
             if i == thumb:
-                bar.append("▓", style="bold #00ff4c")
+                bar.append("▓", style=f"bold {palette['accent']}")
             else:
-                bar.append("─", style="#3f5f47")
+                bar.append("─", style=palette["input_border"])
         return bar
 
 
@@ -266,21 +282,22 @@ class Slider(Widget):
 
     def render(self) -> Text:
         width = max(8, self.size.width)
+        palette = palette_for(self)
         track = width - len(self.label) - 6
-        bar = Text(f"{self.label} ", style="#7f9f87")
+        bar = Text(f"{self.label} ", style=palette["muted"])
         if self.centred:
             half = track // 2
             offset = int((self.value / self.maximum) * half) if self.maximum else 0
             left = max(0, min(half, -offset))
             right = max(0, min(half, offset))
-            bar.append("░" * (half - left), style="#2f3f35")
-            bar.append("█" * left, style="#00ff4c")
-            bar.append("│", style="#5f7f67")
-            bar.append("█" * right, style="#00ff4c")
-            bar.append("░" * (half - right), style="#2f3f35")
+            bar.append("░" * (half - left), style=palette["bar_empty"])
+            bar.append("█" * left, style=palette["accent"])
+            bar.append("│", style=palette["empty"])
+            bar.append("█" * right, style=palette["accent"])
+            bar.append("░" * (half - right), style=palette["bar_empty"])
         else:
             filled = int((self.value / self.maximum) * track) if self.maximum else 0
-            bar.append("█" * filled, style="#00ff4c")
-            bar.append("░" * max(0, track - filled), style="#2f3f35")
-        bar.append(f" {self.value:>3}", style="#7f9f87")
+            bar.append("█" * filled, style=palette["accent"])
+            bar.append("░" * max(0, track - filled), style=palette["bar_empty"])
+        bar.append(f" {self.value:>3}", style=palette["muted"])
         return bar

@@ -9,6 +9,7 @@ from textual.widgets import Static
 from tidalamp.app import TidalAmp
 from tidalamp.queue import Queue
 from tidalamp.settings import Settings
+from tidalamp.theme import DEFAULT_COLORS, ThemePalette
 
 
 class FakeMpv:
@@ -78,5 +79,32 @@ def test_shuffle_and_repeat_have_persistent_indicators(monkeypatch):
             application.mpris_set_loop_status("Track")
             application.mpris_set_shuffle(False)
             assert modes.content.plain == "   SHUF OFF     REP 1 "
+
+    asyncio.run(scenario())
+
+
+def test_running_app_follows_an_omarchy_theme_change(monkeypatch):
+    isolate_runtime(monkeypatch)
+    initial = ThemePalette(dict(DEFAULT_COLORS), source="omarchy")
+    changed_colors = dict(DEFAULT_COLORS)
+    changed_colors["accent"] = "#7aa2f7"
+    changed_colors["panel"] = "#1a1b26"
+    changed = ThemePalette(changed_colors, source="omarchy")
+    palettes = iter((initial, changed))
+    monkeypatch.setattr("tidalamp.app.load_palette", lambda: next(palettes))
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test() as pilot:
+            await pilot.press("s")
+            application._refresh_theme()
+
+            modes = application.query_one("#modes", Static)
+            assert application.tidalamp_palette is changed
+            assert application.get_theme_variable_defaults()["tidalamp-accent"] == (
+                "#7aa2f7"
+            )
+            assert application.query_one("#main").styles.background.hex == "#1A1B26"
+            assert any("#7aa2f7" in str(span.style) for span in modes.content.spans)
 
     asyncio.run(scenario())

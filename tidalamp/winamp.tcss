@@ -1,25 +1,25 @@
-/* Classic Winamp 2.x palette: black LCD, phosphor green, grey chrome. */
+/* Semantic palette: Omarchy when available, classic Winamp elsewhere. */
 
 Screen {
-    background: #000000;
+    background: $tidalamp-screen;
 }
 
 #main {
-    background: #1c1c22;
-    border: outer #4a4a55;
+    background: $tidalamp-panel;
+    border: outer $tidalamp-border;
     height: 100%;
 }
 
 #titlebar {
-    background: #2b3a4a;
-    color: #b8c8d8;
+    background: $tidalamp-title-background;
+    color: $tidalamp-title-foreground;
     text-align: center;
     text-style: bold;
     height: 1;
 }
 
 #display {
-    background: #000000;
+    background: $tidalamp-display-background;
     height: 9;
     padding: 0 1;
 }
@@ -36,57 +36,57 @@ Screen {
 }
 
 #badges {
-    color: #7f9f87;
+    color: $tidalamp-muted;
     height: 1;
 }
 
 #seek {
-    background: #14141a;
+    background: $tidalamp-track-background;
     padding: 0 1;
     height: 1;
 }
 
 #volume {
-    background: #14141a;
+    background: $tidalamp-track-background;
     padding: 0 1;
     width: 44;
     height: 1;
 }
 
 #balance {
-    background: #14141a;
+    background: $tidalamp-track-background;
     padding: 0 1;
     width: 44;
     height: 1;
 }
 
 #transport {
-    background: #2a2a33;
-    color: #9fb8a7;
+    background: $tidalamp-transport-background;
+    color: $tidalamp-transport-foreground;
     height: 1;
 }
 
 #modes {
-    background: #14141a;
-    color: #718078;
+    background: $tidalamp-track-background;
+    color: $tidalamp-inactive;
     height: 1;
 }
 
 #pl-title {
-    background: #2b3a4a;
-    color: #b8c8d8;
+    background: $tidalamp-title-background;
+    color: $tidalamp-title-foreground;
     text-style: bold;
     height: 1;
 }
 
 #playlist {
-    background: #000000;
+    background: $tidalamp-display-background;
     padding: 0 1;
 }
 
 #status {
-    background: #14141a;
-    color: #6f8f77;
+    background: $tidalamp-track-background;
+    color: $tidalamp-status;
     height: 1;
 }
 
@@ -97,21 +97,21 @@ SearchScreen {
 #search-box {
     width: 60;
     height: auto;
-    background: #1c1c22;
-    border: outer #4a4a55;
+    background: $tidalamp-panel;
+    border: outer $tidalamp-border;
     padding: 1 2;
 }
 
 #search-title {
-    color: #00ff4c;
+    color: $tidalamp-accent;
     text-style: bold;
     height: 1;
 }
 
 #search-input {
-    background: #000000;
-    color: #00ff4c;
-    border: tall #3f5f47;
+    background: $tidalamp-display-background;
+    color: $tidalamp-accent;
+    border: tall $tidalamp-input-border;
 }
 
 BrowserScreen {
@@ -121,27 +121,27 @@ BrowserScreen {
 #browser-box {
     width: 84;
     height: 26;
-    background: #1c1c22;
-    border: outer #4a4a55;
+    background: $tidalamp-panel;
+    border: outer $tidalamp-border;
 }
 
 #browser-title {
-    background: #2b3a4a;
-    color: #b8c8d8;
+    background: $tidalamp-title-background;
+    color: $tidalamp-title-foreground;
     text-style: bold;
     height: 1;
     padding: 0 1;
 }
 
 #browser-list {
-    background: #000000;
+    background: $tidalamp-display-background;
     height: 1fr;
     padding: 0 1;
 }
 
 #browser-hint {
-    background: #2a2a33;
-    color: #9fb8a7;
+    background: $tidalamp-transport-background;
+    color: $tidalamp-transport-foreground;
     height: 1;
 }
 
@@ -152,28 +152,28 @@ LyricsScreen {
 #lyrics-box {
     width: 84;
     height: 28;
-    background: #1c1c22;
-    border: outer #4a4a55;
+    background: $tidalamp-panel;
+    border: outer $tidalamp-border;
 }
 
 #lyrics-title {
-    background: #2b3a4a;
-    color: #b8c8d8;
+    background: $tidalamp-title-background;
+    color: $tidalamp-title-foreground;
     text-style: bold;
     height: 1;
     padding: 0 1;
 }
 
 #lyrics-body {
-    background: #000000;
-    color: #9fcfa7;
+    background: $tidalamp-display-background;
+    color: $tidalamp-body;
     height: 1fr;
     padding: 1 2;
 }
 
 #lyrics-hint {
-    background: #2a2a33;
-    color: #9fb8a7;
+    background: $tidalamp-transport-background;
+    color: $tidalamp-transport-foreground;
     height: 1;
 }
 
@@ -184,26 +184,26 @@ EqScreen {
 #eq-box {
     width: 60;
     height: 17;
-    background: #1c1c22;
-    border: outer #4a4a55;
+    background: $tidalamp-panel;
+    border: outer $tidalamp-border;
 }
 
 #eq-title {
-    background: #2b3a4a;
-    color: #b8c8d8;
+    background: $tidalamp-title-background;
+    color: $tidalamp-title-foreground;
     text-style: bold;
     height: 1;
     padding: 0 1;
 }
 
 #eq-bars {
-    background: #000000;
+    background: $tidalamp-display-background;
     height: 1fr;
     padding: 1 2;
 }
 
 #eq-hint {
-    background: #2a2a33;
-    color: #9fb8a7;
+    background: $tidalamp-transport-background;
+    color: $tidalamp-transport-foreground;
     height: 1;
 }
