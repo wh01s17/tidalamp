@@ -82,12 +82,16 @@ Screen {
 #playlist {
     background: $tidalamp-display-background;
     padding: 0 1;
+    /* 1fr, not auto: RowList paints as many rows as it is given, so an auto
+       height grows until the status bar falls off the bottom of the screen. */
+    height: 1fr;
 }
 
 #status {
     background: $tidalamp-track-background;
     color: $tidalamp-status;
     height: 1;
+    width: 1fr;
 }
 
 SearchScreen {
@@ -125,11 +129,39 @@ BrowserScreen {
     border: outer $tidalamp-border;
 }
 
+#statusbar {
+    height: 1;
+    background: $tidalamp-track-background;
+}
+
+#busy {
+    background: $tidalamp-track-background;
+    width: auto;
+    padding: 0 1;
+}
+
+#lyrics-head {
+    background: $tidalamp-title-background;
+    height: 1;
+}
+
+#browser-head {
+    background: $tidalamp-title-background;
+    height: 1;
+}
+
 #browser-title {
     background: $tidalamp-title-background;
     color: $tidalamp-title-foreground;
     text-style: bold;
     height: 1;
+    width: 1fr;
+    padding: 0 1;
+}
+
+#browser-spinner {
+    background: $tidalamp-title-background;
+    width: 34;
     padding: 0 1;
 }
 
@@ -161,6 +193,13 @@ LyricsScreen {
     color: $tidalamp-title-foreground;
     text-style: bold;
     height: 1;
+    width: 1fr;
+    padding: 0 1;
+}
+
+#lyrics-spinner {
+    background: $tidalamp-title-background;
+    width: 34;
     padding: 0 1;
 }
 

@@ -4,8 +4,8 @@ Documento de traspaso. Describe qué existe, qué está verificado, qué falta y
 criterio se tomaron las decisiones, para que cualquiera (humano o modelo) pueda
 retomar el trabajo sin contexto previo.
 
-**Última actualización:** 2026-09-08 (interfaz `TrackList` de MPRIS; antes, la
-carátula en el terminal y el empaquetado para el AUR y PyPI)
+**Última actualización:** 2026-09-08 (indicador de carga y la barra de estado, que
+estaba fuera de pantalla; antes, `TrackList` de MPRIS, carátula y empaquetado)
 
 ---
 
@@ -125,6 +125,16 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
       modo activo y actualización inmediata por teclado o MPRIS.
 - [x] Paleta completa tomada del tema Omarchy activo cuando existe; recarga en vivo
       cada dos segundos. En otras distros conserva exactamente los colores clásicos.
+- [x] `Spinner`: indicador animado de espera que dice **qué** se está cargando, en la
+      barra de título del navegador, en la de la letra y en la de estado. Cada trabajo
+      lento corre en un worker para que la UI siga pintando, y precisamente por eso una
+      espera se parecía a un cuelgue. El título del nivel no se sustituye por
+      «cargando»: es lo único que dice dónde estás. Volver atrás apaga el indicador.
+- [x] **La barra de estado estaba fuera de la pantalla.** `#playlist` no declaraba
+      altura, y `RowList` pinta tantas filas como se le den, así que el auto crecía
+      hasta empujar `#status` por debajo del borde inferior: todo lo que la aplicación
+      tenía que decir (errores, «resolviendo…», la cola restaurada) se escribía donde
+      nadie podía verlo. Ahora es `height: 1fr` y hay una prueba que lo fija.
 
 ### MPRIS — `mpris.py`
 
@@ -264,7 +274,7 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
 
 ### Tests — `tests/`
 
-- [x] `pytest`, 137 pruebas, sin red y sin TIDAL. `pip install -e ".[dev]"`.
+- [x] `pytest`, 143 pruebas, sin red y sin TIDAL. `pip install -e ".[dev]"`.
 - [x] `tests/fake_mpv.py`: un mpv falso que habla el IPC JSON real y **emite eventos
       asíncronos antes de cada respuesta**, que es justo la trampa del §7. Lleva la
       cuenta de los filtros con etiqueta y rechaza la sintaxis con la etiqueta detrás.
@@ -334,6 +344,7 @@ Distinguir esto importa: parte del código nunca se ha ejecutado contra TIDAL re
 | Ruta MPD -> HLS                    | **PARCIAL**                       | Ambas ramas están cubiertas por tests con manifiestos fijados, y `stream.resolve()` ya registra cuál toma. Falta una reproducción real con `TIDALAMP_DEBUG=1` para leerlo.      |
 | Empaquetado (sdist / wheel / AUR)  | **Verificado salvo la publicación** | `python -m build` + `twine check` en ambos artefactos; 89 pruebas desde el sdist extraído; `bash -n` y `makepkg --printsrcinfo` sobre el PKGBUILD; `pacman -Si` confirma que todas las dependencias están en `extra`. No se ha ejecutado `makepkg -si` ni se ha publicado nada: el tag no existe todavía. |
 | Carátula                           | **Verificado salvo la vista** | Unidades sobre los tres codificadores, incluida una vuelta completa de sixel a píxeles; la app real bajo un pty con `TERM=xterm-kitty` emite el APC gráfico anclado en la esquina del widget, y en medios bloques pyte muestra el recuadro de 18×9 con el resto del display intacto. Nadie ha mirado todavía una portada real en una ventana de kitty. |
+| Indicador de carga y barra de estado | **Verificado**                  | Unitarias del `Spinner` y de los tres momentos del navegador (raíz, abrir un nivel, volver atrás) con un loader bloqueado a propósito; la app real bajo pty midió `#statusbar` dentro de la pantalla y pintó `⠦ resolviendo «Schism»…` en la última fila. |
 
 **Ojo con la sesión:** `~/.config/tidalamp/session.json` **ya no existe** (comprobado
 el 2026-09-08, después de la sesión en la que el usuario reprodujo música). Todo lo que
@@ -493,6 +504,13 @@ Cosas que ya costaron tiempo una vez:
 - **`Segment(texto, None, True)` es un segmento de control**: mide cero celdas, así
   que cabe dentro de una línea que el compositor ya está pintando sin descuadrarla.
   Que sobreviva al recorte de `Strip` no era evidente: está comprobado bajo un pty.
+- **Un widget de altura `auto` que pinta lo que le den crece sin freno.** `RowList`
+  dibuja `size.height` filas, así que medirlo en `auto` daba una altura enorme y
+  empujaba la barra de estado fuera de la pantalla. Los paneles que llenan hueco van
+  con `1fr`, no con `auto`.
+- **Un reactive que cambia el tamaño necesita `layout=True`.** El `Spinner` es de
+  ancho `auto`: sin eso quedaba medido a cero cuando no tenía texto y no volvía a
+  aparecer nunca.
 - **Textual captura stdout mientras la app corre**: un `print` dentro de `run_test()`
   no aparece hasta que el bloque termina. Para sacar datos de una app que sigue viva,
   escribe a un fichero.
@@ -502,7 +520,7 @@ Cosas que ya costaron tiempo una vez:
 - Arch Linux, Hyprland (Omarchy). Python 3.14, mpv y ffmpeg en el sistema.
 - Venv en `.venv/`, rehecho tras el renombrado; `.venv/bin/tidalamp` funciona de nuevo.
   Lleva el paquete en editable más `pytest` y `pyte`.
-- Tests: `.venv/bin/python -m pytest` (137 pruebas, ~6 s, sin red ni bus de usuario).
+- Tests: `.venv/bin/python -m pytest` (143 pruebas, ~8 s, sin red ni bus de usuario).
   El extra `dev` arrastra Pillow, así que las pruebas de carátula corren de verdad; si
   falta, se saltan solas.
 - `cava` está instalado en `/usr/bin/cava`; arranca con la configuración real de 19

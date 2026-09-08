@@ -178,6 +178,18 @@ Son las de Winamp, a propósito.
 | `t` | alternar tiempo transcurrido / restante |
 | `q` | salir |
 
+## Mientras carga
+
+Todo lo que tarda —abrir la biblioteca, entrar en una playlist, pedir otra página,
+resolver una pista, buscar la letra— ocurre en un hilo aparte para que la interfaz
+siga respondiendo. El efecto secundario es que una espera se parecía mucho a un
+cuelgue, así que ahora hay un indicador animado que dice **qué** se está esperando:
+`⠋ abriendo Mi playlist…`, en la barra de título del navegador o en la de estado.
+
+El título del nivel no se sustituye por «cargando»: es lo único que te dice dónde
+estás. Y si vuelves atrás mientras algo carga, el indicador se apaga — la respuesta,
+cuando llegue, ya es de un nivel que has dejado.
+
 ## Cuando algo falla
 
 - **mpv se muere**: la app lo detecta en el siguiente tick, lo relanza con el volumen

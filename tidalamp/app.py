@@ -34,6 +34,7 @@ from .widgets import (
     Marquee,
     SeekBar,
     Slider,
+    Spinner,
     TimeDisplay,
 )
 
@@ -155,7 +156,9 @@ class BrowserScreen(ModalScreen[tuple | None]):
 
     def compose(self) -> ComposeResult:
         with Vertical(id="browser-box"):
-            yield Static(self._root_title, id="browser-title")
+            with Horizontal(id="browser-head"):
+                yield Static(self._root_title, id="browser-title")
+                yield Spinner(id="browser-spinner")
             yield RowList(id="browser-list")
             yield Static(
                 " ↵ abrir/reproducir   a añadir   A añadir todo   ⌫ atrás   esc cerrar"
@@ -165,7 +168,14 @@ class BrowserScreen(ModalScreen[tuple | None]):
 
     def on_mount(self) -> None:
         self.query_one(RowList).empty_text = "cargando…"
+        self._busy(f"cargando {self._root_title.lower()}…")
         self._load(self._root_title, self._root_loader)
+
+    def _busy(self, label: str) -> None:
+        self.query_one(Spinner).start(label)
+
+    def _idle(self) -> None:
+        self.query_one(Spinner).stop()
 
     @work(thread=True, exclusive=True)
     def _load(self, title: str, loader) -> None:
@@ -177,11 +187,13 @@ class BrowserScreen(ModalScreen[tuple | None]):
         self.app.call_from_thread(self._push, title, rows)
 
     def _failed(self, exc: Exception) -> None:
+        self._idle()
         widget = self.query_one(RowList)
         widget.empty_text = f"error: {exc}"
         widget.refresh()
 
     def _push(self, title: str, rows: list[Row]) -> None:
+        self._idle()
         self._stack.append((title, rows))
         widget = self.query_one(RowList)
         widget.empty_text = "vacío"
@@ -206,6 +218,9 @@ class BrowserScreen(ModalScreen[tuple | None]):
         if len(self._stack) <= 1:
             self.dismiss(None)
             return
+        # Going back while a level is still loading: the answer, when it
+        # lands, is for a level the user has left.
+        self._idle()
         self._stack.pop()
         title, rows = self._stack[-1]
         widget = self.query_one(RowList)
@@ -221,11 +236,14 @@ class BrowserScreen(ModalScreen[tuple | None]):
         if row is None:
             return
         if row.more is not None:
-            self.query_one("#browser-title", Static).update("cargando…")
+            # The title stays put: losing it to say "loading" costs the user
+            # the one label that says where they are.
+            self._busy("cargando más…")
             self._load_more(widget.cursor, row.more)
             return
         if row.loader is not None:
             self.query_one(RowList).empty_text = "cargando…"
+            self._busy(f"abriendo {row.label}…")
             self._load(row.label, row.loader)
             return
         # Play this track, queueing the whole level so the rest follows.
@@ -243,6 +261,7 @@ class BrowserScreen(ModalScreen[tuple | None]):
         self.app.call_from_thread(self._merge, index, rows)
 
     def _merge(self, index: int, rows: list[Row]) -> None:
+        self._idle()
         widget = self.query_one(RowList)
         widget.extend_at(index, rows)
         # The stack holds the level so backspace can restore it; keep it in
@@ -260,6 +279,7 @@ class BrowserScreen(ModalScreen[tuple | None]):
             self.dismiss(("append", [row.entry], 0))
         elif row.loader is not None:
             # Appending a container means appending everything inside it.
+            self._busy(f"añadiendo {row.label}…")
             self._append_container(row.loader)
 
     @work(thread=True, exclusive=True)
@@ -408,11 +428,14 @@ class LyricsScreen(ModalScreen[None]):
 
     def compose(self) -> ComposeResult:
         with Vertical(id="lyrics-box"):
-            yield Static(f"▓ LETRA ▓  {self._track_title}", id="lyrics-title")
+            with Horizontal(id="lyrics-head"):
+                yield Static(f"▓ LETRA ▓  {self._track_title}", id="lyrics-title")
+                yield Spinner(id="lyrics-spinner")
             yield Static("  cargando…", id="lyrics-body")
             yield Static(" ↑↓ desplazar   y/esc cerrar", id="lyrics-hint")
 
     def on_mount(self) -> None:
+        self.query_one(Spinner).start("buscando la letra…")
         self._load()
         self.set_interval(1 / 4, self._refresh_lyrics)
 
@@ -426,6 +449,7 @@ class LyricsScreen(ModalScreen[None]):
         self.app.call_from_thread(self._loaded, document)
 
     def _loaded(self, document: LyricsDocument) -> None:
+        self.query_one(Spinner).stop()
         self._document = document
         mode = "sincronizada" if document.synced else "texto"
         provider = f" · {document.provider}" if document.provider else ""
@@ -435,6 +459,7 @@ class LyricsScreen(ModalScreen[None]):
         self._refresh_lyrics()
 
     def _failed(self, exc: Exception) -> None:
+        self.query_one(Spinner).stop()
         self.query_one("#lyrics-body", Static).update(f"  {exc}")
 
     def _refresh_lyrics(self) -> None:
@@ -596,7 +621,9 @@ class TidalAmp(App):
             yield Static("", id="modes")
             yield Static("▓ PLAYLIST ▓   d quitar   C vaciar   alt+↑↓ mover", id="pl-title")
             yield RowList(id="playlist")
-            yield Static("", id="status")
+            with Horizontal(id="statusbar"):
+                yield Spinner(id="busy")
+                yield Static("", id="status")
 
     def on_mount(self) -> None:
         playlist = self.query_one("#playlist", RowList)
@@ -908,7 +935,10 @@ class TidalAmp(App):
         playlist.marked = index
         playlist.refresh()
         self.query_one(Marquee).text = f"{index + 1}. {entry.label} ({entry.length})"
-        self.status = f"resolviendo «{entry.title}»…"
+        # The spinner carries the message while we wait; repeating it in the
+        # status text next to it would just say the same thing twice.
+        self.status = ""
+        self.query_one("#busy", Spinner).start(f"resolviendo «{entry.title}»…")
         self.queue.save()
         self._load_art(entry)
         self._resolve_worker(entry)
@@ -998,17 +1028,22 @@ class TidalAmp(App):
             track = with_retries(lambda: entry.resolve(self.session))
             playable = resolve(track)
         except NotLoggedIn as exc:
-            self.call_from_thread(setattr, self, "status", str(exc))
+            self.call_from_thread(self._resolve_failed, str(exc))
             return
         except StreamUnavailable as exc:
-            self.call_from_thread(setattr, self, "status", str(exc))
+            self.call_from_thread(self._resolve_failed, str(exc))
             return
         except Exception as exc:
-            self.call_from_thread(setattr, self, "status", f"error: {exc}")
+            self.call_from_thread(self._resolve_failed, f"error: {exc}")
             return
         self.call_from_thread(self._start, entry, playable)
 
+    def _resolve_failed(self, message: str) -> None:
+        self.query_one("#busy", Spinner).stop()
+        self.status = message
+
     def _start(self, entry: Entry, playable) -> None:
+        self.query_one("#busy", Spinner).stop()
         self.mpv.load(playable.url)
         self._was_idle = False
         self.query_one("#badges", Static).update(

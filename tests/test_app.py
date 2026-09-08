@@ -3,16 +3,28 @@
 from __future__ import annotations
 
 import asyncio
+import threading
 
 from textual.screen import Screen
 from textual.widgets import Static
 
-from tidalamp.app import TidalAmp
+from tidalamp.app import BrowserScreen, TidalAmp
 from tidalamp.artwork import Cover, Protocol
+from tidalamp.library import Row
 from tidalamp.queue import Entry, Queue
 from tidalamp.settings import Settings
 from tidalamp.theme import DEFAULT_COLORS, ThemePalette
-from tidalamp.widgets import Artwork
+from tidalamp.widgets import Artwork, Spinner
+
+
+async def settle(pilot, done, tries: int = 100) -> None:
+    """Pump the event loop until a worker's result has landed."""
+    for _ in range(tries):
+        await pilot.pause()
+        if done():
+            return
+        await asyncio.sleep(0.01)
+    raise AssertionError("el worker no terminó")
 
 
 class FakeMpv:
@@ -25,6 +37,10 @@ class FakeMpv:
 
     def __init__(self) -> None:
         self.filter_calls: list[tuple[str, str | None]] = []
+        self.loaded: str | None = None
+
+    def load(self, url: str) -> None:
+        self.loaded = url
 
     def set_filter(self, label: str, graph: str | None) -> None:
         self.filter_calls.append((label, graph))
@@ -306,5 +322,175 @@ def test_go_to_plays_the_row_with_that_id(monkeypatch):
             application.mpris_go_to("/org/mpris/MediaPlayer2/tidalamp/track/999999")
 
             assert played == [2]
+
+    asyncio.run(scenario())
+
+
+# ---------------------------------------------------------------- loading state
+
+
+def test_the_spinner_is_silent_until_there_is_something_to_wait_for():
+    spinner = Spinner()
+    assert spinner.busy is False
+    assert spinner.render().plain == ""
+
+    # Idle must not animate: a frame change would repaint the screen forever.
+    spinner._advance()
+    assert spinner._frame == 0
+
+    spinner.start("cargando playlists…")
+    spinner._advance()
+    assert spinner.busy is True
+    assert spinner._frame == 1
+    assert spinner.render().plain == f"{Spinner.FRAMES[1]} cargando playlists…"
+
+    spinner.stop()
+    assert spinner.render().plain == ""
+
+
+def test_the_browser_says_what_it_is_loading_and_stops_when_it_lands(monkeypatch):
+    """The complaint this fixes: pressing `l` sat silent while the API answered."""
+    isolate_runtime(monkeypatch)
+    release = threading.Event()
+
+    def slow_root():
+        release.wait(5)
+        return [Row(label="Mi playlist", loader=lambda: [])]
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test() as pilot:
+            application.push_screen(BrowserScreen("MI BIBLIOTECA", slow_root))
+            await pilot.pause()
+
+            spinner = application.screen.query_one(Spinner)
+            assert spinner.busy
+            assert "biblioteca" in spinner.label
+
+            release.set()
+            await settle(pilot, lambda: not spinner.busy)
+            assert not spinner.busy
+
+    asyncio.run(scenario())
+
+
+def test_opening_a_playlist_names_the_playlist_while_it_loads(monkeypatch):
+    isolate_runtime(monkeypatch)
+    release = threading.Event()
+
+    def slow_level():
+        release.wait(5)
+        return []
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test() as pilot:
+            screen = BrowserScreen(
+                "MI BIBLIOTECA",
+                lambda: [Row(label="Mi playlist", loader=slow_level)],
+            )
+            application.push_screen(screen)
+            await pilot.pause()
+            spinner = application.screen.query_one(Spinner)
+            await settle(pilot, lambda: not spinner.busy)
+
+            await pilot.press("enter")
+            await pilot.pause()
+            assert spinner.busy
+            assert spinner.label == "abriendo Mi playlist…"
+            # The title is what tells the user where they are; it stays put.
+            title = application.screen.query_one("#browser-title", Static).content
+            assert str(title) == "MI BIBLIOTECA"
+
+            release.set()
+            await settle(pilot, lambda: not spinner.busy)
+
+    asyncio.run(scenario())
+
+
+def test_going_back_stops_a_spinner_for_a_level_nobody_is_waiting_for(monkeypatch):
+    isolate_runtime(monkeypatch)
+    release = threading.Event()
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test() as pilot:
+            def blocked():
+                release.wait(5)
+                return []
+
+            screen = BrowserScreen(
+                "MI BIBLIOTECA",
+                lambda: [Row(label="A", loader=lambda: [Row(label="B", loader=blocked)])],
+            )
+            application.push_screen(screen)
+            await pilot.pause()
+            spinner = application.screen.query_one(Spinner)
+            await settle(pilot, lambda: not spinner.busy)
+
+            await pilot.press("enter")
+            await settle(pilot, lambda: not spinner.busy)
+            await pilot.press("enter")
+            await pilot.pause()
+            assert spinner.busy
+
+            await pilot.press("backspace")
+            await pilot.pause()
+            assert not spinner.busy
+            release.set()
+
+    asyncio.run(scenario())
+
+
+def test_the_status_bar_is_actually_on_screen(monkeypatch):
+    """It was not: an auto-height playlist pushed it past the bottom edge.
+
+    Everything the app has to say — errors, «resolviendo…», a restored queue —
+    is written there, so off-screen meant silent.
+    """
+    isolate_runtime(monkeypatch)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(100, 40)) as pilot:
+            await pilot.pause()
+            bar = application.query_one("#statusbar")
+            assert bar.region.bottom <= application.size.height
+            assert bar.region.height == 1
+
+    asyncio.run(scenario())
+
+
+def test_resolving_a_track_says_so_and_stops_saying_it(monkeypatch):
+    isolate_runtime(monkeypatch)
+    monkeypatch.setattr(TidalAmp, "_resolve_worker", lambda self, entry: None)
+
+    class Playable:
+        url = "https://cdn/a"
+        kbps = "1411"
+        khz = "44.1"
+        quality = "LOSSLESS"
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(100, 40)) as pilot:
+            await pilot.pause()
+            entry = Entry(id=1, title="Schism", artist="TOOL")
+            application.queue.append([entry])
+            application._sync_queue()
+
+            application._play_index(0)
+            busy = application.query_one("#busy", Spinner)
+            assert busy.busy
+            assert busy.label == "resolviendo «Schism»…"
+
+            application._start(entry, Playable())
+            assert not busy.busy
+
+            # A failure has to clear it too, or the app looks stuck forever.
+            application._play_index(0)
+            application._resolve_failed("error: sin red")
+            assert not busy.busy
+            assert application.status == "error: sin red"
 
     asyncio.run(scenario())

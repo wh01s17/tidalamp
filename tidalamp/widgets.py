@@ -308,6 +308,58 @@ class Slider(Widget):
         return bar
 
 
+class Spinner(Widget):
+    """A one-line "working on it" indicator.
+
+    Everything slow in this app runs in a worker so the UI keeps painting,
+    which is right — but a UI that keeps painting the old screen while it
+    waits is indistinguishable from a frozen one. This says what is being
+    waited for and moves while it waits.
+    """
+
+    DEFAULT_CSS = "Spinner { height: 1; }"
+
+    FRAMES = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"
+    INTERVAL = 1 / 12
+
+    # layout=True: the widget is auto-width, so appearing and disappearing has
+    # to re-run the layout or it stays measured at zero and never shows.
+    label = reactive("", layout=True)
+    _frame = reactive(0)
+
+    def on_mount(self) -> None:
+        self.set_interval(self.INTERVAL, self._advance)
+
+    def _advance(self) -> None:
+        # Idle costs nothing: with no label there is no repaint to trigger.
+        if self.label:
+            self._frame = (self._frame + 1) % len(self.FRAMES)
+
+    @property
+    def busy(self) -> bool:
+        return bool(self.label)
+
+    def start(self, label: str) -> None:
+        self.label = label
+
+    def stop(self) -> None:
+        self.label = ""
+
+    def render(self) -> Text:
+        if not self.label:
+            return Text("")
+        palette = palette_for(self)
+        spun = Text(f"{self.FRAMES[self._frame]} ", style=f"bold {palette['accent']}")
+        label = Text(self.label, style=palette["muted"])
+        # Labels carry a playlist name, which can be long; the frame has to
+        # survive whatever room is left, so the text is what gives way.
+        room = self.size.width - 2
+        if room > 0:
+            label.truncate(room, overflow="ellipsis")
+        spun.append_text(label)
+        return spun
+
+
 class Artwork(Widget):
     """The album cover, drawn with whatever the terminal supports.
 
