@@ -157,6 +157,34 @@ class Queue:
             self.playing -= 1
         self._reshuffle()
 
+    def move(self, index: int, delta: int) -> int:
+        """Move one entry up or down. Returns its new index.
+
+        The shuffled playback order is remapped rather than regenerated: the
+        two indices swap inside ``_order``, so each position in the shuffle
+        still points at the same song and reordering the visible list does not
+        silently reshuffle what plays next.
+        """
+        target = index + delta
+        if not (0 <= index < len(self.entries) and 0 <= target < len(self.entries)):
+            return index
+
+        self.entries[index], self.entries[target] = (
+            self.entries[target],
+            self.entries[index],
+        )
+        for position, value in enumerate(self._order):
+            if value == index:
+                self._order[position] = target
+            elif value == target:
+                self._order[position] = index
+
+        if self.playing == index:
+            self.playing = target
+        elif self.playing == target:
+            self.playing = index
+        return target
+
     def clear(self) -> None:
         self.entries.clear()
         self.playing = -1

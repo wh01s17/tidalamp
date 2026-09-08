@@ -14,10 +14,13 @@ from textual.widget import Widget
 from textual.widgets import Input, Static
 
 from . import library
+from .auth import NotLoggedIn, ensure_fresh
 from .library import Row
 from .mpris import MprisService
+from .net import with_retries
 from .player import Mpv
 from .queue import Entry, Queue, Repeat
+from .spectrum import Cava, SpectrumUnavailable
 from .stream import StreamUnavailable, cleanup_playlists, resolve
 from .widgets import Analyzer, Marquee, SeekBar, Slider, TimeDisplay
 
@@ -36,6 +39,16 @@ class RowList(Widget):
     def set_rows(self, rows: list[Row]) -> None:
         self.rows = rows
         self.cursor = 0
+        self.refresh()
+
+    def extend_at(self, index: int, rows: list[Row]) -> None:
+        """Replace the row at ``index`` with ``rows``. This is how a "más…"
+        row turns into the page it just fetched, in place, without losing the
+        user's scroll position."""
+        if not 0 <= index < len(self.rows):
+            return
+        self.rows[index:index + 1] = rows
+        self.cursor = min(index, max(0, len(self.rows) - 1))
         self.refresh()
 
     def move(self, delta: int) -> None:
@@ -126,7 +139,8 @@ class BrowserScreen(ModalScreen[tuple | None]):
             yield Static(self._root_title, id="browser-title")
             yield RowList(id="browser-list")
             yield Static(
-                " ↵ abrir/reproducir   a añadir   A añadir todo   ⌫ atrás   esc cerrar",
+                " ↵ abrir/reproducir   a añadir   A añadir todo   ⌫ atrás   esc cerrar"
+                "   (más… carga otra página)",
                 id="browser-hint",
             )
 
@@ -187,6 +201,10 @@ class BrowserScreen(ModalScreen[tuple | None]):
         row = widget.current
         if row is None:
             return
+        if row.more is not None:
+            self.query_one("#browser-title", Static).update("cargando…")
+            self._load_more(widget.cursor, row.more)
+            return
         if row.loader is not None:
             self.query_one(RowList).empty_text = "cargando…"
             self._load(row.label, row.loader)
@@ -195,6 +213,25 @@ class BrowserScreen(ModalScreen[tuple | None]):
         entries = [r.entry for r in widget.rows if r.entry is not None]
         index = entries.index(row.entry) if row.entry in entries else 0
         self.dismiss(("play", entries, index))
+
+    @work(thread=True, exclusive=True)
+    def _load_more(self, index: int, more) -> None:
+        try:
+            rows = more()
+        except Exception as exc:
+            self.app.call_from_thread(self._failed, exc)
+            return
+        self.app.call_from_thread(self._merge, index, rows)
+
+    def _merge(self, index: int, rows: list[Row]) -> None:
+        widget = self.query_one(RowList)
+        widget.extend_at(index, rows)
+        # The stack holds the level so backspace can restore it; keep it in
+        # sync with what is now on screen.
+        if self._stack:
+            title, _ = self._stack[-1]
+            self._stack[-1] = (title, widget.rows)
+            self.query_one("#browser-title", Static).update(title)
 
     def action_append_one(self) -> None:
         row = self.query_one(RowList).current
@@ -250,6 +287,8 @@ class TidalAmp(App):
         Binding("pagedown", "cursor_page_down", "", show=False),
         Binding("enter", "play_selected", "reproducir", show=False),
         Binding("d,delete", "remove", "quitar", show=False),
+        Binding("alt+up", "move_up", "subir", show=False),
+        Binding("alt+down", "move_down", "bajar", show=False),
         Binding("C", "clear", "vaciar", show=False),
         Binding("left", "seek_back", "-5s", show=False),
         Binding("right", "seek_fwd", "+5s", show=False),
@@ -269,6 +308,8 @@ class TidalAmp(App):
         self._was_idle = True
         self.mpris = MprisService(self)
         self._mpris_ready = False
+        # cava, when it is installed. None means the RMS fallback.
+        self.cava: Cava | None = None
 
     # ------------------------------------------------------------------ layout
 
@@ -288,7 +329,7 @@ class TidalAmp(App):
                 "  r repeat  q salir",
                 id="transport",
             )
-            yield Static("▓ PLAYLIST ▓", id="pl-title")
+            yield Static("▓ PLAYLIST ▓   d quitar   C vaciar   alt+↑↓ mover", id="pl-title")
             yield RowList(id="playlist")
             yield Static("", id="status")
 
@@ -296,6 +337,7 @@ class TidalAmp(App):
         playlist = self.query_one("#playlist", RowList)
         playlist.empty_text = "cola vacía — / para buscar, l para tu biblioteca"
         self.query_one("#volume", Slider).value = self.mpv.volume
+        self._start_spectrum()
         self.set_interval(1 / 10, self._tick_fast)
         self.set_interval(1 / 4, self._tick_slow)
         self.run_worker(self._start_mpris(), exclusive=False)
@@ -305,26 +347,56 @@ class TidalAmp(App):
             playlist.cursor = max(0, self.queue.resume_at)
             self.status = f"cola restaurada ({len(self.queue)} pistas)"
 
+    def _start_spectrum(self) -> None:
+        """Use cava for a real FFT when it is available. Its absence is not an
+        error: the analyser falls back to the RMS meter and says so."""
+        analyzer = self.query_one(Analyzer)
+        try:
+            self.cava = Cava(bars=Analyzer.BARS)
+        except SpectrumUnavailable:
+            analyzer.spectrum = None
+            return
+        analyzer.spectrum = self.cava.frame()
+
+    def _stop_spectrum(self) -> None:
+        """Drop back to the RMS meter, for good."""
+        if self.cava is not None:
+            self.cava.close()
+            self.cava = None
+        self.query_one(Analyzer).spectrum = None
+
     async def _start_mpris(self) -> None:
         """Claim the MPRIS bus name. A desktop without a session bus is not an
         error: we just run without the integration."""
         try:
-            await self.mpris.start()
+            name = await self.mpris.start()
         except Exception as exc:
             self.status = f"MPRIS no disponible ({exc})"
             return
         self._mpris_ready = True
+        if name != "org.mpris.MediaPlayer2.tidalamp":
+            # Another tidalamp already holds the plain name.
+            self.status = f"MPRIS como {name} (ya había otra instancia)"
 
     # ------------------------------------------------------------------- ticks
 
     def _tick_fast(self) -> None:
         analyzer = self.query_one(Analyzer)
+        if self.cava is not None:
+            if self.cava.alive:
+                analyzer.spectrum = self.cava.frame()
+            else:
+                self._stop_spectrum()
         analyzer.level = self.mpv.rms()
         analyzer.active = not self.mpv.paused and not self.mpv.idle
         analyzer.tick()
         self.query_one(Marquee).tick()
 
     def _tick_slow(self) -> None:
+        if not self.mpv.alive:
+            self._recover_mpv()
+            return
+
         position, duration = self.mpv.position, self.mpv.duration
         clock = self.query_one(TimeDisplay)
         clock.seconds, clock.total = position, duration
@@ -342,6 +414,22 @@ class TidalAmp(App):
 
         if self._mpris_ready:
             self.mpris.publish()
+
+    def _recover_mpv(self) -> None:
+        """mpv died under us. Respawn it instead of freezing the UI on a dead
+        socket, and put the current track back where it was."""
+        try:
+            self.mpv.restart()
+        except Exception as exc:
+            self.status = f"mpv murió y no se pudo reiniciar ({exc})"
+            return
+        self._was_idle = True
+        index = self.queue.playing
+        if 0 <= index < len(self.queue):
+            self.status = "mpv se reinició; recargando la pista"
+            self._play_index(index)
+        else:
+            self.status = "mpv se reinició"
 
     def _status_line(self) -> str:
         flags = []
@@ -458,6 +546,24 @@ class TidalAmp(App):
             self._sync_queue()
             self.status = "pista quitada de la cola"
 
+    def _move_entry(self, delta: int) -> None:
+        playlist = self.query_one("#playlist", RowList)
+        if not len(self.queue):
+            return
+        moved = self.queue.move(playlist.cursor, delta)
+        if moved == playlist.cursor:
+            return
+        self._sync_queue()
+        playlist.cursor = moved
+        playlist.marked = self.queue.playing
+        playlist.refresh()
+
+    def action_move_up(self) -> None:
+        self._move_entry(-1)
+
+    def action_move_down(self) -> None:
+        self._move_entry(1)
+
     def action_clear(self) -> None:
         self.action_stop()
         self.queue.clear()
@@ -493,9 +599,16 @@ class TidalAmp(App):
     @work(thread=True, exclusive=True)
     def _resolve_worker(self, entry: Entry) -> None:
         try:
+            # An access token only lasts a few hours, less than a listening
+            # session; refresh it here rather than letting the next call fail.
+            if ensure_fresh(self.session):
+                self.call_from_thread(setattr, self, "status", "sesión refrescada")
             # A restored entry has no Track yet; this is where we pay for it.
-            track = entry.resolve(self.session)
+            track = with_retries(lambda: entry.resolve(self.session))
             playable = resolve(track)
+        except NotLoggedIn as exc:
+            self.call_from_thread(setattr, self, "status", str(exc))
+            return
         except StreamUnavailable as exc:
             self.call_from_thread(setattr, self, "status", str(exc))
             return
@@ -509,6 +622,7 @@ class TidalAmp(App):
         self._was_idle = False
         self.query_one("#badges", Static).update(
             f"{playable.kbps}  {playable.khz}kHz  {playable.quality}"
+            f"  {self.query_one(Analyzer).source}"
         )
         self.status = f"reproduciendo {entry.label}"
 
@@ -537,6 +651,7 @@ class TidalAmp(App):
         self.queue.save()
         if self._mpris_ready:
             await self.mpris.stop()
+        self._stop_spectrum()
         self.mpv.close()
         cleanup_playlists()
         self.exit()

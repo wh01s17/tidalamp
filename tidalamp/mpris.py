@@ -13,9 +13,11 @@ from __future__ import annotations
 
 from typing import Any, Protocol
 
+import os
+
 from dbus_next import Variant
 from dbus_next.aio import MessageBus
-from dbus_next.constants import PropertyAccess
+from dbus_next.constants import PropertyAccess, RequestNameReply
 from dbus_next.service import ServiceInterface, dbus_property, method, signal
 
 BUS_NAME = "org.mpris.MediaPlayer2.tidalamp"
@@ -251,14 +253,28 @@ class MprisService:
         self._bus: MessageBus | None = None
         self._player: _Player | None = None
         self._last: dict[str, Any] = {}
+        self.bus_name: str = BUS_NAME
 
-    async def start(self) -> None:
-        """Connect and claim the well-known name. Raises on failure."""
+    async def start(self) -> str:
+        """Connect and claim a bus name. Returns the name actually claimed.
+
+        If another tidalamp already owns the well-known name we must not
+        pretend we got it: every client would keep talking to that first
+        instance while we sat there silently believing we were exported. MPRIS
+        allows a per-instance suffix exactly for this case.
+        """
         self._bus = await MessageBus().connect()
         self._player = _Player(self._backend)
         self._bus.export(OBJECT_PATH, _Root(self._backend))
         self._bus.export(OBJECT_PATH, self._player)
-        await self._bus.request_name(BUS_NAME)
+
+        reply = await self._bus.request_name(BUS_NAME)
+        if reply not in (RequestNameReply.PRIMARY_OWNER, RequestNameReply.ALREADY_OWNER):
+            self.bus_name = f"{BUS_NAME}.instance{os.getpid()}"
+            reply = await self._bus.request_name(self.bus_name)
+            if reply not in (RequestNameReply.PRIMARY_OWNER, RequestNameReply.ALREADY_OWNER):
+                raise RuntimeError(f"no se pudo reclamar un nombre MPRIS ({reply.name})")
+        return self.bus_name
 
     def publish(self) -> None:
         """Emit PropertiesChanged for whatever actually changed.

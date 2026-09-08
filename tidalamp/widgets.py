@@ -82,12 +82,16 @@ class Marquee(Widget):
 
 
 class Analyzer(Widget):
-    """The spectrum analyser.
+    """The spectrum analyser, in one of two modes.
 
-    mpv's ``astats`` filter reports a level, not a spectrum, so this is a level
-    meter spread across bands rather than a true FFT: the overall RMS sets the
-    envelope and each band wanders inside it with its own decay. It reacts to
-    the music honestly, it just is not a real frequency breakdown.
+    With cava running (see ``spectrum.py``) the bands come from a real FFT and
+    are drawn as they arrive.
+
+    Without it we fall back to mpv's ``astats``, which reports a level and not
+    a spectrum: the overall RMS sets the envelope and each band wanders inside
+    it with its own decay. That fallback reacts to the music honestly, it just
+    is not a frequency breakdown — and ``source`` says which of the two you are
+    looking at, so the display never claims to be an FFT when it is not.
     """
 
     DEFAULT_CSS = "Analyzer { height: 5; }"
@@ -100,21 +104,41 @@ class Analyzer(Widget):
 
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
+        # Bands straight from cava, or None while we are on the RMS fallback.
+        self.spectrum: list[float] | None = None
         self._bands = [0.0] * self.BARS
         self._peaks = [0.0] * self.BARS
         # Low bands carry more energy in most music; weight them like Winamp's.
         self._weights = [1.0 - (i / self.BARS) * 0.55 for i in range(self.BARS)]
 
-    def tick(self) -> None:
+    @property
+    def source(self) -> str:
+        """"FFT" when cava is feeding us, "RMS" when we are guessing shapes."""
+        return "FFT" if self.spectrum is not None else "RMS"
+
+    def _targets(self) -> list[float]:
         if not self.active:
-            target_base = 0.0
-        else:
-            # -60 dBFS .. 0 dBFS mapped onto 0..1
-            target_base = max(0.0, min(1.0, (self.level + 60.0) / 60.0))
+            return [0.0] * self.BARS
+        if self.spectrum is not None:
+            # A real spectrum needs no shaping: cava already smooths it, and
+            # inventing a weighting on top would only distort what it measured.
+            frame = self.spectrum
+            return [
+                max(0.0, min(1.0, frame[i])) if i < len(frame) else 0.0
+                for i in range(self.BARS)
+            ]
+        # -60 dBFS .. 0 dBFS mapped onto 0..1
+        base = max(0.0, min(1.0, (self.level + 60.0) / 60.0))
+        return [
+            base * self._weights[i] * (random.uniform(0.55, 1.0) if base > 0.02 else 0.0)
+            for i in range(self.BARS)
+        ]
+
+    def tick(self) -> None:
+        targets = self._targets()
 
         for i in range(self.BARS):
-            jitter = random.uniform(0.55, 1.0) if target_base > 0.02 else 0.0
-            target = target_base * self._weights[i] * jitter
+            target = targets[i]
             # Fast attack, slow release — standard meter ballistics.
             if target > self._bands[i]:
                 self._bands[i] += (target - self._bands[i]) * 0.7
@@ -153,6 +177,54 @@ class Analyzer(Widget):
                 out.append(" ")
             if row != rows - 1:
                 out.append("\n")
+        return out
+
+
+class EqualizerBars(Widget):
+    """Ten vertical faders, the way the Winamp equaliser window looks.
+
+    Purely a view: it draws whatever gains it is handed and highlights the
+    selected band. The clamping and the filter graph live in ``settings.py``.
+    """
+
+    DEFAULT_CSS = "EqualizerBars { height: 11; }"
+
+    gains: reactive[list[float]] = reactive(list)
+    selected = reactive(0)
+    limit = reactive(12.0)
+    labels: reactive[list[str]] = reactive(list)
+
+    def render(self) -> Text:
+        gains = list(self.gains)
+        if not gains:
+            return Text("")
+        rows = max(3, self.size.height - 2)
+        middle = rows // 2
+        out = Text()
+        for row in range(rows):
+            for band, gain in enumerate(gains):
+                # How far from the centre line this band reaches, in rows.
+                extent = int(round((gain / self.limit) * middle))
+                if row == middle:
+                    glyph, style = "─", "#5f7f67"
+                elif extent > 0 and middle - extent <= row < middle:
+                    glyph, style = "█", "#00ff4c"
+                elif extent < 0 and middle < row <= middle - extent:
+                    glyph, style = "█", "#ffd500"
+                else:
+                    glyph, style = "·", "#2f3f35"
+                if band == self.selected:
+                    style = f"bold {style} on #123a1c" if glyph != "·" else "#4f6f57 on #123a1c"
+                out.append(f" {glyph}  ", style=style)
+            out.append("\n")
+
+        for band, label in enumerate(self.labels):
+            style = "bold #00ff4c" if band == self.selected else "#7f9f87"
+            out.append(f"{label:>3} ", style=style)
+        out.append("\n")
+        for band, gain in enumerate(gains):
+            style = "bold #00ff4c" if band == self.selected else "#7f9f87"
+            out.append(f"{gain:>+3.0f} ", style=style)
         return out
 
 
