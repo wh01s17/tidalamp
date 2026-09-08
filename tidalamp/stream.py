@@ -17,6 +17,7 @@ and we say so instead of failing with a codec error.
 
 from __future__ import annotations
 
+import logging
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
@@ -24,6 +25,9 @@ from pathlib import Path
 import tidalapi
 
 from .config import CACHE_DIR, ensure_dirs
+from .net import with_retries
+
+log = logging.getLogger("tidalamp.stream")
 
 
 class StreamUnavailable(RuntimeError):
@@ -39,6 +43,9 @@ class Playable:
     sample_rate: int | None
     bit_depth: int | None
     codec: str | None
+    # Which branch of the manifest we took: "BTS" (progressive URL) or
+    # "MPD" (segmented DASH rendered to a local HLS playlist).
+    manifest: str = "BTS"
 
     @property
     def khz(self) -> str:
@@ -63,7 +70,7 @@ def _write_hls(playlist: str, track_id: int) -> str:
 def resolve(track: tidalapi.Track) -> Playable:
     """Resolve ``track`` to a playable URL or local playlist path."""
     try:
-        stream = track.get_stream()
+        stream = with_retries(track.get_stream)
     except Exception as exc:  # tidalapi raises a grab-bag of API errors here
         raise StreamUnavailable(f"TIDAL no devolvió stream para «{track.name}»: {exc}") from exc
 
@@ -76,12 +83,24 @@ def resolve(track: tidalapi.Track) -> Playable:
         )
 
     if manifest.is_mpd:
+        kind = "MPD"
         url = _write_hls(manifest.get_hls(), track.id)
     else:
+        kind = "BTS"
         urls = manifest.get_urls()
         if not urls:
             raise StreamUnavailable(f"Manifiesto vacío para «{track.name}»")
         url = urls[0]
+
+    log.debug(
+        "«%s» calidad=%s manifiesto=%s códec=%s %s/%sbit",
+        track.name,
+        stream.audio_quality,
+        kind,
+        manifest.get_codecs(),
+        stream.sample_rate,
+        stream.bit_depth,
+    )
 
     return Playable(
         url=url,
@@ -89,6 +108,7 @@ def resolve(track: tidalapi.Track) -> Playable:
         sample_rate=stream.sample_rate,
         bit_depth=stream.bit_depth,
         codec=manifest.get_codecs(),
+        manifest=kind,
     )
 
 

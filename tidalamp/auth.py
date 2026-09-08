@@ -33,6 +33,31 @@ def load_session() -> tidalapi.Session:
     return session
 
 
+def ensure_fresh(session: tidalapi.Session) -> bool:
+    """Refresh the access token if it expired mid-session.
+
+    TIDAL access tokens live a few hours, which is less than a listening
+    session; without this the first API call after the expiry fails and the
+    user sees an opaque error. The refresh token survives much longer, so we
+    trade it for a new access token and re-save the file. Returns True when a
+    refresh actually happened.
+    """
+    if session.check_login():
+        return False
+    refresh_token = getattr(session, "refresh_token", None)
+    if not refresh_token:
+        raise NotLoggedIn("La sesión expiró y no hay refresh token. Ejecuta: tidalamp login")
+    if not session.token_refresh(refresh_token):
+        raise NotLoggedIn("No se pudo refrescar la sesión. Ejecuta: tidalamp login")
+    try:
+        session.save_session_to_file(SESSION_FILE)
+    except OSError:
+        # A read-only config dir must not stop playback: the in-memory session
+        # is already valid again.
+        pass
+    return True
+
+
 def login(on_link) -> tidalapi.Session:
     """Run the device flow, calling ``on_link(url, expires_in)`` with the
     verification URL, then block until the user approves it."""

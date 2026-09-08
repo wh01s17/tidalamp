@@ -8,6 +8,7 @@ position/volume properties the Winamp display needs.
 from __future__ import annotations
 
 import json
+import logging
 import os
 import shutil
 import socket
@@ -17,6 +18,8 @@ import time
 from typing import Any
 
 from .config import IPC_SOCKET, ensure_dirs
+
+log = logging.getLogger("tidalamp.player")
 
 # astats gives us per-channel RMS every 100ms, which is enough to drive the
 # analyser. It is a level meter, not a real FFT — see visualizer.py.
@@ -36,6 +39,9 @@ class Mpv:
         self._sock: socket.socket | None = None
         self._buf = b""
         self._request_id = 0
+        # Kept so a respawned mpv comes back with the user's volume rather
+        # than mpv's default.
+        self._volume = 100
         self._proc = self._spawn()
         self._connect()
 
@@ -74,6 +80,28 @@ class Mpv:
                     pass
             time.sleep(0.05)
         raise MpvNotFound("mpv no abrió el socket IPC a tiempo")
+
+    @property
+    def alive(self) -> bool:
+        """False once the mpv process is gone. Without this the UI would keep
+        polling a dead socket and simply freeze at the last known position."""
+        return self._proc.poll() is None and self._sock is not None
+
+    def restart(self) -> None:
+        """Bring mpv back after a crash. Playback does not resume by itself:
+        the caller decides whether to reload the current track."""
+        with self._lock:
+            if self._sock is not None:
+                self._sock.close()
+                self._sock = None
+            self._buf = b""
+            if self._proc.poll() is None:
+                self._proc.kill()
+                self._proc.wait(timeout=2)
+            self._proc = self._spawn()
+        self._connect()
+        log.warning("mpv reiniciado (pid %s)", self._proc.pid)
+        self.set("volume", self._volume)
 
     # ------------------------------------------------------------------- IPC
 
@@ -122,6 +150,21 @@ class Mpv:
     def set(self, prop: str, value: Any) -> None:
         self._command("set_property", prop, value)
 
+    def set_filter(self, label: str, graph: str | None) -> None:
+        """Install (or drop) a labelled lavfi filter.
+
+        ``af set`` would replace the whole chain and take our astats meter with
+        it, so we remove the old instance by label and add the new one. Note
+        the label goes *before* the filter (``@eq:lavfi=[…]``): the other way
+        round mpv aborts at startup and the IPC socket never appears.
+
+        Adding a filter reinitialises the chain, which costs a barely audible
+        gap — so the callers skip the call entirely when the setting is neutral.
+        """
+        self._command("af", "remove", f"@{label}")
+        if graph:
+            self._command("af", "add", f"@{label}:lavfi=[{graph}]")
+
     # -------------------------------------------------------------- transport
 
     def load(self, url: str) -> None:
@@ -156,11 +199,15 @@ class Mpv:
 
     @property
     def volume(self) -> int:
-        return int(self.get("volume") or 0)
+        current = self.get("volume")
+        if current is not None:
+            self._volume = int(current)
+        return self._volume
 
     @volume.setter
     def volume(self, value: int) -> None:
-        self.set("volume", max(0, min(130, value)))
+        self._volume = max(0, min(130, value))
+        self.set("volume", self._volume)
 
     def rms(self) -> float:
         """Overall RMS level in dBFS, or -91.0 when silent/unavailable."""

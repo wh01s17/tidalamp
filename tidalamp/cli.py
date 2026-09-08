@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import os
 import sys
 
 import typer
 
 from .auth import NotLoggedIn, load_session
 from .auth import login as do_login
+from .config import LOG_FILE, setup_logging
 from .player import Mpv, MpvNotFound
 
 app = typer.Typer(add_completion=False, help="Cliente TIDAL con interfaz estilo Winamp.")
@@ -30,6 +32,9 @@ def login() -> None:
 def tui() -> None:
     """Lanza la interfaz."""
     from .app import TidalAmp
+
+    if os.environ.get("TIDALAMP_DEBUG"):
+        typer.echo(f"Registro de depuración en {LOG_FILE}")
 
     try:
         session = load_session()
@@ -59,6 +64,7 @@ def search(query: str, limit: int = 10) -> None:
 
 
 def main() -> None:
+    setup_logging()
     try:
         app()
     except NotLoggedIn as exc:
