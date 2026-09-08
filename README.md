@@ -5,18 +5,6 @@ en la API oficial y sin navegador de por medio: device flow + mpv.
 
 ![TidalAmp reproduciendo TOOL – Stinkfist](tidalamp.png)
 
-```
- ░▒▓ TIDAL AMP ▓▒░
-   _   _       _   _      3. Burial - Archangel (3:51)
-  | | | |  .  | |  _|     16bit  44kHz  LOSSLESS
-  |_| |_|  .  |_| |_
-                          ▁ ▄ ▅     ▄ ▁ ▁ ▁   ▁
-                          ▇ █ █ ▆ ▅ █ █ ▃ █ ▃ ▆ ▁ ▅ ▂ ▆ ▄ ▁ ▂ ▂
- ──────────────▓───────────────────────────────────────────────
- VOL █████████████████████████████████ 100
-  z ◀◀   x ▶   c ‖   v ■   b ▶▶      / buscar   t tiempo   q salir
-```
-
 ## Cómo funciona
 
 Tres capas independientes:
