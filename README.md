@@ -234,9 +234,34 @@ La interfaz necesita **76×20** celdas. Por debajo de eso el layout no encoge, s
 solapa, así que en vez de dibujar algo roto la aplicación tapa la pantalla y dice qué
 tamaño tienes y cuál hace falta. Al agrandar la ventana vuelve sola.
 
+## Configuración
+
+Todo es opcional. `tidalamp config` muestra los ajustes en uso y crea el fichero si no
+existe, en `~/.config/tidalamp/config.toml`:
+
+```toml
+quality = "HI_RES_LOSSLESS"   # LOW, HIGH, LOSSLESS o HI_RES_LOSSLESS
+artwork = "auto"              # auto, kitty, sixel, blocks u off
+debug = false                 # registro en ~/.local/state/tidalamp/tidalamp.log
+
+[keys]
+play = "p"
+quit = "ctrl+q"
+```
+
+El orden de precedencia es **entorno → fichero → valor por defecto**: las variables
+`TIDALAMP_QUALITY`, `TIDALAMP_ART` y `TIDALAMP_DEBUG` siguen funcionando y ganan sobre
+el fichero, que es lo que quieres para una ejecución suelta. Un fichero con un error de
+sintaxis no impide arrancar: se anota en el registro y mandan los valores por defecto.
+
+En `[keys]` la izquierda es la acción y la derecha la tecla; varias se separan con
+comas. Las acciones válidas son las de la tabla de abajo, y `tidalamp config` avisa de
+las que no existan. **Las teclas de navegación no se cambian** —flechas, RePág/AvPág,
+Enter, Esc—: son lo que hace navegable el navegador, y un error ahí te deja fuera.
+
 ## Teclas
 
-Son las de Winamp, a propósito.
+Son las de Winamp, a propósito. Se pueden cambiar (ver arriba).
 
 | Tecla | Acción |
 |---|---|

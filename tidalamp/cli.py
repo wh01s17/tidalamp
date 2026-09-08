@@ -7,6 +7,7 @@ import sys
 
 import typer
 
+from . import config as settings
 from .auth import NotLoggedIn, load_session
 from .auth import login as do_login
 from .config import LOG_FILE, setup_logging
@@ -52,6 +53,37 @@ def tui() -> None:
         TidalAmp(session, mpv).run()
     finally:
         mpv.close()
+
+
+@app.command("config")
+def show_config() -> None:
+    """Muestra la configuración efectiva y crea el fichero si no existe."""
+    from .app import DEFAULT_KEYS, keys_for, unknown_key_actions
+
+    path = settings.write_template()
+    typer.echo(f"Fichero: {path}")
+    typer.echo("")
+    typer.echo("Ajustes en uso:")
+    typer.echo(f"  quality  {settings.DEFAULT_QUALITY}")
+    typer.echo(f"  artwork  {settings.ARTWORK}")
+    typer.echo(f"  debug    {str(settings.DEBUG).lower()}")
+
+    changed = {a: keys_for(a) for a in DEFAULT_KEYS if keys_for(a) != DEFAULT_KEYS[a]}
+    typer.echo("")
+    if changed:
+        typer.echo("Teclas cambiadas:")
+        for action, key in changed.items():
+            typer.echo(f"  {action:<16} {key}   (por defecto {DEFAULT_KEYS[action]})")
+    else:
+        typer.echo("Teclas: todas por defecto.")
+
+    unknown = unknown_key_actions()
+    if unknown:
+        typer.secho(
+            "\nEstas acciones de [keys] no existen y se ignoran: "
+            + ", ".join(unknown),
+            fg=typer.colors.YELLOW,
+        )
 
 
 @app.command()

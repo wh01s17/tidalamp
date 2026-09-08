@@ -15,7 +15,7 @@ from textual.screen import ModalScreen
 from textual.widget import Widget
 from textual.widgets import Input, Static
 
-from . import artwork, library
+from . import artwork, config, library
 from .auth import NotLoggedIn, ensure_fresh
 from .library import Row
 from .lyrics import LyricsDocument, load_lyrics
@@ -591,6 +591,58 @@ def _entry_metadata(entry: Entry) -> dict:
     }
 
 
+# Every action a user may rebind, with the key Winamp used. Navigation keys
+# (arrows, page up/down, Enter, Escape) are deliberately not here: they are
+# what makes the browser navigable, and a typo there locks you out of it.
+DEFAULT_KEYS: dict[str, str] = {
+    "prev": "z",
+    "play": "x",
+    "pause": "c",
+    "stop": "v",
+    "next": "b",
+    "search": "slash",
+    "library": "l",
+    "lyrics": "y",
+    "equalizer": "e",
+    "shuffle": "s",
+    "repeat": "r",
+    "favourite": "f",
+    "unfavourite": "F",
+    "remove": "d,delete",
+    "move_up": "alt+up",
+    "move_down": "alt+down",
+    "clear": "C",
+    "seek_back": "left",
+    "seek_fwd": "right",
+    "vol_up": "plus,equals_sign",
+    "vol_down": "minus",
+    "balance_left": "comma",
+    "balance_right": "full_stop",
+    "balance_centre": "backslash",
+    "toggle_time": "t",
+    "quit": "q,ctrl+c",
+}
+
+
+def keys_for(action: str) -> str:
+    """The key bound to ``action``, from the config file or the default."""
+    override = config.KEYS.get(action)
+    if override:
+        return override
+    if action not in DEFAULT_KEYS:
+        raise KeyError(f"acción desconocida: {action}")
+    return DEFAULT_KEYS[action]
+
+
+def _bind(action: str, description: str, show: bool = False) -> Binding:
+    return Binding(keys_for(action), action, description, show=show)
+
+
+def unknown_key_actions() -> list[str]:
+    """Actions named in the config file that do not exist. For the CLI to warn."""
+    return sorted(set(config.KEYS) - set(DEFAULT_KEYS))
+
+
 class MainPanel(Vertical):
     """The whole UI, in one container that watches its own size.
 
@@ -615,39 +667,40 @@ class TidalAmp(App):
     MIN_WIDTH = 76
     MIN_HEIGHT = 20
 
-    # Winamp's own transport keys, kept as muscle memory.
+    # Winamp's own transport keys, kept as muscle memory. Rebindable ones come
+    # from DEFAULT_KEYS through the config file; navigation stays fixed.
     BINDINGS = [
-        Binding("z", "prev", "anterior"),
-        Binding("x", "play", "play"),
-        Binding("c", "pause", "pausa"),
-        Binding("v", "stop", "stop"),
-        Binding("b", "next", "siguiente"),
-        Binding("slash", "search", "buscar"),
-        Binding("l", "library", "biblioteca"),
-        Binding("y", "lyrics", "letra"),
-        Binding("e", "equalizer", "ecualizador"),
-        Binding("s", "shuffle", "shuffle"),
-        Binding("r", "repeat", "repeat"),
+        _bind("prev", "anterior", show=True),
+        _bind("play", "play", show=True),
+        _bind("pause", "pausa", show=True),
+        _bind("stop", "stop", show=True),
+        _bind("next", "siguiente", show=True),
+        _bind("search", "buscar", show=True),
+        _bind("library", "biblioteca", show=True),
+        _bind("lyrics", "letra", show=True),
+        _bind("equalizer", "ecualizador", show=True),
+        _bind("shuffle", "shuffle", show=True),
+        _bind("repeat", "repeat", show=True),
         Binding("up", "cursor_up", "arriba", show=False),
         Binding("down", "cursor_down", "abajo", show=False),
         Binding("pageup", "cursor_page_up", "", show=False),
         Binding("pagedown", "cursor_page_down", "", show=False),
         Binding("enter", "play_selected", "reproducir", show=False),
-        Binding("d,delete", "remove", "quitar", show=False),
-        Binding("alt+up", "move_up", "subir", show=False),
-        Binding("alt+down", "move_down", "bajar", show=False),
-        Binding("C", "clear", "vaciar", show=False),
-        Binding("left", "seek_back", "-5s", show=False),
-        Binding("right", "seek_fwd", "+5s", show=False),
-        Binding("plus,equals_sign", "vol_up", "vol+", show=False),
-        Binding("minus", "vol_down", "vol-", show=False),
-        Binding("comma", "balance_left", "balance izq", show=False),
-        Binding("full_stop", "balance_right", "balance der", show=False),
-        Binding("backslash", "balance_centre", "centrar balance", show=False),
-        Binding("t", "toggle_time", "tiempo", show=False),
-        Binding("f", "favourite", "favorito", show=False),
-        Binding("F", "unfavourite", "quitar favorito", show=False),
-        Binding("q,ctrl+c", "quit", "salir"),
+        _bind("remove", "quitar"),
+        _bind("move_up", "subir"),
+        _bind("move_down", "bajar"),
+        _bind("clear", "vaciar"),
+        _bind("seek_back", "-5s"),
+        _bind("seek_fwd", "+5s"),
+        _bind("vol_up", "vol+"),
+        _bind("vol_down", "vol-"),
+        _bind("balance_left", "balance izq"),
+        _bind("balance_right", "balance der"),
+        _bind("balance_centre", "centrar balance"),
+        _bind("toggle_time", "tiempo"),
+        _bind("favourite", "favorito"),
+        _bind("unfavourite", "quitar favorito"),
+        _bind("quit", "salir", show=True),
     ]
 
     status = reactive("listo")
@@ -664,7 +717,7 @@ class TidalAmp(App):
         self.mpris = MprisService(self)
         self._mpris_ready = False
         # How this terminal can draw a cover, decided once from the environment.
-        self.art_protocol = artwork.detect_protocol()
+        self.art_protocol = artwork.detect_protocol(configured=config.ARTWORK)
         self._art_url = ""
         self._art_hidden = False
         self._pending_art: artwork.Cover | None = None

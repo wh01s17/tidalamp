@@ -45,7 +45,8 @@ piezas).
 
 ```
 tidalamp/
-  config.py     Rutas XDG y calidad por defecto. Sin dependencias internas.
+  config.py     Rutas XDG, fichero de configuración TOML y ajustes resueltos
+                (entorno → fichero → defecto). Sin dependencias internas.
   auth.py       Device flow y persistencia de sesión. Lanza NotLoggedIn.
   stream.py     Track -> Playable (URL o playlist HLS local). Lanza StreamUnavailable.
   player.py     Clase Mpv: spawn del proceso, socket IPC, transporte, medición RMS.
@@ -327,7 +328,7 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
 
 ### Tests — `tests/`
 
-- [x] `pytest`, 198 pruebas, sin red y sin TIDAL. `pip install -e ".[dev]"`.
+- [x] `pytest`, 211 pruebas, sin red y sin TIDAL. `pip install -e ".[dev]"`.
 - [x] `tests/fake_mpv.py`: un mpv falso que habla el IPC JSON real y **emite eventos
       asíncronos antes de cada respuesta**, que es justo la trampa del §7. Lleva la
       cuenta de los filtros con etiqueta y rechaza la sintaxis con la etiqueta detrás.
@@ -361,9 +362,22 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
       shuffle en vez de regenerarla, así que reordenar no vuelve a barajar lo que suena
       después, y el cursor y la marca de «sonando» siguen a la pista movida.
 
+### Configuración — `config.py`, `app.py`
+
+- [x] `~/.config/tidalamp/config.toml`, leído con `tomllib` (sin dependencias).
+      Precedencia **entorno → fichero → defecto**: una variable de entorno es para una
+      ejecución suelta y tiene que ganar. Un TOML roto no impide arrancar: se registra
+      y mandan los valores por defecto.
+- [x] Teclas rebindables por acción en `[keys]`, con `DEFAULT_KEYS` como fuente única.
+      **Las de navegación no son rebindables** a propósito: un error de dedo en las
+      flechas dejaría al usuario sin poder salir del navegador.
+- [x] `tidalamp config` muestra los ajustes en uso, crea la plantilla comentada si no
+      existe —y nunca pisa la que ya haya— y avisa de las acciones inventadas en
+      `[keys]`, que si no se ignorarían en silencio.
+
 ### CLI — `cli.py`
 
-- [x] `tidalamp login`, `tidalamp tui`, `tidalamp search <query>`.
+- [x] `tidalamp login`, `tidalamp tui`, `tidalamp config`, `tidalamp search <query>`.
 
 ## 5. Estado de verificación
 
@@ -387,6 +401,7 @@ Distinguir esto importa: parte del código nunca se ha ejecutado contra TIDAL re
 | Paginación con páginas filtradas   | **VERIFICADO CONTRA TIDAL REAL**  | En la cuenta del usuario, «Pistas favoritas» pasó de 90 filas sin `más…` a 8 páginas y **699 pistas alcanzables de 766**; los 67 restantes TIDAL no los devuelve en ninguna página. Álbumes 539 y artistas 397 igual. Unitarias con un doble que filtra la página después del límite. |
 | Búsqueda por categorías            | **VERIFICADO CONTRA TIDAL REAL**  | «tool» devuelve 101 pistas en 0,34 s con tres filas de categoría; abrirlas da 101 álbumes, 101 artistas y 76 playlists, una petición cada una y sólo al abrirlas. |
 | Favoritos (escritura)              | **VERIFICADO CONTRA TIDAL REAL**  | Añadir y quitar una pista que no estaba en favoritos: el contador de la cuenta subió a 767 y volvió a 766. Saldo neto cero. Unitarias para pista, álbum, artista, playlist y para las filas que no son favoritables. |
+| Configuración y teclas             | **Verificado**                    | `tidalamp config` sobre un XDG temporal crea la plantilla, y con `quality`, `artwork` y dos teclas cambiadas la app arranca con `HIGH`, `Protocol.BLOCKS` y `play→p`, `quit→ctrl+q`; la acción inventada sale avisada. 13 unitarias de precedencia, TOML roto y plantilla. |
 | Reordenar la cola                  | **Verificado**                    | Unitarias de `Queue.move` (bordes, cursor, shuffle intacto) y `alt+↓` en la app real.                                                                                           |
 | Reinicio de mpv                    | **Verificado**                    | SIGKILL a mpv con la app corriendo: el tick lo relanza con otro PID y la pista vuelve a sonar.                                                                                  |
 | Espectro con cava                  | **VERIFICADO CON AUDIO REAL**     | El usuario instaló cava 0.10.7 y reprodujo Thriller: la insignia dice `FFT` y las bandas dibujan un espectro con forma, graves y agudos por separado. `pgrep` confirma `cava -p ~/.cache/tidalamp/cava.conf` vivo junto al mpv de la app. |
@@ -623,7 +638,7 @@ instalado nada sin comprobarlo.
   del sonido. No es un fallo del analizador.
 - Venv en `.venv/`, rehecho tras el renombrado; `.venv/bin/tidalamp` funciona de nuevo.
   Lleva el paquete en editable más `pytest` y `pyte`.
-- Tests: `.venv/bin/python -m pytest` (198 pruebas, ~12 s, sin red ni bus de usuario).
+- Tests: `.venv/bin/python -m pytest` (211 pruebas, ~12 s, sin red ni bus de usuario).
   El extra `dev` arrastra Pillow, así que las pruebas de carátula corren de verdad; si
   falta, se saltan solas.
 - En la primera máquina `cava` sí estaba, en `/usr/bin/cava`, y arrancó con la

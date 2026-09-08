@@ -58,17 +58,23 @@ _KITTY_PROGRAMS = ("ghostty", "WezTerm", "wezterm")
 _SIXEL_TERMS = ("foot", "mlterm", "contour", "yaft", "sixel")
 
 
-def detect_protocol(env: dict[str, str] | None = None) -> Protocol:
+def detect_protocol(
+    env: dict[str, str] | None = None, configured: str = ""
+) -> Protocol:
     """Decide how to draw the cover, from the environment alone.
 
     Querying the terminal is the accurate way, but the reply would land in
     Textual's input stream; guessing from ``$TERM`` costs nothing and the
     half-block fallback is good enough that a wrong guess is not a failure.
-    ``TIDALAMP_ART`` overrides everything, including ``off``.
+    ``configured`` (the ``artwork`` setting, which already accounts for
+    ``TIDALAMP_ART``) overrides everything, including ``off``; ``auto`` means
+    "guess".
     """
     env = os.environ if env is None else env
 
-    forced = (env.get("TIDALAMP_ART") or "").strip().lower()
+    forced = (configured or env.get("TIDALAMP_ART") or "").strip().lower()
+    if forced == "auto":
+        forced = ""
     if forced in {"off", "none"}:
         return Protocol.NONE
     if forced in {p.value for p in Protocol}:

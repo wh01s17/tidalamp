@@ -255,7 +255,10 @@ def test_the_same_cover_is_not_fetched_twice(monkeypatch):
 
 def test_artwork_off_never_asks_for_a_cover(monkeypatch):
     isolate_runtime(monkeypatch)
-    monkeypatch.setattr("tidalamp.artwork.detect_protocol", lambda env=None: Protocol.NONE)
+    monkeypatch.setattr(
+        "tidalamp.artwork.detect_protocol",
+        lambda env=None, configured="": Protocol.NONE,
+    )
     asked: list[str] = []
     monkeypatch.setattr(TidalAmp, "_art_worker", lambda self, url: asked.append(url))
 
