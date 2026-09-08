@@ -12,9 +12,11 @@ def _xdg(var: str, default: str) -> Path:
 
 CONFIG_DIR = _xdg("XDG_CONFIG_HOME", ".config") / "tidalamp"
 CACHE_DIR = _xdg("XDG_CACHE_HOME", ".cache") / "tidalamp"
+STATE_DIR = _xdg("XDG_STATE_HOME", ".local/state") / "tidalamp"
 
 SESSION_FILE = CONFIG_DIR / "session.json"
 IPC_SOCKET = CACHE_DIR / "mpv.sock"
+QUEUE_FILE = STATE_DIR / "queue.json"
 
 # TIDAL quality to request. HIGH/LOW come back as plain URLs that mpv plays
 # directly; LOSSLESS and HI_RES_LOSSLESS arrive as segmented DASH manifests,
@@ -25,3 +27,4 @@ DEFAULT_QUALITY = os.environ.get("TIDALAMP_QUALITY", "LOSSLESS")
 def ensure_dirs() -> None:
     CONFIG_DIR.mkdir(parents=True, exist_ok=True)
     CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    STATE_DIR.mkdir(parents=True, exist_ok=True)
