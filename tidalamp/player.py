@@ -50,6 +50,9 @@ class Mpv:
                 "--no-video",
                 "--no-terminal",
                 "--audio-display=no",
+                # A system-wide mpv-mpris would otherwise publish a second,
+                # duplicate player on the bus. We expose MPRIS ourselves.
+                "--load-scripts=no",
                 f"--input-ipc-server={IPC_SOCKET}",
                 f"--af={_AUDIO_FILTER}",
             ],

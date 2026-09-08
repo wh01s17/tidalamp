@@ -7,6 +7,7 @@ dependencies = [
     "tidalapi>=0.8.11",
     "textual>=0.80",
     "typer>=0.12",
+    "dbus-next>=0.2.3",
 ]
 
 [project.scripts]
