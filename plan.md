@@ -587,16 +587,25 @@ Cosas que ya costaron tiempo una vez:
 
 ## 8. Entorno
 
-- Arch Linux, Hyprland (Omarchy). Python 3.14, mpv y ffmpeg en el sistema.
+**El proyecto se está trabajando desde más de una máquina.** Lo que sigue describe la
+segunda (2026-09-08, host `omarchy`), no la que se documentó al principio: no des por
+instalado nada sin comprobarlo.
+
+- Arch Linux, Hyprland (Omarchy), Wayland. Python 3.14. `mpv`, `ffmpeg`, `kitty`,
+  `dbus-daemon` y `pw-cli` presentes.
+- **Ausentes aquí:** `cava` (el espectro cae al vúmetro RMS, por diseño) y `playerctl`
+  (sólo hace falta para probar MPRIS a mano; la suite levanta su propio bus).
+- El sink por defecto es **Bluetooth**. Importa para el espectro: cava lee el monitor
+  del sink, y por Bluetooth la latencia es alta, así que las barras irán algo por detrás
+  del sonido. No es un fallo del analizador.
 - Venv en `.venv/`, rehecho tras el renombrado; `.venv/bin/tidalamp` funciona de nuevo.
   Lleva el paquete en editable más `pytest` y `pyte`.
 - Tests: `.venv/bin/python -m pytest` (174 pruebas, ~8 s, sin red ni bus de usuario).
   El extra `dev` arrastra Pillow, así que las pruebas de carátula corren de verdad; si
   falta, se saltan solas.
-- **`cava` ya NO está instalado** (comprobado el 2026-09-08: ni el binario ni el
-  paquete). En su día lo estuvo y arrancó con la configuración real de 19 bandas. Las
-  pruebas automatizadas usan `tests/fake_cava.py` y no lo necesitan; para ver el
-  espectro real hay que `sudo pacman -S cava`.
+- En la primera máquina `cava` sí estaba, en `/usr/bin/cava`, y arrancó con la
+  configuración real de 19 bandas. Las pruebas automatizadas usan `tests/fake_cava.py`
+  y no lo necesitan en ninguna de las dos.
 - Para ver el layout sin terminal interactivo hay un atajo más corto que pyte:
   `app.export_screenshot()` dentro de `run_test()` da un SVG del que se saca el texto.
 - Smoke headless de la app entera (mpv falso + sesión doble) en el scratchpad de la
@@ -615,12 +624,15 @@ o un par de ojos. Ninguna es un cambio de código: son la última columna de §5
 
 ### 9.1 Espectro real de cava — necesita sonido
 
-`cava` no está instalado:
+En esta máquina `cava` no está instalado (en la otra sí lo estaba; ver §8):
 
 ```sh
 sudo pacman -S cava
 cd ~/Documents/workspace/tidalamp && .venv/bin/tidalamp tui
 ```
+
+Con un sink Bluetooth como el de aquí, cuenta con que las barras vayan un poco por
+detrás del sonido: la latencia es del camino de audio, no del analizador.
 
 Reproduce algo y mira la insignia del display, a la derecha del `HI_RES_LOSSLESS`:
 
