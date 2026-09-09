@@ -173,6 +173,26 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
       rebindeado en `config.toml` enseña la tecla que de verdad funciona.
 - [x] Indicadores de shuffle y repetición encendidos con el acento del tema, con
       actualización inmediata por teclado o MPRIS.
+- [x] **Aspecto y color son dos ajustes distintos.** `theme` elige la estructura
+      —`quattro` (por defecto, plano y moderno), `retro` (la piel del 97 hasta donde
+      llega un terminal), `nova` (sin marcos, un solo fondo) y `ascii` (un terminal de
+      antes del dibujo de cajas)— y `palette` elige el color. Cualquiera de los tres funciona con cualquier paleta, y los dos cambian
+      en vivo desde la ventana de `o` sin parar la reproducción. La lista de
+      estructuras vive una sola vez, en `theme.LAYOUTS`.
+- [x] `retro` es lo que hace reconocible al original: las barras de título se dibujan
+      como una regla con el nombre centrado encima, los botones son teclas cuadradas
+      pegadas hombro con hombro —no un marco segmentado— y los dos conmutadores llevan
+      escritas las palabras `SHUFFLE` y `REPEAT`.
+- [x] `ascii` no gasta un solo glifo fuera de ASCII en el cromado: botones
+      `[ z << ]`, reglas de `=` y `-`, y el borde del panel con el `border: ascii` del
+      propio Textual. Los medidores conservan sus bloques.
+- [x] `nova` no dibuja ni una caja: un único fondo, aire por separación, y el color
+      reservado a los dos controles que llevan estado, con una regla del acento debajo
+      del que está encendido.
+- [x] Paletas portables además de Omarchy: `classic`, `tokyo-night`, `catppuccin`,
+      `nord`, `gruvbox`, o un TOML propio en `~/.config/tidalamp/palettes/` con el
+      mismo formato que el `colors.toml` de Omarchy. El nombre se valida contra
+      `[a-z0-9_-]+` antes de tocar el disco, así que una paleta no es una ruta.
 - [x] Paleta completa tomada del tema Omarchy activo cuando existe; recarga en vivo
       cada dos segundos. En otras distros conserva exactamente los colores clásicos.
 - [x] `Spinner`: indicador animado de espera que dice **qué** se está cargando, en la
@@ -480,7 +500,7 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
 
 ### Tests — `tests/`
 
-- [x] `pytest`, 224 pruebas, sin red y sin TIDAL. `pip install -e ".[dev]"`.
+- [x] `pytest`, 362 pruebas, sin red y sin TIDAL. `pip install -e ".[dev]"`.
 - [x] `tests/fake_mpv.py`: un mpv falso que habla el IPC JSON real y **emite eventos
       asíncronos antes de cada respuesta**, que es justo la trampa del §7. Lleva la
       cuenta de los filtros con etiqueta y rechaza la sintaxis con la etiqueta detrás.
@@ -820,6 +840,29 @@ Cosas que ya costaron tiempo una vez:
 - **Un reactive que cambia el tamaño necesita `layout=True`.** El `Spinner` es de
   ancho `auto`: sin eso quedaba medido a cero cuando no tenía texto y no volvía a
   aparecer nunca.
+- **La suite leía el `config.toml` real del usuario.** `config.FILE` se lee al
+  importar el módulo, y sólo los tests que llamaban a `isolate_config` lo desviaban a
+  un temporal. Mientras no hubo un ajuste que cambiara el dibujo daba igual; en cuanto
+  `theme` existió, la misma suite pasaba o fallaba según lo que el usuario hubiera
+  elegido por última vez en la app corriendo — verde dos veces y roja a la tercera sin
+  tocar una línea de código. La fixture `pristine_config` de `conftest.py` apunta
+  `CONFIG_FILE` a un temporal vacío, limpia las variables de entorno y restaura los
+  globales al terminar.
+- **Los ajustes son estado de módulo, como la caché de niveles.** Un test que cambiaba
+  el tema dejaba a todos los siguientes dibujando el otro. Misma fixture.
+- **Los medios bloques no son un contorno.** `▛▀▜` parecía el bisel de un botón de
+  Winamp en un volcado ASCII; en color cada `▀` rellena su celda y la fila entera sale
+  como una losa gris de lado a lado del panel. La única arista que tiene de verdad un
+  terminal es una línea dibujada.
+- **`Static.update(..., layout=False)` conserva el ancho que ya tenía.** Es lo correcto
+  para los ticks, que repintan el transporte varias veces por segundo. Deja de serlo
+  cuando el contenido cambia de tamaño: al cambiar de tema en vivo, los botones se
+  recortaban al ancho del tema anterior y la fila salía cortada a media palabra. El
+  cambio de aspecto y el redimensionado piden `layout=True`; los ticks no.
+- **Los corchetes de un rótulo desaparecen.** Misma trampa que la de `Static.update` y
+  el marcado de Rich, pero desde dentro: el tema `ascii` dibuja su barra de título como
+  «[ TIDAL AMP ]», y Rich se comió los corchetes y todo lo que iba entre ellos. Las dos
+  cabeceras se construyen ya con `markup=False`.
 - **Textual captura stdout mientras la app corre**: un `print` dentro de `run_test()`
   no aparece hasta que el bloque termina. Para sacar datos de una app que sigue viva,
   escribe a un fichero.
@@ -839,7 +882,7 @@ instalado nada sin comprobarlo.
   del sonido. No es un fallo del analizador.
 - Venv en `.venv/`, rehecho tras el renombrado; `.venv/bin/tidalamp` funciona de nuevo.
   Lleva el paquete en editable más `pytest` y `pyte`.
-- Tests: `.venv/bin/python -m pytest` (224 pruebas, ~10 s, sin red ni bus de usuario).
+- Tests: `.venv/bin/python -m pytest` (362 pruebas, ~40 s, sin red ni bus de usuario).
   El extra `dev` arrastra Pillow, así que las pruebas de carátula corren de verdad; si
   falta, se saltan solas.
 - En la primera máquina `cava` sí estaba, en `/usr/bin/cava`, y arrancó con la
