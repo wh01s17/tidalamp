@@ -506,7 +506,7 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
 
 ### Tests — `tests/`
 
-- [x] `pytest`, 364 pruebas, sin red y sin TIDAL. `pip install -e ".[dev]"`.
+- [x] `pytest`, 370 pruebas, sin red y sin TIDAL. `pip install -e ".[dev]"`.
 - [x] `tests/fake_mpv.py`: un mpv falso que habla el IPC JSON real y **emite eventos
       asíncronos antes de cada respuesta**, que es justo la trampa del §7. Lleva la
       cuenta de los filtros con etiqueta y rechaza la sintaxis con la etiqueta detrás.
@@ -535,6 +535,16 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
       `A` añade todo el nivel, y si el nivel sólo tiene contenedores cae en `a`.
 - [x] `RowList` es un único widget compartido por la cola y por el navegador.
 - [x] `s` shuffle, `r` repeat, `d` quitar, `C` vaciar; indicadores `[SHUF REP:ALL]`.
+- [x] La cola se dibuja en columnas —título, artista, álbum, año y duración— cuando
+      hay ancho, en vez de meter el artista dentro del título. Caen en el orden en que
+      se pueden perder: el año primero, que son cuatro celdas que el título siempre usa
+      mejor; después el álbum y el artista juntos; y al final queda `artista - título`
+      en una línea. Una fila sin `entry` —un álbum, un artista, una playlist en el
+      navegador— no tiene nada que poner en esas columnas y se queda la línea entera.
+- [x] `Entry.year` sale de `album.year` de tidalapi, que lo deduce de la fecha de
+      publicación que tenga. Un álbum sin fecha, o una pista sin álbum, da `0` y deja
+      la celda en blanco en vez de dibujar un «0». Una cola guardada antes de que la
+      columna existiera se carga igual.
 - [x] La columna de duración se mide **una vez para toda la lista**, no por fila, y va
       alineada a la derecha dentro de ella. Medida por fila, un `11:53` era una celda
       más ancho que un `5:07` y empujaba la columna de álbum: una columna que sólo
@@ -902,7 +912,7 @@ instalado nada sin comprobarlo.
   del sonido. No es un fallo del analizador.
 - Venv en `.venv/`, rehecho tras el renombrado; `.venv/bin/tidalamp` funciona de nuevo.
   Lleva el paquete en editable más `pytest` y `pyte`.
-- Tests: `.venv/bin/python -m pytest` (364 pruebas, ~44 s, sin red ni bus de usuario).
+- Tests: `.venv/bin/python -m pytest` (370 pruebas, ~50 s, sin red ni bus de usuario).
   El extra `dev` arrastra Pillow, así que las pruebas de carátula corren de verdad; si
   falta, se saltan solas.
 - En la primera máquina `cava` sí estaba, en `/usr/bin/cava`, y arrancó con la

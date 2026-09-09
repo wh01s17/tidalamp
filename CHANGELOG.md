@@ -20,6 +20,10 @@ sección se cierra con su número y su fecha; el procedimiento completo está en
   botones salen de los bindings efectivos, así que siguen a `config.toml`.
 - El transporte se dibuja como botones de tres filas, en dos grupos: el transporte por
   un lado y shuffle/repetición por otro.
+- La cola se dibuja en columnas —título, artista, álbum, año y duración— cuando el
+  terminal da para ello, en vez de meter el artista dentro del título. Se van cayendo
+  en el orden en que se pueden perder: primero el año, luego el álbum y el artista, y
+  al final queda `artista - título` en una línea con la duración a la derecha.
 - **Cuatro estructuras visuales, elegibles con `theme`**, independientes del color:
   `quattro` (por defecto, plana y moderna), `retro` (barras de título dibujadas como
   una regla con el nombre centrado, teclas cuadradas pegadas y los conmutadores con las

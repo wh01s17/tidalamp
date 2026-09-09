@@ -76,37 +76,75 @@ class RowList(Widget):
             return self.rows[self.cursor]
         return None
 
+    # A year is four digits and never anything else.
+    YEAR_WIDTH = 4
+
+    # The columns are dropped one at a time as the list narrows: the title
+    # matters more than the year, and the year more than nothing fitting.
+    FULL_WIDTH = 116
+    ALBUM_WIDTH = 96
+
+    # Artist and album take a sixth of the list each, floored so a column
+    # that appears at all can say something, and capped so a very wide
+    # terminal does not spend everything on metadata — though the cap is
+    # generous enough that «Tú Me Vuelves Loco (Bailable)» survives it.
+    METADATA_SHARE = 6
+    METADATA_MIN = 12
+    METADATA_MAX = 30
+
     @staticmethod
-    def _line(row: Row, index: int, marked: int, width: int, detail_width: int) -> str:
-        """Fit one row by terminal cells and expose album metadata when wide.
+    def _right(text: str, width: int) -> str:
+        """Pad on the left, so digits line up on their last cell."""
+        trimmed = set_cell_size(text, min(cell_len(text), width))
+        return " " * (width - cell_len(trimmed)) + trimmed
+
+    @classmethod
+    def _line(
+        cls, row: Row, index: int, marked: int, width: int, detail_width: int
+    ) -> str:
+        """Fit one row by terminal cells, in columns when there is room.
 
         `detail_width` is the widest detail in the whole list, not this row's
         own. Measured per row, a `11:53` next to a `5:07` moved the album
         column a cell to the left on the longer ones, and a column that only
         lines up when every track is under ten minutes is not a column.
+
+        A row with no entry — an album, an artist, a playlist in the browser —
+        has nothing to put in those columns, so it keeps the whole line for
+        its own name.
         """
         marker = "▶" if index == marked else (" " if row.is_playable else "›")
-        left = f"{marker}{index + 1:>3}. {row.label}"
-        detail = ""
-        if detail_width:
-            # Right-aligned inside its column, so the digits line up.
-            trimmed = set_cell_size(row.detail, min(cell_len(row.detail), detail_width))
-            detail = " " * (detail_width - cell_len(trimmed)) + trimmed
-        album = row.entry.album if row.entry is not None else ""
-
-        # At wide sizes the album column makes otherwise identical search and
-        # queue rows distinguishable without cluttering the compact layout.
-        album_width = min(24, max(12, width // 5))
+        detail = cls._right(row.detail, detail_width) if detail_width else ""
+        entry = row.entry
         detail_block = detail_width + 2 if detail else 0
-        left_width = width - album_width - 2 - detail_block
-        if width >= 100 and album and left_width >= 24:
-            line = (
-                f"{set_cell_size(left, left_width)}  {set_cell_size(album, album_width)}"
-            )
-            if detail:
-                line += f"  {detail}"
-            return set_cell_size(line, width)
 
+        if entry is not None and width >= cls.ALBUM_WIDTH:
+            column = min(
+                cls.METADATA_MAX,
+                max(cls.METADATA_MIN, width // cls.METADATA_SHARE),
+            )
+            artist_width = album_width = column
+            # The year is the first column to go: it is four cells that the
+            # title can always use better.
+            year = str(entry.year) if entry.year and width >= cls.FULL_WIDTH else ""
+            year_block = cls.YEAR_WIDTH + 2 if width >= cls.FULL_WIDTH else 0
+            title_width = (
+                width - artist_width - album_width - year_block - detail_block - 4
+            )
+            if title_width >= 24:
+                line = (
+                    f"{marker}{index + 1:>3}. "
+                    f"{set_cell_size(entry.title, title_width - 6)}  "
+                    f"{set_cell_size(entry.artist, artist_width)}  "
+                    f"{set_cell_size(entry.album, album_width)}"
+                )
+                if year_block:
+                    line += f"  {cls._right(year, cls.YEAR_WIDTH)}"
+                if detail:
+                    line += f"  {detail}"
+                return set_cell_size(line, width)
+
+        left = f"{marker}{index + 1:>3}. {row.label}"
         left_width = width - detail_width - (1 if detail else 0)
         line = set_cell_size(left, max(0, left_width))
         if detail:

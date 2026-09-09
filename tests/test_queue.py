@@ -1,3 +1,5 @@
+import pytest
+
 from tidalamp.queue import Entry, Queue, Repeat
 
 
@@ -117,10 +119,69 @@ def test_load_of_corrupt_json_is_false(queue_file):
 
 
 def test_entry_dict_roundtrip():
-    entry = Entry(id=7, title="x", artist="y", album="z", duration=125, art_url="u")
+    entry = Entry(
+        id=7, title="x", artist="y", album="z", year=1995, duration=125, art_url="u"
+    )
     clone = Entry.from_dict(entry.to_dict())
     assert clone == entry
+    assert clone.year == 1995
     assert clone.length == "2:05"
+
+
+class FakeAlbum:
+    def __init__(self, name="Greatest Hits", year=1995, cover=True):
+        self.name = name
+        # tidalapi works this out from whichever release date it holds, and
+        # returns None when the album carries neither.
+        self.year = year
+        self._cover = cover
+
+    def image(self, size):
+        if not self._cover:
+            raise Exception("no cover id")
+        return f"https://art/{size}.jpg"
+
+
+class FakeApiTrack:
+    def __init__(self, album):
+        self.id = 7
+        self.name = "Oh Qué Será?"
+        self.artist = type("A", (), {"name": "Willie Colón"})()
+        self.album = album
+        self.duration = 304
+
+
+def test_an_entry_takes_the_year_from_the_album():
+    entry = Entry.from_track(FakeApiTrack(FakeAlbum()))
+
+    assert entry.year == 1995
+    assert entry.album == "Greatest Hits"
+    assert entry.artist == "Willie Colón"
+    assert entry.art_url == "https://art/320.jpg"
+
+
+@pytest.mark.parametrize(
+    "album",
+    [
+        FakeAlbum(year=None),  # released, but TIDAL has no date for it
+        FakeAlbum(year=None, cover=False),
+        None,  # a track with no album at all
+    ],
+)
+def test_a_track_without_a_usable_year_is_not_a_crash(album):
+    entry = Entry.from_track(FakeApiTrack(album))
+
+    assert entry.year == 0
+    assert entry.title == "Oh Qué Será?"
+
+
+def test_a_queue_saved_before_the_year_existed_still_loads():
+    """The column was added after people had queues on disk."""
+    old = {"id": 7, "title": "x", "artist": "y", "album": "z", "duration": 125}
+    entry = Entry.from_dict(old)
+
+    assert entry.year == 0
+    assert entry.title == "x"
 
 
 # --------------------------------------------------------------------- row ids

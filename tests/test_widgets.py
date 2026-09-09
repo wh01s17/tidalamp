@@ -128,14 +128,20 @@ def test_rows_align_unicode_and_show_album_only_when_there_is_room():
 
             line = rows.render().plain.splitlines()[0]
             assert cell_len(line) == rows.size.width
-            assert "Álbum edición especial" in line
+            # Wide: title, artist and album each in their own column, and the
+            # duration last. The album is cropped to its column, not dropped.
+            assert "アーティスト" in line
+            assert "Álbum edición" in line
+            assert line.index("東京") < line.index("アーティスト") < line.index("Álbum")
             assert line.endswith("4:05")
 
             rows.styles.width = 40
             await pilot.pause()
             compact = rows.render().plain.splitlines()[0]
             assert cell_len(compact) == 40
-            assert "Álbum edición especial" not in compact
+            # Narrow: back to «artist - title» on one line, no columns.
+            assert "Álbum" not in compact
+            assert "アーティスト - 東京" in compact
             assert compact.endswith("4:05")
 
     asyncio.run(scenario())
@@ -181,5 +187,68 @@ def test_the_album_column_does_not_move_when_a_track_passes_ten_minutes():
             }
             assert lines[-1].rstrip().endswith("62:04")
             assert lines[0].rstrip().endswith("5:07")
+
+    asyncio.run(scenario())
+
+
+def test_the_queue_shows_artist_album_year_and_duration_as_columns():
+    """Four columns, and each one dropped in the order it can be spared."""
+
+    async def scenario() -> None:
+        app = TextWidthApp()
+        async with app.run_test(size=(200, 8)) as pilot:
+            rows = app.query_one(RowList)
+            rows.styles.height = 2
+            entries = [
+                Entry(
+                    id=1,
+                    title="Oh Qué Será?",
+                    artist="Willie Colón",
+                    album="Greatest Hits",
+                    year=1995,
+                    duration=304,
+                ),
+                # No year: the column stays, this row just leaves it blank.
+                Entry(id=2, title="Virgen", artist="Adolescent's", album="Ahora"),
+            ]
+            rows.set_rows([Row(label=e.label, detail=e.length, entry=e) for e in entries])
+
+            rows.styles.width = 160
+            await pilot.pause()
+            first, second = rows.render().plain.splitlines()[:2]
+            assert cell_len(first) == 160
+            for column in ("Oh Qué Será?", "Willie Colón", "Greatest Hits", "1995"):
+                assert column in first
+            assert first.rstrip().endswith("5:04")
+            # Order left to right, and the artist is out of the title.
+            assert (
+                first.index("Oh Qué Será?")
+                < first.index("Willie Colón")
+                < first.index("Greatest Hits")
+                < first.index("1995")
+            )
+            assert "Willie Colón - Oh" not in first
+            # Every column starts at the same cell on every row.
+            assert first.index("Willie Colón") == second.index("Adolescent's")
+            assert first.index("Greatest Hits") == second.index("Ahora")
+            # An entry with no year leaves its cell blank rather than «0».
+            slot = first.index("1995")
+            assert second[slot : slot + 4].strip() == ""
+
+            # Narrower: the year goes first, the rest of the columns stay.
+            rows.styles.width = 100
+            await pilot.pause()
+            line = rows.render().plain.splitlines()[0]
+            assert cell_len(line) == 100
+            assert "1995" not in line
+            assert "Willie Colón" in line and "Greatest Hits" in line
+
+            # Narrower still: back to one label per row.
+            rows.styles.width = 80
+            await pilot.pause()
+            line = rows.render().plain.splitlines()[0]
+            assert cell_len(line) == 80
+            assert "Greatest Hits" not in line
+            assert "Willie Colón - Oh Qué Será?" in line
 
     asyncio.run(scenario())

@@ -124,6 +124,11 @@ artists. Enter a level with `↵` and go back with `⌫`.
   it appends all of its contents.
 - `A` appends every track in the current level.
 
+A wide enough terminal splits the queue into columns — title, artist, album, year and
+duration — instead of running the artist into the title. They are dropped in the order
+they can be spared as the window narrows: first the year, then the album and artist
+together, ending at `artist - title` on one line with the duration on the right.
+
 The queue is stored at `~/.local/state/tidalamp/queue.json` and restored on startup,
 including the previous cursor. Only metadata is saved; the API `Track` object is
 resolved when playback starts, so restoring a long queue is immediate.

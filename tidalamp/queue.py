@@ -58,6 +58,7 @@ class Entry:
     title: str
     artist: str
     album: str = ""
+    year: int = 0
     duration: int = 0
     art_url: str = ""
     # Identity of this row, not of the song. Excluded from equality so two
@@ -80,6 +81,9 @@ class Entry:
             title=track.name,
             artist=getattr(getattr(track, "artist", None), "name", "") or "",
             album=getattr(album, "name", "") or "",
+            # tidalapi works the year out of whichever release date it has,
+            # and returns None when the album carries neither.
+            year=int(getattr(album, "year", 0) or 0),
             duration=int(track.duration or 0),
             art_url=art,
             _track=track,
@@ -108,6 +112,7 @@ class Entry:
             "title": self.title,
             "artist": self.artist,
             "album": self.album,
+            "year": self.year,
             "duration": self.duration,
             "art_url": self.art_url,
             "uid": self.uid,
@@ -120,6 +125,8 @@ class Entry:
             title=raw.get("title", ""),
             artist=raw.get("artist", ""),
             album=raw.get("album", ""),
+            # A queue written before the column existed simply has no year.
+            year=int(raw.get("year", 0) or 0),
             duration=int(raw.get("duration", 0)),
             art_url=raw.get("art_url", ""),
             # A queue written before uids existed simply gets fresh ones.
