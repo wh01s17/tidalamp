@@ -47,8 +47,11 @@ def test_volume_roundtrip(mpv):
 
 
 def test_volume_is_clamped(mpv):
+    """Not to mpv's own 130: above 100 it is digital gain, and it clips."""
     mpv.volume = 500
-    assert mpv.volume == 130
+    assert mpv.volume == Mpv.VOLUME_MAX == 100
+    mpv.volume = 101
+    assert mpv.volume == 100
     mpv.volume = -10
     assert mpv.volume == 0
 

@@ -8,14 +8,16 @@ import threading
 from textual.screen import Screen
 from textual.widgets import Static
 
-from tidalamp import artwork, library
-from tidalamp.app import BrowserScreen, TidalAmp
+from tidalamp import about, artwork, library
+from tidalamp import app as app_module
+from tidalamp.app import BrowserScreen, HelpScreen, TidalAmp
 from tidalamp.artwork import Cover, Protocol
 from tidalamp.library import Row
+from tidalamp.player import Mpv
 from tidalamp.queue import Entry, Queue
 from tidalamp.settings import Settings
 from tidalamp.theme import DEFAULT_COLORS, ThemePalette
-from tidalamp.widgets import Artwork, Spinner
+from tidalamp.widgets import Artwork, Slider, Spinner
 
 
 async def settle(pilot, done, tries: int = 100) -> None:
@@ -32,13 +34,22 @@ class FakeMpv:
     alive = True
     position = 0.0
     duration = 0.0
-    volume = 100
     paused = False
     idle = True
 
     def __init__(self) -> None:
         self.filter_calls: list[tuple[str, str | None]] = []
         self.loaded: str | None = None
+        self._volume = 100
+
+    @property
+    def volume(self) -> int:
+        return self._volume
+
+    @volume.setter
+    def volume(self, value: int) -> None:
+        # Same ceiling as the real player: the app relies on it to clamp.
+        self._volume = max(0, min(Mpv.VOLUME_MAX, value))
 
     def load(self, url: str) -> None:
         self.loaded = url
@@ -158,6 +169,69 @@ def test_the_cover_takes_no_room_until_there_is_one(monkeypatch):
             art.show(a_cover())
             await pilot.pause()
             assert art.styles.display == "block"
+
+    asyncio.run(scenario())
+
+
+def test_the_cover_box_grows_with_the_terminal_but_leaves_the_row_alone(monkeypatch):
+    """18x9 was fixed, which made the cover a stamp on a big terminal.
+
+    Two ceilings have to hold: the display band must not eat the playlist,
+    and the box shares its row with the clock and the readout.
+    """
+    isolate_runtime(monkeypatch)
+
+    async def scenario() -> None:
+        for size, expected in ((76, 20), 9), ((120, 50), 12), ((180, 100), 20):
+            application = TidalAmp(object(), FakeMpv())
+            async with application.run_test(size=size) as pilot:
+                await pilot.pause()
+                art = application.query_one(Artwork)
+                assert (art.rows, art.cols) == (expected, expected * 2), size
+
+                # A square box on screen, and room left for the rest of the row.
+                art.show(a_cover())
+                await pilot.pause()
+                clock = application.query_one("#clock")
+                readout = application.query_one("#readout")
+                assert art.region.right <= clock.region.x
+                assert readout.region.right <= size[0]
+                assert application.query_one("#playlist").size.height > 0
+
+    asyncio.run(scenario())
+
+
+def test_a_narrow_but_tall_terminal_keeps_the_small_box(monkeypatch):
+    """Height alone must not grow it: the readout shares the row and would go."""
+    isolate_runtime(monkeypatch)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(76, 200)) as pilot:
+            await pilot.pause()
+            assert application.query_one(Artwork).rows == Artwork.MIN_ROWS
+
+    asyncio.run(scenario())
+
+
+def test_resizing_asks_for_the_cover_again_at_the_new_size(monkeypatch):
+    """resize() drops the old cover, so something has to redraw it."""
+    isolate_runtime(monkeypatch)
+    asked: list[str] = []
+    monkeypatch.setattr(TidalAmp, "_art_worker", lambda self, url: asked.append(url))
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(100, 30)) as pilot:
+            await pilot.pause()
+            application._art_url = "http://example/cover.jpg"
+            asked.clear()
+            application.query_one(Artwork).show(a_cover())
+
+            await pilot.resize_terminal(180, 100)
+            await pilot.pause()
+            assert application.query_one(Artwork).rows == 20
+            assert asked == ["http://example/cover.jpg"]
 
     asyncio.run(scenario())
 
@@ -376,6 +450,222 @@ def test_the_browser_says_what_it_is_loading_and_stops_when_it_lands(monkeypatch
             release.set()
             await settle(pilot, lambda: not spinner.busy)
             assert not spinner.busy
+
+    asyncio.run(scenario())
+
+
+def test_a_title_with_brackets_survives_the_browser_header(monkeypatch):
+    """TIDAL names square-bracket things all the time: «[Deluxe Edition]».
+
+    `Static.update` reads a str as Rich markup, so the header used to swallow
+    everything from the first bracket on, and a name carrying a closing tag
+    («[/]») raised MarkupError instead of drawing.
+    """
+    isolate_runtime(monkeypatch)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(100, 40)) as pilot:
+            for name in ("Lateralus [Deluxe Edition]", "Song [/] end", "[red]hot[/red]"):
+                application.push_screen(BrowserScreen(name, lambda: [Row(label="x")]))
+                await pilot.pause()
+                drawn = application.screen.query_one("#browser-title").render_line(0)
+                assert name[:20] in drawn.text
+                application.pop_screen()
+                await pilot.pause()
+
+    asyncio.run(scenario())
+
+
+# ------------------------------------------------------------------------ volume
+
+
+def test_the_volume_slider_scales_to_the_players_ceiling(monkeypatch):
+    """A full bar has to mean the loudest the player will actually go."""
+    isolate_runtime(monkeypatch)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(100, 36)) as pilot:
+            await pilot.pause()
+            slider = application.query_one("#volume", Slider)
+            assert slider.maximum == Mpv.VOLUME_MAX
+
+            slider.value = Mpv.VOLUME_MAX
+            await pilot.pause()
+            assert "░" not in slider.render_line(0).text
+
+    asyncio.run(scenario())
+
+
+def test_turning_the_volume_up_stops_at_the_ceiling(monkeypatch):
+    isolate_runtime(monkeypatch)
+
+    async def scenario() -> None:
+        mpv = FakeMpv()
+        application = TidalAmp(object(), mpv)
+        async with application.run_test(size=(100, 36)) as pilot:
+            await pilot.pause()
+            for _ in range(30):
+                await pilot.press("plus")
+            await pilot.pause()
+            assert mpv.volume == Mpv.VOLUME_MAX
+
+            for _ in range(40):
+                await pilot.press("minus")
+            await pilot.pause()
+            assert mpv.volume == 0
+
+    asyncio.run(scenario())
+
+
+def test_mpris_cannot_push_the_volume_past_the_ceiling(monkeypatch):
+    """The bus used to accept 1.3 and hand the player 130, which is the same
+    boost the keyboard could no longer ask for."""
+    isolate_runtime(monkeypatch)
+
+    async def scenario() -> None:
+        mpv = FakeMpv()
+        application = TidalAmp(object(), mpv)
+        async with application.run_test(size=(100, 36)) as pilot:
+            await pilot.pause()
+            application.mpris_set_volume(1.3)
+            assert mpv.volume == Mpv.VOLUME_MAX
+            assert application.mpris_volume() == 1.0
+
+            application.mpris_set_volume(-2.0)
+            assert mpv.volume == 0
+
+            application.mpris_set_volume(0.45)
+            assert mpv.volume == 45
+
+    asyncio.run(scenario())
+
+
+# ------------------------------------------------------------------------- help
+
+
+def test_the_help_key_opens_the_help_and_closes_it_again(monkeypatch):
+    isolate_runtime(monkeypatch)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(100, 36)) as pilot:
+            await pilot.pause()
+            assert len(application.screen_stack) == 1
+
+            await pilot.press("question_mark")
+            await pilot.pause()
+            assert isinstance(application.screen, HelpScreen)
+
+            await pilot.press("escape")
+            await pilot.pause()
+            assert len(application.screen_stack) == 1
+
+            # `h` is the second binding on the same action.
+            await pilot.press("h")
+            await pilot.pause()
+            assert isinstance(application.screen, HelpScreen)
+
+    asyncio.run(scenario())
+
+
+def test_the_help_lists_the_rebound_key_not_the_shipped_one(monkeypatch):
+    """A help screen that showed DEFAULT_KEYS would be wrong for anyone who
+    edited config.toml — which is the only reason the file exists."""
+    isolate_runtime(monkeypatch)
+    monkeypatch.setitem(app_module.config.KEYS, "play", "ctrl+j")
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(100, 36)) as pilot:
+            await pilot.pause()
+            application.push_screen(HelpScreen(app_module.keys_for))
+            await pilot.pause()
+            drawn = "\n".join(
+                application.screen.query_one("#help-body").render_line(y).text
+                for y in range(application.screen.query_one("#help-body").size.height)
+            )
+            assert "ctrl+j" in drawn
+            assert "\n  x " not in drawn
+
+    asyncio.run(scenario())
+
+
+def test_the_help_credits_the_author_the_repo_the_licence_and_the_changes(monkeypatch):
+    isolate_runtime(monkeypatch)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(100, 36)) as pilot:
+            await pilot.pause()
+            screen = HelpScreen(app_module.keys_for)
+            application.push_screen(screen)
+            await pilot.pause()
+            document = "\n".join(text for _kind, text in screen._lines)
+
+            assert about.AUTHOR in document
+            assert about.REPO_URL in document
+            assert about.LICENSE in document
+            assert about.LICENSE_URL in document
+            assert about.version() in document
+            for release in about.releases():
+                assert release.version in document
+                for change in release.changes:
+                    assert change in document
+
+    asyncio.run(scenario())
+
+
+def test_the_help_scrolls_and_stops_at_both_ends(monkeypatch):
+    isolate_runtime(monkeypatch)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(100, 36)) as pilot:
+            await pilot.pause()
+            screen = HelpScreen(app_module.keys_for)
+            application.push_screen(screen)
+            await pilot.pause()
+            assert screen._offset == 0
+
+            await pilot.press("up")
+            await pilot.pause()
+            assert screen._offset == 0, "no debe pasar del principio"
+
+            await pilot.press("end")
+            await pilot.pause()
+            bottom = screen._offset
+            assert bottom > 0
+            assert bottom == len(screen._lines) - screen._height()
+
+            await pilot.press("down")
+            await pilot.pause()
+            assert screen._offset == bottom, "no debe pasar del final"
+
+            await pilot.press("home")
+            await pilot.pause()
+            assert screen._offset == 0
+
+    asyncio.run(scenario())
+
+
+def test_the_help_hides_a_kitty_cover_like_the_other_modals(monkeypatch):
+    """An image drawn by the terminal floats over the text: a modal opened
+    under it would be unreadable. push_screen already handles it."""
+    isolate_runtime(monkeypatch)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(100, 36)) as pilot:
+            await pilot.pause()
+            application.query_one(Artwork).show(a_cover(Protocol.KITTY, escape="\x1b_G"))
+            await pilot.pause()
+
+            await pilot.press("question_mark")
+            await pilot.pause()
+            assert application._art_hidden
+            assert application.query_one(Artwork).cover is None
 
     asyncio.run(scenario())
 
@@ -672,7 +962,7 @@ def test_f_favourites_the_selected_track_and_says_so(monkeypatch):
         return row.entry.label
 
     monkeypatch.setattr("tidalamp.library.favourite", fake_favourite)
-    monkeypatch.setattr("tidalamp.app.ensure_fresh", lambda session: False)
+    monkeypatch.setattr("tidalamp.screens.ensure_fresh", lambda session: False)
 
     async def scenario() -> None:
         application = TidalAmp(object(), FakeMpv())
@@ -714,7 +1004,7 @@ def test_a_favourite_that_fails_reaches_the_status_line(monkeypatch):
         raise RuntimeError("sin red")
 
     monkeypatch.setattr("tidalamp.library.favourite", boom)
-    monkeypatch.setattr("tidalamp.app.ensure_fresh", lambda session: False)
+    monkeypatch.setattr("tidalamp.screens.ensure_fresh", lambda session: False)
 
     async def scenario() -> None:
         application = TidalAmp(object(), FakeMpv())
@@ -738,7 +1028,7 @@ def test_favouriting_drops_the_cached_favourites_levels(monkeypatch):
     monkeypatch.setattr(
         "tidalamp.library.favourite", lambda s, r, add=True: r.entry.label
     )
-    monkeypatch.setattr("tidalamp.app.ensure_fresh", lambda session: False)
+    monkeypatch.setattr("tidalamp.screens.ensure_fresh", lambda session: False)
 
     async def scenario() -> None:
         application = TidalAmp(object(), FakeMpv())

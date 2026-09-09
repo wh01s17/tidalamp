@@ -40,6 +40,11 @@ class MpvNotFound(RuntimeError):
 
 
 class Mpv:
+    # mpv would happily amplify past 100 (its own `volume-max` is 130), but
+    # that is digital gain on an already-normalised stream: it clips. The
+    # slider is a 0-100 Winamp slider, and this is the number it means.
+    VOLUME_MAX = 100
+
     def __init__(self) -> None:
         if shutil.which("mpv") is None:
             raise MpvNotFound(_("mpv no está instalado (pacman -S mpv)"))
@@ -218,7 +223,7 @@ class Mpv:
 
     @volume.setter
     def volume(self, value: int) -> None:
-        self._volume = max(0, min(130, value))
+        self._volume = max(0, min(self.VOLUME_MAX, value))
         self.set("volume", self._volume)
 
     def rms(self) -> float:

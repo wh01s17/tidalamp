@@ -298,9 +298,13 @@ class Slider(Widget):
             bar.append("█" * right, style=palette["accent"])
             bar.append("░" * (half - right), style=palette["bar_empty"])
         else:
-            filled = int((self.value / self.maximum) * track) if self.maximum else 0
+            ratio = (self.value / self.maximum) if self.maximum else 0.0
+            # Clamped, not trusted: a value past `maximum` used to draw a bar
+            # wider than the track, which pushed the number off the widget and,
+            # far enough out, made the whole line too long to render at all.
+            filled = max(0, min(track, int(ratio * track)))
             bar.append("█" * filled, style=palette["accent"])
-            bar.append("░" * max(0, track - filled), style=palette["bar_empty"])
+            bar.append("░" * (track - filled), style=palette["bar_empty"])
         bar.append(f" {self.value:>3}", style=palette["muted"])
         return bar
 
@@ -368,19 +372,40 @@ class Artwork(Widget):
     it is our job to delete the image again when the widget goes away.
     """
 
-    # 18 by 9 cells is square once you account for a cell being about twice
-    # as tall as it is wide, which is the shape every album cover comes in.
-    COLS = 18
-    ROWS = 9
+    # A cell is about twice as tall as it is wide, so twice as many columns as
+    # rows is square on screen — which is the shape every album cover comes in.
+    # 9 rows is the smallest box worth drawing and what fits the 76x20 minimum;
+    # the app grows it with the terminal through `resize`.
+    MIN_ROWS = 9
+    MAX_ROWS = 20
 
     DEFAULT_CSS = "Artwork { width: 18; height: 9; display: none; }"
 
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
         self.cover: Cover | None = None
+        self.rows = self.MIN_ROWS
+        self.cols = self.MIN_ROWS * 2
         # kitty addresses images by id; keeping one means a new cover replaces
         # the old one instead of stacking up in the terminal's memory.
         self.image_id = 1
+
+    def resize(self, rows: int) -> bool:
+        """Set the box to ``rows`` tall, twice that wide. True if it changed.
+
+        The cover already on screen is at the old size, so the caller has to
+        render it again; dropping it here keeps a stretched one from showing
+        in between.
+        """
+        rows = max(self.MIN_ROWS, min(rows, self.MAX_ROWS))
+        if rows == self.rows:
+            return False
+        self.rows, self.cols = rows, rows * 2
+        self.styles.width = self.cols
+        self.styles.height = self.rows
+        if self.cover is not None:
+            self.show(None)
+        return True
 
     def show(self, cover: Cover | None) -> None:
         """Swap the cover. ``None`` hides the widget and reclaims its columns."""

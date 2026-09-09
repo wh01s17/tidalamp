@@ -1,0 +1,81 @@
+"""Chrome that has to keep its shape whatever it is handed."""
+
+from __future__ import annotations
+
+import asyncio
+
+import pytest
+from textual.app import App, ComposeResult
+
+from tidalamp.widgets import Slider
+
+# Wide enough that the track has room to be wrong in a visible way.
+WIDTH = 44
+TRACK = WIDTH - len("VOL") - 6
+
+
+class SliderApp(App):
+    CSS = f"Slider {{ width: {WIDTH}; height: 1; }}"
+
+    def compose(self) -> ComposeResult:
+        yield Slider(id="s")
+
+
+def drawn(value: int, *, centred: bool = False, maximum: int = 100) -> str:
+    async def scenario() -> str:
+        app = SliderApp()
+        async with app.run_test(size=(WIDTH + 4, 6)) as pilot:
+            slider = app.query_one(Slider)
+            slider.centred = centred
+            slider.maximum = maximum
+            slider.value = value
+            await pilot.pause()
+            return slider.render_line(0).text
+
+    return asyncio.run(scenario())
+
+
+@pytest.mark.parametrize("value", [-9999, -50, 0, 1, 50, 99, 100, 101, 105, 130, 9999])
+def test_the_bar_never_outgrows_its_track(value):
+    """It did, and it took the readout out with it.
+
+    `filled` was unclamped, so a value past `maximum` drew a bar wider than
+    the track: at 105 the number was shoved sideways, at 115 off the widget
+    entirely, and at 130 the line was too long to render at all — the bar
+    disappeared and only «VOL» was left on screen.
+    """
+    line = drawn(value)
+    assert line.startswith("VOL ")
+    assert line.count("█") + line.count("░") == TRACK
+
+
+@pytest.mark.parametrize("value", [-100, -50, 0, 1, 50, 99, 100])
+def test_the_number_stays_on_screen_across_the_whole_range(value):
+    """The readout budget is a sign and three digits, which covers volume
+    (0..100) and balance (-100..100). That is the range the app can produce."""
+    assert str(value) in drawn(value)
+
+
+def test_the_bar_fills_in_proportion_between_the_ends():
+    assert drawn(0).count("█") == 0
+    assert drawn(0).count("░") == TRACK
+    assert drawn(100).count("█") == TRACK
+    assert drawn(100).count("░") == 0
+    half = drawn(50).count("█")
+    assert 0 < half < TRACK
+    assert abs(half - TRACK // 2) <= 1
+
+
+def test_a_maximum_of_zero_does_not_divide_by_it():
+    line = drawn(50, maximum=0)
+    assert line.count("█") == 0
+    assert line.count("░") == TRACK
+
+
+def test_the_centred_bar_leans_without_breaking():
+    """Balance runs -100..100 and was already clamped; keep it that way."""
+    for value in (-9999, -100, -50, 0, 50, 100, 9999):
+        line = drawn(value, centred=True)
+        assert line.startswith("VOL ")
+        assert line.count("│") == 1
+        assert line.count("█") + line.count("░") + 1 == (TRACK // 2) * 2 + 1

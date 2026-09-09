@@ -69,6 +69,87 @@ ENGLISH: dict[str, str] = {
     'sin carátula: falta Pillow (pip install "tidalamp[art]")': (
         'no cover: Pillow is missing (pip install "tidalamp[art]")'
     ),
+    # --- help and about
+    "Reproducción": "Playback",
+    "Volumen y sonido": "Volume and sound",
+    "Cola": "Queue",
+    "Ventanas": "Windows",
+    "Favoritos": "Favourites",
+    "Dentro de la búsqueda y la biblioteca": "Inside search and the library",
+    "detener": "stop",
+    "pista anterior": "previous track",
+    "pista siguiente": "next track",
+    "retroceder 5 s": "back 5 s",
+    "avanzar 5 s": "forward 5 s",
+    "tiempo transcurrido o restante": "elapsed or remaining time",
+    "subir volumen": "volume up",
+    "bajar volumen": "volume down",
+    "balance a la izquierda": "balance left",
+    "balance a la derecha": "balance right",
+    "centrar el balance": "centre the balance",
+    "ecualizador de 10 bandas": "10-band equalizer",
+    "mover el cursor": "move the cursor",
+    "una página": "one page",
+    "reproducir la pista del cursor": "play the track under the cursor",
+    "quitar la pista del cursor": "remove the track under the cursor",
+    "subir la pista en la cola": "move the track up the queue",
+    "bajar la pista en la cola": "move the track down the queue",
+    "vaciar la cola": "clear the queue",
+    "aleatorio": "shuffle",
+    "repetición: off, todo, una": "repeat: off, all, one",
+    "buscar en TIDAL": "search TIDAL",
+    "tu biblioteca": "your library",
+    "letra de la pista actual": "lyrics for the current track",
+    "esta ayuda": "this help",
+    "ayuda": "help",
+    "añadir a favoritos de TIDAL": "add to your TIDAL favourites",
+    "quitar de favoritos": "remove from favourites",
+    "abrir el nivel o reproducir": "open the level or play",
+    "volver al nivel anterior": "back to the previous level",
+    "añadir a la cola": "add to the queue",
+    "añadir el nivel entero": "add the whole level",
+    "recargar, ignorando la caché": "reload, ignoring the cache",
+    "añadir o quitar de favoritos": "add to or remove from favourites",
+    "▓ AYUDA ▓  {name} {version}": "▓ HELP ▓  {name} {version}",
+    " ↑↓ desplazar   ?/h/esc cerrar": " ↑↓ scroll   ?/h/esc close",
+    "Acerca de": "About",
+    "Cliente de TIDAL para terminal con la estética de Winamp 2.x.": (
+        "A TIDAL client for the terminal, dressed as Winamp 2.x."
+    ),
+    "Reproduce con mpv; el catálogo y los streams vienen de tidalapi.": (
+        "Playback through mpv; catalogue and streams come from tidalapi."
+    ),
+    "Versión": "Version",
+    "Autor": "Author",
+    "Repositorio": "Repository",
+    "Licencia": "Licence",
+    "Software libre, sin garantía de ningún tipo.": (
+        "Free software, with no warranty of any kind."
+    ),
+    "Sin relación con TIDAL, Aspiro ni los dueños de la marca Winamp.": (
+        "Not affiliated with TIDAL, Aspiro, or the Winamp trademark holders."
+    ),
+    "Cambios por versión": "Changes by version",
+    "sin publicar": "unreleased",
+    "Interfaz Winamp 2.x: reloj, marquesina, analizador y playlist.": (
+        "Winamp 2.x interface: clock, marquee, analyser and playlist."
+    ),
+    "Reproducción con mpv por IPC, hasta FLAC 24 bit/96 kHz.": (
+        "Playback through mpv over IPC, up to 24-bit/96 kHz FLAC."
+    ),
+    "Búsqueda, biblioteca paginada, favoritos y cola persistente.": (
+        "Search, paginated library, favourites and a queue that persists."
+    ),
+    "Letras sincronizadas, ecualizador de 10 bandas y balance.": (
+        "Synchronized lyrics, a 10-band equalizer and balance."
+    ),
+    "Carátula en kitty, sixel o medios bloques, y espectro con cava.": (
+        "Cover art in kitty, sixel or half blocks, and a cava spectrum."
+    ),
+    "MPRIS2 completo, incluida la lista de pistas.": "Full MPRIS2, track list included.",
+    "Interfaz en español e inglés según el locale.": (
+        "Spanish and English interface, chosen by locale."
+    ),
     # --- favourites
     "«{label}» añadido a favoritos": "“{label}” added to favourites",
     "«{label}» quitado de favoritos": "“{label}” removed from favourites",
@@ -161,10 +242,10 @@ ENGLISH: dict[str, str] = {
         " ↵ open/play   a add   A add all   f/F favourite   ⌫ back   R reload   esc close"
     ),
     " ↑↓ desplazar   y/esc cerrar": " ↑↓ scroll   y/esc close",
-    "  z ◀◀   x ▶   c ‖   v ■   b ▶▶   / buscar  l lib  y letra  e eq"
-    "  f/F favorito  s shuf  r rep  q salir": (
-        "  z ◀◀   x ▶   c ‖   v ■   b ▶▶   / search  l lib  y lyrics  e eq"
-        "  f/F favourite  s shuf  r rep  q quit"
+    "  z ◀◀   x ▶   c ‖   v ■   b ▶▶   ? ayuda  / buscar  l lib"
+    "  y letra  e eq  f/F favorito  s shuf  r rep  q salir": (
+        "  z ◀◀   x ▶   c ‖   v ■   b ▶▶   ? help  / search  l lib"
+        "  y lyrics  e eq  f/F favourite  s shuf  r rep  q quit"
     ),
     "\n  La ventana es de {width}×{height}.\n"
     "  TIDAL AMP necesita al menos {min_width}×{min_height}.\n\n"
