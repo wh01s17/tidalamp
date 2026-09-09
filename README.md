@@ -8,7 +8,7 @@ registration and no browser in the middle: device flow + mpv.
 ## Quick start
 
 ```sh
-sudo apt install mpv          # or the equivalent for your distribution
+sudo apt install mpv    # dnf, zypper or pacman elsewhere — see Requirements
 pipx install "tidalamp[art]"
 tidalamp
 ```
@@ -49,16 +49,33 @@ Authorize once through the link it prints, and the session is kept at
 > [registration of new AUR accounts remains closed](https://lists.archlinux.org/archives/list/aur-general%40lists.archlinux.org/message/2IJD5MFHSLXARQTOP4FH64CJLW2BIIGC/)
 > during the service's security hardening. No reopening date has been announced.
 
-**pip does not install `mpv`.** It must be present on the system; without it, tidalamp
-exits on startup with `MpvNotFound`. Python 3.11 or newer is also required. Install
-`cava` if you want a real spectrum instead of the RMS meter.
+### Requirements
+
+**Python 3.11 or newer.** Debian 12, Ubuntu 24.04, Fedora 39 and current Arch all
+qualify. Ubuntu 22.04 (3.10) and Debian 11 (3.9) do not, and `pipx` there fails while
+resolving the version rather than while running.
+
+**pip does not install `mpv`.** It is a system package and must be present, or
+tidalamp exits on startup saying so. `cava` is optional and gives a real spectrum
+instead of the RMS meter.
+
+| | mpv | cava (optional) |
+| --- | --- | --- |
+| Debian, Ubuntu, Mint, Pop!_OS | `sudo apt install mpv` | `sudo apt install cava` |
+| Fedora, Nobara | `sudo dnf install mpv` | `sudo dnf install cava` |
+| openSUSE | `sudo zypper install mpv` | `sudo zypper install cava` |
+| Arch, Manjaro, EndeavourOS | `sudo pacman -S mpv` | `sudo pacman -S cava` |
+
+If mpv is missing, tidalamp reads `/etc/os-release` and names the command for the
+system it is on, so the error is actionable wherever you run it. `cava` is not
+packaged everywhere; where it is missing, the RMS meter takes over and nothing else
+changes.
 
 ### From PyPI
 
 This is the channel for every distribution today, Arch included.
 
 ```sh
-sudo apt install mpv          # or the equivalent for your distribution
 pipx install "tidalamp[art]"  # the art extra adds Pillow for cover rendering
 tidalamp
 ```
@@ -436,9 +453,10 @@ The quality display identifies which of two modes is active:
   analyzer becomes a band-shaped meter with fast attack and slow decay. It reacts to
   music but is not a frequency breakdown, and the badge says so.
 
-On Arch, `pacman -S cava` is enough; no configuration is needed. If cava is missing,
-dies, or cannot open the sink, tidalamp returns to the RMS meter without interrupting
-playback.
+Installing cava is enough; no configuration is needed — see
+[Requirements](#requirements) for the command on your distribution. If cava is
+missing, dies, or cannot open the sink, tidalamp returns to the RMS meter without
+interrupting playback.
 
 One honest caveat: cava listens to the **sink**, not specifically to tidalamp's mpv
 process. It displays everything playing on the machine, which is usually just
@@ -463,9 +481,9 @@ half blocks, which work reasonably well everywhere. To force a renderer:
 TIDALAMP_ART=blocks tidalamp   # kitty | sixel | blocks | off
 ```
 
-**Pillow** is required to decode images (`pip install pillow` or
-`pacman -S python-pillow`). Without it, cover art is omitted and everything else keeps
-working — the same treatment as a missing cava — and the status bar says so at
+**Pillow** is required to decode images, and the `art` extra installs it
+(`pipx install "tidalamp[art]"`). Without it, cover art is omitted and everything else
+keeps working — the same treatment as a missing cava — and the status bar says so at
 startup. Covers are cached under `~/.cache/tidalamp/art/`, keyed by URL.
 
 ## Desktop integration (MPRIS)

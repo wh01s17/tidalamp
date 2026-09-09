@@ -73,7 +73,7 @@ def test_tui_without_mpv_says_so_instead_of_crashing(monkeypatch):
     monkeypatch.setattr(cli, "load_session", lambda: object())
 
     def no_mpv():
-        raise MpvNotFound("mpv no está instalado (pacman -S mpv)")
+        raise MpvNotFound("mpv no está instalado (sudo dnf install mpv)")
 
     monkeypatch.setattr(cli, "Mpv", no_mpv)
 

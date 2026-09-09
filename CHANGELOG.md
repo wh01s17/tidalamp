@@ -5,7 +5,20 @@ versionado es [semántico](https://semver.org/lang/es/).
 
 ## [Sin publicar]
 
+### Añadido
+
+- Cuando falta `mpv` o `cava`, el mensaje nombra la orden de instalación de la
+  distribución que se está ejecutando, leída de `/etc/os-release`. Antes decía
+  `pacman -S mpv` en todas partes, así que lo primero que veía quien lo instalaba
+  en Debian o Fedora era una orden que su sistema no tiene. Las derivadas
+  —Mint, Pop!_OS, Nobara— se resuelven por `ID_LIKE`, y una distribución que no
+  se reconoce se queda sin sugerencia en vez de recibir una equivocada.
+
 ### Cambiado
+
+- El README documenta los requisitos por distribución: la orden de `mpv` y de
+  `cava` en apt, dnf, zypper y pacman, y que el suelo de Python 3.11 deja fuera
+  Ubuntu 22.04 y Debian 11.
 
 - La descripción del proyecto deja de definirse por comparación con Winamp. El
   README, la descripción del paquete, la entrada de escritorio, el `PKGBUILD`, la

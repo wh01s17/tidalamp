@@ -16,6 +16,7 @@ import threading
 import time
 from typing import Any
 
+from . import distro
 from .config import IPC_SOCKET, ensure_dirs
 from .i18n import _
 
@@ -47,7 +48,7 @@ class Mpv:
 
     def __init__(self) -> None:
         if shutil.which("mpv") is None:
-            raise MpvNotFound(_("mpv no está instalado (pacman -S mpv)"))
+            raise MpvNotFound(distro.missing("mpv"))
         ensure_dirs()
         self._lock = threading.Lock()
         self._sock: socket.socket | None = None

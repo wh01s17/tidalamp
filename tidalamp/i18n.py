@@ -386,7 +386,8 @@ ENGLISH: dict[str, str] = {
     "No hay sesión guardada. Ejecuta: tidalamp login": (
         "No saved session was found. Run: tidalamp login"
     ),
-    "mpv no está instalado (pacman -S mpv)": ("mpv is not installed (pacman -S mpv)"),
+    "{package} no está instalado ({command})": ("{package} is not installed ({command})"),
+    "{package} no está instalado": "{package} is not installed",
     "mpv no abrió el socket IPC a tiempo": "mpv did not open its IPC socket in time",
     "TIDAL no devolvió stream para «{name}»: {error}": (
         "TIDAL returned no stream for “{name}”: {error}"
@@ -400,7 +401,6 @@ ENGLISH: dict[str, str] = {
     "eso no es una pista, un álbum, un artista ni una playlist": (
         "that is not a track, album, artist, or playlist"
     ),
-    "cava no está instalado (pacman -S cava)": ("cava is not installed (pacman -S cava)"),
     "no se pudo reclamar un nombre MPRIS ({reply})": (
         "could not claim an MPRIS name ({reply})"
     ),
