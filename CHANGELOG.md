@@ -15,6 +15,11 @@ sección se cierra con su número y su fecha; el procedimiento completo está en
   analizador de 19 bandas, barra de posición y sliders de volumen y balance.
 - Play y pausa comparten un único botón y una única tecla (`x`), cuyo icono es la
   acción que hará al pulsarlo: `▶` parado o en pausa, `‖` sonando.
+- El transporte se dibuja como botones enmarcados de tres filas, agrupados en dos
+  marcos segmentados: el transporte por un lado y shuffle/repetición por otro.
+- **`v` (parar) rearrancaba la lista desde el principio**: dejaba mpv en idle y el
+  tick lo leía como «la pista acabó», así que avanzaba a la siguiente — que desde
+  una cola parada es la primera.
 - Reproducción con `mpv` de larga vida por socket IPC, con reinicio automático si el
   proceso muere.
 - Autenticación por *device flow* de TIDAL, sin registrar ninguna app, con refresco del

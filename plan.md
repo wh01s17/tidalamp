@@ -355,10 +355,22 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
 - [x] Dos mitades en un `Horizontal`: a la izquierda las teclas de transporte, a la
       derecha las ventanas alineadas al borde (`width: 1fr; text-align: right`). Antes
       era una sola cadena y el menú arrancaba pegado a `b ▶▶`.
-- [x] Separador `·` en el color atenuado de la paleta, no `│`: la fila es una lista de
-      cosas pequeñas y una barra sólida entre cada una pesa más que lo que separa.
-      `_separated()` parte la cadena traducida y atenúa sólo los separadores, así que
-      el catálogo sigue teniendo una entrada por mitad.
+- [x] El transporte se dibuja como **botones enmarcados de tres filas**, agrupados en
+      dos marcos segmentados —`╭──┬──╮`— y no en seis cajas sueltas: dentro de un grupo
+      los botones comparten marco, así que la fila se lee como un control y no como un
+      montón de cajas sin orden. Son dos grupos porque son dos clases de cosa: el
+      transporte hace algo y vuelve, mientras que shuffle y repetición se quedan
+      pulsados. El ancho de cada celda sale de `cell_len()` sobre su rótulo, no de
+      `len()`: `◀◀` y `▶▶` no miden una celda en todos los terminales.
+- [x] Separador `·` en el color atenuado de la paleta para el menú de la derecha, no
+      `│`: es una lista de cosas pequeñas y una barra sólida entre cada una pesa más
+      que lo que separa. `_separated()` parte la cadena traducida y atenúa sólo los
+      separadores, así que el catálogo sigue teniendo una entrada por mitad.
+- [x] El menú se **recorta a mano** al ancho de su widget. `text-wrap: nowrap` de la
+      hoja de estilos no sirve sobre un `Text` de Rich —comprobado—, y al envolverse se
+      metía en las filas donde se dibujan los botones. Como `? ayuda` va primero, lo
+      que se pierde es la cola. El recorte necesita el ancho, que sólo existe tras el
+      layout, así que `_check_size()` vuelve a pintar la barra al redimensionar.
 - [x] Shuffle y repetición dejaron de ser una fila propia con las palabras
       `SHUF OFF` / `REP ALL`: ahora son dos botones más del transporte, `s ⇄` y `r ↻`,
       encendidos con el acento del tema cuando están activos. Repetir-una es `r ↻1`,
@@ -691,6 +703,17 @@ Cosas que ya costaron tiempo una vez:
   Textual lo lee como pulsaciones. `q=2` silencia esas respuestas; y por eso tampoco
   se consulta al terminal para detectar el protocolo. `C=1` es el otro imprescindible:
   sin él la imagen mueve el cursor por debajo del compositor.
+- **Parar mpv y que una pista termine son indistinguibles desde el tick.** El tick
+  lento interpreta «mpv pasó a idle» como «la pista acabó» y avanza. `action_stop()`
+  deja mpv en idle a propósito, así que sin avisar (`_was_idle = True`) el tick
+  siguiente llamaba a `action_next()` y, con `playing = -1`, `next_index()` devuelve 0:
+  pulsar «v» rearrancaba la lista desde el principio.
+- **Una prueba que no espera al tick pasa en vacío.** La primera versión de la
+  regresión de «v» ponía `idle = False` y hacía `pilot.pause()` sin retardo: el tick
+  lento de 250 ms nunca corría, `_was_idle` seguía en `True`, la transición no se
+  producía y la prueba pasaba **también sin el arreglo**. Toda prueba de esta clase
+  tiene que afirmar el estado previo (`assert application._was_idle is False`) antes
+  de provocar el suceso.
 - **`Static.update` lee un `str` como marcado de Rich.** Un texto que no escribimos
   nosotros —un nombre de TIDAL («Lateralus [Deluxe Edition]»), el título de una pista,
   el mensaje de una excepción— pierde todo lo que va desde el primer corchete, y si
