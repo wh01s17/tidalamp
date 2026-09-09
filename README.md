@@ -335,7 +335,7 @@ The defaults deliberately match Winamp and may be changed as described above.
 
 | Key | Action |
 |---|---|
-| `z` `x` `v` `b` | previous / play-pause / stop / next |
+| `z` `x` `c` `v` | previous / play-pause / stop / next |
 | `/` | search TIDAL |
 | `↑` `↓` `Enter` | navigate; on a track, open the track menu |
 | `l` | open the library browser |

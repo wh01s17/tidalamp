@@ -15,6 +15,9 @@ sección se cierra con su número y su fecha; el procedimiento completo está en
   analizador de 19 bandas, barra de posición y sliders de volumen y balance.
 - Play y pausa comparten un único botón y una única tecla (`x`), cuyo icono es la
   acción que hará al pulsarlo: `▶` parado o en pausa, `‖` sonando.
+- El transporte ocupa cuatro teclas contiguas, en el orden de los botones:
+  `z` anterior, `x` play/pausa, `c` parar, `v` siguiente. Los rótulos de los
+  botones salen de los bindings efectivos, así que siguen a `config.toml`.
 - El transporte se dibuja como botones enmarcados de tres filas, agrupados en dos
   marcos segmentados: el transporte por un lado y shuffle/repetición por otro.
 - **`v` (parar) rearrancaba la lista desde el principio**: dejaba mpv en idle y el

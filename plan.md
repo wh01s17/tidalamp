@@ -154,10 +154,15 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
 - [x] Playlist con cursor, marcador de pista en curso y scroll centrado.
 - [x] Búsqueda en TIDAL en modal, ejecutada en hilo para no bloquear la UI.
 - [x] Avance automático al terminar la pista (se detecta por `idle-active` de mpv).
-- [x] Teclas de Winamp: `z` `x` `c` `v` `b`, más `/` `l` `y` `e`, navegación,
-      balance, volumen, shuffle/repeat y salida.
-- [x] Indicadores persistentes `SHUF ON/OFF` y `REP OFF/ALL/1`, con resaltado para el
-      modo activo y actualización inmediata por teclado o MPRIS.
+- [x] Transporte en `z` `x` `c` `v` —anterior, play/pausa, parar, siguiente— más
+      `/` `l` `y` `e`, navegación, balance, volumen, shuffle/repeat y salida. Winamp
+      usaba `z x c v b`, con `c` para una pausa aparte; al fusionar play y pausa en un
+      botón sobró una tecla y el transporte quedó en cuatro contiguas, en el mismo
+      orden en que están los botones en pantalla.
+- [x] Los rótulos de los botones salen de `keys_for`, no de literales: un botón
+      rebindeado en `config.toml` enseña la tecla que de verdad funciona.
+- [x] Indicadores de shuffle y repetición encendidos con el acento del tema, con
+      actualización inmediata por teclado o MPRIS.
 - [x] Paleta completa tomada del tema Omarchy activo cuando existe; recarga en vivo
       cada dos segundos. En otras distros conserva exactamente los colores clásicos.
 - [x] `Spinner`: indicador animado de espera que dice **qué** se está cargando, en la
