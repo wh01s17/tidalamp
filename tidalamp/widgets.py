@@ -439,7 +439,7 @@ class Artwork(Widget):
         width = self.size.width
         cover = self.cover
         if cover is None:
-            return Strip.blank(width)
+            return Strip.blank(width, Style())
 
         if cover.pixels is not None:
             top = cover.pixels[y * 2] if y * 2 < len(cover.pixels) else ()
@@ -454,7 +454,7 @@ class Artwork(Widget):
                 )
                 for x in range(min(width, len(top)))
             ]
-            return Strip(segments, len(segments)).adjust_cell_length(width)
+            return Strip(segments, len(segments)).adjust_cell_length(width, Style())
 
         # Pixel protocols draw the whole cover from one anchor, so the escape
         # belongs on the first line only; the rest of the box stays blank and
@@ -463,6 +463,6 @@ class Artwork(Widget):
             # Rich only asks whether `control` is truthy; its type says a list
             # of control codes, and there is no code for "an APC the terminal
             # will read". True is what makes the segment measure zero cells.
-            escape = Segment(cover.escape, None, True)  # type: ignore[arg-type]
-            return Strip([escape, Segment(" " * width)], width)
-        return Strip.blank(width)
+            escape = Segment(cover.escape, Style(), True)  # type: ignore[arg-type]
+            return Strip([escape, Segment(" " * width, Style())], width)
+        return Strip.blank(width, Style())
