@@ -81,6 +81,28 @@ ENGLISH: dict[str, str] = {
     "Calidad": "Quality",
     "Carátula": "Cover art",
     "Idioma": "Language",
+    "Columnas de la cola": "Queue columns",
+    "qué metadatos se ven en la lista": "which metadata the list shows",
+    "{count} de {total}": "{count} of {total}",
+    "▓ COLUMNAS DE LA COLA ▓": "▓ QUEUE COLUMNS ▓",
+    " ↑↓ elegir   ↵ marcar   0 reset   o/esc cerrar": (
+        " ↑↓ choose   ↵ toggle   0 reset   o/esc close"
+    ),
+    "  {count} de {total} · nº de cola y título van siempre": (
+        "  {count} of {total} · queue no. and title are always shown"
+    ),
+    "marcar": "toggle",
+    "por defecto": "defaults",
+    "Nº dentro del álbum": "No. within the album",
+    "Artista": "Artist",
+    "Álbum": "Album",
+    "Año": "Year",
+    "Calidad del stream": "Stream quality",
+    "Explícito": "Explicit",
+    "Popularidad": "Popularity",
+    "Disco": "Disc",
+    "ISRC": "ISRC",
+    "Duración": "Duration",
     "Tema": "Theme",
     "Paleta": "Palette",
     "Registro de depuración": "Debug log",
@@ -99,6 +121,7 @@ ENGLISH: dict[str, str] = {
     ),
     "tema: {value}": "theme: {value}",
     "paleta: {value}": "palette: {value}",
+    "columnas: {count}": "columns: {count}",
     "lo pisa {variable} del entorno": "{variable} in the environment overrides it",
     "  Salida: desconocida": "  Output: unknown",
     "  Salida: {name} · {rate} Hz {format}": "  Output: {name} · {rate} Hz {format}",
@@ -422,6 +445,9 @@ ENGLISH: dict[str, str] = {
     'artwork = "auto"\n\n'
     "# Idioma: auto sigue al locale del sistema; es o en lo fijan.\n"
     'language = "auto"\n\n'
+    "# Columnas de la cola, separadas por coma. Disponibles: track, version,\n"
+    "# artist, album, year, quality, explicit, popularity, disc, isrc, duration.\n"
+    'columns = "artist,album,year,duration"\n\n'
     "# Estilo visual: quattro, retro, nova o ascii.\n"
     'theme = "quattro"\n\n'
     "# Paleta: auto sigue Omarchy; también classic, tokyo-night, catppuccin,\n"
@@ -444,6 +470,9 @@ ENGLISH: dict[str, str] = {
         'artwork = "auto"\n\n'
         "# Language: auto follows the system locale; es or en pin it.\n"
         'language = "auto"\n\n'
+        "# Queue columns, comma separated. Available: track, version, artist,\n"
+        "# album, year, quality, explicit, popularity, disc, isrc, duration.\n"
+        'columns = "artist,album,year,duration"\n\n'
         "# Visual style: quattro, retro, nova or ascii.\n"
         'theme = "quattro"\n\n'
         "# Palette: auto follows Omarchy; also classic, tokyo-night, catppuccin,\n"
@@ -546,6 +575,9 @@ def config_template() -> str:
         'artwork = "auto"\n\n'
         "# Idioma: auto sigue al locale del sistema; es o en lo fijan.\n"
         'language = "auto"\n\n'
+        "# Columnas de la cola, separadas por coma. Disponibles: track, version,\n"
+        "# artist, album, year, quality, explicit, popularity, disc, isrc, duration.\n"
+        'columns = "artist,album,year,duration"\n\n'
         "# Estilo visual: quattro, retro, nova o ascii.\n"
         'theme = "quattro"\n\n'
         "# Paleta: auto sigue Omarchy; también classic, tokyo-night, catppuccin,\n"

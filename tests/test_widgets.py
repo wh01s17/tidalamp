@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import itertools
 import unicodedata
 
 import pytest
@@ -192,7 +193,7 @@ def test_the_album_column_does_not_move_when_a_track_passes_ten_minutes():
 
 
 def test_the_queue_shows_artist_album_year_and_duration_as_columns():
-    """Four columns, and each one dropped in the order it can be spared."""
+    """The default columns, in order, each starting at the same cell."""
 
     async def scenario() -> None:
         app = TextWidthApp()
@@ -212,21 +213,21 @@ def test_the_queue_shows_artist_album_year_and_duration_as_columns():
                 Entry(id=2, title="Virgen", artist="Adolescent's", album="Ahora"),
             ]
             rows.set_rows([Row(label=e.label, detail=e.length, entry=e) for e in entries])
-
             rows.styles.width = 160
             await pilot.pause()
+
             first, second = rows.render().plain.splitlines()[:2]
             assert cell_len(first) == 160
             for column in ("Oh Qué Será?", "Willie Colón", "Greatest Hits", "1995"):
                 assert column in first
             assert first.rstrip().endswith("5:04")
-            # Order left to right, and the artist is out of the title.
             assert (
                 first.index("Oh Qué Será?")
                 < first.index("Willie Colón")
                 < first.index("Greatest Hits")
                 < first.index("1995")
             )
+            # The artist has a column, so it leaves the title alone.
             assert "Willie Colón - Oh" not in first
             # Every column starts at the same cell on every row.
             assert first.index("Willie Colón") == second.index("Adolescent's")
@@ -235,20 +236,85 @@ def test_the_queue_shows_artist_album_year_and_duration_as_columns():
             slot = first.index("1995")
             assert second[slot : slot + 4].strip() == ""
 
-            # Narrower: the year goes first, the rest of the columns stay.
-            rows.styles.width = 100
-            await pilot.pause()
-            line = rows.render().plain.splitlines()[0]
-            assert cell_len(line) == 100
-            assert "1995" not in line
-            assert "Willie Colón" in line and "Greatest Hits" in line
+    asyncio.run(scenario())
 
-            # Narrower still: back to one label per row.
-            rows.styles.width = 80
+
+def test_columns_are_dropped_in_the_order_the_catalogue_says():
+    """Narrowing the list must not drop a column out of turn.
+
+    Asserted as an order rather than against fixed widths: the widths are
+    tuning and will move, while «the year goes before the album» is the
+    decision worth protecting.
+    """
+
+    async def scenario() -> None:
+        app = TextWidthApp()
+        async with app.run_test(size=(200, 8)) as pilot:
+            rows = app.query_one(RowList)
+            # Short, distinctive values: a long one gets cropped as its
+            # column narrows, and the probe below would read the crop as the
+            # column having gone away.
+            entry = Entry(
+                id=1,
+                title="Titulo",
+                artist="ARTISTA",
+                album="ALBUM",
+                year=1995,
+                duration=304,
+            )
+            rows.set_rows([Row(label=entry.label, detail=entry.length, entry=entry)])
+
+            seen: list[tuple[int, str]] = []
+            for width in range(180, 39, -1):
+                rows.styles.width = width
+                await pilot.pause()
+                line = rows.render().plain.splitlines()[0]
+                assert cell_len(line) == width, width
+                present = tuple(
+                    name
+                    for name, text in (
+                        ("artist", "ARTISTA"),
+                        ("album", "ALBUM"),
+                        ("year", "1995"),
+                    )
+                    if text in line
+                )
+                if not seen or seen[-1][1] != present:
+                    seen.append((width, present))
+
+            drawn = [present for _width, present in seen]
+            # Everything, then the year, then the album. The artist is not on
+            # this list at the end because it moves into the title rather
+            # than disappearing — see the test below.
+            assert drawn[0] == ("artist", "album", "year")
+            assert ("artist", "album") in drawn
+            assert "album" not in drawn[-1] and "year" not in drawn[-1]
+            # The year always goes before the album, never the other way.
+            assert drawn.index(("artist", "album")) < len(drawn) - 1
+            # No column ever comes back as the list narrows further.
+            for earlier, later in itertools.pairwise(drawn):
+                assert set(later) <= set(earlier), (earlier, later)
+
+    asyncio.run(scenario())
+
+
+def test_the_artist_stays_in_the_title_when_it_has_no_column_of_its_own():
+    """Otherwise a narrow list would simply lose who is playing."""
+
+    async def scenario() -> None:
+        app = TextWidthApp()
+        async with app.run_test(size=(200, 8)) as pilot:
+            rows = app.query_one(RowList)
+            entry = Entry(
+                id=1, title="Virgen", artist="Adolescent's", album="Ahora", duration=272
+            )
+            rows.set_rows([Row(label=entry.label, detail=entry.length, entry=entry)])
+            rows.styles.width = 40
             await pilot.pause()
+
             line = rows.render().plain.splitlines()[0]
-            assert cell_len(line) == 80
-            assert "Greatest Hits" not in line
-            assert "Willie Colón - Oh Qué Será?" in line
+            assert cell_len(line) == 40
+            assert "Adolescent's - Virgen" in line
+            assert line.rstrip().endswith("4:32")
 
     asyncio.run(scenario())

@@ -61,6 +61,16 @@ class Entry:
     year: int = 0
     duration: int = 0
     art_url: str = ""
+    # Everything below is only ever drawn in an optional queue column. All of
+    # it comes filled in on a plain track listing — checked against the real
+    # API — so none of it costs an extra request.
+    version: str = ""
+    track_num: int = 0
+    disc: int = 0
+    explicit: bool = False
+    popularity: int = 0
+    isrc: str = ""
+    quality: str = ""
     # Identity of this row, not of the song. Excluded from equality so two
     # rows for the same track still compare equal, as they always have.
     uid: int = field(default_factory=_new_uid, compare=False)
@@ -86,6 +96,13 @@ class Entry:
             year=int(getattr(album, "year", 0) or 0),
             duration=int(track.duration or 0),
             art_url=art,
+            version=getattr(track, "version", "") or "",
+            track_num=int(getattr(track, "track_num", 0) or 0),
+            disc=int(getattr(track, "volume_num", 0) or 0),
+            explicit=bool(getattr(track, "explicit", False)),
+            popularity=int(getattr(track, "popularity", 0) or 0),
+            isrc=getattr(track, "isrc", "") or "",
+            quality=getattr(track, "audio_quality", "") or "",
             _track=track,
         )
 
@@ -115,6 +132,13 @@ class Entry:
             "year": self.year,
             "duration": self.duration,
             "art_url": self.art_url,
+            "version": self.version,
+            "track_num": self.track_num,
+            "disc": self.disc,
+            "explicit": self.explicit,
+            "popularity": self.popularity,
+            "isrc": self.isrc,
+            "quality": self.quality,
             "uid": self.uid,
         }
 
@@ -129,6 +153,13 @@ class Entry:
             year=int(raw.get("year", 0) or 0),
             duration=int(raw.get("duration", 0)),
             art_url=raw.get("art_url", ""),
+            version=raw.get("version", "") or "",
+            track_num=int(raw.get("track_num", 0) or 0),
+            disc=int(raw.get("disc", 0) or 0),
+            explicit=bool(raw.get("explicit", False)),
+            popularity=int(raw.get("popularity", 0) or 0),
+            isrc=raw.get("isrc", "") or "",
+            quality=raw.get("quality", "") or "",
             # A queue written before uids existed simply gets fresh ones.
             uid=_claim_uid(int(raw["uid"])) if "uid" in raw else _new_uid(),
         )

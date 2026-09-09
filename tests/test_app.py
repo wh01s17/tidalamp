@@ -12,12 +12,13 @@ from textual.widgets import Static
 from tidalamp import about, artwork, library
 from tidalamp import app as app_module
 from tidalamp import audio as audio_module
+from tidalamp import columns as columns_module
 from tidalamp.app import BrowserScreen, ConfigScreen, HelpScreen, RowList, TidalAmp
 from tidalamp.artwork import Cover, Protocol
 from tidalamp.library import Row
 from tidalamp.player import Mpv
 from tidalamp.queue import Entry, Queue
-from tidalamp.screens import TRACK_ACTIONS, TrackActionsScreen
+from tidalamp.screens import TRACK_ACTIONS, ColumnsScreen, TrackActionsScreen
 from tidalamp.settings import Settings
 from tidalamp.theme import DEFAULT_COLORS, ThemePalette
 from tidalamp.widgets import Artwork, Slider, Spinner
@@ -1466,6 +1467,19 @@ def isolate_config(monkeypatch, tmp_path):
     return path
 
 
+def config_row(screen, label: str) -> int:
+    """Find a settings row by its label.
+
+    By index, every test that touched the settings screen broke the day a row
+    was inserted above the one it meant. The label is what the user is
+    looking at anyway.
+    """
+    for index, option in enumerate(screen._rows):
+        if option.label == label:
+            return index
+    raise AssertionError(f"no hay una fila «{label}»")
+
+
 def config_text(application) -> str:
     body = application.screen.query_one("#config-list")
     return "\n".join(body.render_line(y).text for y in range(body.size.height))
@@ -1551,7 +1565,7 @@ def test_theme_and_palette_change_live_and_persist(monkeypatch, tmp_path):
             application.push_screen(screen)
             await pilot.pause()
 
-            screen.cursor = 3  # Tema: quattro -> retro
+            screen.cursor = config_row(screen, "Tema")
             await pilot.press("enter")
             await pilot.pause()
             assert app_module.config.THEME == "retro"
@@ -1559,13 +1573,61 @@ def test_theme_and_palette_change_live_and_persist(monkeypatch, tmp_path):
             framed = application.query_one("#transport-play").render_line(0).text
             assert "┌" in framed, "el transporte pasa a los botones cuadrados"
 
-            screen.cursor = 4  # Paleta: auto -> classic
+            screen.cursor = config_row(screen, "Paleta")
             await pilot.press("enter")
             await pilot.pause()
             assert app_module.config.PALETTE == "classic"
             assert application.tidalamp_palette.source == "classic"
             assert app_module.config.read_file(path)["theme"] == "retro"
             assert app_module.config.read_file(path)["palette"] == "classic"
+
+    asyncio.run(scenario())
+
+
+def test_choosing_columns_redraws_the_queue_that_is_already_there(monkeypatch, tmp_path):
+    """It has to land on the queue on screen, not on the next one loaded."""
+    isolate_runtime(monkeypatch)
+    path = isolate_config(monkeypatch, tmp_path)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(160, 34)) as pilot:
+            await pilot.pause()
+            application.queue.replace(
+                [
+                    Entry(
+                        id=1,
+                        title="Virgen",
+                        artist="Adolescent's",
+                        album="Ahora",
+                        year=1993,
+                        popularity=64,
+                        duration=272,
+                    )
+                ],
+                start=0,
+            )
+            application._sync_queue()
+            await pilot.pause()
+            playlist = application.query_one("#playlist", RowList)
+            assert "64" not in playlist.render_line(0).text
+
+            screen = ConfigScreen(application._setting_changed)
+            application.push_screen(screen)
+            await pilot.pause()
+            screen.cursor = config_row(screen, "Columnas de la cola")
+            await pilot.press("enter")
+            await settle(pilot, lambda: isinstance(application.screen, ColumnsScreen))
+
+            picker = application.screen
+            picker.cursor = [c.name for c in columns_module.ALL].index("popularity")
+            await pilot.press("enter")
+            await pilot.pause()
+
+            # Same queue, no reload: the row on screen has the column now.
+            assert "popularity" in app_module.config.COLUMNS
+            assert "64" in playlist.render_line(0).text
+            assert "popularity" in app_module.config.read_file(path)["columns"]
 
     asyncio.run(scenario())
 
@@ -1707,7 +1769,7 @@ def test_the_rates_row_writes_and_removes_the_drop_in(monkeypatch, tmp_path):
             application.push_screen(screen)
             await pilot.pause()
 
-            screen.cursor = 6  # the rates row
+            screen.cursor = config_row(screen, "Ritmos hi-res en PipeWire")
             await pilot.pause()
             await pilot.press("enter")
             await pilot.pause()
@@ -1739,7 +1801,7 @@ def test_restarting_pipewire_stops_playback_first(monkeypatch, tmp_path):
             application.push_screen(screen)
             await pilot.pause()
 
-            screen.cursor = 7  # the restart row
+            screen.cursor = config_row(screen, "Reiniciar PipeWire")
             await pilot.pause()
             await pilot.press("enter")
             await settle(pilot, lambda: application.status == "hecho")

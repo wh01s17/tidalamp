@@ -15,7 +15,7 @@ from textual.containers import Horizontal, Vertical
 from textual.reactive import reactive
 from textual.widgets import Static
 
-from . import about, artwork, audio, config, i18n, library
+from . import about, artwork, audio, columns, config, i18n, library
 from .auth import NotLoggedIn, ensure_fresh
 from .i18n import _
 from .library import Row
@@ -1240,12 +1240,7 @@ class TidalAmp(App):
         if playable is None:
             source = f"SRC  — · {analyzer.source} · {self._playback_label()}"
         else:
-            quality = {
-                "HI_RES_LOSSLESS": "HI-RES",
-                "LOSSLESS": "LOSSLESS",
-                "HIGH": "HIGH",
-                "LOW": "LOW",
-            }.get(playable.quality, playable.quality)
+            quality = columns.QUALITY_LABELS.get(playable.quality, playable.quality)
             source = (
                 f"SRC  {self._codec_label(playable)} · {playable.kbps} · "
                 f"{playable.khz} kHz · {quality} · {analyzer.source} · "
@@ -1342,6 +1337,14 @@ class TidalAmp(App):
             self.refresh_css(animate=False)
             self._apply_appearance()
             self.status = _("paleta: {value}").format(value=config.PALETTE)
+        elif name == "columns":
+            # RowList reads the setting at render time, so the queue only
+            # needs telling to draw itself again — no reload, and the browser
+            # underneath a modal gets the same treatment.
+            for screen in self.screen_stack:
+                for widget in screen.query(RowList):
+                    widget.refresh()
+            self.status = _("columnas: {count}").format(count=len(config.COLUMNS))
         elif name == "debug":
             self.status = _("registro: {value}").format(
                 value=_("activado") if config.DEBUG else _("desactivado")

@@ -71,6 +71,7 @@ ENV_VARS: dict[str, str] = {
     "quality": "TIDALAMP_QUALITY",
     "artwork": "TIDALAMP_ART",
     "language": "TIDALAMP_LANG",
+    "columns": "TIDALAMP_COLUMNS",
     "theme": "TIDALAMP_THEME",
     "palette": "TIDALAMP_PALETTE",
     "debug": "TIDALAMP_DEBUG",
@@ -97,6 +98,21 @@ def setting(name: str, env: str, default: str) -> str:
         return from_env
     value = FILE.get(name)
     return default if value is None else str(value)
+
+
+def columns() -> tuple[str, ...]:
+    """The queue's column list, split and cleaned.
+
+    Unknown names are dropped rather than raising: this comes from a file the
+    user edits by hand, and a typo should cost that one column, not the app.
+    """
+    # Absolute, not relative: tests load this file as a standalone module to
+    # get a private copy, and a relative import has no package to resolve.
+    from tidalamp.columns import NAMES
+
+    raw = setting("columns", "TIDALAMP_COLUMNS", DEFAULT_COLUMNS)
+    wanted = [part.strip().lower() for part in raw.split(",")]
+    return tuple(dict.fromkeys(name for name in wanted if name in NAMES))
 
 
 def flag(name: str, env: str) -> bool:
@@ -131,6 +147,13 @@ LANGUAGE = setting("language", "TIDALAMP_LANG", "auto")
 # an active Omarchy palette and falls back to the built-in classic colours.
 THEME = setting("theme", "TIDALAMP_THEME", "quattro")
 PALETTE = setting("palette", "TIDALAMP_PALETTE", "auto")
+
+# Which metadata columns the queue draws, in the order they were chosen. A
+# comma-separated string rather than a TOML array so that it reads and writes
+# through the same three functions as every other setting, and so that
+# TIDALAMP_COLUMNS="artist,year" works from a shell without quoting a list.
+DEFAULT_COLUMNS = ",".join(("artist", "album", "year", "duration"))
+COLUMNS = columns()
 
 DEBUG = flag("debug", "TIDALAMP_DEBUG")
 
@@ -205,13 +228,15 @@ def reload() -> None:
     doing `from .config import DEFAULT_QUALITY` keeps the value it imported.
     Those consumers read `config.DEFAULT_QUALITY` instead — see stream.py.
     """
-    global FILE, DEFAULT_QUALITY, ARTWORK, LANGUAGE, THEME, PALETTE, DEBUG, KEYS
+    global FILE, DEFAULT_QUALITY, ARTWORK, LANGUAGE, THEME, PALETTE, COLUMNS
+    global DEBUG, KEYS
     FILE = read_file()
     DEFAULT_QUALITY = setting("quality", "TIDALAMP_QUALITY", "HI_RES_LOSSLESS")
     ARTWORK = setting("artwork", "TIDALAMP_ART", "auto")
     LANGUAGE = setting("language", "TIDALAMP_LANG", "auto")
     THEME = setting("theme", "TIDALAMP_THEME", "quattro")
     PALETTE = setting("palette", "TIDALAMP_PALETTE", "auto")
+    COLUMNS = columns()
     DEBUG = flag("debug", "TIDALAMP_DEBUG")
     KEYS = {str(action): str(key) for action, key in (FILE.get("keys") or {}).items()}
 

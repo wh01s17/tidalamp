@@ -506,7 +506,7 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
 
 ### Tests — `tests/`
 
-- [x] `pytest`, 370 pruebas, sin red y sin TIDAL. `pip install -e ".[dev]"`.
+- [x] `pytest`, 375 pruebas, sin red y sin TIDAL. `pip install -e ".[dev]"`.
 - [x] `tests/fake_mpv.py`: un mpv falso que habla el IPC JSON real y **emite eventos
       asíncronos antes de cada respuesta**, que es justo la trampa del §7. Lleva la
       cuenta de los filtros con etiqueta y rechaza la sintaxis con la etiqueta detrás.
@@ -541,6 +541,24 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
       mejor; después el álbum y el artista juntos; y al final queda `artista - título`
       en una línea. Una fila sin `entry` —un álbum, un artista, una playlist en el
       navegador— no tiene nada que poner en esas columnas y se queda la línea entera.
+- [x] **Qué columnas se ven es un ajuste** (`columns`), elegido desde un selector que
+      abre la ventana de `o`. El catálogo vive en `columns.py`, un módulo que no importa
+      nada interno porque lo necesitan los dos extremos y ninguno puede importar al
+      otro: `config` valida los nombres que el usuario escribió en el fichero y
+      `screens` los dibuja. Son las once que la API rellena en un listado normal
+      —comprobado contra la cuenta real—, así que encender una nunca cuesta una
+      petición extra.
+- [x] El ajuste es una cadena separada por comas y no un array TOML, para que pase por
+      las mismas `setting`/`_toml`/`set_option` que todo lo demás y para que
+      `TIDALAMP_COLUMNS="artist,year"` funcione desde una shell sin comillar una lista.
+      Un nombre inventado cuesta esa columna y nada más.
+- [x] El cambio repinta las listas que ya están en pantalla, en toda la pila de
+      pantallas: `RowList` lee el ajuste al dibujar, así que basta con pedirle que se
+      redibuje. Antes sólo se veía en la siguiente cola que se cargara.
+- [x] Qué columna cae primero al estrecharse la lista es un dato del catálogo (`drop`),
+      no un umbral escrito a mano en el renderizador: añadir una columna no obliga a
+      tocar ningún número. El artista sólo sale del título cuando tiene una columna
+      propia adonde ir.
 - [x] `Entry.year` sale de `album.year` de tidalapi, que lo deduce de la fecha de
       publicación que tenga. Un álbum sin fecha, o una pista sin álbum, da `0` y deja
       la celda en blanco en vez de dibujar un «0». Una cola guardada antes de que la
@@ -912,7 +930,7 @@ instalado nada sin comprobarlo.
   del sonido. No es un fallo del analizador.
 - Venv en `.venv/`, rehecho tras el renombrado; `.venv/bin/tidalamp` funciona de nuevo.
   Lleva el paquete en editable más `pytest` y `pyte`.
-- Tests: `.venv/bin/python -m pytest` (370 pruebas, ~50 s, sin red ni bus de usuario).
+- Tests: `.venv/bin/python -m pytest` (375 pruebas, ~60 s, sin red ni bus de usuario).
   El extra `dev` arrastra Pillow, así que las pruebas de carátula corren de verdad; si
   falta, se saltan solas.
 - En la primera máquina `cava` sí estaba, en `/usr/bin/cava`, y arrancó con la

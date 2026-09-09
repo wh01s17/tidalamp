@@ -26,7 +26,7 @@ from textual.screen import ModalScreen
 from textual.widget import Widget
 from textual.widgets import Input, Static
 
-from . import about, audio, config, library
+from . import about, audio, columns, config, library
 from .auth import ensure_fresh
 from .i18n import _
 from .library import Row
@@ -76,27 +76,54 @@ class RowList(Widget):
             return self.rows[self.cursor]
         return None
 
-    # A year is four digits and never anything else.
-    YEAR_WIDTH = 4
+    # The gap between two columns, and the room the title needs before it
+    # stops being worth having columns at all.
+    GAP = 2
+    TITLE_MIN = 24
 
-    # The columns are dropped one at a time as the list narrows: the title
-    # matters more than the year, and the year more than nothing fitting.
-    FULL_WIDTH = 116
-    ALBUM_WIDTH = 96
-
-    # Artist and album take a sixth of the list each, floored so a column
-    # that appears at all can say something, and capped so a very wide
-    # terminal does not spend everything on metadata — though the cap is
-    # generous enough that «Tú Me Vuelves Loco (Bailable)» survives it.
-    METADATA_SHARE = 6
-    METADATA_MIN = 12
-    METADATA_MAX = 30
+    # A flexible column takes a share of the list, floored so one that appears
+    # at all can say something and capped so a very wide terminal spends its
+    # slack on the title — generously enough that «Tú Me Vuelves Loco
+    # (Bailable)» still fits.
+    SHARE = 6
+    SHARE_MIN = 12
+    SHARE_MAX = 30
 
     @staticmethod
-    def _right(text: str, width: int) -> str:
-        """Pad on the left, so digits line up on their last cell."""
+    def _cell(text: str, width: int, align: str) -> str:
+        """One column, cropped to its width. Right-aligned pads on the left,
+        so digits and years line up on their last cell."""
+        if align != "right":
+            return set_cell_size(text, width)
         trimmed = set_cell_size(text, min(cell_len(text), width))
         return " " * (width - cell_len(trimmed)) + trimmed
+
+    @classmethod
+    def _fit(cls, chosen: list, width: int, detail_width: int) -> list[tuple]:
+        """Which of the chosen columns fit, and how wide each one is.
+
+        Drops from the least useful end until the title has room to breathe,
+        rather than picking thresholds by hand: that way a column added to the
+        catalogue needs no new number here.
+        """
+        share = min(cls.SHARE_MAX, max(cls.SHARE_MIN, width // cls.SHARE))
+        keep = sorted(chosen, key=lambda column: column.drop, reverse=True)
+        while keep:
+            sized = [
+                (
+                    column,
+                    detail_width
+                    if column.name == "duration"
+                    else (column.width or share),
+                )
+                for column in chosen
+                if column in keep
+            ]
+            spent = sum(size + cls.GAP for _column, size in sized)
+            if width - spent >= cls.TITLE_MIN:
+                return sized
+            keep.pop(0)
+        return []
 
     @classmethod
     def _line(
@@ -111,39 +138,34 @@ class RowList(Widget):
 
         A row with no entry — an album, an artist, a playlist in the browser —
         has nothing to put in those columns, so it keeps the whole line for
-        its own name.
+        its own name, with its detail on the right as before.
         """
         marker = "▶" if index == marked else (" " if row.is_playable else "›")
-        detail = cls._right(row.detail, detail_width) if detail_width else ""
         entry = row.entry
-        detail_block = detail_width + 2 if detail else 0
+        chosen = [
+            columns.BY_NAME[name] for name in config.COLUMNS if name in columns.BY_NAME
+        ]
+        sized = cls._fit(chosen, width, detail_width) if entry is not None else []
+        # A row of nothing but the duration is the old layout with extra
+        # steps, and it would drop the artist on the floor: the artist only
+        # leaves the label when it has a column of its own to go to.
+        shown = {column.name for column, _size in sized}
+        if not shown - {"duration"}:
+            sized = []
 
-        if entry is not None and width >= cls.ALBUM_WIDTH:
-            column = min(
-                cls.METADATA_MAX,
-                max(cls.METADATA_MIN, width // cls.METADATA_SHARE),
-            )
-            artist_width = album_width = column
-            # The year is the first column to go: it is four cells that the
-            # title can always use better.
-            year = str(entry.year) if entry.year and width >= cls.FULL_WIDTH else ""
-            year_block = cls.YEAR_WIDTH + 2 if width >= cls.FULL_WIDTH else 0
-            title_width = (
-                width - artist_width - album_width - year_block - detail_block - 4
-            )
-            if title_width >= 24:
-                line = (
-                    f"{marker}{index + 1:>3}. "
-                    f"{set_cell_size(entry.title, title_width - 6)}  "
-                    f"{set_cell_size(entry.artist, artist_width)}  "
-                    f"{set_cell_size(entry.album, album_width)}"
-                )
-                if year_block:
-                    line += f"  {cls._right(year, cls.YEAR_WIDTH)}"
-                if detail:
-                    line += f"  {detail}"
-                return set_cell_size(line, width)
+        if sized and entry is not None:
+            head = f"{marker}{index + 1:>3}. "
+            title_width = width - sum(size + cls.GAP for _c, size in sized)
+            name = entry.title if "artist" in shown else row.label
+            line = head + set_cell_size(name, title_width - cell_len(head))
+            for column, size in sized:
+                # `duration` draws the row's detail, not the entry's: a
+                # browser row that is not a track puts «101 pistas» there.
+                text = row.detail if column.name == "duration" else column.read(entry)
+                line += " " * cls.GAP + cls._cell(text, size, column.align)
+            return set_cell_size(line, width)
 
+        detail = cls._cell(row.detail, detail_width, "right") if detail_width else ""
         left = f"{marker}{index + 1:>3}. {row.label}"
         left_width = width - detail_width - (1 if detail else 0)
         line = set_cell_size(left, max(0, left_width))
@@ -460,6 +482,133 @@ class BrowserScreen(ModalScreen[tuple | None]):
         # A level made only of containers has nothing to append wholesale, so
         # fall back to appending the container under the cursor.
         self.action_append_one()
+
+
+class ColumnsScreen(ModalScreen[None]):
+    """Pick the queue's columns.
+
+    A window of its own rather than more rows on the settings screen: this is
+    a set of toggles, and the settings screen cycles values. The order is the
+    catalogue's, not the order they were switched on, so the list reads the
+    same as the queue it describes.
+    """
+
+    BINDINGS = [
+        Binding("escape,o", "close", _("cerrar")),
+        Binding("up", "up", _("arriba"), show=False),
+        Binding("down", "down", _("abajo"), show=False),
+        Binding("enter,space", "pick", _("marcar"), show=False),
+        Binding("0", "reset", _("por defecto"), show=False),
+    ]
+
+    cursor = reactive(0)
+
+    def __init__(self, on_change=None) -> None:
+        super().__init__()
+        self._on_change = on_change
+        self._chosen = list(config.COLUMNS)
+
+    def compose(self) -> ComposeResult:
+        with Vertical(id="columns-box"):
+            yield Static(_("▓ COLUMNAS DE LA COLA ▓"), id="columns-title")
+            yield Static("", id="columns-list", markup=False)
+            yield Static(
+                _(" ↑↓ elegir   ↵ marcar   0 reset   o/esc cerrar"),
+                id="columns-hint",
+            )
+
+    def on_mount(self) -> None:
+        self._render_list()
+
+    def watch_cursor(self) -> None:
+        if self.is_mounted:
+            self._render_list()
+
+    def _render_list(self) -> None:
+        palette = palette_for(self)
+        widget = self.query_one("#columns-list", Static)
+        room = widget.size.width or 46
+        labels = max(cell_len(column_label(c.name)) for c in columns.ALL)
+
+        rendered = Text()
+        for index, column in enumerate(columns.ALL):
+            selected = index == self.cursor
+            style = (
+                f"bold {palette['active_foreground']} on {palette['accent']}"
+                if selected
+                else palette["body"]
+            )
+            mark = "x" if column.name in self._chosen else " "
+            row = (
+                f" {'›' if selected else ' '} [{mark}] "
+                f"{set_cell_size(column_label(column.name), labels)}"
+            )
+            rendered.append(_crop(row, room) + "\n", style=style)
+        rendered.append("\n")
+        rendered.append(
+            _crop(
+                _("  {count} de {total} · nº de cola y título van siempre").format(
+                    count=len(self._chosen), total=len(columns.ALL)
+                ),
+                room,
+            ),
+            style=palette["muted"],
+        )
+        widget.update(rendered)
+
+    # --------------------------------------------------------------- actions
+
+    def action_up(self) -> None:
+        self.cursor = (self.cursor - 1) % len(columns.ALL)
+
+    def action_down(self) -> None:
+        self.cursor = (self.cursor + 1) % len(columns.ALL)
+
+    def action_pick(self) -> None:
+        name = columns.ALL[self.cursor].name
+        if name in self._chosen:
+            self._chosen.remove(name)
+        else:
+            self._chosen.append(name)
+        self._save()
+
+    def action_reset(self) -> None:
+        self._chosen = list(columns.DEFAULT)
+        self._save()
+
+    def _save(self) -> None:
+        # Written in the catalogue's order, so the file reads the way the
+        # queue is drawn rather than in the order things were clicked.
+        ordered = [c.name for c in columns.ALL if c.name in self._chosen]
+        config.set_option("columns", ",".join(ordered))
+        if self._on_change is not None:
+            self._on_change("columns")
+        self._render_list()
+
+    def action_close(self) -> None:
+        self.dismiss(None)
+
+
+def column_label(name: str) -> str:
+    """The catalogue's names are for the config file; these are for people.
+
+    Looked up at call time rather than stored on the Column, so switching
+    language re-translates them instead of freezing whatever was current at
+    import.
+    """
+    return {
+        "track": _("Nº dentro del álbum"),
+        "version": _("Versión"),
+        "artist": _("Artista"),
+        "album": _("Álbum"),
+        "year": _("Año"),
+        "quality": _("Calidad del stream"),
+        "explicit": _("Explícito"),
+        "popularity": _("Popularidad"),
+        "disc": _("Disco"),
+        "isrc": _("ISRC"),
+        "duration": _("Duración"),
+    }.get(name, name)
 
 
 class EqScreen(ModalScreen[None]):
@@ -1002,6 +1151,11 @@ class ConfigScreen(ModalScreen[None]):
                 note=_("al reiniciar"),
             ),
             Option(
+                _("Columnas de la cola"),
+                action="columns",
+                note=_("qué metadatos se ven en la lista"),
+            ),
+            Option(
                 _("Tema"),
                 key="theme",
                 choices=LAYOUTS,
@@ -1054,6 +1208,10 @@ class ConfigScreen(ModalScreen[None]):
             if audio.rates_configured():
                 return _("configurado")
             return _("sin configurar")
+        if option.action == "columns":
+            return _("{count} de {total}").format(
+                count=len(config.COLUMNS), total=len(columns.ALL)
+            )
         return _("acción")
 
     def _detail(self, option: Option) -> str:
@@ -1065,6 +1223,8 @@ class ConfigScreen(ModalScreen[None]):
             return option.note
         if option.action == "rates":
             return self._rates_detail()
+        if option.action == "columns":
+            return option.note
         return _("corta el audio un momento; la reproducción se detiene antes")
 
     def _rates_detail(self) -> str:
@@ -1158,8 +1318,13 @@ class ConfigScreen(ModalScreen[None]):
             return
         if option.action == "rates":
             self._toggle_rates()
+        elif option.action == "columns":
+            self.app.push_screen(ColumnsScreen(self._on_change), self._columns_closed)
         elif option.action == "restart":
             self._restart()
+
+    def _columns_closed(self, _result) -> None:
+        self._render_list()
 
     def _cycle(self, option: Option, step: int) -> None:
         current = self._value(option)

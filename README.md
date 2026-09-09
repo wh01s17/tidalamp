@@ -124,10 +124,33 @@ artists. Enter a level with `↵` and go back with `⌫`.
   it appends all of its contents.
 - `A` appends every track in the current level.
 
-A wide enough terminal splits the queue into columns — title, artist, album, year and
-duration — instead of running the artist into the title. They are dropped in the order
-they can be spared as the window narrows: first the year, then the album and artist
-together, ending at `artist - title` on one line with the duration on the right.
+A wide enough terminal splits the queue into columns instead of running the artist
+into the title. Which ones is up to you: the settings window (`o`) has a **Queue
+columns** row that opens a picker, and the choice applies to the queue already on
+screen rather than to the next one loaded.
+
+| name | shows |
+|---|---|
+| `track` | the number the song carries on its own album — not its place in the queue, which is always drawn |
+| `version` | `Remastered 2011` and the like, when TIDAL has one |
+| `artist` | on by default |
+| `album` | on by default |
+| `year` | on by default |
+| `quality` | `HI-RES`, `LOSSLESS`, `HIGH`, `LOW` |
+| `explicit` | `E` |
+| `popularity` | TIDAL's 0–100 |
+| `disc` | disc number on a multi-disc release |
+| `isrc` | the recording's ISRC |
+| `duration` | on by default |
+
+The queue position on the left and the title are always drawn. Every field comes filled in on an ordinary track listing, so
+turning a column on never costs an extra request, and one TIDAL has no answer for
+leaves its cell blank rather than inventing a value.
+
+Columns are dropped as the window narrows, in the order they can be spared — the year
+before the album, the album before the artist — ending at `artist - title` on one line
+with the duration on the right. The artist only leaves the title when it has a column
+of its own to go to.
 
 The queue is stored at `~/.local/state/tidalamp/queue.json` and restored on startup,
 including the previous cursor. Only metadata is saved; the API `Track` object is
@@ -335,6 +358,7 @@ not exist:
 quality = "HI_RES_LOSSLESS"   # LOW, HIGH, LOSSLESS, or HI_RES_LOSSLESS
 artwork = "auto"              # auto, kitty, sixel, blocks, or off
 language = "auto"             # auto follows the locale; es or en pin it
+columns = "artist,album,year,duration"   # queue columns, comma separated
 theme = "quattro"             # layout: quattro, retro, nova, or ascii
 palette = "auto"              # colours: auto, classic, a built-in, or your own
 debug = false                 # log to ~/.local/state/tidalamp/tidalamp.log
@@ -345,8 +369,8 @@ quit = "ctrl+q"
 ```
 
 Precedence is **environment → file → default**. `TIDALAMP_QUALITY`, `TIDALAMP_ART`,
-`TIDALAMP_LANG`, `TIDALAMP_THEME`, `TIDALAMP_PALETTE`, and `TIDALAMP_DEBUG` therefore
-override the file for one-off runs;
+`TIDALAMP_LANG`, `TIDALAMP_COLUMNS`, `TIDALAMP_THEME`, `TIDALAMP_PALETTE`, and
+`TIDALAMP_DEBUG` therefore override the file for one-off runs;
 the settings window labels a row whose value is being shadowed that way, rather than
 showing a value the app is not using. A syntax error in the file does not prevent
 startup; it is logged and the defaults take over.

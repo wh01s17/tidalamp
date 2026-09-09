@@ -20,10 +20,13 @@ sección se cierra con su número y su fecha; el procedimiento completo está en
   botones salen de los bindings efectivos, así que siguen a `config.toml`.
 - El transporte se dibuja como botones de tres filas, en dos grupos: el transporte por
   un lado y shuffle/repetición por otro.
-- La cola se dibuja en columnas —título, artista, álbum, año y duración— cuando el
-  terminal da para ello, en vez de meter el artista dentro del título. Se van cayendo
-  en el orden en que se pueden perder: primero el año, luego el álbum y el artista, y
-  al final queda `artista - título` en una línea con la duración a la derecha.
+- La cola se dibuja en columnas cuando el terminal da para ello, en vez de meter el
+  artista dentro del título. **Cuáles se ven se elige** desde la ventana de `o`, que
+  abre un selector con las once que la API de TIDAL rellena: número de pista, versión,
+  artista, álbum, año, calidad, explícito, popularidad, disco, ISRC y duración. El
+  cambio se aplica a la cola que ya está en pantalla, no a la siguiente que cargues.
+  Se van cayendo solas al estrecharse la ventana, en el orden en que se pueden perder,
+  y al final queda `artista - título` en una línea con la duración a la derecha.
 - **Cuatro estructuras visuales, elegibles con `theme`**, independientes del color:
   `quattro` (por defecto, plana y moderna), `retro` (barras de título dibujadas como
   una regla con el nombre centrado, teclas cuadradas pegadas y los conmutadores con las

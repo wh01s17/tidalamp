@@ -330,6 +330,41 @@ ConfigScreen {
     padding: 1 1;
 }
 
+ColumnsScreen {
+    align: center middle;
+}
+
+#columns-box {
+    width: 52;
+    max-width: 100%;
+    height: auto;
+    max-height: 100%;
+    background: $tidalamp-panel;
+    border: outer $tidalamp-border;
+}
+
+#columns-title {
+    background: $tidalamp-title-background;
+    color: $tidalamp-title-foreground;
+    text-style: bold;
+    height: 1;
+    padding: 0 1;
+}
+
+#columns-list {
+    background: $tidalamp-display-background;
+    color: $tidalamp-body;
+    height: auto;
+    padding: 1 1;
+}
+
+#columns-hint {
+    background: $tidalamp-transport-background;
+    color: $tidalamp-transport-foreground;
+    height: 1;
+    dock: bottom;
+}
+
 #config-hint {
     background: $tidalamp-transport-background;
     color: $tidalamp-transport-foreground;

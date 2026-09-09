@@ -35,6 +35,7 @@ def fresh(monkeypatch, tmp_path, contents: str | None = None, **env: str):
     module.LANGUAGE = module.setting("language", "TIDALAMP_LANG", "auto")
     module.THEME = module.setting("theme", "TIDALAMP_THEME", "quattro")
     module.PALETTE = module.setting("palette", "TIDALAMP_PALETTE", "auto")
+    module.COLUMNS = module.columns()
     module.DEBUG = module.flag("debug", "TIDALAMP_DEBUG")
     module.KEYS = {str(a): str(k) for a, k in (module.FILE.get("keys") or {}).items()}
     return module
@@ -202,6 +203,7 @@ def test_set_option_writes_each_type_the_way_toml_reads_it(tmp_path):
         "quality": "HIGH",
         "artwork": "auto",
         "language": "en",
+        "columns": "artist,album,year,duration",
         "theme": "quattro",
         "palette": "auto",
         "debug": True,
@@ -276,3 +278,25 @@ def test_the_environment_still_wins_and_the_screen_is_told_so(monkeypatch, tmp_p
 def test_every_setting_names_the_variable_that_overrides_it():
     for name, variable in config.ENV_VARS.items():
         assert variable.startswith("TIDALAMP_"), name
+
+
+def test_the_column_catalogue_and_the_setting_agree():
+    """Two places name these columns; a third would be one too many."""
+    from tidalamp import columns as catalogue
+
+    assert set(catalogue.DEFAULT) <= set(catalogue.NAMES)
+    assert ",".join(catalogue.DEFAULT) == config.DEFAULT_COLUMNS
+    # Every name in the template is one the catalogue knows.
+    from tidalamp.i18n import config_template
+
+    line = next(
+        row for row in config_template().splitlines() if row.startswith("columns = ")
+    )
+    written = line.split("=", 1)[1].strip().strip('"').split(",")
+    assert [name.strip() for name in written] == list(catalogue.DEFAULT)
+
+
+def test_an_unknown_column_name_costs_that_column_and_nothing_else(monkeypatch):
+    monkeypatch.setenv("TIDALAMP_COLUMNS", "artist,inventada,year,artist")
+
+    assert config.columns() == ("artist", "year")
