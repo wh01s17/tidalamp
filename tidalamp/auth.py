@@ -12,7 +12,8 @@ import logging
 
 import tidalapi
 
-from .config import DEFAULT_QUALITY, SESSION_FILE, ensure_dirs
+from . import config as settings
+from .config import SESSION_FILE, ensure_dirs
 from .i18n import _
 
 log = logging.getLogger("tidalamp.auth")
@@ -23,7 +24,7 @@ class NotLoggedIn(RuntimeError):
 
 
 def _new_session() -> tidalapi.Session:
-    config = tidalapi.Config(quality=tidalapi.Quality(DEFAULT_QUALITY))
+    config = tidalapi.Config(quality=tidalapi.Quality(settings.DEFAULT_QUALITY))
     return tidalapi.Session(config)
 
 

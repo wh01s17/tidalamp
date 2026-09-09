@@ -30,7 +30,8 @@ from pathlib import Path
 
 import tidalapi
 
-from .config import CACHE_DIR, DEFAULT_QUALITY, ensure_dirs
+from . import config
+from .config import CACHE_DIR, ensure_dirs
 from .i18n import _
 from .net import with_retries
 
@@ -173,7 +174,7 @@ def resolve(track: tidalapi.Track) -> Playable:
     log.debug(
         "«%s» pedida=%s entregada=%s manifiesto=%s códec=%s %s/%sbit",
         track.name,
-        DEFAULT_QUALITY,
+        config.DEFAULT_QUALITY,
         stream.audio_quality,
         kind,
         manifest.get_codecs(),
@@ -188,7 +189,7 @@ def resolve(track: tidalapi.Track) -> Playable:
         bit_depth=stream.bit_depth,
         codec=manifest.get_codecs(),
         manifest=kind,
-        requested=DEFAULT_QUALITY,
+        requested=config.DEFAULT_QUALITY,
     )
 
 

@@ -12,6 +12,7 @@ TIDAL into the one module that is deliberately ignorant of it.
 from __future__ import annotations
 
 from collections.abc import Callable
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, cast
 
 from rich.text import Text
@@ -24,7 +25,7 @@ from textual.screen import ModalScreen
 from textual.widget import Widget
 from textual.widgets import Input, Static
 
-from . import about, library
+from . import about, audio, config, library
 from .auth import ensure_fresh
 from .i18n import _
 from .library import Row
@@ -839,3 +840,264 @@ class TrackActionsScreen(ModalScreen[str | None]):
 
     def action_pick_favourite(self) -> None:
         self.dismiss("favourite")
+
+
+def _crop(text: str, width: int) -> str:
+    """One line, ellipsised rather than wrapped."""
+    if len(text) <= width:
+        return text
+    return text[: max(0, width - 1)] + "…"
+
+
+@dataclass(frozen=True)
+class Option:
+    """One line of the config screen.
+
+    ``key`` is the config file's, when the row writes one; ``choices`` are the
+    values ↵ cycles through. A row with neither is a system action, and
+    ``action`` names which one.
+    """
+
+    label: str
+    key: str = ""
+    choices: tuple[str, ...] = ()
+    action: str = ""
+    note: str = ""
+
+
+class ConfigScreen(ModalScreen[None]):
+    """Everything the config file holds, plus the audio stack under it.
+
+    The settings were only reachable by editing `config.toml` or by exporting
+    a variable before launching, which meant the two things a user changes
+    most — quality and whether the DAC is being handed hi-res at all — were
+    the two least visible. Every row here writes the file, so a change made
+    once stays made.
+    """
+
+    BINDINGS = [
+        Binding("escape,o", "close", _("cerrar")),
+        Binding("up", "up", _("arriba"), show=False),
+        Binding("down", "down", _("abajo"), show=False),
+        Binding("enter,right,space", "advance", _("cambiar"), show=False),
+        Binding("left", "back", "", show=False),
+    ]
+
+    cursor = reactive(0)
+
+    QUALITIES = ("LOW", "HIGH", "LOSSLESS", "HI_RES_LOSSLESS")
+    ARTWORKS = ("auto", "kitty", "sixel", "blocks", "off")
+    LANGUAGES = ("auto", "es", "en")
+    SWITCH = ("false", "true")
+
+    def __init__(self, on_change=None) -> None:
+        super().__init__()
+        # Called after a setting is written, so the app can apply what it can
+        # apply without a restart.
+        self._on_change = on_change
+        self._sink = audio.Sink()
+        self._allowed: tuple[int, ...] = ()
+        self._hardware: tuple[int, ...] = ()
+        self._rows: list[Option] = []
+
+    # ------------------------------------------------------------------ rows
+
+    def _options(self) -> list[Option]:
+        return [
+            Option(
+                _("Calidad"),
+                key="quality",
+                choices=self.QUALITIES,
+                note=_("se aplica a la siguiente pista"),
+            ),
+            Option(
+                _("Carátula"),
+                key="artwork",
+                choices=self.ARTWORKS,
+                note=_("al reiniciar"),
+            ),
+            Option(
+                _("Idioma"),
+                key="language",
+                choices=self.LANGUAGES,
+                note=_("al reiniciar"),
+            ),
+            Option(_("Registro de depuración"), key="debug", choices=self.SWITCH),
+            Option(_("Ritmos hi-res en PipeWire"), action="rates"),
+            Option(_("Reiniciar PipeWire"), action="restart"),
+        ]
+
+    def compose(self) -> ComposeResult:
+        with Vertical(id="config-box"):
+            yield Static(_("▓ CONFIGURACIÓN ▓"), id="config-title")
+            yield Static("", id="config-list", markup=False)
+            yield Static(_(" ↑↓ elegir   ↵ cambiar   o/esc cerrar"), id="config-hint")
+
+    def on_mount(self) -> None:
+        self._rows = self._options()
+        self._probe()
+
+    @work(thread=True, exclusive=True, group="config")
+    def _probe(self) -> None:
+        """Ask the audio stack what it is doing. Off the UI loop: it shells out."""
+        found = (audio.sink(), audio.allowed_rates())
+        hardware = audio.hardware_rates(found[0].name)
+        self.app.call_from_thread(self._probed, found[0], found[1], hardware)
+
+    def _probed(self, found, allowed, hardware) -> None:
+        self._sink, self._allowed, self._hardware = found, allowed, hardware
+        self._render_list()
+
+    def watch_cursor(self) -> None:
+        if self.is_mounted:
+            self._render_list()
+
+    # --------------------------------------------------------------- drawing
+
+    def _value(self, option: Option) -> str:
+        if option.key:
+            current = getattr(config, _ATTRIBUTES[option.key])
+            # `debug` is a bool in the file and "true"/"false" in the choices.
+            return str(current).lower() if isinstance(current, bool) else str(current)
+        if option.action == "rates":
+            if audio.rates_configured():
+                return _("configurado")
+            return _("sin configurar")
+        return _("acción")
+
+    def _detail(self, option: Option) -> str:
+        """The line under a row: why it matters here, on this machine."""
+        if option.key:
+            shadowing = config.overridden(option.key)
+            if shadowing:
+                return _("lo pisa {variable} del entorno").format(variable=shadowing)
+            return option.note
+        if option.action == "rates":
+            return self._rates_detail()
+        return _("corta el audio un momento; la reproducción se detiene antes")
+
+    def _rates_detail(self) -> str:
+        if not self._sink.known:
+            return _("no se pudo consultar PipeWire")
+        if self._sink.bluetooth:
+            return _("la salida es Bluetooth: no hay hi-res real por ahí")
+        if len(self._allowed) == 1:
+            return _("el grafo está fijo en {rate} Hz y remuestrea todo").format(
+                rate=self._allowed[0]
+            )
+        if self._hardware:
+            return _("el DAC llega a {rate} Hz").format(rate=max(self._hardware))
+        return _("el grafo puede cambiar de ritmo")
+
+    def _render_list(self) -> None:
+        palette = palette_for(self)
+        widget = self.query_one("#config-list", Static)
+        # Cropped, not wrapped: a detail that wrapped came back at column
+        # zero and broke the indent that ties it to its own row.
+        room = widget.size.width or 72
+        labels = max(len(option.label) for option in self._rows)
+
+        rendered = Text()
+        for index, option in enumerate(self._rows):
+            selected = index == self.cursor
+            marker = "›" if selected else " "
+            style = (
+                f"bold {palette['active_foreground']} on {palette['accent']}"
+                if selected
+                else palette["body"]
+            )
+            row = f" {marker} {option.label:<{labels}}   {self._value(option)}"
+            rendered.append(_crop(row, room) + "\n", style=style)
+            detail = f"     {' ' * labels}   {self._detail(option)}"
+            rendered.append(_crop(detail, room) + "\n", style=palette["muted"])
+        rendered.append("\n")
+        rendered.append(_crop(self._status(), room), style=palette["muted"])
+        widget.update(rendered)
+
+    def _status(self) -> str:
+        if not self._sink.known:
+            return _("  Salida: desconocida")
+        name = self._sink.description or self._sink.name
+        return _("  Salida: {name} · {rate} Hz {format}").format(
+            name=name, rate=self._sink.rate or "?", format=self._sink.sample_format
+        )
+
+    # --------------------------------------------------------------- actions
+
+    def action_up(self) -> None:
+        self.cursor = (self.cursor - 1) % len(self._rows)
+
+    def action_down(self) -> None:
+        self.cursor = (self.cursor + 1) % len(self._rows)
+
+    def action_advance(self) -> None:
+        self._change(1)
+
+    def action_back(self) -> None:
+        self._change(-1)
+
+    def _change(self, step: int) -> None:
+        option = self._rows[self.cursor]
+        if option.key:
+            self._cycle(option, step)
+            return
+        if option.action == "rates":
+            self._toggle_rates()
+        elif option.action == "restart":
+            self._restart()
+
+    def _cycle(self, option: Option, step: int) -> None:
+        current = self._value(option)
+        try:
+            index = option.choices.index(current)
+        except ValueError:
+            index = 0
+            step = 0
+        value: object = option.choices[(index + step) % len(option.choices)]
+        if option.key == "debug":
+            value = value == "true"
+        config.set_option(option.key, value)
+        if self._on_change is not None:
+            self._on_change(option.key)
+        self._render_list()
+
+    def _toggle_rates(self) -> None:
+        if audio.rates_configured():
+            audio.remove_rates()
+            message = _("ritmos hi-res quitados; reinicia PipeWire para aplicarlo")
+        else:
+            audio.write_rates()
+            message = _("ritmos hi-res escritos; reinicia PipeWire para aplicarlo")
+        self.player.status = message
+        self._render_list()
+
+    def _restart(self) -> None:
+        # mpv is holding the sink; let go of it before the daemon goes away.
+        self.player.action_stop()
+        self.player.status = _("reiniciando PipeWire…")
+        self._restart_worker()
+
+    @work(thread=True, exclusive=True, group="config")
+    def _restart_worker(self) -> None:
+        message = audio.restart()
+        self.app.call_from_thread(self._restarted, message)
+
+    def _restarted(self, message: str) -> None:
+        self.player.status = message
+        self._probe()
+
+    @property
+    def player(self) -> TidalAmp:
+        return cast("TidalAmp", self.app)
+
+    def action_close(self) -> None:
+        self.dismiss(None)
+
+
+# The module attribute each config key is resolved into.
+_ATTRIBUTES = {
+    "quality": "DEFAULT_QUALITY",
+    "artwork": "ARTWORK",
+    "language": "LANGUAGE",
+    "debug": "DEBUG",
+}

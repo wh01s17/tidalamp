@@ -10,7 +10,8 @@ from textual.widgets import Static
 
 from tidalamp import about, artwork, library
 from tidalamp import app as app_module
-from tidalamp.app import BrowserScreen, HelpScreen, RowList, TidalAmp
+from tidalamp import audio as audio_module
+from tidalamp.app import BrowserScreen, ConfigScreen, HelpScreen, RowList, TidalAmp
 from tidalamp.artwork import Cover, Protocol
 from tidalamp.library import Row
 from tidalamp.player import Mpv
@@ -582,8 +583,8 @@ def test_every_button_is_separated_from_the_next(monkeypatch):
             top = application.query_one("#transport-play").render_line(0).text
             assert top.count("╭") == 2, "un marco por grupo"
             assert top.count("┬") == 3 + 1, "las divisiones internas"
-            # Seven menu entries: one separator fewer.
-            assert menu.count(TidalAmp.SEPARATOR.strip()) == 6
+            # Eight menu entries: one separator fewer.
+            assert menu.count(TidalAmp.SEPARATOR.strip()) == 7
 
     asyncio.run(scenario())
 
@@ -814,6 +815,20 @@ def test_x_starts_the_cursor_track_when_nothing_is_loaded(monkeypatch):
             await pilot.press("x")
             await pilot.pause()
             assert started == [2]
+
+    asyncio.run(scenario())
+
+
+def test_the_menu_announces_the_settings_window(monkeypatch):
+    """It was reachable only from the help screen, which you have to know to
+    open in the first place."""
+    isolate_runtime(monkeypatch)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(160, 26)) as pilot:
+            await pilot.pause()
+            assert "o config" in transport(application, "menu")
 
     asyncio.run(scenario())
 
@@ -1164,6 +1179,190 @@ def test_mpris_cannot_push_the_volume_past_the_ceiling(monkeypatch):
 
             application.mpris_set_volume(0.45)
             assert mpv.volume == 45
+
+    asyncio.run(scenario())
+
+
+# ----------------------------------------------------------------- settings
+
+
+def isolate_config(monkeypatch, tmp_path):
+    """Point the config file at a temp one and drop every override."""
+    path = tmp_path / "config.toml"
+    monkeypatch.setattr(app_module.config, "CONFIG_FILE", path)
+    for variable in app_module.config.ENV_VARS.values():
+        monkeypatch.delenv(variable, raising=False)
+    app_module.config.reload()
+    return path
+
+
+def config_text(application) -> str:
+    body = application.screen.query_one("#config-list")
+    return "\n".join(body.render_line(y).text for y in range(body.size.height))
+
+
+def test_o_opens_the_settings_and_esc_closes_them(monkeypatch, tmp_path):
+    isolate_runtime(monkeypatch)
+    isolate_config(monkeypatch, tmp_path)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(100, 34)) as pilot:
+            await pilot.pause()
+            await pilot.press("o")
+            await pilot.pause()
+            assert isinstance(application.screen, ConfigScreen)
+
+            await pilot.press("escape")
+            await pilot.pause()
+            assert len(application.screen_stack) == 1
+
+    asyncio.run(scenario())
+
+
+def test_changing_a_setting_writes_the_file_and_takes_effect(monkeypatch, tmp_path):
+    """The whole point: a change made once stays made. It used to need an
+    editor, or a variable exported before launching."""
+    isolate_runtime(monkeypatch)
+    path = isolate_config(monkeypatch, tmp_path)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(100, 34)) as pilot:
+            await pilot.pause()
+            application.push_screen(ConfigScreen(application._setting_changed))
+            await pilot.pause()
+
+            assert app_module.config.DEFAULT_QUALITY == "HI_RES_LOSSLESS"
+            await pilot.press("enter")  # cursor starts on Quality
+            await pilot.pause()
+
+            assert app_module.config.DEFAULT_QUALITY == "LOW"
+            assert app_module.config.read_file(path)["quality"] == "LOW"
+            assert "LOW" in application.status
+
+    asyncio.run(scenario())
+
+
+def test_the_settings_cycle_both_ways(monkeypatch, tmp_path):
+    isolate_runtime(monkeypatch)
+    isolate_config(monkeypatch, tmp_path)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(100, 34)) as pilot:
+            await pilot.pause()
+            application.push_screen(ConfigScreen())
+            await pilot.pause()
+
+            await pilot.press("left")
+            await pilot.pause()
+            assert app_module.config.DEFAULT_QUALITY == "LOSSLESS"
+
+            await pilot.press("right")
+            await pilot.pause()
+            assert app_module.config.DEFAULT_QUALITY == "HI_RES_LOSSLESS"
+
+    asyncio.run(scenario())
+
+
+def test_a_setting_the_environment_overrides_is_labelled(monkeypatch, tmp_path):
+    """Showing a value the app is not using would be a lie."""
+    isolate_runtime(monkeypatch)
+    isolate_config(monkeypatch, tmp_path)
+    monkeypatch.setenv("TIDALAMP_QUALITY", "HIGH")
+    app_module.config.reload()
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(100, 34)) as pilot:
+            await pilot.pause()
+            application.push_screen(ConfigScreen())
+            await pilot.pause()
+            assert "TIDALAMP_QUALITY" in config_text(application)
+
+    asyncio.run(scenario())
+
+
+def test_the_screen_reports_what_the_audio_stack_is_doing(monkeypatch, tmp_path):
+    isolate_runtime(monkeypatch)
+    isolate_config(monkeypatch, tmp_path)
+    monkeypatch.setattr(
+        audio_module,
+        "sink",
+        lambda: audio_module.Sink(name="s", description="Mi DAC", rate=48000),
+    )
+    monkeypatch.setattr(audio_module, "allowed_rates", lambda: (48000,))
+    monkeypatch.setattr(audio_module, "hardware_rates", lambda name: (96000,))
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(100, 34)) as pilot:
+            await pilot.pause()
+            application.push_screen(ConfigScreen())
+            await settle(pilot, lambda: "Mi DAC" in config_text(application))
+            drawn = config_text(application)
+            assert "48000" in drawn
+            # A graph stuck on one rate is the thing worth saying out loud.
+            assert ("48000" in drawn and "resampl" in drawn.lower()) or "remue" in drawn
+
+    asyncio.run(scenario())
+
+
+def test_the_rates_row_writes_and_removes_the_drop_in(monkeypatch, tmp_path):
+    isolate_runtime(monkeypatch)
+    isolate_config(monkeypatch, tmp_path)
+    dropin = tmp_path / "pipewire.conf.d" / "rates.conf"
+    monkeypatch.setattr(audio_module, "CONF_DIR", dropin.parent)
+    monkeypatch.setattr(audio_module, "RATES_FILE", dropin)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(100, 34)) as pilot:
+            await pilot.pause()
+            screen = ConfigScreen()
+            application.push_screen(screen)
+            await pilot.pause()
+
+            screen.cursor = 4  # the rates row
+            await pilot.pause()
+            await pilot.press("enter")
+            await pilot.pause()
+            assert dropin.is_file()
+
+            await pilot.press("enter")
+            await pilot.pause()
+            assert not dropin.exists()
+
+    asyncio.run(scenario())
+
+
+def test_restarting_pipewire_stops_playback_first(monkeypatch, tmp_path):
+    """mpv is holding the sink; the daemon must not be pulled from under it."""
+    isolate_runtime(monkeypatch)
+    isolate_config(monkeypatch, tmp_path)
+    monkeypatch.setattr(audio_module, "restart", lambda: "hecho")
+
+    async def scenario() -> None:
+        mpv = FakeMpv()
+        application = TidalAmp(object(), mpv)
+        async with application.run_test(size=(100, 34)) as pilot:
+            await pilot.pause()
+            application.queue.replace(
+                [Entry(id=1, title="t", artist="a", duration=9)], start=0
+            )
+            mpv.idle = False
+            screen = ConfigScreen()
+            application.push_screen(screen)
+            await pilot.pause()
+
+            screen.cursor = 5  # the restart row
+            await pilot.pause()
+            await pilot.press("enter")
+            await settle(pilot, lambda: application.status == "hecho")
+
+            assert mpv.idle is True
+            assert application.queue.playing == -1
 
     asyncio.run(scenario())
 

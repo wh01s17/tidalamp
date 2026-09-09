@@ -79,7 +79,7 @@ def test_a_lossless_stream_shows_its_bit_depth():
 
 def test_a_downgrade_is_visible_instead_of_silent(monkeypatch):
     """Measured against TIDAL: the device-flow client gets HIGH for LOSSLESS."""
-    monkeypatch.setattr(stream, "DEFAULT_QUALITY", "HI_RES_LOSSLESS")
+    monkeypatch.setattr(stream.config, "DEFAULT_QUALITY", "HI_RES_LOSSLESS")
     playable = resolve(track_with(FakeManifest(urls=["https://cdn/a"]), "HIGH"))
 
     assert playable.requested == "HI_RES_LOSSLESS"
@@ -88,7 +88,7 @@ def test_a_downgrade_is_visible_instead_of_silent(monkeypatch):
 
 
 def test_getting_what_we_asked_for_is_not_a_downgrade(monkeypatch):
-    monkeypatch.setattr(stream, "DEFAULT_QUALITY", "HIGH")
+    monkeypatch.setattr(stream.config, "DEFAULT_QUALITY", "HIGH")
     playable = resolve(track_with(FakeManifest(urls=["https://cdn/a"]), "HIGH"))
     assert playable.downgraded is False
 

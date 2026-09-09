@@ -159,3 +159,106 @@ def test_the_template_never_overwrites_what_the_user_wrote(tmp_path):
     config.write_template(path)
 
     assert path.read_text(encoding="utf-8") == 'quality = "LOW"  # mío\n'
+
+
+# ------------------------------------------------------------- writing back
+
+
+def test_set_option_uncomments_in_place_and_keeps_the_comments(tmp_path):
+    """The template ships every setting commented out with an explanation
+    above it. Appending a second line would leave the user with two."""
+    path = tmp_path / "config.toml"
+
+    config.set_option("quality", "LOSSLESS", path)
+    text = path.read_text()
+
+    assert 'quality = "LOSSLESS"' in text
+    assert text.count("quality =") == 1
+    # The explanation that shipped above it is still there.
+    assert "HI_RES_LOSSLESS" in text
+    assert "# LOW, HIGH" in text or "# LOW, HIGH, LOSSLESS" in text
+
+
+def test_set_option_writes_each_type_the_way_toml_reads_it(tmp_path):
+    path = tmp_path / "config.toml"
+
+    config.set_option("quality", "HIGH", path)
+    config.set_option("debug", True, path)
+    config.set_option("language", "en", path)
+
+    assert config.read_file(path) == {
+        "quality": "HIGH",
+        "artwork": "auto",
+        "language": "en",
+        "debug": True,
+        "keys": {},
+    }
+
+
+def test_set_option_leaves_the_keys_section_alone(tmp_path):
+    """`[keys]` has entries named like settings; the writer stops before it."""
+    path = tmp_path / "config.toml"
+    path.write_text(
+        'quality = "HIGH"\n\n[keys]\n# quality = "k"\nplay = "p"\n', encoding="utf-8"
+    )
+
+    config.set_option("quality", "LOW", path)
+
+    text = path.read_text()
+    assert 'quality = "LOW"' in text
+    # Still a comment: had the writer reached it, it would now be a binding.
+    assert '# quality = "k"' in text, "la línea de [keys] no se toca"
+    assert config.read_file(path)["keys"] == {"play": "p"}
+
+
+def test_a_setting_the_file_never_had_is_added_above_the_sections(tmp_path):
+    path = tmp_path / "config.toml"
+    path.write_text('[keys]\nplay = "p"\n', encoding="utf-8")
+
+    config.set_option("quality", "LOW", path)
+
+    assert config.read_file(path) == {"quality": "LOW", "keys": {"play": "p"}}
+
+
+def test_writing_a_missing_file_starts_from_the_template(tmp_path):
+    path = tmp_path / "config.toml"
+    assert not path.exists()
+
+    config.set_option("artwork", "blocks", path)
+
+    assert path.exists()
+    assert config.read_file(path)["artwork"] == "blocks"
+
+
+# --------------------------------------------------------- reload and env
+
+
+def test_reload_brings_the_module_globals_up_to_date(monkeypatch, tmp_path):
+    path = tmp_path / "config.toml"
+    monkeypatch.setattr(config, "CONFIG_FILE", path)
+    monkeypatch.delenv("TIDALAMP_QUALITY", raising=False)
+
+    config.set_option("quality", "LOW", path)
+    config.reload()
+
+    assert config.DEFAULT_QUALITY == "LOW"
+
+
+def test_the_environment_still_wins_and_the_screen_is_told_so(monkeypatch, tmp_path):
+    """A value the file holds but the app is not using has to be labelled, or
+    the config screen shows something that is not in effect."""
+    path = tmp_path / "config.toml"
+    monkeypatch.setattr(config, "CONFIG_FILE", path)
+    monkeypatch.setenv("TIDALAMP_QUALITY", "HIGH")
+
+    config.set_option("quality", "LOW", path)
+    config.reload()
+
+    assert config.DEFAULT_QUALITY == "HIGH"
+    assert config.overridden("quality") == "TIDALAMP_QUALITY"
+    assert config.overridden("artwork") is None
+
+
+def test_every_setting_names_the_variable_that_overrides_it():
+    for name, variable in config.ENV_VARS.items():
+        assert variable.startswith("TIDALAMP_"), name

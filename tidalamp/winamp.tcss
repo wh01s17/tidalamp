@@ -283,6 +283,40 @@ TrackActionsScreen {
     height: 1;
 }
 
+ConfigScreen {
+    align: center middle;
+}
+
+#config-box {
+    width: 76;
+    max-width: 100%;
+    height: auto;
+    max-height: 100%;
+    background: $tidalamp-panel;
+    border: outer $tidalamp-border;
+}
+
+#config-title {
+    background: $tidalamp-title-background;
+    color: $tidalamp-title-foreground;
+    text-style: bold;
+    height: 1;
+    padding: 0 1;
+}
+
+#config-list {
+    background: $tidalamp-display-background;
+    color: $tidalamp-body;
+    height: auto;
+    padding: 1 1;
+}
+
+#config-hint {
+    background: $tidalamp-transport-background;
+    color: $tidalamp-transport-foreground;
+    height: 1;
+}
+
 HelpScreen {
     align: center middle;
 }

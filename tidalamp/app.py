@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 from typing import cast
 
 import tidalapi
@@ -14,7 +15,7 @@ from textual.containers import Horizontal, Vertical
 from textual.reactive import reactive
 from textual.widgets import Static
 
-from . import about, artwork, config, library
+from . import about, artwork, config, i18n, library
 from .auth import NotLoggedIn, ensure_fresh
 from .i18n import _
 from .library import Row
@@ -25,6 +26,7 @@ from .player import Mpv
 from .queue import Entry, Queue, Repeat
 from .screens import (
     BrowserScreen,
+    ConfigScreen,
     EqScreen,
     HelpScreen,
     LyricsScreen,
@@ -100,6 +102,7 @@ DEFAULT_KEYS: dict[str, str] = {
     "balance_right": "full_stop",
     "balance_centre": "backslash",
     "toggle_time": "t",
+    "config": "o",
     "help": "question_mark,h",
     "quit": "q,ctrl+c",
 }
@@ -187,6 +190,7 @@ class TidalAmp(App):
         _bind("toggle_time", _("tiempo")),
         _bind("favourite", _("favorito")),
         _bind("unfavourite", _("quitar favorito")),
+        _bind("config", _("config"), show=True),
         _bind("help", _("ayuda"), show=True),
         _bind("quit", _("salir"), show=True),
     ]
@@ -544,7 +548,10 @@ class TidalAmp(App):
             Text("\n", style=body).join(rows), layout=False
         )
 
-        menu = _("? ayuda · / buscar · l lib · y letra · e eq · f/F favorito · q salir")
+        menu = _(
+            "? ayuda · / buscar · l lib · y letra · e eq · o config"
+            " · f/F favorito · q salir"
+        )
         widget = self.query_one("#transport-menu", Static)
         line = self._separated(f"{menu}  ", body, dim)
         # Cropped here rather than left to wrap: a Rich Text wraps whatever
@@ -945,6 +952,29 @@ class TidalAmp(App):
 
     def action_equalizer(self) -> None:
         self.push_screen(EqScreen(self.settings, self._apply_audio), self._eq_closed)
+
+    def action_config(self) -> None:
+        self.push_screen(ConfigScreen(self._setting_changed))
+
+    def _setting_changed(self, name: str) -> None:
+        """Apply what can be applied without a restart, and say what cannot."""
+        if name == "quality":
+            # The session carries the quality it asks TIDAL for; the next
+            # track resolved picks the new one up.
+            session_config = getattr(self.session, "config", None)
+            if session_config is not None:
+                with contextlib.suppress(Exception):
+                    session_config.quality = tidalapi.Quality(config.DEFAULT_QUALITY)
+            self.status = _("calidad: {value}").format(value=config.DEFAULT_QUALITY)
+        elif name == "language":
+            i18n.refresh()
+            self.status = _("el idioma cambia al reiniciar tidalamp")
+        elif name == "artwork":
+            self.status = _("la carátula cambia al reiniciar tidalamp")
+        elif name == "debug":
+            self.status = _("registro: {value}").format(
+                value=_("activado") if config.DEBUG else _("desactivado")
+            )
 
     def action_help(self) -> None:
         # keys_for, not DEFAULT_KEYS: the screen has to show what the user's

@@ -7,15 +7,21 @@ Settings come from three places, and the first one that has an answer wins:
 3. the defaults below.
 
 TOML because Python reads it without a dependency, and because a config file
-you can comment is worth more than one you cannot. Nothing here writes to it
-except ``write_template()``, which the ``tidalamp config`` command calls: the
-file belongs to the user, so the app reads it and leaves it alone.
+you can comment is worth more than one you cannot. That is also why writing is
+done a line at a time by ``set_option()`` rather than by dumping a dict back:
+a round trip through a parser would return the settings and throw away every
+comment the user put around them.
+
+An environment variable still wins over the file, so a setting the config
+screen writes can be shadowed by one. ``overridden()`` reports that, because
+a screen that showed a value the app is not using would be lying.
 """
 
 from __future__ import annotations
 
 import logging
 import os
+import re
 import tomllib
 from pathlib import Path
 
@@ -57,6 +63,31 @@ def read_file(path: Path | None = None) -> dict:
 FILE = read_file()
 
 
+# Every setting the file carries: its name, the variable that overrides it,
+# and what it falls back to. The config screen renders this, `set_option`
+# validates against it, and the template is generated from it, so a setting
+# added here shows up in all three at once.
+ENV_VARS: dict[str, str] = {
+    "quality": "TIDALAMP_QUALITY",
+    "artwork": "TIDALAMP_ART",
+    "language": "TIDALAMP_LANG",
+    "debug": "TIDALAMP_DEBUG",
+}
+
+
+def overridden(name: str) -> str | None:
+    """The environment variable shadowing ``name``, or None.
+
+    The file is not the last word: `TIDALAMP_QUALITY=LOW tidalamp tui` beats
+    whatever is written down, and a screen that did not say so would show a
+    value the app is not using.
+    """
+    variable = ENV_VARS.get(name)
+    if variable and os.environ.get(variable):
+        return variable
+    return None
+
+
 def setting(name: str, env: str, default: str) -> str:
     """Resolve one setting: environment, then file, then default."""
     from_env = os.environ.get(env)
@@ -88,6 +119,11 @@ DEFAULT_QUALITY = setting("quality", "TIDALAMP_QUALITY", "HI_RES_LOSSLESS")
 # guess in artwork.detect_protocol.
 ARTWORK = setting("artwork", "TIDALAMP_ART", "auto")
 
+# "auto" follows the locale; "es" or "en" pin it. Until now the language was
+# only ever read from $LANG, which is ambient rather than chosen: it made the
+# one setting a user could not write down.
+LANGUAGE = setting("language", "TIDALAMP_LANG", "auto")
+
 DEBUG = flag("debug", "TIDALAMP_DEBUG")
 
 # Key overrides, action name to key. Empty means "the defaults in app.py".
@@ -108,6 +144,66 @@ def write_template(path: Path | None = None) -> Path:
     keys = "\n".join(f'# {action} = "{key}"' for action, key in DEFAULT_KEYS.items())
     path.write_text(config_template() % {"keys": keys}, encoding="utf-8")
     return path
+
+
+# Everything above [keys] is a plain `name = value` line; the writer only ever
+# touches that part, so a key override is never mistaken for a setting.
+_SECTION = re.compile(r"^\s*\[")
+
+
+def _toml(value: object) -> str:
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, int | float):
+        return str(value)
+    return '"' + str(value).replace("\\", "\\\\").replace('"', '\\"') + '"'
+
+
+def set_option(name: str, value: object, path: Path | None = None) -> Path:
+    """Persist one setting, leaving every comment in the file where it was.
+
+    The template ships each setting commented out, so an existing `# quality =`
+    line is uncommented in place rather than a second one being appended: the
+    user keeps the explanation that was written above it.
+    """
+    path = CONFIG_FILE if path is None else path
+    write_template(path)
+    lines = path.read_text(encoding="utf-8").splitlines()
+
+    written = f"{name} = {_toml(value)}"
+    pattern = re.compile(rf"^\s*#?\s*{re.escape(name)}\s*=")
+    for index, line in enumerate(lines):
+        if _SECTION.match(line):
+            # Past the first section header; settings do not live down here.
+            lines[index:index] = [written, ""]
+            break
+        if pattern.match(line):
+            lines[index] = written
+            break
+    else:
+        lines.append(written)
+
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    if path == CONFIG_FILE:
+        reload()
+    return path
+
+
+def reload() -> None:
+    """Re-read the file into the module globals, after `set_option` wrote it.
+
+    The settings are module attributes rather than a dict so that reading one
+    stays a plain name lookup; the cost is this function, and that a consumer
+    doing `from .config import DEFAULT_QUALITY` keeps the value it imported.
+    Those consumers read `config.DEFAULT_QUALITY` instead — see stream.py.
+    """
+    global FILE, DEFAULT_QUALITY, ARTWORK, LANGUAGE, DEBUG, KEYS
+    FILE = read_file()
+    DEFAULT_QUALITY = setting("quality", "TIDALAMP_QUALITY", "HI_RES_LOSSLESS")
+    ARTWORK = setting("artwork", "TIDALAMP_ART", "auto")
+    LANGUAGE = setting("language", "TIDALAMP_LANG", "auto")
+    DEBUG = flag("debug", "TIDALAMP_DEBUG")
+    KEYS = {str(action): str(key) for action, key in (FILE.get("keys") or {}).items()}
 
 
 def ensure_dirs() -> None:

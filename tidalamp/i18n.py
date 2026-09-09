@@ -69,6 +69,65 @@ ENGLISH: dict[str, str] = {
     'sin carátula: falta Pillow (pip install "tidalamp[art]")': (
         'no cover: Pillow is missing (pip install "tidalamp[art]")'
     ),
+    # --- config screen
+    "Ventana de configuración, con los ritmos hi-res de PipeWire.": (
+        "A settings window, including PipeWire's hi-res rates."
+    ),
+    "configuración": "settings",
+    "▓ CONFIGURACIÓN ▓": "▓ SETTINGS ▓",
+    " ↑↓ elegir   ↵ cambiar   o/esc cerrar": " ↑↓ choose   ↵ change   o/esc close",
+    "config": "config",
+    "cambiar": "change",
+    "Calidad": "Quality",
+    "Carátula": "Cover art",
+    "Idioma": "Language",
+    "Registro de depuración": "Debug log",
+    "Ritmos hi-res en PipeWire": "Hi-res rates in PipeWire",
+    "Reiniciar PipeWire": "Restart PipeWire",
+    "acción": "action",
+    "activado": "on",
+    "desactivado": "off",
+    "configurado": "configured",
+    "sin configurar": "not configured",
+    "al reiniciar": "on restart",
+    "se aplica a la siguiente pista": "applies to the next track",
+    "lo pisa {variable} del entorno": "{variable} in the environment overrides it",
+    "  Salida: desconocida": "  Output: unknown",
+    "  Salida: {name} · {rate} Hz {format}": "  Output: {name} · {rate} Hz {format}",
+    "no se pudo consultar PipeWire": "could not ask PipeWire",
+    "la salida es Bluetooth: no hay hi-res real por ahí": (
+        "the output is Bluetooth: no real hi-res goes through it"
+    ),
+    "el grafo está fijo en {rate} Hz y remuestrea todo": (
+        "the graph is stuck at {rate} Hz and resamples everything"
+    ),
+    "el DAC llega a {rate} Hz": "the DAC reaches {rate} Hz",
+    "el grafo puede cambiar de ritmo": "the graph can change rate",
+    "corta el audio un momento; la reproducción se detiene antes": (
+        "cuts audio for a moment; playback is stopped first"
+    ),
+    "ritmos hi-res escritos; reinicia PipeWire para aplicarlo": (
+        "hi-res rates written; restart PipeWire to apply them"
+    ),
+    "ritmos hi-res quitados; reinicia PipeWire para aplicarlo": (
+        "hi-res rates removed; restart PipeWire to apply it"
+    ),
+    "reiniciando PipeWire…": "restarting PipeWire…",
+    "PipeWire reiniciado": "PipeWire restarted",
+    "reinicio de PipeWire desactivado por el entorno": (
+        "PipeWire restart disabled by the environment"
+    ),
+    "no se pudo reiniciar PipeWire; hazlo tú: systemctl --user restart {services}": (
+        "could not restart PipeWire; do it yourself: systemctl --user restart {services}"
+    ),
+    "calidad: {value}": "quality: {value}",
+    "registro: {value}": "log: {value}",
+    "el idioma cambia al reiniciar tidalamp": (
+        "the language changes when tidalamp restarts"
+    ),
+    "la carátula cambia al reiniciar tidalamp": (
+        "cover art changes when tidalamp restarts"
+    ),
     # --- track action menu
     "reproducir o pausar (▶ / ‖)": "play or pause (▶ / ‖)",
     "Menú de pista: ahora, a continuación, radio y favoritos.": (
@@ -261,8 +320,8 @@ ENGLISH: dict[str, str] = {
         " ↵ open/play   a add   A add all   f/F favourite   ⌫ back   R reload   esc close"
     ),
     " ↑↓ desplazar   y/esc cerrar": " ↑↓ scroll   y/esc close",
-    "? ayuda · / buscar · l lib · y letra · e eq · f/F favorito · q salir": (
-        "? help · / search · l lib · y lyrics · e eq · f/F favourite · q quit"
+    "? ayuda · / buscar · l lib · y letra · e eq · o config · f/F favorito · q salir": (
+        "? help · / search · l lib · y lyrics · e eq · o config · f/F favourite · q quit"
     ),
     "\n  La ventana es de {width}×{height}.\n"
     "  TIDAL AMP necesita al menos {min_width}×{min_height}.\n\n"
@@ -343,6 +402,8 @@ ENGLISH: dict[str, str] = {
     'quality = "HI_RES_LOSSLESS"\n\n'
     "# Cómo dibujar la carátula: auto, kitty, sixel, blocks u off.\n"
     'artwork = "auto"\n\n'
+    "# Idioma: auto sigue al locale del sistema; es o en lo fijan.\n"
+    'language = "auto"\n\n'
     "# Registro en ~/.local/state/tidalamp/tidalamp.log.\n"
     "debug = false\n\n"
     "# Teclas. La izquierda es la acción, la derecha la tecla; varias se separan con\n"
@@ -358,6 +419,8 @@ ENGLISH: dict[str, str] = {
         'quality = "HI_RES_LOSSLESS"\n\n'
         "# How to draw cover art: auto, kitty, sixel, blocks, or off.\n"
         'artwork = "auto"\n\n'
+        "# Language: auto follows the system locale; es or en pin it.\n"
+        'language = "auto"\n\n'
         "# Log to ~/.local/state/tidalamp/tidalamp.log.\n"
         "debug = false\n\n"
         "# Keys. The action is on the left and the key on the right; separate multiple\n"
@@ -404,13 +467,36 @@ def _language(env: dict[str, str] | None = None) -> str:
     return "es"
 
 
-_catalogue: dict[str, str] = _CATALOGUES.get(_language(), {})
+def selected(env: dict[str, str] | None = None) -> str:
+    """The language to use: the `language` setting when it pins one, else the locale.
+
+    The setting comes first because it is a choice and `$LANG` is ambient: a
+    system in Spanish is not a request for this program to be in Spanish. An
+    unrecognised value falls through to the locale rather than failing, same
+    as everywhere else in the config file.
+    """
+    # Imported here, not at module level: config's template generator imports
+    # this module back, and only one of the two can afford to be first.
+    from . import config
+
+    chosen = (config.LANGUAGE or "auto").strip().lower()
+    if chosen == "es" or chosen in _CATALOGUES:
+        return chosen
+    return _language(env)
+
+
+_catalogue: dict[str, str] = _CATALOGUES.get(selected(), {})
 
 
 def use(language: str) -> None:
     """Switch language. For the tests, and for anything that wants to force one."""
     global _catalogue
     _catalogue = _CATALOGUES.get(language, {})
+
+
+def refresh() -> None:
+    """Re-read the language setting, after the config screen changed it."""
+    use(selected())
 
 
 def _(text: str) -> str:
@@ -430,6 +516,8 @@ def config_template() -> str:
         'quality = "HI_RES_LOSSLESS"\n\n'
         "# Cómo dibujar la carátula: auto, kitty, sixel, blocks u off.\n"
         'artwork = "auto"\n\n'
+        "# Idioma: auto sigue al locale del sistema; es o en lo fijan.\n"
+        'language = "auto"\n\n'
         "# Registro en ~/.local/state/tidalamp/tidalamp.log.\n"
         "debug = false\n\n"
         "# Teclas. La izquierda es la acción, la derecha la tecla; varias se "
