@@ -12,11 +12,6 @@ tidalamp asks TIDAL for `HI_RES_LOSSLESS` by default and plays FLAC up to
 screen. When TIDAL delivers less than was asked for, the status bar says so instead of
 leaving the badge to imply otherwise.
 
-Verified on the hardware, which is the only check no software layer can fake: a FiiO
-BTR15 reads `PCM 176.4K` on its own display while the player reads
-`24bit 176kHz HI_RES_LOSSLESS` and the settings window reads
-`FIIO BTR15 · 176400 Hz s32le`.
-
 Three things had to be right for that, and two of them are not in the player:
 
 - **The stream.** Hi-res arrives as a segmented DASH manifest, and two separate bugs
@@ -40,17 +35,17 @@ warns when the output is a Bluetooth sink.
 - [Desktop integration (MPRIS)](#desktop-integration-mpris)
 - [Queue and library](#queue-and-library)
 - [Quality](#quality)
-  - [Two traps in the hi-res path](#two-traps-in-the-hi-res-path)
+    - [Two traps in the hi-res path](#two-traps-in-the-hi-res-path)
 - [Important limitation: DRM](#important-limitation-drm)
 - [Themes and colours](#themes-and-colours)
 - [Platform support](#platform-support)
 - [Installation](#installation)
-  - [Arch Linux (AUR)](#arch-linux-aur)
-  - [Other Linux distributions (PyPI)](#other-linux-distributions-pypi)
-  - [From the repository](#from-the-repository)
-  - [Minimum size](#minimum-size)
+    - [Arch Linux (AUR)](#arch-linux-aur)
+    - [Other Linux distributions (PyPI)](#other-linux-distributions-pypi)
+    - [From the repository](#from-the-repository)
+    - [Minimum size](#minimum-size)
 - [Configuration](#configuration)
-  - [Language](#language)
+    - [Language](#language)
 - [Keys](#keys)
 - [The track menu](#the-track-menu)
 - [Settings](#settings)
@@ -69,21 +64,21 @@ warns when the output is a Bluetooth sink.
 
 The application is split into independent layers:
 
-| Layer | Responsibility | Module |
-|---|---|---|
-| Auth | TIDAL device flow, without registering an app | `auth.py` |
-| Stream | Resolves a track to something mpv can open | `stream.py` |
-| Playback | One long-lived `mpv --idle` process controlled over IPC | `player.py` |
-| UI | Textual TUI with a Winamp-inspired look | `app.py`, `widgets.py` |
-| Queue | Ordering, shuffle, repeat, and persistence | `queue.py` |
-| Library | Playlists, favourites, albums, and artists | `library.py` |
-| MPRIS | D-Bus service for desktop integration | `mpris.py` |
-| Network | Retries with backoff around TIDAL calls | `net.py` |
-| Spectrum | cava connected to the audio sink, when installed | `spectrum.py` |
-| Audio | Balance and equalizer as mpv filters | `settings.py` |
-| Lyrics | Loading, LRC parsing, and plain-text fallback | `lyrics.py` |
-| Cover art | Downloading, caching, and terminal rendering | `artwork.py` |
-| Theme | Three layouts, and the palette they are painted in | `theme.py` |
+| Layer     | Responsibility                                          | Module                 |
+| --------- | ------------------------------------------------------- | ---------------------- |
+| Auth      | TIDAL device flow, without registering an app           | `auth.py`              |
+| Stream    | Resolves a track to something mpv can open              | `stream.py`            |
+| Playback  | One long-lived `mpv --idle` process controlled over IPC | `player.py`            |
+| UI        | Textual TUI with a Winamp-inspired look                 | `app.py`, `widgets.py` |
+| Queue     | Ordering, shuffle, repeat, and persistence              | `queue.py`             |
+| Library   | Playlists, favourites, albums, and artists              | `library.py`           |
+| MPRIS     | D-Bus service for desktop integration                   | `mpris.py`             |
+| Network   | Retries with backoff around TIDAL calls                 | `net.py`               |
+| Spectrum  | cava connected to the audio sink, when installed        | `spectrum.py`          |
+| Audio     | Balance and equalizer as mpv filters                    | `settings.py`          |
+| Lyrics    | Loading, LRC parsing, and plain-text fallback           | `lyrics.py`            |
+| Cover art | Downloading, caching, and terminal rendering            | `artwork.py`           |
+| Theme     | Three layouts, and the palette they are painted in      | `theme.py`             |
 
 **Search:** `/` searches for tracks and displays them directly, with albums, artists,
 and playlists in three category rows above. A category is fetched only when opened,
@@ -158,8 +153,7 @@ it loads the next page **into the same level** without losing the cursor positio
 500-track playlist is therefore reachable without fetching it all up front.
 
 **A short page does not mean the list has ended.** TIDAL applies the limit and then
-filters the resulting window: asking for 100 favourite tracks can return 90 out of
-766. When a level exposes its total count (favourites, playlists, albums), that count
+filters the resulting window: asking for 100 favourite tracks can return 90 out of 766. When a level exposes its total count (favourites, playlists, albums), that count
 decides whether another page exists, and the offset still advances by 100 because
 TIDAL counts against the unfiltered collection. Without a count—artist top tracks or
 search—a full page offers another one. An exact multiple may offer one empty page,
@@ -198,12 +192,12 @@ out as `SHUFFLE ○` and `REPEAT 1`. Both are also exposed through MPRIS as `Shu
 The default requested quality is `HI_RES_LOSSLESS`. Measured against a real account on
 2026-09-08:
 
-| Requested | `HIRES_LOSSLESS` track | `LOSSLESS`-only track |
-|---|---|---|
-| `LOW` | BTS, LOW, 96 kbps | same |
-| `HIGH` | BTS, HIGH, 320 kbps | same |
-| `LOSSLESS` | BTS, **HIGH** | BTS, **HIGH** |
-| `HI_RES_LOSSLESS` | **MPD**, FLAC 24-bit / 96 kHz | BTS, HIGH |
+| Requested         | `HIRES_LOSSLESS` track        | `LOSSLESS`-only track |
+| ----------------- | ----------------------------- | --------------------- |
+| `LOW`             | BTS, LOW, 96 kbps             | same                  |
+| `HIGH`            | BTS, HIGH, 320 kbps           | same                  |
+| `LOSSLESS`        | BTS, **HIGH**                 | BTS, **HIGH**         |
+| `HI_RES_LOSSLESS` | **MPD**, FLAC 24-bit / 96 kHz | BTS, HIGH             |
 
 In other words, **requesting `LOSSLESS` never produced lossless audio** through the
 device-flow client: TIDAL returned `HIGH` even for tracks it labels `LOSSLESS`.
@@ -227,13 +221,13 @@ No hi-res track played until both of these were addressed:
    (`ftyp` + `moov`); subsequent `moof` + `mdat` segments contain audio without their
    own header. The HLS generated by `tidalapi` lists the initialization segment as
    audio, so ffmpeg opens each media segment independently, cannot find `trex`, and
-   aborts with *error reading header*. tidalamp rewrites the playlist: the first
+   aborts with _error reading header_. tidalamp rewrites the playlist: the first
    segment becomes `#EXT-X-MAP`, and the playlist declares version 7 as required for
    fragmented MP4.
 2. **ffmpeg blocks `https` from a local playlist.** Allowed protocols are inherited
    from the parent protocol, so an `.m3u8` opened as `file:` may only follow
-   `file,crypto,data`; every remote segment then fails with *Protocol 'https' not on
-   whitelist*. mpv receives an expanded `--demuxer-lavf-o` whitelist, using mpv's
+   `file,crypto,data`; every remote segment then fails with _Protocol 'https' not on
+   whitelist_. mpv receives an expanded `--demuxer-lavf-o` whitelist, using mpv's
    `%<length>%` escaping because commas would otherwise split the option before it
    reaches ffmpeg.
 
@@ -250,12 +244,12 @@ Two independent settings. `theme` picks the **layout** — how the interface is 
 `palette` picks the **colours** it is drawn in. Any layout works with any palette, and
 both can be changed from the settings window (`o`) without restarting playback.
 
-| `theme` | Look |
-|---|---|
-| `quattro` | The default. Flat, modern, short dividers, left-aligned headings. |
-| `retro` | The 1997 skin as far as a terminal goes: title bars drawn as a rule with the heading centred on it, square transport keys packed shoulder to shoulder, and the toggles spelled `SHUFFLE` and `REPEAT`. |
-| `nova` | Frameless. One flat ground, no boxes anywhere, and colour reserved for the two controls that carry state — an accent rule under whichever toggle is on. |
-| `ascii` | A terminal before it had box drawing: `[ z << ]` bracket keys, rules made of `=` and `-`, and no glyph in the chrome you could not type. The meters keep their block characters. |
+| `theme`   | Look                                                                                                                                                                                                   |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `quattro` | The default. Flat, modern, short dividers, left-aligned headings.                                                                                                                                      |
+| `retro`   | The 1997 skin as far as a terminal goes: title bars drawn as a rule with the heading centred on it, square transport keys packed shoulder to shoulder, and the toggles spelled `SHUFFLE` and `REPEAT`. |
+| `nova`    | Frameless. One flat ground, no boxes anywhere, and colour reserved for the two controls that carry state — an accent rule under whichever toggle is on.                                                |
+| `ascii`   | A terminal before it had box drawing: `[ z << ]` bracket keys, rules made of `=` and `-`, and no glyph in the chrome you could not type. The meters keep their block characters.                       |
 
 <table>
   <tr>
@@ -320,15 +314,15 @@ Omarchy, and the automated test suite runs on Ubuntu. It should work on other de
 Linux distributions that provide Python 3.11 or newer and `mpv`, although real
 playback has not yet been tested on each of them.
 
-| Platform | Status |
-|---|---|
-| Arch Linux / Omarchy | Supported and tested; the AUR is the recommended installation channel |
-| Debian / Ubuntu | Supported through PyPI; the automated suite runs on Ubuntu |
-| Fedora, openSUSE, and other desktop Linux distributions | Expected to work through PyPI, but not yet tested with real playback |
-| WSL2 | Best effort; audio must be configured separately and desktop integration may be unavailable |
-| macOS | Unsupported and untested; the core may run, but the Linux desktop and audio integrations will not |
-| Windows | Not compatible: mpv is controlled through a Unix socket and desktop integration uses D-Bus/MPRIS |
-| BSD and Android/Termux | Unsupported and untested |
+| Platform                                                | Status                                                                                            |
+| ------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| Arch Linux / Omarchy                                    | Supported and tested; the AUR is the recommended installation channel                             |
+| Debian / Ubuntu                                         | Supported through PyPI; the automated suite runs on Ubuntu                                        |
+| Fedora, openSUSE, and other desktop Linux distributions | Expected to work through PyPI, but not yet tested with real playback                              |
+| WSL2                                                    | Best effort; audio must be configured separately and desktop integration may be unavailable       |
+| macOS                                                   | Unsupported and untested; the core may run, but the Linux desktop and audio integrations will not |
+| Windows                                                 | Not compatible: mpv is controlled through a Unix socket and desktop integration uses D-Bus/MPRIS  |
+| BSD and Android/Termux                                  | Unsupported and untested                                                                          |
 
 A missing D-Bus session only disables MPRIS and desktop media controls; it does not
 stop playback. Cover art also falls back to terminal blocks when kitty graphics and
@@ -444,39 +438,39 @@ separate pause, and here play and pause share one button, so the transport is fo
 adjacent keys in the order the buttons appear. All of them may be changed as described
 above, and the buttons then show the key that actually works.
 
-| Key | Action |
-|---|---|
-| `z` `x` `c` `v` | previous / play-pause / stop / next |
-| `/` | search TIDAL |
-| `↑` `↓` `Enter` | navigate; on a track, open the track menu |
-| `l` | open the library browser |
-| `f` `F` | add to / remove from favourites |
-| `R` | reload the level, bypassing the cache |
-| `y` | show lyrics for the current track |
-| `s` `r` | shuffle (`⇄`) / repeat (`↻`), on the transport row |
-| `d` | remove from the queue |
-| `alt+↑` `alt+↓` | move the track in the queue |
-| `e` | open the equalizer |
-| `,` `.` `\` | balance left / right / centre |
-| `C` | clear the queue |
-| `←` `→` | seek ±5 seconds |
-| `+` `-` | change volume |
-| `t` | toggle elapsed / remaining time |
-| `o` | open the settings window |
-| `?` `h` | open the help window |
-| `q` | quit |
+| Key             | Action                                             |
+| --------------- | -------------------------------------------------- |
+| `z` `x` `c` `v` | previous / play-pause / stop / next                |
+| `/`             | search TIDAL                                       |
+| `↑` `↓` `Enter` | navigate; on a track, open the track menu          |
+| `l`             | open the library browser                           |
+| `f` `F`         | add to / remove from favourites                    |
+| `R`             | reload the level, bypassing the cache              |
+| `y`             | show lyrics for the current track                  |
+| `s` `r`         | shuffle (`⇄`) / repeat (`↻`), on the transport row |
+| `d`             | remove from the queue                              |
+| `alt+↑` `alt+↓` | move the track in the queue                        |
+| `e`             | open the equalizer                                 |
+| `,` `.` `\`     | balance left / right / centre                      |
+| `C`             | clear the queue                                    |
+| `←` `→`         | seek ±5 seconds                                    |
+| `+` `-`         | change volume                                      |
+| `t`             | toggle elapsed / remaining time                    |
+| `o`             | open the settings window                           |
+| `?` `h`         | open the help window                               |
+| `q`             | quit                                               |
 
 ## The track menu
 
 `↵` on a song—in search results or in the library—opens a small menu instead of
 assuming what you meant:
 
-| | Action | Key | What it does |
-|---|---|---|---|
-| `▶` | Play now | `a` | Queues the whole level and starts on this track, which is what `↵` used to do on its own. |
-| `↳` | Play next | `c` | Inserts just this track after the one playing. Under shuffle it really is next, not next in the list. |
-| `≈` | Track radio | `d` | Plays TIDAL's station for this track: the seed first, then the songs TIDAL considers similar. TIDAL heads its own station with the seed, which is filtered out so it is not queued twice. |
-| `♥` | Add to favourites | `v` | Adds it to your TIDAL favourites, leaving the queue alone. |
+|     | Action            | Key | What it does                                                                                                                                                                              |
+| --- | ----------------- | --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `▶` | Play now          | `a` | Queues the whole level and starts on this track, which is what `↵` used to do on its own.                                                                                                 |
+| `↳` | Play next         | `c` | Inserts just this track after the one playing. Under shuffle it really is next, not next in the list.                                                                                     |
+| `≈` | Track radio       | `d` | Plays TIDAL's station for this track: the seed first, then the songs TIDAL considers similar. TIDAL heads its own station with the seed, which is filtered out so it is not queued twice. |
+| `♥` | Add to favourites | `v` | Adds it to your TIDAL favourites, leaving the queue alone.                                                                                                                                |
 
 `↑` `↓` and `↵` pick, `Esc` backs out. `↵` on an album, artist or playlist still
 opens it: a level has one obvious thing to do.
@@ -490,12 +484,12 @@ releases—and when it does not, the status line says so and nothing is queued.
 so a change made once stays made — until now these could only be reached by
 editing that file, or by exporting a variable before launching.
 
-| Setting | Values | Takes effect |
-|---|---|---|
-| Quality | `LOW` `HIGH` `LOSSLESS` `HI_RES_LOSSLESS` | the next track |
-| Cover art | `auto` `kitty` `sixel` `blocks` `off` | on restart |
-| Language | `auto` `es` `en` | on restart |
-| Debug log | on / off | immediately |
+| Setting   | Values                                    | Takes effect   |
+| --------- | ----------------------------------------- | -------------- |
+| Quality   | `LOW` `HIGH` `LOSSLESS` `HI_RES_LOSSLESS` | the next track |
+| Cover art | `auto` `kitty` `sixel` `blocks` `off`     | on restart     |
+| Language  | `auto` `es` `en`                          | on restart     |
+| Debug log | on / off                                  | immediately    |
 
 An environment variable still wins over the file, and the row says so rather
 than showing a value the app is not using.
@@ -509,7 +503,7 @@ The same window shows what is underneath mpv, because nothing else can:
                                the graph is stuck at 48000 Hz and resamples…
   Restart PipeWire           action
 
-  Output: FIIO BTR15 Analog Stereo · 48000 Hz s32le
+  Output: Your USB DAC Analog Stereo · 48000 Hz s32le
 ```
 
 PipeWire runs its graph at one sample rate and resamples everything into it.
@@ -533,7 +527,7 @@ the keys that only apply inside search and the library.
 It reads the bindings from the running app, not from a hardcoded list, so a key
 rebound in `config.toml` shows up there as the key you actually have to press.
 
-The same window carries the *About* section — version, author, repository,
+The same window carries the _About_ section — version, author, repository,
 licence — and a summary of what each released version brought. Those notes live
 in `tidalamp/about.py` rather than being parsed out of `CHANGELOG.md`, which is
 not shipped inside the wheel.
@@ -643,11 +637,11 @@ quarter of the height, so it cannot eat the playlist, and it leaves room on its 
 the clock and the marquee — a tall but narrow terminal keeps the small box. The
 renderer is selected automatically from the terminal's capabilities:
 
-| Protocol | Terminals | Result |
-|---|---|---|
-| kitty graphics | kitty, Ghostty, WezTerm | real pixels |
-| sixel | foot, mlterm, contour, yaft | real pixels |
-| half blocks | any other terminal | `▀` with two colours per cell |
+| Protocol       | Terminals                   | Result                        |
+| -------------- | --------------------------- | ----------------------------- |
+| kitty graphics | kitty, Ghostty, WezTerm     | real pixels                   |
+| sixel          | foot, mlterm, contour, yaft | real pixels                   |
+| half blocks    | any other terminal          | `▀` with two colours per cell |
 
 Detection reads `$TERM`, `$TERM_PROGRAM`, and `$KITTY_WINDOW_ID`. Querying the
 terminal would be more exact, but the reply would arrive through the same channel as
