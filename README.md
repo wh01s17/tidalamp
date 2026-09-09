@@ -3,7 +3,7 @@
 A terminal TIDAL client for Linux with a Winamp 2.x look. No official API app registration
 and no browser in the middle: device flow + mpv.
 
-![TidalAmp adapting to different Omarchy themes](img/tidalamp-banner.svg)
+![The same tidalamp layout cycling through six palettes](img/tidalamp-banner.svg)
 
 ## Hi-res, all the way to the DAC
 
@@ -257,11 +257,50 @@ both can be changed from the settings window (`o`) without restarting playback.
 | `nova` | Frameless. One flat ground, no boxes anywhere, and colour reserved for the two controls that carry state — an accent rule under whichever toggle is on. |
 | `ascii` | A terminal before it had box drawing: `[ z << ]` bracket keys, rules made of `=` and `-`, and no glyph in the chrome you could not type. The meters keep their block characters. |
 
+<table>
+  <tr>
+    <td width="50%"><img src="img/theme-quattro.webp" alt="The quattro layout"></td>
+    <td width="50%"><img src="img/theme-retro.webp" alt="The retro layout"></td>
+  </tr>
+  <tr>
+    <td align="center"><code>theme = "quattro"</code></td>
+    <td align="center"><code>theme = "retro"</code></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="img/theme-nova.webp" alt="The nova layout"></td>
+    <td width="50%"><img src="img/theme-ascii.webp" alt="The ascii layout"></td>
+  </tr>
+  <tr>
+    <td align="center"><code>theme = "nova"</code></td>
+    <td align="center"><code>theme = "ascii"</code></td>
+  </tr>
+</table>
+
 `palette` accepts `auto` (follow Omarchy), `classic` (the original green-on-black
 Winamp colours), the built-ins `tokyo-night`, `catppuccin`, `nord` and `gruvbox`, or
 the name of a TOML file you drop in `~/.config/tidalamp/palettes/`. Custom palettes use
 the same format as Omarchy's `colors.toml`, so the built-ins and your own work on any
 Linux, with or without Omarchy.
+
+The same layout, repainted. Five of these are Omarchy themes picked up through `auto`;
+the first is the player's own `classic`, which is what you get anywhere else.
+
+<table>
+  <tr>
+    <td width="33%"><img src="img/palette-emerald.webp" alt="Green on black"></td>
+    <td width="33%"><img src="img/palette-green.webp" alt="Muted green"></td>
+    <td width="33%"><img src="img/palette-amber.webp" alt="Amber on black"></td>
+  </tr>
+  <tr>
+    <td width="33%"><img src="img/palette-orange.webp" alt="Orange on navy"></td>
+    <td width="33%"><img src="img/palette-blue.webp" alt="Blue on navy"></td>
+    <td width="33%"><img src="img/palette-daylight.webp" alt="Blue on a light background"></td>
+  </tr>
+</table>
+
+Nothing above is a separate stylesheet: it is one layout reading the colours it was
+given, which is why a palette you write yourself gets the same treatment as the ones
+that ship.
 
 On Omarchy, tidalamp reads the active palette from
 `$XDG_STATE_HOME/omarchy/current/theme/colors.toml` (or
