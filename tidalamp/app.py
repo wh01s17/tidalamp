@@ -14,7 +14,7 @@ from textual.containers import Horizontal, Vertical
 from textual.reactive import reactive
 from textual.widgets import Static
 
-from . import artwork, config, library
+from . import about, artwork, config, library
 from .auth import NotLoggedIn, ensure_fresh
 from .i18n import _
 from .library import Row
@@ -68,14 +68,18 @@ def _entry_metadata(entry: Entry) -> dict:
     }
 
 
-# Every action a user may rebind, with the key Winamp used. Navigation keys
-# (arrows, page up/down, Enter, Escape) are deliberately not here: they are
-# what makes the browser navigable, and a typo there locks you out of it.
+# Every action a user may rebind. Navigation keys (arrows, page up/down,
+# Enter, Escape) are deliberately not here: they are what makes the browser
+# navigable, and a typo there locks you out of it.
+#
+# The transport runs z x c v across the keyboard in the order the buttons sit
+# on screen, which is easier to find by touch than Winamp's z x c v b — that
+# one spent a key on a separate pause, and pause now shares the play button.
 DEFAULT_KEYS: dict[str, str] = {
     "prev": "z",
     "play": "x",
-    "stop": "v",
-    "next": "b",
+    "stop": "c",
+    "next": "v",
     "search": "slash",
     "library": "l",
     "lyrics": "y",
@@ -472,6 +476,16 @@ class TidalAmp(App):
             out.append(part, style=body)
         return out
 
+    @staticmethod
+    def _button_key(action: str) -> str:
+        """The key on a button's face: the first one bound, as you type it.
+
+        Read from `keys_for`, not from `DEFAULT_KEYS`, so a button rebound in
+        `config.toml` shows the key that actually works — a button with the
+        wrong letter on it is worse than one with no letter at all.
+        """
+        return about.pretty_keys(keys_for(action).split(",")[0])
+
     def _buttons(self) -> list[list[tuple[str, bool]]]:
         """(label, lit) per button, grouped into the frames they share.
 
@@ -481,17 +495,18 @@ class TidalAmp(App):
         control instead of a handful of loose boxes.
         """
         playing = not self.mpv.paused and not self.mpv.idle
+        key = self._button_key
         return [
             [
-                ("z ◀◀", False),
-                (f"x {'‖' if playing else '▶'}", False),
-                ("v ■", False),
-                ("b ▶▶", False),
+                (f"{key('prev')} ◀◀", False),
+                (f"{key('play')} {'‖' if playing else '▶'}", False),
+                (f"{key('stop')} ■", False),
+                (f"{key('next')} ▶▶", False),
             ],
             [
-                ("s ⇄", self.queue.shuffle),
+                (f"{key('shuffle')} ⇄", self.queue.shuffle),
                 (
-                    f"r {self.REPEAT_GLYPHS[self.queue.repeat]}",
+                    f"{key('repeat')} {self.REPEAT_GLYPHS[self.queue.repeat]}",
                     self.queue.repeat is not Repeat.NONE,
                 ),
             ],

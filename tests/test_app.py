@@ -588,6 +588,44 @@ def test_every_button_is_separated_from_the_next(monkeypatch):
     asyncio.run(scenario())
 
 
+def test_the_transport_runs_z_x_c_v_across_the_keyboard(monkeypatch):
+    """Four adjacent keys in the order the buttons sit on screen. Winamp's
+    fifth (`b`) went with the separate pause button."""
+    isolate_runtime(monkeypatch)
+    keys = app_module.DEFAULT_KEYS
+
+    assert [keys["prev"], keys["play"], keys["stop"], keys["next"]] == list("zxcv")
+    assert "b" not in {
+        key for binding in TidalAmp.BINDINGS for key in binding.key.split(",")
+    }
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(150, 26)) as pilot:
+            await pilot.pause()
+            drawn = transport(application)
+            for key, glyph in (("z", "◀◀"), ("x", "▶"), ("c", "■"), ("v", "▶▶")):
+                assert f"{key} {glyph}" in drawn
+
+    asyncio.run(scenario())
+
+
+def test_the_buttons_show_the_rebound_key_not_the_shipped_one(monkeypatch):
+    """A button with the wrong letter on it is worse than one with none."""
+    isolate_runtime(monkeypatch)
+    monkeypatch.setitem(app_module.config.KEYS, "stop", "k")
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(150, 26)) as pilot:
+            await pilot.pause()
+            drawn = transport(application)
+            assert "k ■" in drawn
+            assert "c ■" not in drawn
+
+    asyncio.run(scenario())
+
+
 def test_play_and_pause_are_one_button_showing_what_it_will_do(monkeypatch):
     """There used to be «x ▶» and «c ‖» side by side, and only one of them
     ever made sense at a given moment."""
@@ -675,7 +713,7 @@ def test_stop_stays_stopped_instead_of_restarting_the_queue(monkeypatch):
             assert application._was_idle is False
             started.clear()
 
-            await pilot.press("v")
+            await pilot.press("c")
             await pilot.pause(0.8)
 
             assert application.queue.playing == -1
@@ -714,13 +752,12 @@ def test_a_track_ending_on_its_own_still_advances(monkeypatch):
 
 
 def test_there_is_no_second_key_that_pauses(monkeypatch):
-    """«c» used to pause too, which after merging the buttons was just a
-    second shortcut for what «x» already does."""
+    """«c» used to pause as well as «x», which after merging the two buttons
+    was just a second shortcut for the same thing. It is the stop key now."""
     isolate_runtime(monkeypatch)
 
     assert "pause" not in app_module.DEFAULT_KEYS
-    bound = {key for binding in TidalAmp.BINDINGS for key in binding.key.split(",")}
-    assert "c" not in bound
+    assert app_module.DEFAULT_KEYS["stop"] == "c"
 
     async def scenario() -> None:
         mpv = FakeMpv()
@@ -734,7 +771,8 @@ def test_there_is_no_second_key_that_pauses(monkeypatch):
 
             await pilot.press("c")
             await pilot.pause()
-            assert mpv.paused is False, "«c» ya no hace nada"
+            assert mpv.paused is False, "«c» para, no pausa"
+            assert mpv.idle is True
 
     asyncio.run(scenario())
 
