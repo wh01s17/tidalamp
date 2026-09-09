@@ -350,6 +350,33 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
       modal y se restaura desde el tick lento al desapilarla, y se borra por id al
       desmontar el widget.
 
+### Barra de transporte — `app.py`, `winamp.tcss`
+
+- [x] Dos mitades en un `Horizontal`: a la izquierda las teclas de transporte, a la
+      derecha las ventanas alineadas al borde (`width: 1fr; text-align: right`). Antes
+      era una sola cadena y el menú arrancaba pegado a `b ▶▶`.
+- [x] Separador `·` en el color atenuado de la paleta, no `│`: la fila es una lista de
+      cosas pequeñas y una barra sólida entre cada una pesa más que lo que separa.
+      `_separated()` parte la cadena traducida y atenúa sólo los separadores, así que
+      el catálogo sigue teniendo una entrada por mitad.
+- [x] Shuffle y repetición dejaron de ser una fila propia con las palabras
+      `SHUF OFF` / `REP ALL`: ahora son dos botones más del transporte, `s ⇄` y `r ↻`,
+      encendidos con el acento del tema cuando están activos. Repetir-una es `r ↻1`,
+      porque es el único estado que el color no puede decir solo.
+- [x] `↻ ` y `↻1` miden lo mismo a propósito: al cambiar de modo la fila no se desplaza.
+- [x] Play y pausa son **un solo botón y una sola tecla**: `x ▶` parado o en pausa,
+      `x ‖` sonando —el icono es la acción que hará al pulsarlo—. `action_play` cubre
+      los tres estados. La `c` de Winamp desapareció: después de fusionar los botones
+      hacía exactamente lo mismo que `x`, y dos atajos para una función es el desorden
+      que la fusión venía a quitar. `pause` ya no está en `DEFAULT_KEYS` ni en la
+      plantilla de configuración; el toggle sobrevive como `_toggle_pause()`, sin
+      prefijo `action_`, porque MPRIS `PlayPause` lo usa y nada del teclado lo alcanza
+      —un nombre bindeable que no se puede bindear miente en el fichero de config.
+- [x] El botón sigue el estado desde `_tick_fast`, pero sólo repinta cuando el estado
+      cambia de verdad: ese tick corre diez veces por segundo.
+- [x] `? ayuda` va primero en el menú: en un terminal estrecho el bloque derecho se
+      recorta por la derecha, y la entrada que explica todas las demás sobrevive.
+
 ### Menú de la pista — `screens.py`, `queue.py`, `library.py`
 
 - [x] `↵` sobre una canción abre `TrackActionsScreen` en vez de encolar el nivel a

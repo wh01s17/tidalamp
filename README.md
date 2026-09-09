@@ -156,9 +156,10 @@ removes it. These are separate commands rather than a toggle because the API can
 answer whether an item is already a favourite. A toggle would have to download the
 entire favourites list or guess, and a wrong guess could delete something you wanted.
 
-`s` toggles shuffle and `r` cycles repeat (off → queue → track). Their state remains
-visible as `SHUF ON/OFF` and `REP OFF/ALL/1`; active modes are highlighted and both are
-also exposed through MPRIS as `Shuffle` and `LoopStatus`.
+`s` toggles shuffle and `r` cycles repeat (off → queue → track). Both sit on the
+transport row as buttons, `s ⇄` and `r ↻`, lit in the theme's accent while they are on;
+repeat-one shows as `r ↻1`, because that is the one state a colour cannot say on its
+own. Both are also exposed through MPRIS as `Shuffle` and `LoopStatus`.
 
 ## Quality
 
@@ -334,14 +335,14 @@ The defaults deliberately match Winamp and may be changed as described above.
 
 | Key | Action |
 |---|---|
-| `z` `x` `c` `v` `b` | previous / play / pause / stop / next |
+| `z` `x` `v` `b` | previous / play-pause / stop / next |
 | `/` | search TIDAL |
 | `↑` `↓` `Enter` | navigate; on a track, open the track menu |
 | `l` | open the library browser |
 | `f` `F` | add to / remove from favourites |
 | `R` | reload the level, bypassing the cache |
 | `y` | show lyrics for the current track |
-| `s` `r` | shuffle / repeat |
+| `s` `r` | shuffle (`⇄`) / repeat (`↻`), on the transport row |
 | `d` | remove from the queue |
 | `alt+↑` `alt+↓` | move the track in the queue |
 | `e` | open the equalizer |

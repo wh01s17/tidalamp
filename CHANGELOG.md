@@ -13,11 +13,16 @@ sección se cierra con su número y su fecha; el procedimiento completo está en
 
 - Interfaz TUI con la estética de Winamp 2.x: reloj de siete segmentos, marquesina,
   analizador de 19 bandas, barra de posición y sliders de volumen y balance.
+- Play y pausa comparten un único botón y una única tecla (`x`), cuyo icono es la
+  acción que hará al pulsarlo: `▶` parado o en pausa, `‖` sonando.
 - Reproducción con `mpv` de larga vida por socket IPC, con reinicio automático si el
   proceso muere.
 - Autenticación por *device flow* de TIDAL, sin registrar ninguna app, con refresco del
   token al arrancar y a media sesión.
 - Cola con shuffle, repetición en tres modos, reordenado y persistencia entre sesiones.
+  Ambos viven en la barra de transporte como botones `s ⇄` y `r ↻`, encendidos con
+  el acento del tema; la barra separa transporte y ventanas con `·` y alinea las
+  ventanas a la derecha.
 - Navegador de la biblioteca: playlists, favoritos, álbumes y artistas, paginado y con
   caché de niveles en memoria.
 - Búsqueda de pistas, álbumes, artistas y playlists.
