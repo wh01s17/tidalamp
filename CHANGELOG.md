@@ -5,6 +5,11 @@ versionado es [semántico](https://semver.org/lang/es/).
 
 ## [Sin publicar]
 
+## [0.1.1] - 2026-09-09
+
+Versión de documentación y de primer contacto: lo que veía quien instalaba tidalamp
+fuera de Arch estaba escrito para Arch. Ningún cambio en la reproducción.
+
 ### Añadido
 
 - Cuando falta `mpv` o `cava`, el mensaje nombra la orden de instalación de la
@@ -16,16 +21,26 @@ versionado es [semántico](https://semver.org/lang/es/).
 
 ### Cambiado
 
-- El README documenta los requisitos por distribución: la orden de `mpv` y de
-  `cava` en apt, dnf, zypper y pacman, y que el suelo de Python 3.11 deja fuera
-  Ubuntu 22.04 y Debian 11.
-
 - La descripción del proyecto deja de definirse por comparación con Winamp. El
   README, la descripción del paquete, la entrada de escritorio, el `PKGBUILD`, la
   ayuda de la CLI y la pantalla «Acerca de» hablan ahora de una interfaz retro de
   reproductor. Winamp sigue nombrado donde es un dato y no una etiqueta: el origen
   de las teclas del transporte, las diez bandas del ecualizador y el descargo de
   marcas.
+- El README documenta los requisitos por distribución: la orden de `mpv` y de
+  `cava` en apt, dnf, zypper y pacman, y que el suelo de Python 3.11 deja fuera
+  Ubuntu 22.04 y Debian 11.
+- El README se reescribe para quien usa el programa: un arranque rápido y la
+  instalación al principio —estaban a mitad de página— y fuera unas cien líneas
+  que justificaban decisiones de diseño ante un revisor de código.
+- Las imágenes del README pasan a URL absolutas. Con rutas relativas no se veía
+  ninguna en la página de PyPI, que es la primera impresión del proyecto.
+
+### Corregido
+
+- La página de PyPI de 0.1.0 describía la interfaz como «estilo Winamp». Una
+  versión publicada es inmutable, así que la descripción corregida —y el README
+  nuevo, y las imágenes— sólo podían llegar con esta versión.
 
 ## [0.1.0] - 2026-09-09
 

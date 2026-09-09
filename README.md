@@ -3,7 +3,7 @@
 A terminal TIDAL client for Linux with a retro player interface. No official API app
 registration and no browser in the middle: device flow + mpv.
 
-![The same tidalamp layout cycling through six palettes](img/tidalamp-banner.svg)
+![The same tidalamp layout cycling through six palettes](https://raw.githubusercontent.com/wh01s17/tidalamp/main/img/tidalamp-banner.svg)
 
 ## Quick start
 
@@ -295,16 +295,16 @@ both can be changed from the settings window (`o`) without restarting playback.
 
 <table>
   <tr>
-    <td width="50%"><img src="img/theme-quattro.webp" alt="The quattro layout"></td>
-    <td width="50%"><img src="img/theme-retro.webp" alt="The retro layout"></td>
+    <td width="50%"><img src="https://raw.githubusercontent.com/wh01s17/tidalamp/main/img/theme-quattro.webp" alt="The quattro layout"></td>
+    <td width="50%"><img src="https://raw.githubusercontent.com/wh01s17/tidalamp/main/img/theme-retro.webp" alt="The retro layout"></td>
   </tr>
   <tr>
     <td align="center"><code>theme = "quattro"</code></td>
     <td align="center"><code>theme = "retro"</code></td>
   </tr>
   <tr>
-    <td width="50%"><img src="img/theme-nova.webp" alt="The nova layout"></td>
-    <td width="50%"><img src="img/theme-ascii.webp" alt="The ascii layout"></td>
+    <td width="50%"><img src="https://raw.githubusercontent.com/wh01s17/tidalamp/main/img/theme-nova.webp" alt="The nova layout"></td>
+    <td width="50%"><img src="https://raw.githubusercontent.com/wh01s17/tidalamp/main/img/theme-ascii.webp" alt="The ascii layout"></td>
   </tr>
   <tr>
     <td align="center"><code>theme = "nova"</code></td>
@@ -323,14 +323,14 @@ the first is the player's own `classic`, which is what you get anywhere else.
 
 <table>
   <tr>
-    <td width="33%"><img src="img/palette-emerald.webp" alt="Green on black"></td>
-    <td width="33%"><img src="img/palette-green.webp" alt="Muted green"></td>
-    <td width="33%"><img src="img/palette-amber.webp" alt="Amber on black"></td>
+    <td width="33%"><img src="https://raw.githubusercontent.com/wh01s17/tidalamp/main/img/palette-emerald.webp" alt="Green on black"></td>
+    <td width="33%"><img src="https://raw.githubusercontent.com/wh01s17/tidalamp/main/img/palette-green.webp" alt="Muted green"></td>
+    <td width="33%"><img src="https://raw.githubusercontent.com/wh01s17/tidalamp/main/img/palette-amber.webp" alt="Amber on black"></td>
   </tr>
   <tr>
-    <td width="33%"><img src="img/palette-orange.webp" alt="Orange on navy"></td>
-    <td width="33%"><img src="img/palette-blue.webp" alt="Blue on navy"></td>
-    <td width="33%"><img src="img/palette-daylight.webp" alt="Blue on a light background"></td>
+    <td width="33%"><img src="https://raw.githubusercontent.com/wh01s17/tidalamp/main/img/palette-orange.webp" alt="Orange on navy"></td>
+    <td width="33%"><img src="https://raw.githubusercontent.com/wh01s17/tidalamp/main/img/palette-blue.webp" alt="Blue on navy"></td>
+    <td width="33%"><img src="https://raw.githubusercontent.com/wh01s17/tidalamp/main/img/palette-daylight.webp" alt="Blue on a light background"></td>
   </tr>
 </table>
 

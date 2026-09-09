@@ -1,6 +1,6 @@
 [project]
 name = "tidalamp"
-version = "0.1.0"
+version = "0.1.1"
 description = "Linux terminal TIDAL client with hi-res playback and a retro TUI (requires system mpv)"
 readme = "README.md"
 requires-python = ">=3.11"

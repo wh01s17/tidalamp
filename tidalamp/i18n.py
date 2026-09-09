@@ -245,6 +245,12 @@ ENGLISH: dict[str, str] = {
         "Not affiliated with TIDAL, Aspiro, or the Winamp trademark holders."
     ),
     "Cambios por versión": "Changes by version",
+    "Si falta mpv o cava, el mensaje da la orden de tu distribución.": (
+        "If mpv or cava is missing, the message gives your distribution's command."
+    ),
+    "README reescrito: requisitos por distribución y menos rodeos.": (
+        "Rewritten README: per-distribution requirements and less detour."
+    ),
     "Interfaz retro: reloj, marquesina, analizador y playlist.": (
         "Retro interface: clock, marquee, analyser and playlist."
     ),

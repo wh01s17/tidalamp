@@ -50,6 +50,14 @@ def releases() -> tuple[Release, ...]:
     """Newest first. Translated at call time, not at import time."""
     return (
         Release(
+            "0.1.1",
+            "2026-09-09",
+            (
+                _("Si falta mpv o cava, el mensaje da la orden de tu distribución."),
+                _("README reescrito: requisitos por distribución y menos rodeos."),
+            ),
+        ),
+        Release(
             "0.1.0",
             "2026-09-09",
             (
