@@ -15,7 +15,7 @@ from .i18n import _
 from .player import Mpv, MpvNotFound
 
 app = typer.Typer(
-    add_completion=False, help=_("Cliente TIDAL con interfaz estilo Winamp.")
+    add_completion=False, help=_("Cliente TIDAL para terminal con interfaz retro.")
 )
 
 

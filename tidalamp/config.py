@@ -143,7 +143,7 @@ ARTWORK = setting("artwork", "TIDALAMP_ART", "auto")
 LANGUAGE = setting("language", "TIDALAMP_LANG", "auto")
 
 # Layout and colour are deliberately independent. Quattro is a flatter,
-# modern TUI treatment; winamp retains the framed transport. ``auto`` follows
+# modern TUI treatment; retro keeps the framed transport. ``auto`` follows
 # an active Omarchy palette and falls back to the built-in classic colours.
 THEME = setting("theme", "TIDALAMP_THEME", "quattro")
 PALETTE = setting("palette", "TIDALAMP_PALETTE", "auto")

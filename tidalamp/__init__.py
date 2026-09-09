@@ -1,4 +1,4 @@
-"""tidalamp: a Winamp-flavoured TIDAL client for the terminal.
+"""tidalamp: a TIDAL client for the terminal, with a retro player interface.
 
 Copyright (C) 2026 wh01s17.
 

@@ -228,8 +228,8 @@ ENGLISH: dict[str, str] = {
     "▓ AYUDA ▓  {name} {version}": "▓ HELP ▓  {name} {version}",
     " ↑↓ desplazar   ?/h/esc cerrar": " ↑↓ scroll   ?/h/esc close",
     "Acerca de": "About",
-    "Cliente de TIDAL para terminal con la estética de Winamp 2.x.": (
-        "A TIDAL client for the terminal, dressed as Winamp 2.x."
+    "Cliente de TIDAL para terminal, con una interfaz retro.": (
+        "A TIDAL client for the terminal, with a retro player interface."
     ),
     "Reproduce con mpv; el catálogo y los streams vienen de tidalapi.": (
         "Playback through mpv; catalogue and streams come from tidalapi."
@@ -245,8 +245,8 @@ ENGLISH: dict[str, str] = {
         "Not affiliated with TIDAL, Aspiro, or the Winamp trademark holders."
     ),
     "Cambios por versión": "Changes by version",
-    "Interfaz Winamp 2.x: reloj, marquesina, analizador y playlist.": (
-        "Winamp 2.x interface: clock, marquee, analyser and playlist."
+    "Interfaz retro: reloj, marquesina, analizador y playlist.": (
+        "Retro interface: clock, marquee, analyser and playlist."
     ),
     "Reproducción con mpv por IPC, hasta FLAC 24 bit/96 kHz.": (
         "Playback through mpv over IPC, up to 24-bit/96 kHz FLAC."
@@ -406,8 +406,8 @@ ENGLISH: dict[str, str] = {
     ),
     "acción desconocida: {action}": "unknown action: {action}",
     # --- command line
-    "Cliente TIDAL con interfaz estilo Winamp.": (
-        "TIDAL client with a Winamp-style interface."
+    "Cliente TIDAL para terminal con interfaz retro.": (
+        "TIDAL client for the terminal with a retro interface."
     ),
     "Autoriza el cliente con tu cuenta TIDAL (flujo de dispositivo).": (
         "Authorize the client with your TIDAL account (device flow)."

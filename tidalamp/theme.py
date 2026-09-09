@@ -4,7 +4,7 @@ Omarchy stages the active theme at
 ``$XDG_STATE_HOME/omarchy/current/theme/colors.toml``.  Reading that file is
 enough to follow stock, overlaid, and user themes without invoking Omarchy or
 depending on it.  Everywhere else, and for malformed files, TidalAmp keeps its
-classic Winamp-inspired palette.
+classic green-on-black palette.
 """
 
 from __future__ import annotations

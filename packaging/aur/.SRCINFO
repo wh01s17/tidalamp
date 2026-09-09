@@ -1,5 +1,5 @@
 pkgbase = tidalamp
-	pkgdesc = Terminal TIDAL client with a Winamp 2.x interface
+	pkgdesc = Terminal TIDAL client with a retro interface and hi-res playback
 	pkgver = 0.1.0
 	pkgrel = 1
 	url = https://github.com/wh01s17/tidalamp

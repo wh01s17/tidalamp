@@ -5,6 +5,15 @@ versionado es [semántico](https://semver.org/lang/es/).
 
 ## [Sin publicar]
 
+### Cambiado
+
+- La descripción del proyecto deja de definirse por comparación con Winamp. El
+  README, la descripción del paquete, la entrada de escritorio, el `PKGBUILD`, la
+  ayuda de la CLI y la pantalla «Acerca de» hablan ahora de una interfaz retro de
+  reproductor. Winamp sigue nombrado donde es un dato y no una etiqueta: el origen
+  de las teclas del transporte, las diez bandas del ecualizador y el descargo de
+  marcas.
+
 ## [0.1.0] - 2026-09-09
 
 Primera versión pública de tidalamp, distribuida mediante PyPI y GitHub Releases. El
@@ -16,7 +25,7 @@ servicio. El procedimiento y el estado completo están en [`publish.md`](publish
 
 - `tidalamp` sin subcomando abre directamente el reproductor; `tidalamp tui` se
   conserva como forma explícita equivalente.
-- Interfaz TUI con la estética de Winamp 2.x: reloj de siete segmentos, marquesina,
+- Interfaz TUI retro de reproductor de escritorio: reloj de siete segmentos, marquesina,
   analizador de 19 bandas, barra de posición y sliders de volumen y balance.
 - Play y pausa comparten un único botón y una única tecla (`x`), cuyo icono es la
   acción que hará al pulsarlo: `▶` parado o en pausa, `‖` sonando.

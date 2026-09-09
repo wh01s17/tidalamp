@@ -1,4 +1,4 @@
-"""The Winamp-flavoured TUI."""
+"""The retro-player TUI."""
 
 from __future__ import annotations
 

@@ -2,7 +2,7 @@
 pkgname=tidalamp
 pkgver=0.1.0
 pkgrel=1
-pkgdesc="Terminal TIDAL client with a Winamp 2.x interface"
+pkgdesc="Terminal TIDAL client with a retro interface and hi-res playback"
 arch=('any')
 url="https://github.com/wh01s17/tidalamp"
 license=('GPL-3.0-or-later')

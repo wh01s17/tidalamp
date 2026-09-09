@@ -887,7 +887,7 @@ class HelpScreen(ModalScreen[None]):
 
         lines.append(("heading", _("Acerca de")))
         for text in (
-            _("Cliente de TIDAL para terminal con la estética de Winamp 2.x."),
+            _("Cliente de TIDAL para terminal, con una interfaz retro."),
             _("Reproduce con mpv; el catálogo y los streams vienen de tidalapi."),
         ):
             lines.append(("row", f"  {text}"))

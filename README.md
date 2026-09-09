@@ -1,7 +1,7 @@
 # tidalamp
 
-A terminal TIDAL client for Linux with a Winamp 2.x look. No official API app registration
-and no browser in the middle: device flow + mpv.
+A terminal TIDAL client for Linux with a retro player interface. No official API app
+registration and no browser in the middle: device flow + mpv.
 
 ![The same tidalamp layout cycling through six palettes](img/tidalamp-banner.svg)
 
@@ -245,11 +245,11 @@ both can be changed from the settings window (`o`) without restarting playback.
   </tr>
 </table>
 
-`palette` accepts `auto` (follow Omarchy), `classic` (the original green-on-black
-Winamp colours), the built-ins `tokyo-night`, `catppuccin`, `nord` and `gruvbox`, or
-the name of a TOML file you drop in `~/.config/tidalamp/palettes/`. Custom palettes use
-the same format as Omarchy's `colors.toml`, so the built-ins and your own work on any
-Linux, with or without Omarchy.
+`palette` accepts `auto` (follow Omarchy), `classic` (green-on-black, the player's own),
+the built-ins `tokyo-night`, `catppuccin`, `nord` and `gruvbox`, or the name of a TOML
+file you drop in `~/.config/tidalamp/palettes/`. Custom palettes use the same format as
+Omarchy's `colors.toml`, so the built-ins and your own work on any Linux, with or
+without Omarchy.
 
 The same layout, repainted. Five of these are Omarchy themes picked up through `auto`;
 the first is the player's own `classic`, which is what you get anywhere else.
@@ -279,7 +279,7 @@ analyzer, sliders, lyrics, and equalizer. Changing the theme while the TUI is op
 updates the palette within two seconds without disturbing playback.
 
 On other distributions, or when the file is missing or invalid, tidalamp falls back to
-its original green-on-black Winamp palette. The integration only reads Omarchy state;
+its own green-on-black `classic` palette. The integration only reads Omarchy state;
 it does not modify themes or require the `omarchy` command.
 
 ## Platform support
@@ -637,7 +637,7 @@ is provided without warranty of any kind.
 tidalamp is an independent project. **It is not affiliated with, sponsored by, or
 endorsed by TIDAL, Aspiro, Square, or the owners of the Winamp trademark.** Names are
 used only descriptively to identify the service it communicates with and the
-interface it resembles.
+player its key defaults and equalizer bands come from.
 
 - You need **your own TIDAL subscription**. tidalamp provides no access beyond what
   your account already has.
