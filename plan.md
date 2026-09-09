@@ -375,6 +375,12 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
       celdas) y el marquee (30). Un terminal alto pero estrecho se queda en 18×9. Al
       cambiar de tamaño se vuelve a pedir la carátula, porque la que había era del
       tamaño viejo. El analizador pasó a `height: 1fr` para llenar la banda que crece.
+- [x] La banda se dimensiona a la carátula **más el relleno vertical que le ponga la
+      estructura**. `height` es border-box, así que el `padding-top` de `nova` salía
+      del contenido: la banda medía 10 filas, dentro quedaban 9 y la imagen se dibujaba
+      a 10. Un protocolo gráfico no se recorta a su widget, así que la fila sobrante
+      caía sobre la barra de posición. Ahora cualquier estructura puede separar el
+      contenido sin que la carátula se derrame.
 - [x] Pillow es opcional: sin él `decode()` devuelve `None`, no hay carátula y no
       cambia nada más. Mismo trato que cava. **Pero se avisa**: `have_decoder()` se
       consulta al final de `on_mount` y la barra de estado nombra `".[art]"`. Antes el
@@ -500,7 +506,7 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
 
 ### Tests — `tests/`
 
-- [x] `pytest`, 362 pruebas, sin red y sin TIDAL. `pip install -e ".[dev]"`.
+- [x] `pytest`, 364 pruebas, sin red y sin TIDAL. `pip install -e ".[dev]"`.
 - [x] `tests/fake_mpv.py`: un mpv falso que habla el IPC JSON real y **emite eventos
       asíncronos antes de cada respuesta**, que es justo la trampa del §7. Lleva la
       cuenta de los filtros con etiqueta y rechaza la sintaxis con la etiqueta detrás.
@@ -529,6 +535,10 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
       `A` añade todo el nivel, y si el nivel sólo tiene contenedores cae en `a`.
 - [x] `RowList` es un único widget compartido por la cola y por el navegador.
 - [x] `s` shuffle, `r` repeat, `d` quitar, `C` vaciar; indicadores `[SHUF REP:ALL]`.
+- [x] La columna de duración se mide **una vez para toda la lista**, no por fila, y va
+      alineada a la derecha dentro de ella. Medida por fila, un `11:53` era una celda
+      más ancho que un `5:07` y empujaba la columna de álbum: una columna que sólo
+      cuadra mientras ninguna pista pasa de diez minutos no es una columna.
 - [x] La cola se restaura al arrancar.
 - [x] `alt+↑` / `alt+↓` reordenan la cola. `Queue.move()` remapea la permutación de
       shuffle en vez de regenerarla, así que reordenar no vuelve a barajar lo que suena
@@ -602,11 +612,12 @@ Distinguir esto importa: parte del código nunca se ha ejecutado contra TIDAL re
 | Balance y ecualizador              | **Verificado**                    | Grafos validados con `ffmpeg -af` de verdad; en la app real los filtros llegan a mpv, se guardan, y se reaplican tras reiniciar mpv.                                            |
 | Reintentos de red                  | **Verificado**                    | Unitarias: reintenta conexión/timeout/503, no reintenta 404, se rinde al tercer intento.                                                                                        |
 | Letras sincronizadas               | **Verificado con dobles**         | 9 pruebas de LRC, texto plano, ventanas, carga y fallos transitorios; el trabajo de red queda fuera del loop. Falta probar una letra real de TIDAL.                             |
-| Tema Omarchy / fallback             | **Verificado**                    | Unitarias con paletas temporales y montaje Textual; la máquina cambió de Wh01s17 a Tokyo Night y el lector tomó el nuevo acento.                                               |
+| Paletas: Omarchy, integradas y propias | **Verificado**                 | Unitarias con paletas temporales, las cinco integradas (`classic`, `tokyo-night`, `catppuccin`, `nord`, `gruvbox`), un TOML propio leído de su directorio y un nombre con `../` rechazado sin tocar el disco; más montaje Textual y cambio en vivo. La máquina cambió de Wh01s17 a Tokyo Night y el lector tomó el nuevo acento. |
+| Estructuras (`theme`): las cuatro | **VERIFICADO A LA VISTA, A MEDIAS** | Pruebas Textual por estructura: los botones cuadrados de `retro` y sus dos barras regladas, el subrayado del acento en `nova`, los corchetes de `ascii`, que ninguna se sale a 60×18 y que ninguna deja la carátula sobre la barra de posición. **A la vista en kitty el usuario confirmó `quattro` y `nova`.** De `retro` sólo llegó a verse la versión de medios bloques, que se descartó por eso mismo (§7); la de teclas cuadradas y `ascii` no se han visto nunca en un terminal real, sólo bajo prueba. |
 | Refresco del token                 | **VERIFICADO CONTRA TIDAL REAL**  | Copia de la sesión real con el access token invalidado a mano: la app arranca, reescribe el token, completa el handshake (user id y país) y la API responde. El fichero real quedó intacto. Además 10 unitarias con dobles, incluida la del 401 que tidalapi deja escapar. |
 | **`login` y reproducción real**    | **VERIFICADO POR EL USUARIO**     | El usuario ejecutó `tidalamp tui` con su cuenta y reprodujo TOOL - Schism (Lateralus) el 2026-09-08. Login, búsqueda, `stream.resolve()` y salida de audio funcionan de verdad. |
 | Reproducción real (`ao` de verdad) | **VERIFICADO**                    | Sale sonido por PipeWire, y la prueba es el propio analizador: cava lee el **monitor del sink**, no nuestro mpv, así que un espectro con forma sólo puede venir de audio que llegó al sink. Se comprobó primero con un sink Bluetooth y después con el DAC USB (ver la fila siguiente). |
-| Ruta MPD -> HLS                    | **PARCIAL**                       | Ambas ramas están cubiertas por tests con manifiestos fijados, y `stream.resolve()` ya registra cuál toma. Falta una reproducción real con `TIDALAMP_DEBUG=1` para leerlo.      |
+| Ruta BTS / MPD -> HLS              | **VERIFICADO CONTRA TIDAL REAL**  | Ambas ramas cubiertas por tests con manifiestos fijados, y `stream.resolve()` registra cuál toma. La lectura real ya se hizo: es la matriz de las cuatro calidades sobre dos pistas de la fila siguiente, donde `HI_RES_LOSSLESS` cae en MPD y el resto en BTS —lo que dice la trampa de §7 sobre pedir una calidad y no obtenerla. Esta fila decía «PARCIAL» por una reproducción real que llevaba hecha desde entonces. |
 | Hi-res **hasta el DAC**            | **VERIFICADO EN EL HARDWARE**     | La pantalla del propio FiiO BTR15 muestra `PCM 176.4K` mientras la app dice `24bit 176kHz HI_RES_LOSSLESS` y la pantalla de configuración `Salida: FIIO BTR15 · 176400 Hz s32le`. Es la única comprobación que ninguna capa de software puede falsear: está aguas abajo de TIDAL, de mpv y de PipeWire. Confirma además que el drop-in de `allowed-rates` respeta **las dos familias**: 176,4 kHz es múltiplo de 44,1, no de 48, así que el grafo siguió a la pista en vez de acercarla a su ritmo. Antes de esto, con `allowed-rates = [ 48000 ]`, el mismo stream llegaba remuestreado a 48 kHz con la insignia diciendo la verdad sobre el stream. |
 | Ruta MPD -> HLS (hi-res)           | **VERIFICADO CONTRA TIDAL REAL**  | Matriz de las cuatro calidades sobre dos pistas reales; con `HI_RES_LOSSLESS` la rama es MPD, FLAC 24 bit/96 kHz, 69 segmentos. `ffprobe` sobre la playlist reescrita da flac/96000/24 y `ffmpeg` decodifica 3 s a un WAV de 1.152.102 bytes (exactamente 96000×3×2×2). La app real con mpv de verdad: insignias `24bit 96kHz HI_RES_LOSSLESS`, posición 12,3 s de 266 s, RMS −19,2 dBFS. La playlist sin reescribir falla con *error reading header* en el mismo ffmpeg. |
 | Empaquetado (sdist / wheel / AUR)  | **Verificado salvo la publicación** | `python -m build` + `twine check` en ambos artefactos; 89 pruebas desde el sdist extraído; `bash -n` y `makepkg --printsrcinfo` sobre el PKGBUILD; `pacman -Si` confirma que todas las dependencias están en `extra`. No se ha ejecutado `makepkg -si` ni se ha publicado nada: el tag no existe todavía. |
@@ -630,9 +641,14 @@ P1–P4 están cerradas: lo que queda no es funcionalidad que falte para que el
 reproductor sirva, sino acabado, distribución y confirmar contra TIDAL real cosas hoy
 probadas sólo con dobles.
 
-**Orden propuesto (2026-09-08):** ~~P5 empaquetado~~ y ~~carátula~~ ✅ hechos. Lo que
-queda pide credenciales o un par de ojos: el alta en PyPI y el AUR, y las
-verificaciones contra TIDAL real.
+**Orden propuesto (2026-09-09):** ~~P5 empaquetado~~ y ~~carátula~~ ✅ hechos. No queda
+funcionalidad: lo que hay abierto pide credenciales tuyas o un par de ojos.
+
+1. El alta en PyPI y la subida al AUR (§6, P5). Es lo único que bloquea publicar.
+2. Mirar `retro` y `ascii` en un terminal de verdad (§9.5). Cuesta dos minutos y es la
+   única comprobación barata que sigue pendiente.
+3. Una letra real de TIDAL, lo último de §5 que sólo se ha probado con dobles.
+4. §9.4, que es una decisión y no una prueba.
 
 **Aviso para quien retome esto:** hay sesión guardada y funciona (§5). Lo que no se
 puede automatizar desde aquí sigue siendo rehacerla: `tidalamp login` es interactivo
@@ -735,7 +751,11 @@ Cosas que ya costaron tiempo una vez:
   render, y no dejar que un rango viva como número mágico en un módulo mientras otro
   supone otro (`Mpv.VOLUME_MAX`, leído por el slider en `on_mount`).
 - **`box-sizing` de Textual es `border-box`**: el `padding` come de la altura
-  declarada. Un widget con `height: 3` y `padding-top: 1` sólo pinta 2 filas.
+  declarada. Un widget con `height: 3` y `padding-top: 1` sólo pinta 2 filas. Con una
+  carátula dentro no se queda en un recorte: un protocolo gráfico pinta por encima de
+  lo que haya debajo en vez de recortarse, así que esa fila que no cabía apareció
+  encima de la barra de posición. Quien fije la altura de una banda tiene que sumarle
+  su propio relleno.
 - **El socket IPC comparte stream con los eventos async de mpv**: hay que leer líneas
   hasta encontrar la que lleva nuestro `request_id`, no asumir que la primera respuesta
   es la nuestra.
@@ -882,7 +902,7 @@ instalado nada sin comprobarlo.
   del sonido. No es un fallo del analizador.
 - Venv en `.venv/`, rehecho tras el renombrado; `.venv/bin/tidalamp` funciona de nuevo.
   Lleva el paquete en editable más `pytest` y `pyte`.
-- Tests: `.venv/bin/python -m pytest` (362 pruebas, ~40 s, sin red ni bus de usuario).
+- Tests: `.venv/bin/python -m pytest` (364 pruebas, ~44 s, sin red ni bus de usuario).
   El extra `dev` arrastra Pillow, así que las pruebas de carátula corren de verdad; si
   falta, se saltan solas.
 - En la primera máquina `cava` sí estaba, en `/usr/bin/cava`, y arrancó con la
@@ -911,8 +931,8 @@ Más tarde, la misma pista sirvió para la comprobación que faltaba y que ningu
 estas tres cubría: que el hi-res llegue **al DAC** sin remuestrear. La pantalla del
 FiiO BTR15 marcando `PCM 176.4K` es la prueba; está en la tabla de §5.
 
-Sólo queda §9.4, que es una decisión, no una prueba. Y el alta en PyPI y la subida al
-AUR, aparte, para cuando el proyecto esté cerrado.
+Queda §9.5, que sí es una comprobación, y §9.4, que es una decisión y no una prueba. Y
+el alta en PyPI y la subida al AUR, aparte, para cuando el proyecto esté cerrado.
 
 ### 9.1 Espectro real de cava — HECHO
 
@@ -976,3 +996,20 @@ confirma, y si no la tiene, `grep Momentary /proc/asound/card*/stream0` mientras
 cava escucha el **sink**, no nuestro mpv: si suena otra cosa a la vez, se cuela en el
 analizador. Se arreglaría enrutando mpv a un sink propio de PipeWire, a cambio de un
 nodo por ejecución. Sigue sin parecer que compense; la decisión es tuya.
+
+### 9.5 Mirar `retro` y `ascii` — PENDIENTE
+
+Las cuatro estructuras están cubiertas por pruebas Textual, pero una prueba mide
+celdas, no colores. Ya mordió una vez: el `retro` de medios bloques pasaba sus
+pruebas y en pantalla era una losa gris de lado a lado (§7). `quattro` y `nova` los
+confirmaste a la vista; las otras dos no se han visto nunca en un terminal real.
+
+```sh
+TIDALAMP_THEME=retro .venv/bin/tidalamp tui
+TIDALAMP_THEME=ascii .venv/bin/tidalamp tui
+```
+
+Qué mirar en cada una: que la fila del transporte no se salga ni se parta, que las
+barras de título llenen su fila sin cortar el nombre, y que la carátula quede dentro
+de su recuadro y no encima de la barra de posición. Con `o` se cambia entre las cuatro
+sin reiniciar, que es la forma rápida de compararlas.
