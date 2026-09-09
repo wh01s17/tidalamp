@@ -23,6 +23,7 @@ and no browser in the middle: device flow + mpv.
 - [Configuration](#configuration)
   - [Language](#language)
 - [Keys](#keys)
+- [The track menu](#the-track-menu)
 - [Help and about](#help-and-about)
 - [While something is loading](#while-something-is-loading)
 - [When something fails](#when-something-fails)
@@ -335,7 +336,7 @@ The defaults deliberately match Winamp and may be changed as described above.
 |---|---|
 | `z` `x` `c` `v` `b` | previous / play / pause / stop / next |
 | `/` | search TIDAL |
-| `↑` `↓` `Enter` | navigate and play |
+| `↑` `↓` `Enter` | navigate; on a track, open the track menu |
 | `l` | open the library browser |
 | `f` `F` | add to / remove from favourites |
 | `R` | reload the level, bypassing the cache |
@@ -351,6 +352,24 @@ The defaults deliberately match Winamp and may be changed as described above.
 | `t` | toggle elapsed / remaining time |
 | `?` `h` | open the help window |
 | `q` | quit |
+
+## The track menu
+
+`↵` on a song—in search results or in the library—opens a small menu instead of
+assuming what you meant:
+
+| | Action | Key | What it does |
+|---|---|---|---|
+| `▶` | Play now | `a` | Queues the whole level and starts on this track, which is what `↵` used to do on its own. |
+| `↳` | Play next | `c` | Inserts just this track after the one playing. Under shuffle it really is next, not next in the list. |
+| `≈` | Track radio | `d` | Plays TIDAL's station for this track: the seed first, then the songs TIDAL considers similar. TIDAL heads its own station with the seed, which is filtered out so it is not queued twice. |
+| `♥` | Add to favourites | `v` | Adds it to your TIDAL favourites, leaving the queue alone. |
+
+`↑` `↓` and `↵` pick, `Esc` backs out. `↵` on an album, artist or playlist still
+opens it: a level has one obvious thing to do.
+
+Not every track has a radio station—TIDAL simply has none for some obscure
+releases—and when it does not, the status line says so and nothing is queued.
 
 ## Help and about
 

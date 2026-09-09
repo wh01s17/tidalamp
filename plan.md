@@ -4,8 +4,9 @@ Documento de traspaso. Describe qué existe, qué está verificado, qué falta y
 criterio se tomaron las decisiones, para que cualquiera (humano o modelo) pueda
 retomar el trabajo sin contexto previo.
 
-**Última actualización:** 2026-09-08 (pantalla de ayuda con todos los atajos, créditos
-y notas de versión; los modales salieron de `app.py` a `screens.py`,
+**Última actualización:** 2026-09-08 (menú de acciones al pulsar ↵ sobre una pista,
+con radio de TIDAL y «reproducir a continuación»; tope de volumen en 100 y slider que
+no se deforma; pantalla de ayuda con todos los atajos, créditos y notas de versión; los modales salieron de `app.py` a `screens.py`,
 la carátula sigue el tamaño del terminal, `markup=False` en los `Static` que reciben
 texto de TIDAL, aviso visible cuando falta Pillow y un job de CI que instala sin
 extras; antes: interfaz bilingüe español/inglés y README público en inglés)
@@ -54,8 +55,8 @@ tidalamp/
   player.py     Clase Mpv: spawn del proceso, socket IPC, transporte, medición RMS.
   widgets.py    TimeDisplay, Marquee, Analyzer, SeekBar, Slider, Artwork. Sin lógica
                 de negocio.
-  screens.py    RowList y los cinco modales: búsqueda, biblioteca, ecualizador,
-                letras y ayuda. No guardan estado del reproductor: reciben lo que necesitan
+  screens.py    RowList y los seis modales: búsqueda, biblioteca, ecualizador,
+                letras, ayuda y el menú de acciones de una pista. No guardan estado del reproductor: reciben lo que necesitan
                 al construirse y contestan por `dismiss`.
   app.py        TidalAmp: layout, transporte, workers y el pegamento con MPRIS.
   winamp.tcss   Paleta y layout.
@@ -348,6 +349,30 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
       compositor de Textual desconoce: la carátula se retira al apilar una pantalla
       modal y se restaura desde el tick lento al desapilarla, y se borra por id al
       desmontar el widget.
+
+### Menú de la pista — `screens.py`, `queue.py`, `library.py`
+
+- [x] `↵` sobre una canción abre `TrackActionsScreen` en vez de encolar el nivel a
+      ciegas: reproducir ahora (`a`), a continuación (`c`), la radio de la pista (`d`)
+      y añadir a favoritos (`v`), con icono `▶ ↳ ≈ ♥` y navegación por cursor.
+- [x] «Ahora» conserva el comportamiento anterior —el nivel entero a la cola,
+      empezando por la pista elegida—, así que nadie pierde lo que ya tenía.
+- [x] `Queue.insert_next()`: inserta después de la pista actual **en orden de
+      reproducción**, no en la lista. Con shuffle activo remapea `_order` y mete lo
+      nuevo justo detrás de la posición actual, en vez de rebarajar. Sin nada sonando
+      no hay «después de esto» y cae en `append`.
+- [x] `library.track_radio()`: `Track.get_track_radio(limit)` de tidalapi, con los
+      reintentos de `net.py`. Una pista sin estación es una **respuesta normal**, no un
+      fallo: TIDAL contesta 404 y tidalapi lanza `MetadataNotAvailable`; se convierte
+      en `NoRadio` y sale por la barra de estado. Una estación vacía se trata igual.
+- [x] La radio pone la semilla primero: una emisora que arranca con otra canción
+      parece que se equivocó de pista. **TIDAL ya encabeza su estación con la propia
+      pista**, así que `track_radio` la filtra por id antes de devolverla; si no, salía
+      duplicada en la cola. Una estación que sólo trae la semilla cuenta como `NoRadio`.
+- [x] `↵` sobre un álbum, artista o playlist sigue abriendo el nivel. El menú es para
+      pistas, que son las que admiten más de una cosa razonable.
+- [x] El menú vale también en la biblioteca, no sólo en la búsqueda: es la misma
+      `BrowserScreen`, y separarlas habría pedido una bandera para empeorar un lado.
 
 ### Ayuda y acerca de — `about.py`, `screens.py`
 

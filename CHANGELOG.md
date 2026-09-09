@@ -21,6 +21,9 @@ sección se cierra con su número y su fecha; el procedimiento completo está en
 - Navegador de la biblioteca: playlists, favoritos, álbumes y artistas, paginado y con
   caché de niveles en memoria.
 - Búsqueda de pistas, álbumes, artistas y playlists.
+- Menú de acciones al pulsar `↵` sobre una canción: reproducir ahora (`a`),
+  reproducir a continuación (`c`), reproducir la radio que TIDAL genera para esa
+  pista (`d`) y añadir a favoritos (`v`), cada uno con su icono.
 - Favoritos de TIDAL con `f` y `F`.
 - Servicio MPRIS2 completo, incluida la interfaz `TrackList`.
 - Carátula en el terminal por protocolo de kitty, sixel o medios bloques, en un
