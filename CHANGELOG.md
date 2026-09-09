@@ -46,6 +46,11 @@ sección se cierra con su número y su fecha; el procedimiento completo está en
 - Espectro real con `cava` cuando está instalado, y vúmetro RMS cuando no.
 - Paleta tomada del tema Omarchy activo, con cambio en vivo.
 - Fichero de configuración `config.toml` y teclas rebindables.
+- Ventana de configuración (`o`) que escribe ese fichero: calidad, carátula,
+  idioma y registro, avisando cuando una variable de entorno los pisa. Incluye
+  el estado de la salida de audio, y activa los ritmos hi-res de PipeWire —sin
+  los cuales un 24/96 llega al DAC remuestreado a 48 kHz— y su reinicio.
+- El idioma pasa a ser un ajuste del fichero; antes sólo salía de `$LANG`.
 - Entrada de escritorio e icono, y aviso cuando el terminal es más pequeño de 76×20.
 - Empaquetado para el AUR y para PyPI, con publicación por *Trusted Publishing*.
 - Interfaz y CLI bilingües español/inglés según el locale, con fallback al español.

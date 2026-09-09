@@ -4,7 +4,9 @@ Documento de traspaso. Describe qué existe, qué está verificado, qué falta y
 criterio se tomaron las decisiones, para que cualquiera (humano o modelo) pueda
 retomar el trabajo sin contexto previo.
 
-**Última actualización:** 2026-09-08 (menú de acciones al pulsar ↵ sobre una pista,
+**Última actualización:** 2026-09-08 (pantalla de configuración con todo lo que antes
+pedía editar el TOML o exportar variables, incluidos los ritmos hi-res de PipeWire;
+menú de acciones al pulsar ↵ sobre una pista,
 con radio de TIDAL y «reproducir a continuación»; tope de volumen en 100 y slider que
 no se deforma; pantalla de ayuda con todos los atajos, créditos y notas de versión; los modales salieron de `app.py` a `screens.py`,
 la carátula sigue el tamaño del terminal, `markup=False` en los `Static` que reciben
@@ -73,6 +75,10 @@ tidalamp/
   i18n.py       Español como fuente y fallback, catálogo inglés y detección de locale.
   about.py      Créditos, licencia, repositorio y notas de versión, más el mapa de
                 atajos que pinta la ayuda. Datos puros: sin Textual.
+  audio.py      La pila de audio bajo mpv: sink por defecto, ritmos que permite
+                PipeWire, ritmos que acepta el DAC, y el drop-in que los desbloquea.
+                Todo por subprocess, y todo contesta con lo que encontró en vez de
+                lanzar: nada de esto está en el camino que reproduce música.
   mpris.py      Servicio MPRIS2 en D-Bus. Habla con la app por el Protocol
                 PlayerBackend, así que no conoce Textual ni tidalapi.
   cli.py        Entrypoint typer: login / tui / search.
@@ -90,7 +96,7 @@ Dependencia en un solo sentido:
 ```text
 cli -> app -> {player, stream, widgets, screens, mpris, lyrics, spectrum, settings}
        app -> {queue, net, artwork, library} -> {auth, config}
-       screens -> {widgets, library, settings, lyrics, theme, about}
+       screens -> {widgets, library, settings, lyrics, theme, about, audio, config}
        widgets -> artwork  (sólo los tipos Cover/Protocol y el borrado de kitty)
 ```
 
@@ -393,6 +399,33 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
       cambia de verdad: ese tick corre diez veces por segundo.
 - [x] `? ayuda` va primero en el menú: en un terminal estrecho el bloque derecho se
       recorta por la derecha, y la entrada que explica todas las demás sobrevive.
+
+### Configuración — `config.py`, `audio.py`, `screens.py`
+
+- [x] `o` abre `ConfigScreen`. Todo lo que hoy se configuraba editando el TOML o
+      exportando una variable está ahí: calidad, carátula, idioma y registro.
+- [x] `config.set_option()` escribe **una línea a la vez** y descomenta en su sitio la
+      que ya trae la plantilla, en vez de volcar un dict: una ida y vuelta por el
+      parser devolvería los ajustes y tiraría todos los comentarios del usuario. Se
+      detiene antes del primer `[sección]`, así que una clave de `[keys]` que se llame
+      igual que un ajuste no se confunde con él.
+- [x] `config.reload()` recarga los globales tras escribir. `stream.py` y `auth.py`
+      pasaron a leer `config.DEFAULT_QUALITY` por el módulo en vez de importar el
+      nombre: un `from .config import DEFAULT_QUALITY` se queda con el valor del
+      import y un cambio no llegaría nunca.
+- [x] **El idioma es por fin un ajuste.** Antes sólo salía de `$LANG`, que es ambiente
+      y no elección: era el único que no se podía dejar escrito. `i18n.selected()` mira
+      primero el ajuste y cae al locale si dice `auto`.
+- [x] `config.overridden()` delata la variable de entorno que pisa un ajuste. Una
+      pantalla que mostrara un valor que la aplicación no está usando mentiría.
+- [x] `audio.py` responde a lo que ningún otro módulo puede ver: PipeWire corre su
+      grafo a un solo ritmo y remuestrea todo hacia él, así que un 24/96 llega al DAC
+      a 48 kHz **con la insignia diciendo la verdad sobre el stream**. La pantalla lo
+      dice, escribe el drop-in de `allowed-rates` y reinicia los servicios.
+- [x] El reinicio para la reproducción antes: mpv tiene el sink abierto y no se le
+      puede quitar el demonio de debajo. `TIDALAMP_NO_RESTART` lo desactiva.
+- [x] Avisa cuando la salida es Bluetooth, que no lleva lossless digan lo que digan
+      los ritmos.
 
 ### Menú de la pista — `screens.py`, `queue.py`, `library.py`
 

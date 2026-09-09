@@ -24,6 +24,7 @@ and no browser in the middle: device flow + mpv.
   - [Language](#language)
 - [Keys](#keys)
 - [The track menu](#the-track-menu)
+- [Settings](#settings)
 - [Help and about](#help-and-about)
 - [While something is loading](#while-something-is-loading)
 - [When something fails](#when-something-fails)
@@ -351,6 +352,7 @@ The defaults deliberately match Winamp and may be changed as described above.
 | `←` `→` | seek ±5 seconds |
 | `+` `-` | change volume |
 | `t` | toggle elapsed / remaining time |
+| `o` | open the settings window |
 | `?` `h` | open the help window |
 | `q` | quit |
 
@@ -371,6 +373,46 @@ opens it: a level has one obvious thing to do.
 
 Not every track has a radio station—TIDAL simply has none for some obscure
 releases—and when it does not, the status line says so and nothing is queued.
+
+## Settings
+
+`o` opens a settings window — the transport bar lists it, next to `? help`. Every row writes `~/.config/tidalamp/config.toml`,
+so a change made once stays made — until now these could only be reached by
+editing that file, or by exporting a variable before launching.
+
+| Setting | Values | Takes effect |
+|---|---|---|
+| Quality | `LOW` `HIGH` `LOSSLESS` `HI_RES_LOSSLESS` | the next track |
+| Cover art | `auto` `kitty` `sixel` `blocks` `off` | on restart |
+| Language | `auto` `es` `en` | on restart |
+| Debug log | on / off | immediately |
+
+An environment variable still wins over the file, and the row says so rather
+than showing a value the app is not using.
+
+### The audio stack
+
+The same window shows what is underneath mpv, because nothing else can:
+
+```
+  Hi-res rates in PipeWire   not configured
+                               the graph is stuck at 48000 Hz and resamples…
+  Restart PipeWire           action
+
+  Output: FIIO BTR15 Analog Stereo · 48000 Hz s32le
+```
+
+PipeWire runs its graph at one sample rate and resamples everything into it.
+By default that is often a single allowed rate, so a 24/96 stream reaches the
+DAC at 48 kHz: the badge in the player is telling the truth about the stream,
+and the DAC still never sees hi-res. **Hi-res rates in PipeWire** drops a file
+into `~/.config/pipewire/pipewire.conf.d/` that lets the graph follow the
+stream, and **Restart PipeWire** applies it — stopping playback first, since
+mpv is holding the sink.
+
+The window also names the output and warns when it is Bluetooth, which cannot
+carry lossless whatever the rates say. Both actions are reversible: the row
+toggles the file back off, and deleting it by hand does the same.
 
 ## Help and about
 
