@@ -14,9 +14,8 @@ leaving the badge to imply otherwise.
 
 Three things had to be right for that, and two of them are not in the player:
 
-- **The stream.** Hi-res arrives as a segmented DASH manifest, and two separate bugs
-  meant no hi-res track played at all — see [Two traps in the hi-res
-  path](#two-traps-in-the-hi-res-path).
+- **The stream.** Hi-res arrives as a segmented DASH manifest, which needs rewriting
+  before ffmpeg will open it.
 - **The graph.** PipeWire runs at one sample rate and resamples everything into it, so
   a 24/96 stream commonly reaches the DAC at 48 kHz while every badge tells the truth
   about the stream. The settings window detects this, says so plainly, and fixes it —
@@ -35,8 +34,7 @@ warns when the output is a Bluetooth sink.
 - [Desktop integration (MPRIS)](#desktop-integration-mpris)
 - [Queue and library](#queue-and-library)
 - [Quality](#quality)
-    - [Two traps in the hi-res path](#two-traps-in-the-hi-res-path)
-- [Important limitation: DRM](#important-limitation-drm)
+  - [Important limitation: DRM](#important-limitation-drm)
 - [Themes and colours](#themes-and-colours)
 - [Platform support](#platform-support)
 - [Installation](#installation)
@@ -49,11 +47,11 @@ warns when the output is a Bluetooth sink.
 - [Keys](#keys)
 - [The track menu](#the-track-menu)
 - [Settings](#settings)
+  - [The audio stack](#the-audio-stack)
 - [Help and about](#help-and-about)
 - [While something is loading](#while-something-is-loading)
 - [When something fails](#when-something-fails)
 - [Lyrics](#lyrics)
-- [Tests](#tests)
 - [Equalizer and balance](#equalizer-and-balance)
 - [About the analyzer](#about-the-analyzer)
 - [Cover art](#cover-art)
@@ -61,24 +59,6 @@ warns when the output is a Bluetooth sink.
 - [Disclaimer](#disclaimer)
 
 ## How it works
-
-The application is split into independent layers:
-
-| Layer     | Responsibility                                          | Module                 |
-| --------- | ------------------------------------------------------- | ---------------------- |
-| Auth      | TIDAL device flow, without registering an app           | `auth.py`              |
-| Stream    | Resolves a track to something mpv can open              | `stream.py`            |
-| Playback  | One long-lived `mpv --idle` process controlled over IPC | `player.py`            |
-| UI        | Textual TUI with a Winamp-inspired look                 | `app.py`, `widgets.py` |
-| Queue     | Ordering, shuffle, repeat, and persistence              | `queue.py`             |
-| Library   | Playlists, favourites, albums, and artists              | `library.py`           |
-| MPRIS     | D-Bus service for desktop integration                   | `mpris.py`             |
-| Network   | Retries with backoff around TIDAL calls                 | `net.py`               |
-| Spectrum  | cava connected to the audio sink, when installed        | `spectrum.py`          |
-| Audio     | Balance and equalizer as mpv filters                    | `settings.py`          |
-| Lyrics    | Loading, LRC parsing, and plain-text fallback           | `lyrics.py`            |
-| Cover art | Downloading, caching, and terminal rendering            | `artwork.py`           |
-| Theme     | Three layouts, and the palette they are painted in      | `theme.py`             |
 
 **Search:** `/` searches for tracks and displays them directly, with albums, artists,
 and playlists in three category rows above. A category is fetched only when opened,
@@ -93,7 +73,7 @@ Open a link once, authorize access, and the refreshable session is stored at
 **Streaming:** TIDAL returns two kinds of manifest. `BTS` contains progressive URLs
 that mpv opens directly. `MPD` is segmented DASH, used for hi-res audio; `tidalapi`
 already parses the segments, so tidalamp writes them to a local HLS playlist and
-passes that file to mpv. See [Quality](#quality), because this path had two traps.
+passes that file to mpv.
 
 ## Desktop integration (MPRIS)
 
@@ -152,24 +132,9 @@ Long levels are paginated in groups of 100. The final row is `more…`; pressing
 it loads the next page **into the same level** without losing the cursor position. A
 500-track playlist is therefore reachable without fetching it all up front.
 
-**A short page does not mean the list has ended.** TIDAL applies the limit and then
-filters the resulting window: asking for 100 favourite tracks can return 90 out of 766. When a level exposes its total count (favourites, playlists, albums), that count
-decides whether another page exists, and the offset still advances by 100 because
-TIDAL counts against the unfiltered collection. Without a count—artist top tracks or
-search—a full page offers another one. An exact multiple may offer one empty page,
-which is better than claiming the list is complete when it is not.
-
 Opened levels are cached for the lifetime of the application, so returning to one is
 instant. `R` fetches the current level again, which is useful after creating a
 playlist on another device.
-
-One non-obvious optimization saves roughly twenty seconds: `tidalapi`'s
-`user.playlists()` looks like one call, but parsing each owned playlist through
-`Playlist.factory()` constructs a `UserPlaylist`, whose constructor fetches the full
-playlist again just to read its ETag. With 110 playlists that became 111 HTTP
-requests. tidalamp never edits playlists, so it parses the listing directly and skips
-the factory. The result is one paginated request; measured on a real account, opening
-the list fell from 19.87 s to 0.39 s.
 
 `alt+↑` and `alt+↓` move the selected track in the queue. With shuffle enabled, the
 playback order is remapped instead of regenerated, so moving a row does not reshuffle
@@ -212,24 +177,6 @@ TIDALAMP_QUALITY=HIGH tidalamp tui
 ```
 
 Valid values are `LOW`, `HIGH`, `LOSSLESS`, and `HI_RES_LOSSLESS`.
-
-### Two traps in the hi-res path
-
-No hi-res track played until both of these were addressed:
-
-1. **`#EXT-X-MAP` was missing.** The first DASH segment is initialization data
-   (`ftyp` + `moov`); subsequent `moof` + `mdat` segments contain audio without their
-   own header. The HLS generated by `tidalapi` lists the initialization segment as
-   audio, so ffmpeg opens each media segment independently, cannot find `trex`, and
-   aborts with _error reading header_. tidalamp rewrites the playlist: the first
-   segment becomes `#EXT-X-MAP`, and the playlist declares version 7 as required for
-   fragmented MP4.
-2. **ffmpeg blocks `https` from a local playlist.** Allowed protocols are inherited
-   from the parent protocol, so an `.m3u8` opened as `file:` may only follow
-   `file,crypto,data`; every remote segment then fails with _Protocol 'https' not on
-   whitelist_. mpv receives an expanded `--demuxer-lavf-o` whitelist, using mpv's
-   `%<length>%` escaping because commas would otherwise split the option before it
-   reaches ffmpeg.
 
 ## Important limitation: DRM
 
@@ -575,28 +522,6 @@ memory for the session.
 Not every track has lyrics, and regional licences do not always expose them. In that
 case, the window displays an error and playback continues normally.
 
-## Tests
-
-```sh
-.venv/bin/python -m pip install -e ".[dev]"
-.venv/bin/python -m pytest
-```
-
-The four CI checks to run before a commit are:
-
-```sh
-.venv/bin/ruff format --check .   # formatting
-.venv/bin/ruff check .            # lint
-.venv/bin/mypy                    # types
-.venv/bin/python -m pytest --cov  # tests, with a 70% coverage floor
-```
-
-Tests never contact TIDAL or the network. Sessions and manifests are stand-ins, while
-`player.py` is tested against `tests/fake_mpv.py`, which speaks the real JSON IPC
-protocol—including asynchronous events, the part most likely to go wrong. Lyrics are
-tested with fixed LRC and plain text, including transient failures. MPRIS runs against
-an isolated temporary D-Bus rather than the user's desktop bus.
-
 ## Equalizer and balance
 
 `e` opens a ten-band equalizer (60 Hz … 16 kHz, matching Winamp) with a ±12 dB range.
@@ -605,11 +530,8 @@ while you move them; an equalizer you cannot hear until pressing “OK” is not
 
 `,` and `.` move the balance, and `\` centres it, including from the main window.
 
-Both features are mpv filters internally: balance uses `pan`, and each non-flat band
-adds an `equalizer` filter. A 0 dB band is omitted; with every control neutral there is
-no filter graph at all. The chain is rebuilt only when needed. Settings are stored in
-`~/.local/state/tidalamp/settings.json` and reapplied on startup and after an mpv
-restart.
+Settings are stored in `~/.local/state/tidalamp/settings.json` and reapplied on
+startup.
 
 ## About the analyzer
 
@@ -643,10 +565,8 @@ renderer is selected automatically from the terminal's capabilities:
 | sixel          | foot, mlterm, contour, yaft | real pixels                   |
 | half blocks    | any other terminal          | `▀` with two colours per cell |
 
-Detection reads `$TERM`, `$TERM_PROGRAM`, and `$KITTY_WINDOW_ID`. Querying the
-terminal would be more exact, but the reply would arrive through the same channel as
-keyboard input and Textual could interpret it as keystrokes. A wrong guess falls back
-to half blocks, which work reasonably well everywhere. To force a renderer:
+Detection reads `$TERM`, `$TERM_PROGRAM`, and `$KITTY_WINDOW_ID`, and falls back to
+half blocks, which work reasonably well everywhere. To force a renderer:
 
 ```sh
 TIDALAMP_ART=blocks tidalamp tui   # kitty | sixel | blocks | off
@@ -659,10 +579,6 @@ because an empty corner explains nothing on its own. Covers are cached under
 `~/.cache/tidalamp/art/`, keyed by URL. TIDAL includes the image ID in the path, so a
 URL never changes its content.
 
-Kitty and sixel images occupy a layer above text that Textual's compositor does not
-know about. tidalamp therefore removes the cover while any modal window is open and
-restores it on close; otherwise lyrics or the equalizer would appear underneath it.
-
 ## License
 
 GPL-3.0-or-later. See [LICENSE](LICENSE) for the complete text.
@@ -670,10 +586,6 @@ GPL-3.0-or-later. See [LICENSE](LICENSE) for the complete text.
 In short, you may use, study, modify, and redistribute tidalamp. If you distribute a
 modified version, you must also publish its source under the same licence. The program
 is provided without warranty of any kind.
-
-This choice is deliberate: tidalamp is an end-user application in a copyleft
-ecosystem (mpv is GPL and `tidalapi` is LGPL-3.0-or-later), and the GPL keeps
-redistributed versions free.
 
 ## Disclaimer
 
