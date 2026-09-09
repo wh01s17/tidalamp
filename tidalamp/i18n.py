@@ -69,6 +69,23 @@ ENGLISH: dict[str, str] = {
     'sin carátula: falta Pillow (pip install "tidalamp[art]")': (
         'no cover: Pillow is missing (pip install "tidalamp[art]")'
     ),
+    # --- track action menu
+    "Menú de pista: ahora, a continuación, radio y favoritos.": (
+        "Track menu: play now, play next, radio and favourites."
+    ),
+    "Menú de la pista (↵ sobre una canción)": "Track menu (↵ on a song)",
+    "abrir el nivel, o el menú de la pista": "open the level, or the track menu",
+    "elegir con el cursor": "choose with the cursor",
+    "reproducir ahora": "play now",
+    "reproducir a continuación": "play next",
+    "reproducir la radio de la pista": "play the track radio",
+    "añadir a favoritos": "add to favourites",
+    "elegir": "choose",
+    " ↑↓ elegir   ↵ aceptar   esc cancelar": " ↑↓ choose   ↵ accept   esc cancel",
+    "«{label}» sonará a continuación": "“{label}” will play next",
+    "buscando la radio de «{label}»…": "looking for the radio of “{label}”…",
+    "radio de «{label}»: {count} pistas": "radio of “{label}”: {count} tracks",
+    "TIDAL no tiene radio para «{label}»": "TIDAL has no radio for “{label}”",
     # --- help and about
     "Reproducción": "Playback",
     "Volumen y sonido": "Volume and sound",
@@ -104,7 +121,6 @@ ENGLISH: dict[str, str] = {
     "ayuda": "help",
     "añadir a favoritos de TIDAL": "add to your TIDAL favourites",
     "quitar de favoritos": "remove from favourites",
-    "abrir el nivel o reproducir": "open the level or play",
     "volver al nivel anterior": "back to the previous level",
     "añadir a la cola": "add to the queue",
     "añadir el nivel entero": "add the whole level",

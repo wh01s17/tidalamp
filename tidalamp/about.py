@@ -56,6 +56,7 @@ def releases() -> tuple[Release, ...]:
                 _("Interfaz Winamp 2.x: reloj, marquesina, analizador y playlist."),
                 _("Reproducción con mpv por IPC, hasta FLAC 24 bit/96 kHz."),
                 _("Búsqueda, biblioteca paginada, favoritos y cola persistente."),
+                _("Menú de pista: ahora, a continuación, radio y favoritos."),
                 _("Letras sincronizadas, ecualizador de 10 bandas y balance."),
                 _("Carátula en kitty, sixel o medios bloques, y espectro con cava."),
                 _("MPRIS2 completo, incluida la lista de pistas."),
@@ -177,13 +178,24 @@ def shortcuts(keys) -> tuple[Section, ...]:
         Section(
             _("Dentro de la búsqueda y la biblioteca"),
             (
-                ("↵", _("abrir el nivel o reproducir")),
+                ("↵", _("abrir el nivel, o el menú de la pista")),
                 ("← / ⌫", _("volver al nivel anterior")),
                 ("a", _("añadir a la cola")),
                 ("A", _("añadir el nivel entero")),
                 ("R", _("recargar, ignorando la caché")),
                 ("f / F", _("añadir o quitar de favoritos")),
                 ("esc", _("cerrar")),
+            ),
+        ),
+        Section(
+            _("Menú de la pista (↵ sobre una canción)"),
+            (
+                ("a", _("reproducir ahora")),
+                ("c", _("reproducir a continuación")),
+                ("d", _("reproducir la radio de la pista")),
+                ("v", _("añadir a favoritos")),
+                ("↑ / ↓ / ↵", _("elegir con el cursor")),
+                ("esc", _("cancelar")),
             ),
         ),
     )

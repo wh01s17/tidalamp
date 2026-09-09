@@ -174,6 +174,27 @@ class Queue:
         self._reshuffle()
         return len(entries)
 
+    def insert_next(self, entries: list[Entry]) -> int:
+        """Put these right after the current track. Returns how many.
+
+        "Next" has to mean next *in play order*, so shuffle is handled too:
+        the indices at or past the insertion point shift along, and the new
+        ones go straight after the current track's slot in ``_order`` rather
+        than being scattered by a reshuffle. With nothing playing there is no
+        "after this", and the end of the queue is the next thing to come.
+        """
+        if not entries:
+            return 0
+        if not 0 <= self.playing < len(self.entries):
+            return self.append(entries)
+
+        at = self.playing + 1
+        self.entries[at:at] = entries
+        count = len(entries)
+        self._order = [i if i < at else i + count for i in self._order]
+        self._order[self._position() + 1 : self._position() + 1] = range(at, at + count)
+        return count
+
     def remove(self, index: int) -> None:
         if not 0 <= index < len(self.entries):
             return

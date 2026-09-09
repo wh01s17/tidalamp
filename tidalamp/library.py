@@ -311,6 +311,41 @@ class NotFavouritable(RuntimeError):
     """Raised for a row that is not a thing TIDAL can favourite."""
 
 
+class NoRadio(RuntimeError):
+    """Raised when TIDAL has no radio station for a track."""
+
+
+def track_radio(session: tidalapi.Session, entry: Entry, limit: int = 100) -> list[Entry]:
+    """TIDAL's radio station for one track: the songs it considers similar.
+
+    The seed is filtered out. TIDAL puts it at the head of its own station, so
+    a caller that leads with the seed — which is the only way the station does
+    not look like it started on the wrong song — would show it twice.
+
+    The station is generated per track and is not always available — a very
+    obscure release simply has none — which TIDAL answers with a 404 that
+    `tidalapi` raises as `MetadataNotAvailable`. That is a normal answer, not
+    a failure, so it comes back as `NoRadio` for the caller to say out loud.
+    """
+    track = entry.resolve(session)
+    try:
+        tracks = with_retries(lambda: track.get_track_radio(limit=limit))
+    except Exception as exc:
+        # tidalapi raises MetadataNotAvailable, which lives in a module we do
+        # not import; anything else here also means "no station to play".
+        raise NoRadio(
+            _("TIDAL no tiene radio para «{label}»").format(label=entry.label)
+        ) from exc
+    # By id, not by equality: the seed and the station's copy of it are two
+    # Entry objects built from two API responses.
+    entries = [
+        Entry.from_track(found) for found in tracks if int(found.id) != int(entry.id)
+    ]
+    if not entries:
+        raise NoRadio(_("TIDAL no tiene radio para «{label}»").format(label=entry.label))
+    return entries
+
+
 def favourite(session: tidalapi.Session, row: Row, add: bool = True) -> str:
     """Add or remove one row from the user's TIDAL favourites.
 

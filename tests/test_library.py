@@ -454,3 +454,81 @@ def test_a_more_row_is_not_favouritable():
     with pytest.raises(library.NotFavouritable):
         library.favourite(session, Row(label="más…", more=list))
     assert favorites.calls == []
+
+
+# ---------------------------------------------------------------- track radio
+
+
+class RadioTrack(FakeTrack):
+    """A track whose station is whatever the test hands it."""
+
+    def __init__(self, id: int, station=None, error: Exception | None = None):
+        super().__init__(id)
+        self._station = station or []
+        self._error = error
+        self.asked: list[int] = []
+
+    def get_track_radio(self, limit: int = 100):
+        self.asked.append(limit)
+        if self._error is not None:
+            raise self._error
+        return self._station
+
+
+def seeded(station=None, error: Exception | None = None):
+    """An entry carrying its Track, so resolve() never reaches the network."""
+    track = RadioTrack(1, station, error)
+    entry = Entry(id=1, title="semilla", artist="a", _track=track)
+    return entry, track
+
+
+def test_track_radio_returns_the_station_as_entries():
+    entry, track = seeded([FakeTrack(7, "uno"), FakeTrack(8, "dos")])
+
+    entries = library.track_radio(object(), entry, limit=25)
+
+    assert [e.title for e in entries] == ["uno", "dos"]
+    assert all(isinstance(e, Entry) for e in entries)
+    assert track.asked == [25]
+
+
+def test_the_seed_is_dropped_from_its_own_station():
+    """TIDAL heads the station with the seed, and the caller leads with the
+    seed too, so the first song appeared twice in the queue."""
+    entry, _track = seeded([FakeTrack(1, "semilla"), FakeTrack(7, "uno")])
+
+    entries = library.track_radio(object(), entry)
+
+    assert [e.title for e in entries] == ["uno"]
+
+
+def test_the_seed_is_dropped_wherever_it_turns_up():
+    entry, _track = seeded(
+        [FakeTrack(7, "uno"), FakeTrack(1, "semilla"), FakeTrack(8, "dos")]
+    )
+
+    assert [e.title for e in library.track_radio(object(), entry)] == ["uno", "dos"]
+
+
+def test_a_station_that_is_only_the_seed_is_no_station():
+    entry, _track = seeded([FakeTrack(1, "semilla")])
+
+    with pytest.raises(library.NoRadio):
+        library.track_radio(object(), entry)
+
+
+def test_a_track_without_a_station_is_a_normal_answer_not_a_crash():
+    """TIDAL answers 404 for an obscure release; tidalapi raises. Neither is
+    a failure of ours, and both have to reach the status line as words."""
+    entry, _track = seeded(error=RuntimeError("MetadataNotAvailable"))
+
+    with pytest.raises(library.NoRadio) as raised:
+        library.track_radio(object(), entry)
+    assert "semilla" in str(raised.value)
+
+
+def test_an_empty_station_is_treated_as_no_station():
+    entry, _track = seeded([])
+
+    with pytest.raises(library.NoRadio):
+        library.track_radio(object(), entry)

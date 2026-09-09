@@ -10,11 +10,12 @@ from textual.widgets import Static
 
 from tidalamp import about, artwork, library
 from tidalamp import app as app_module
-from tidalamp.app import BrowserScreen, HelpScreen, TidalAmp
+from tidalamp.app import BrowserScreen, HelpScreen, RowList, TidalAmp
 from tidalamp.artwork import Cover, Protocol
 from tidalamp.library import Row
 from tidalamp.player import Mpv
 from tidalamp.queue import Entry, Queue
+from tidalamp.screens import TRACK_ACTIONS, TrackActionsScreen
 from tidalamp.settings import Settings
 from tidalamp.theme import DEFAULT_COLORS, ThemePalette
 from tidalamp.widgets import Artwork, Slider, Spinner
@@ -473,6 +474,277 @@ def test_a_title_with_brackets_survives_the_browser_header(monkeypatch):
                 assert name[:20] in drawn.text
                 application.pop_screen()
                 await pilot.pause()
+
+    asyncio.run(scenario())
+
+
+# ---------------------------------------------------------------- track menu
+
+
+def track_rows() -> list[Row]:
+    return [
+        Row(label=name, detail="1:40", entry=Entry(id=i, title=name, artist="TOOL"))
+        for i, name in enumerate(("A", "B", "C"))
+    ]
+
+
+def open_menu_on_b(application, rows):
+    """Push the browser wired to the app, exactly as `/` and `l` do."""
+    application.push_screen(
+        BrowserScreen("BUSCAR: x", lambda: rows), application._browser_result
+    )
+
+
+def test_enter_on_a_track_offers_the_four_things_worth_doing(monkeypatch):
+    """It used to queue the whole level and start playing, with no way to say
+    «just this one next» or «play the radio»."""
+    isolate_runtime(monkeypatch)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(100, 30)) as pilot:
+            open_menu_on_b(application, track_rows())
+            await pilot.pause()
+            await pilot.press("enter")
+            await pilot.pause()
+
+            assert isinstance(application.screen, TrackActionsScreen)
+            drawn = application.screen.query_one("#actions-list").render_line
+            lines = [drawn(y).text for y in range(len(TRACK_ACTIONS))]
+            for (_action, icon, letter, label), line in zip(
+                TRACK_ACTIONS, lines, strict=True
+            ):
+                assert icon in line
+                assert label in line
+                assert f"[{letter}]" in line
+
+            # And it names the track it is about.
+            title = application.screen.query_one("#actions-title")
+            assert "A" in title.render_line(0).text
+
+    asyncio.run(scenario())
+
+
+def test_escaping_the_menu_leaves_the_browser_open_and_the_queue_alone(monkeypatch):
+    isolate_runtime(monkeypatch)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(100, 30)) as pilot:
+            open_menu_on_b(application, track_rows())
+            await pilot.pause()
+            await pilot.press("enter")
+            await pilot.pause()
+            await pilot.press("escape")
+            await pilot.pause()
+
+            assert isinstance(application.screen, BrowserScreen)
+            assert len(application.queue) == 0
+
+    asyncio.run(scenario())
+
+
+def test_play_now_still_queues_the_whole_level_from_the_chosen_track(monkeypatch):
+    isolate_runtime(monkeypatch)
+    monkeypatch.setattr(TidalAmp, "_resolve_worker", lambda self, entry: None)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(100, 30)) as pilot:
+            open_menu_on_b(application, track_rows())
+            await pilot.pause()
+            await pilot.press("down")  # cursor on B
+            await pilot.press("enter")
+            await pilot.pause()
+            await pilot.press("a")
+            await pilot.pause()
+
+            assert [e.title for e in application.queue] == ["A", "B", "C"]
+            assert application.queue.playing == 1
+
+    asyncio.run(scenario())
+
+
+def test_play_next_adds_only_that_track_after_the_current_one(monkeypatch):
+    isolate_runtime(monkeypatch)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(100, 30)) as pilot:
+            await pilot.pause()
+            application.queue.replace(
+                [
+                    Entry(id=8, title="sonando", artist="x"),
+                    Entry(id=9, title="luego", artist="x"),
+                ],
+                start=0,
+            )
+            open_menu_on_b(application, track_rows())
+            await pilot.pause()
+            await pilot.press("down")
+            await pilot.press("enter")
+            await pilot.pause()
+            await pilot.press("c")
+            await pilot.pause()
+
+            assert [e.title for e in application.queue] == ["sonando", "B", "luego"]
+            assert application.queue.playing == 0
+            assert "B" in application.status
+
+    asyncio.run(scenario())
+
+
+def test_radio_replaces_the_queue_with_the_station_behind_its_seed(monkeypatch):
+    isolate_runtime(monkeypatch)
+    monkeypatch.setattr(TidalAmp, "_resolve_worker", lambda self, entry: None)
+    asked: list[str] = []
+
+    def station(session, entry, limit=100):
+        # library.track_radio has already dropped the seed; see the tests
+        # there for the reason it has to.
+        asked.append(entry.title)
+        return [Entry(id=90 + i, title=f"R{i}", artist="TOOL") for i in range(3)]
+
+    monkeypatch.setattr(library, "track_radio", station)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(100, 30)) as pilot:
+            open_menu_on_b(application, track_rows())
+            await pilot.pause()
+            await pilot.press("down")
+            await pilot.press("enter")
+            await pilot.pause()
+            await pilot.press("d")
+            await settle(pilot, lambda: len(application.queue) > 0)
+
+            assert asked == ["B"]
+            # The seed leads, or the station looks like the wrong thing started.
+            assert [e.title for e in application.queue] == ["B", "R0", "R1", "R2"]
+            assert application.queue.playing == 0
+            # And it leads exactly once.
+            titles = [e.title for e in application.queue]
+            assert titles.count("B") == 1
+
+    asyncio.run(scenario())
+
+
+def test_a_track_with_no_radio_says_so_and_leaves_the_queue_alone(monkeypatch):
+    isolate_runtime(monkeypatch)
+
+    def no_station(session, entry, limit=100):
+        raise library.NoRadio("TIDAL no tiene radio para «B»")
+
+    monkeypatch.setattr(library, "track_radio", no_station)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(100, 30)) as pilot:
+            open_menu_on_b(application, track_rows())
+            await pilot.pause()
+            await pilot.press("down")
+            await pilot.press("enter")
+            await pilot.pause()
+            await pilot.press("d")
+            await settle(pilot, lambda: "radio" in application.status)
+
+            assert len(application.queue) == 0
+            assert not application.query_one("#busy", Spinner).busy
+
+    asyncio.run(scenario())
+
+
+def test_favourite_from_the_menu_touches_tidal_and_not_the_queue(monkeypatch):
+    isolate_runtime(monkeypatch)
+    monkeypatch.setattr("tidalamp.screens.ensure_fresh", lambda session: False)
+    added: list[tuple[str, bool]] = []
+
+    def favourite(session, row, add=True):
+        added.append((row.entry.title, add))
+        return row.entry.label
+
+    monkeypatch.setattr("tidalamp.library.favourite", favourite)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(100, 30)) as pilot:
+            open_menu_on_b(application, track_rows())
+            await pilot.pause()
+            await pilot.press("down")
+            await pilot.press("enter")
+            await pilot.pause()
+            await pilot.press("v")
+            await settle(pilot, lambda: bool(added))
+
+            assert added == [("B", True)]
+            assert len(application.queue) == 0
+
+    asyncio.run(scenario())
+
+
+def test_the_menu_arrow_keys_pick_the_same_actions_as_the_letters(monkeypatch):
+    isolate_runtime(monkeypatch)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(100, 30)) as pilot:
+            await pilot.pause()
+            application.queue.replace([Entry(id=8, title="sonando", artist="x")], start=0)
+            open_menu_on_b(application, track_rows())
+            await pilot.pause()
+            await pilot.press("enter")
+            await pilot.pause()
+
+            # Down once lands on "play next", the second entry.
+            await pilot.press("down")
+            await pilot.pause()
+            assert application.screen.cursor == 1
+            await pilot.press("enter")
+            await pilot.pause()
+
+            assert [e.title for e in application.queue] == ["sonando", "A"]
+
+    asyncio.run(scenario())
+
+
+def test_the_menu_cursor_wraps_at_both_ends(monkeypatch):
+    isolate_runtime(monkeypatch)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(100, 30)) as pilot:
+            open_menu_on_b(application, track_rows())
+            await pilot.pause()
+            await pilot.press("enter")
+            await pilot.pause()
+            screen = application.screen
+
+            await pilot.press("up")
+            await pilot.pause()
+            assert screen.cursor == len(TRACK_ACTIONS) - 1
+
+            await pilot.press("down")
+            await pilot.pause()
+            assert screen.cursor == 0
+
+    asyncio.run(scenario())
+
+
+def test_enter_on_a_level_still_opens_it_instead_of_the_menu(monkeypatch):
+    """The menu is for tracks. A level has one obvious thing to do."""
+    isolate_runtime(monkeypatch)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(100, 30)) as pilot:
+            rows = [Row(label="Un álbum", loader=lambda: track_rows(), key="album:1")]
+            open_menu_on_b(application, rows)
+            await pilot.pause()
+            await pilot.press("enter")
+            await settle(
+                pilot, lambda: len(application.screen.query_one(RowList).rows) == 3
+            )
+            assert isinstance(application.screen, BrowserScreen)
 
     asyncio.run(scenario())
 

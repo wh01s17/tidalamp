@@ -500,10 +500,49 @@ class TidalAmp(App):
             self.queue.replace(entries, start=-1)
             self._sync_queue()
             self._play_index(index)
+        elif action == "next":
+            self.queue.insert_next(entries)
+            self._sync_queue()
+            self.status = _("«{label}» sonará a continuación").format(
+                label=entries[0].label
+            )
+        elif action == "radio":
+            self.query_one("#busy", Spinner).start(
+                _("buscando la radio de «{label}»…").format(label=entries[0].label)
+            )
+            self._radio_worker(entries[0])
+        elif action == "favourite":
+            self._favourite_entry(entries[0])
         else:
             added = self.queue.append(entries)
             self._sync_queue()
             self.status = _("{count} pistas añadidas a la cola").format(count=added)
+
+    # Its own group, like the other two: an exclusive worker cancels its
+    # group, and the resolve worker feeding playback is not this one's to kill.
+    @work(thread=True, exclusive=True, group="radio")
+    def _radio_worker(self, entry: Entry) -> None:
+        try:
+            entries = library.track_radio(self.session, entry)
+        except Exception as exc:
+            self.call_from_thread(self._radio_failed, str(exc))
+            return
+        self.call_from_thread(self._radio_ready, entry, entries)
+
+    def _radio_failed(self, message: str) -> None:
+        self.query_one("#busy", Spinner).stop()
+        self.status = message
+
+    def _radio_ready(self, entry: Entry, entries: list[Entry]) -> None:
+        self.query_one("#busy", Spinner).stop()
+        # The seed goes first: a station that opens on a different song looks
+        # like the wrong thing started.
+        self.queue.replace([entry, *entries], start=-1)
+        self._sync_queue()
+        self._play_index(0)
+        self.status = _("radio de «{label}»: {count} pistas").format(
+            label=entry.label, count=len(entries) + 1
+        )
 
     # --------------------------------------------------------------- transport
 
@@ -835,6 +874,13 @@ class TidalAmp(App):
         if row is None or row.entry is None:
             self.status = _("no hay ninguna pista seleccionada")
             return
+        self._favourite_row(row, add)
+
+    def _favourite_entry(self, entry: Entry) -> None:
+        """Favourite one entry, for the browser's action menu."""
+        self._favourite_row(Row(label=entry.label, entry=entry), True)
+
+    def _favourite_row(self, row: Row, add: bool) -> None:
         self.query_one("#busy", Spinner).start(
             _("añadiendo a favoritos…") if add else _("quitando de favoritos…")
         )

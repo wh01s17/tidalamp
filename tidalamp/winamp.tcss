@@ -234,6 +234,40 @@ LyricsScreen {
     height: 1;
 }
 
+TrackActionsScreen {
+    align: center middle;
+}
+
+#actions-box {
+    /* Sized to its content: a four-line menu, not another full-height pane. */
+    width: 46;
+    max-width: 100%;
+    height: auto;
+    background: $tidalamp-panel;
+    border: outer $tidalamp-border;
+}
+
+#actions-title {
+    background: $tidalamp-title-background;
+    color: $tidalamp-title-foreground;
+    text-style: bold;
+    height: 1;
+    padding: 0 1;
+}
+
+#actions-list {
+    background: $tidalamp-display-background;
+    color: $tidalamp-body;
+    height: auto;
+    padding: 1 1;
+}
+
+#actions-hint {
+    background: $tidalamp-transport-background;
+    color: $tidalamp-transport-foreground;
+    height: 1;
+}
+
 HelpScreen {
     align: center middle;
 }

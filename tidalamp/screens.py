@@ -282,10 +282,25 @@ class BrowserScreen(ModalScreen[tuple | None]):
             self._busy(_("abriendo {label}…").format(label=row.label))
             self._load(row.label, row.loader, row.key)
             return
-        # Play this track, queueing the whole level so the rest follows.
-        entries = [r.entry for r in widget.rows if r.entry is not None]
-        index = entries.index(row.entry) if row.entry in entries else 0
-        self.dismiss(("play", entries, index))
+        # A track offers more than one thing worth doing, so ask instead of
+        # assuming. `a` still means what ↵ used to do on its own.
+        self.app.push_screen(TrackActionsScreen(row.label), self._act_on_track)
+
+    def _act_on_track(self, action: str | None) -> None:
+        """Turn the menu's answer into the tuple the app already understands."""
+        if action is None:
+            return
+        widget = self.query_one(RowList)
+        row = widget.current
+        if row is None or row.entry is None:
+            return
+        if action == "play":
+            # The whole level goes into the queue, so the rest follows on.
+            entries = [r.entry for r in widget.rows if r.entry is not None]
+            index = entries.index(row.entry) if row.entry in entries else 0
+            self.dismiss(("play", entries, index))
+            return
+        self.dismiss((action, [row.entry], 0))
 
     @work(thread=True, exclusive=True)
     def _load_more(self, index: int, more) -> None:
@@ -728,3 +743,99 @@ class HelpScreen(ModalScreen[None]):
 
     def action_close(self) -> None:
         self.dismiss(None)
+
+
+# What ↵ on a track offers, in the order the menu shows them: the action the
+# browser reports back, the icon, and the label. The letters are the keys, and
+# they double as the first letter of nothing else in the list.
+# Literal _() here, the way every BINDINGS list in this file does it: the
+# catalogue is chosen when i18n is imported, which is before this module.
+TRACK_ACTIONS: tuple[tuple[str, str, str, str], ...] = (
+    ("play", "▶", "a", _("reproducir ahora")),
+    ("next", "↳", "c", _("reproducir a continuación")),
+    ("radio", "≈", "d", _("reproducir la radio de la pista")),
+    ("favourite", "♥", "v", _("añadir a favoritos")),
+)
+
+
+class TrackActionsScreen(ModalScreen[str | None]):
+    """The little menu ↵ opens over a track.
+
+    Four things a user wants from a search result, none of which the browser
+    could offer before: ↵ always queued the whole level. Dismisses with the
+    action name, or ``None`` when the user backs out.
+    """
+
+    BINDINGS = [
+        Binding("escape", "close", _("cancelar")),
+        Binding("up", "up", _("arriba"), show=False),
+        Binding("down", "down", _("abajo"), show=False),
+        Binding("enter", "choose", _("elegir"), show=False),
+        *[
+            Binding(letter, f"pick_{action}", "", show=False)
+            for action, _icon, letter, _label in TRACK_ACTIONS
+        ],
+    ]
+
+    cursor = reactive(0)
+
+    def __init__(self, label: str) -> None:
+        super().__init__()
+        self._label = label
+
+    def compose(self) -> ComposeResult:
+        with Vertical(id="actions-box"):
+            yield Static(self._label, id="actions-title", markup=False)
+            yield Static("", id="actions-list", markup=False)
+            yield Static(_(" ↑↓ elegir   ↵ aceptar   esc cancelar"), id="actions-hint")
+
+    def on_mount(self) -> None:
+        self._render_list()
+
+    def watch_cursor(self) -> None:
+        # Fires before compose on the way up, when there is nothing to draw.
+        if self.is_mounted:
+            self._render_list()
+
+    def _render_list(self) -> None:
+        palette = palette_for(self)
+        rendered = Text()
+        for index, (_action, icon, letter, label) in enumerate(TRACK_ACTIONS):
+            selected = index == self.cursor
+            # «›», not the «▶» the playlist uses: one of the icons is itself a
+            # «▶», and two of them side by side read as one smudge.
+            marker = "›" if selected else " "
+            style = (
+                f"bold {palette['active_foreground']} on {palette['accent']}"
+                if selected
+                else palette["body"]
+            )
+            line = f" {marker} {icon}  {label}  [{letter}]"
+            rendered.append(line, style=style)
+            if index < len(TRACK_ACTIONS) - 1:
+                rendered.append("\n")
+        self.query_one("#actions-list", Static).update(rendered)
+
+    def action_up(self) -> None:
+        self.cursor = (self.cursor - 1) % len(TRACK_ACTIONS)
+
+    def action_down(self) -> None:
+        self.cursor = (self.cursor + 1) % len(TRACK_ACTIONS)
+
+    def action_choose(self) -> None:
+        self.dismiss(TRACK_ACTIONS[self.cursor][0])
+
+    def action_close(self) -> None:
+        self.dismiss(None)
+
+    def action_pick_play(self) -> None:
+        self.dismiss("play")
+
+    def action_pick_next(self) -> None:
+        self.dismiss("next")
+
+    def action_pick_radio(self) -> None:
+        self.dismiss("radio")
+
+    def action_pick_favourite(self) -> None:
+        self.dismiss("favourite")

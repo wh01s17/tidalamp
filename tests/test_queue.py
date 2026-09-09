@@ -166,3 +166,60 @@ def test_a_queue_written_before_row_ids_still_loads(queue_file):
     restored = Queue()
     assert restored.load() is True
     assert restored[0].uid > 0
+
+
+# --------------------------------------------------------------- insert_next
+
+
+def play_order(q, limit=20):
+    """The titles the queue would visit from here, in order."""
+    seen = []
+    while (index := q.next_index()) is not None and len(seen) < limit:
+        q.playing = index
+        seen.append(q[index].title)
+    return seen
+
+
+def test_insert_next_lands_right_after_the_current_track(entries):
+    q = make(entries)
+    q.playing = 1
+    extra = [Entry(id=90, title="x", artist="a"), Entry(id=91, title="y", artist="a")]
+
+    assert q.insert_next(extra) == 2
+    assert [e.title for e in q] == ["t0", "t1", "x", "y", "t2", "t3", "t4"]
+    # The cursor still points at the same song, which is now further along.
+    assert q.current.title == "t1"
+    assert play_order(q) == ["x", "y", "t2", "t3", "t4"]
+
+
+def test_insert_next_plays_next_under_shuffle_too(entries):
+    """The whole point is play order, and under shuffle that is not the list."""
+    q = make(entries)
+    q.playing = 2
+    q.shuffle = True
+
+    q.insert_next([Entry(id=90, title="x", artist="a")])
+    order = play_order(q)
+    assert order[0] == "x"
+    assert sorted(order) == sorted(["x", "t0", "t1", "t3", "t4"])
+
+
+def test_insert_next_with_nothing_playing_goes_to_the_end(entries):
+    """There is no "after this" without a this; the end is what comes next."""
+    q = make(entries)
+    assert q.playing == -1
+    q.insert_next([Entry(id=90, title="x", artist="a")])
+    assert [e.title for e in q][-1] == "x"
+
+
+def test_insert_next_into_an_empty_queue_just_adds(entries):
+    q = Queue()
+    assert q.insert_next([Entry(id=90, title="x", artist="a")]) == 1
+    assert [e.title for e in q] == ["x"]
+
+
+def test_insert_next_of_nothing_changes_nothing(entries):
+    q = make(entries)
+    q.playing = 1
+    assert q.insert_next([]) == 0
+    assert len(q) == len(entries)
