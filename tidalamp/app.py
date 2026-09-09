@@ -323,7 +323,15 @@ class TidalAmp(App):
         by_width = (self.size.width - CLOCK_WIDTH - READOUT_WIDTH - 4) // 2
         resized = widget.resize(min(by_height, by_width))
         if compact_changed or resized:
-            display.styles.height = max(DISPLAY_HEIGHT, widget.rows)
+            # The band has to be as tall as the cover *plus* whatever padding
+            # the layout puts around it: `height` is border-box, so padding
+            # comes out of the content. A graphical protocol does not clip to
+            # its widget — it paints over what is below — so one row of unpaid
+            # padding put the bottom of the cover on the seek bar.
+            padding = display.styles.padding
+            display.styles.height = (
+                max(DISPLAY_HEIGHT, widget.rows) + padding.top + padding.bottom
+            )
         # resize() dropped the cover it had, because it was the old size. A
         # compact layout does the same so graphical protocols cannot float
         # over the queue; expanding fetches it again here.

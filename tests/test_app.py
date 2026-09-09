@@ -675,6 +675,35 @@ def test_the_ascii_theme_types_its_chrome_and_keeps_the_brackets(monkeypatch):
     asyncio.run(scenario())
 
 
+def test_no_look_lets_the_cover_spill_onto_the_seek_bar(monkeypatch):
+    """A graphical protocol paints over what is below it, it does not clip.
+
+    `height` is border-box, so a layout that pads the display band takes
+    those rows out of the content. Nova pads the top by one, and that one row
+    put the bottom of the cover on the seek bar.
+    """
+    isolate_runtime(monkeypatch)
+
+    async def scenario() -> None:
+        for name in app_module.LAYOUTS:
+            app_module.config.THEME = name
+            application = TidalAmp(object(), FakeMpv())
+            async with application.run_test(size=(120, 40)) as pilot:
+                await pilot.pause()
+                art = application.query_one(Artwork)
+                display = application.query_one("#display")
+                seek = application.query_one("#seek")
+                padding = display.styles.padding
+
+                room = display.region.height - padding.top - padding.bottom
+                assert art.rows <= room, f"{name}: la carátula no cabe en su banda"
+                assert display.region.bottom <= seek.region.y, name
+                # And the band is not padded out further than it needs.
+                assert room == max(app_module.DISPLAY_HEIGHT, art.rows), name
+
+    asyncio.run(scenario())
+
+
 def test_every_look_fits_the_smallest_supported_terminal(monkeypatch):
     """A layout that does not fit wraps into the row above and ruins both."""
     isolate_runtime(monkeypatch)

@@ -77,12 +77,21 @@ class RowList(Widget):
         return None
 
     @staticmethod
-    def _line(row: Row, index: int, marked: int, width: int) -> str:
-        """Fit one row by terminal cells and expose album metadata when wide."""
+    def _line(row: Row, index: int, marked: int, width: int, detail_width: int) -> str:
+        """Fit one row by terminal cells and expose album metadata when wide.
+
+        `detail_width` is the widest detail in the whole list, not this row's
+        own. Measured per row, a `11:53` next to a `5:07` moved the album
+        column a cell to the left on the longer ones, and a column that only
+        lines up when every track is under ten minutes is not a column.
+        """
         marker = "▶" if index == marked else (" " if row.is_playable else "›")
         left = f"{marker}{index + 1:>3}. {row.label}"
-        detail_width = min(cell_len(row.detail), max(0, width // 3))
-        detail = set_cell_size(row.detail, detail_width) if detail_width else ""
+        detail = ""
+        if detail_width:
+            # Right-aligned inside its column, so the digits line up.
+            trimmed = set_cell_size(row.detail, min(cell_len(row.detail), detail_width))
+            detail = " " * (detail_width - cell_len(trimmed)) + trimmed
         album = row.entry.album if row.entry is not None else ""
 
         # At wide sizes the album column makes otherwise identical search and
@@ -113,10 +122,14 @@ class RowList(Widget):
         width = max(1, self.size.width)
         # Keep the cursor in view without a full scrolling container.
         start = max(0, min(self.cursor - height // 2, len(self.rows) - height))
+        # One column width for the whole list, from the widest detail on it.
+        detail_width = min(
+            max(cell_len(row.detail) for row in self.rows), max(0, width // 3)
+        )
         out = Text()
         for i in range(start, min(len(self.rows), start + height)):
             row = self.rows[i]
-            line = self._line(row, i, self.marked, width)
+            line = self._line(row, i, self.marked, width, detail_width)
             if i == self.cursor:
                 out.append(
                     line,

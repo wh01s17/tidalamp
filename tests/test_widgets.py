@@ -139,3 +139,47 @@ def test_rows_align_unicode_and_show_album_only_when_there_is_room():
             assert compact.endswith("4:05")
 
     asyncio.run(scenario())
+
+
+def test_the_album_column_does_not_move_when_a_track_passes_ten_minutes():
+    """The detail column is measured over the whole list, not per row.
+
+    Measured per row, a `11:53` is one cell wider than a `5:07`, and the album
+    beside it was pushed a cell to the left. A column that only lines up while
+    every track is under ten minutes is not a column.
+    """
+
+    async def scenario() -> None:
+        app = TextWidthApp()
+        async with app.run_test(size=(124, 8)) as pilot:
+            rows = app.query_one(RowList)
+            durations = (307, 713, 382, 764, 3724)
+            # RowList paints as many rows as it is given; give it all of them.
+            rows.styles.height = len(durations)
+            rows.set_rows(
+                [
+                    Row(label=entry.label, detail=entry.length, entry=entry)
+                    for entry in (
+                        Entry(
+                            id=index,
+                            title=f"Pista {index}",
+                            artist="TOOL",
+                            album="Fear Inoculum",
+                            duration=duration,
+                        )
+                        for index, duration in enumerate(durations, 1)
+                    )
+                ]
+            )
+            await pilot.pause()
+
+            lines = rows.render().plain.splitlines()[: len(durations)]
+            assert len({line.index("Fear Inoculum") for line in lines}) == 1
+            # And the durations line up on their right edge, longest included.
+            assert {cell_len(line.rstrip()) for line in lines} == {
+                cell_len(lines[0].rstrip())
+            }
+            assert lines[-1].rstrip().endswith("62:04")
+            assert lines[0].rstrip().endswith("5:07")
+
+    asyncio.run(scenario())
