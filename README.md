@@ -53,7 +53,9 @@ Authorize once through the link it prints, and the session is kept at
 exits on startup with `MpvNotFound`. Python 3.11 or newer is also required. Install
 `cava` if you want a real spectrum instead of the RMS meter.
 
-### Other Linux distributions (PyPI)
+### From PyPI
+
+This is the channel for every distribution today, Arch included.
 
 ```sh
 sudo apt install mpv          # or the equivalent for your distribution
@@ -66,13 +68,9 @@ tidalamp says so once in the status line at startup.
 
 ### Arch Linux (AUR)
 
-Not published yet — `yay` has no package to find. Once new-account registration
-reopens, this becomes the recommended Arch installation, because the AUR can declare
-`mpv` as a real dependency and `cava` as optional:
-
-```sh
-yay -S tidalamp
-```
+There is no AUR package to install yet, so `yay` has nothing to find — use PyPI above.
+When new-account registration reopens, `yay -S tidalamp` becomes the recommended Arch
+route, because the AUR can declare `mpv` as a real dependency and `cava` as optional.
 
 ### From the repository
 
