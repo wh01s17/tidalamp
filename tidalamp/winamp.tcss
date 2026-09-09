@@ -84,10 +84,22 @@ Screen {
     height: 1;
 }
 
-#modes {
-    background: $tidalamp-track-background;
-    color: $tidalamp-inactive;
+/* The transport keys keep their place under the sliders; everything else is
+   a menu and sits against the right edge, so the two do not read as one run
+   of characters. */
+#transport-play {
+    background: $tidalamp-transport-background;
+    color: $tidalamp-transport-foreground;
+    width: auto;
     height: 1;
+}
+
+#transport-menu {
+    background: $tidalamp-transport-background;
+    color: $tidalamp-transport-foreground;
+    width: 1fr;
+    height: 1;
+    text-align: right;
 }
 
 #pl-title {

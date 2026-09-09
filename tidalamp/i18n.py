@@ -70,6 +70,7 @@ ENGLISH: dict[str, str] = {
         'no cover: Pillow is missing (pip install "tidalamp[art]")'
     ),
     # --- track action menu
+    "reproducir o pausar (▶ / ‖)": "play or pause (▶ / ‖)",
     "Menú de pista: ahora, a continuación, radio y favoritos.": (
         "Track menu: play now, play next, radio and favourites."
     ),
@@ -112,8 +113,10 @@ ENGLISH: dict[str, str] = {
     "subir la pista en la cola": "move the track up the queue",
     "bajar la pista en la cola": "move the track down the queue",
     "vaciar la cola": "clear the queue",
-    "aleatorio": "shuffle",
-    "repetición: off, todo, una": "repeat: off, all, one",
+    "aleatorio (⇄)": "shuffle (⇄)",
+    "repetición ↻: off, toda la cola, una pista": (
+        "repeat ↻: off, the whole queue, one track"
+    ),
     "buscar en TIDAL": "search TIDAL",
     "tu biblioteca": "your library",
     "letra de la pista actual": "lyrics for the current track",
@@ -258,10 +261,8 @@ ENGLISH: dict[str, str] = {
         " ↵ open/play   a add   A add all   f/F favourite   ⌫ back   R reload   esc close"
     ),
     " ↑↓ desplazar   y/esc cerrar": " ↑↓ scroll   y/esc close",
-    "  z ◀◀   x ▶   c ‖   v ■   b ▶▶   ? ayuda  / buscar  l lib"
-    "  y letra  e eq  f/F favorito  s shuf  r rep  q salir": (
-        "  z ◀◀   x ▶   c ‖   v ■   b ▶▶   ? help  / search  l lib"
-        "  y lyrics  e eq  f/F favourite  s shuf  r rep  q quit"
+    "? ayuda · / buscar · l lib · y letra · e eq · f/F favorito · q salir": (
+        "? help · / search · l lib · y lyrics · e eq · f/F favourite · q quit"
     ),
     "\n  La ventana es de {width}×{height}.\n"
     "  TIDAL AMP necesita al menos {min_width}×{min_height}.\n\n"

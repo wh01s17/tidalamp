@@ -55,6 +55,14 @@ class FakeMpv:
     def load(self, url: str) -> None:
         self.loaded = url
 
+    def toggle_pause(self) -> None:
+        self.paused = not self.paused
+
+    def stop(self) -> None:
+        self.paused = False
+        self.idle = True
+        self.loaded = None
+
     def set_filter(self, label: str, graph: str | None) -> None:
         self.filter_calls.append((label, graph))
 
@@ -93,24 +101,68 @@ def test_slow_tick_does_not_reapply_audio_filters(monkeypatch):
     asyncio.run(scenario())
 
 
-def test_shuffle_and_repeat_have_persistent_indicators(monkeypatch):
+def lit(application) -> dict[str, bool]:
+    """Whether each state button is drawn on the accent, by its glyph."""
+    accent = application.tidalamp_palette["accent"].lower()
+    found = {}
+    for segment in application.query_one("#transport-play").render_line(0):
+        for glyph in ("⇄", "↻"):
+            if glyph in segment.text:
+                colour = segment.style.bgcolor
+                found[glyph] = colour is not None and colour.name.lower() == accent
+    return found
+
+
+def test_shuffle_and_repeat_are_lit_buttons_on_the_transport_row(monkeypatch):
+    """They used to be «SHUF OFF» / «REP ALL» words on a row of their own.
+
+    Now they are transport buttons like the rest, so the state can only be
+    read from the colour and, for repeat-one, from the glyph.
+    """
     isolate_runtime(monkeypatch)
 
     async def scenario() -> None:
         application = TidalAmp(object(), FakeMpv())
         async with application.run_test() as pilot:
-            modes = application.query_one("#modes", Static)
-            assert modes.content.plain == "   SHUF OFF     REP OFF "
+            await pilot.pause()
+            row = application.query_one("#transport-play")
+
+            assert lit(application) == {"⇄": False, "↻": False}
 
             await pilot.press("s")
-            assert modes.content.plain == "   SHUF ON     REP OFF "
+            await pilot.pause()
+            assert lit(application)["⇄"] is True
 
             await pilot.press("r")
-            assert modes.content.plain == "   SHUF ON     REP ALL "
+            await pilot.pause()
+            assert lit(application)["↻"] is True
+            assert "↻1" not in row.render_line(0).text
 
             application.mpris_set_loop_status("Track")
             application.mpris_set_shuffle(False)
-            assert modes.content.plain == "   SHUF OFF     REP 1 "
+            await pilot.pause()
+            assert lit(application)["⇄"] is False
+            # Repeat-one is the one state a colour cannot say on its own.
+            assert "↻1" in row.render_line(0).text
+
+    asyncio.run(scenario())
+
+
+def test_toggling_repeat_does_not_shift_the_rest_of_the_row(monkeypatch):
+    """«↻ » and «↻1» are the same width on purpose."""
+    isolate_runtime(monkeypatch)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(160, 24)) as pilot:
+            await pilot.pause()
+            row = application.query_one("#transport-play")
+            widths = set()
+            for _ in range(3):
+                widths.add(len(row.render_line(0).text))
+                await pilot.press("r")
+                await pilot.pause()
+            assert len(widths) == 1
 
     asyncio.run(scenario())
 
@@ -131,7 +183,7 @@ def test_running_app_follows_an_omarchy_theme_change(monkeypatch):
             await pilot.press("s")
             application._refresh_theme()
 
-            modes = application.query_one("#modes", Static)
+            modes = application.query_one("#transport-play", Static)
             assert application.tidalamp_palette is changed
             assert application.get_theme_variable_defaults()["tidalamp-accent"] == (
                 "#7aa2f7"
@@ -474,6 +526,200 @@ def test_a_title_with_brackets_survives_the_browser_header(monkeypatch):
                 assert name[:20] in drawn.text
                 application.pop_screen()
                 await pilot.pause()
+
+    asyncio.run(scenario())
+
+
+# ------------------------------------------------------------------ transport
+
+
+def test_the_transport_keys_and_the_menu_sit_at_opposite_ends(monkeypatch):
+    """They used to be one string, so the menu ran straight into «b ▶▶»."""
+    isolate_runtime(monkeypatch)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(160, 24)) as pilot:
+            await pilot.pause()
+            play = application.query_one("#transport-play")
+            menu = application.query_one("#transport-menu")
+
+            # One row, transport on the left, menu against the right edge.
+            assert play.region.y == menu.region.y
+            assert play.region.right <= menu.region.x
+            assert menu.region.right == application.query_one("#transport").region.right
+
+            drawn = menu.render_line(0).text
+            assert drawn.rstrip().endswith(("quit", "salir"))
+            assert drawn.startswith(" "), "el menú tiene que quedar pegado a la derecha"
+
+            # And there is real air between the two halves.
+            gap = menu.region.width - len(drawn.strip())
+            assert gap > 10
+
+    asyncio.run(scenario())
+
+
+def test_every_button_is_separated_from_the_next(monkeypatch):
+    isolate_runtime(monkeypatch)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(160, 24)) as pilot:
+            await pilot.pause()
+            play = application.query_one("#transport-play").render_line(0).text
+            menu = application.query_one("#transport-menu").render_line(0).text
+
+            # Six buttons on the left — prev, play/pause, stop, next, and
+            # the two state ones — and seven menu entries: one separator
+            # fewer than each.
+            assert play.count(TidalAmp.SEPARATOR.strip()) == 5
+            assert menu.count(TidalAmp.SEPARATOR.strip()) == 6
+
+    asyncio.run(scenario())
+
+
+def test_play_and_pause_are_one_button_showing_what_it_will_do(monkeypatch):
+    """There used to be «x ▶» and «c ‖» side by side, and only one of them
+    ever made sense at a given moment."""
+    isolate_runtime(monkeypatch)
+    monkeypatch.setattr(TidalAmp, "_resolve_worker", lambda self, entry: None)
+
+    async def scenario() -> None:
+        mpv = FakeMpv()
+        application = TidalAmp(object(), mpv)
+        async with application.run_test(size=(150, 24)) as pilot:
+            await pilot.pause()
+            row = application.query_one("#transport-play")
+
+            # Stopped: the button offers to play, and there is no second one.
+            drawn = row.render_line(0).text
+            assert "x ▶" in drawn
+            assert drawn.count("‖") == 0
+
+            application.queue.replace(
+                [Entry(id=1, title="t", artist="a", duration=9)], start=0
+            )
+            mpv.idle = False
+            await pilot.pause(0.3)
+            drawn = row.render_line(0).text
+            assert "x ‖" in drawn
+            assert drawn.count("▶") == 2, "los dos del ▶▶ de «siguiente», y ninguno más"
+
+            mpv.paused = True
+            await pilot.pause(0.3)
+            assert "x ▶" in row.render_line(0).text
+
+    asyncio.run(scenario())
+
+
+def test_x_pauses_what_is_playing_instead_of_restarting_it(monkeypatch):
+    """This is what stops it being a second Enter: Enter always starts the
+    cursor track, «x» acts on what is already going."""
+    isolate_runtime(monkeypatch)
+    started: list[int] = []
+    monkeypatch.setattr(TidalAmp, "_play_index", lambda self, i: started.append(i))
+
+    async def scenario() -> None:
+        mpv = FakeMpv()
+        application = TidalAmp(object(), mpv)
+        async with application.run_test(size=(150, 24)) as pilot:
+            await pilot.pause()
+            application.queue.replace(
+                [Entry(id=1, title="t", artist="a", duration=9)], start=0
+            )
+            mpv.idle = False
+
+            await pilot.press("x")
+            await pilot.pause()
+            assert mpv.paused is True
+            assert started == [], "no debe reiniciar la pista"
+
+            await pilot.press("x")
+            await pilot.pause()
+            assert mpv.paused is False
+
+    asyncio.run(scenario())
+
+
+def test_there_is_no_second_key_that_pauses(monkeypatch):
+    """«c» used to pause too, which after merging the buttons was just a
+    second shortcut for what «x» already does."""
+    isolate_runtime(monkeypatch)
+
+    assert "pause" not in app_module.DEFAULT_KEYS
+    bound = {key for binding in TidalAmp.BINDINGS for key in binding.key.split(",")}
+    assert "c" not in bound
+
+    async def scenario() -> None:
+        mpv = FakeMpv()
+        application = TidalAmp(object(), mpv)
+        async with application.run_test(size=(150, 24)) as pilot:
+            await pilot.pause()
+            application.queue.replace(
+                [Entry(id=1, title="t", artist="a", duration=9)], start=0
+            )
+            mpv.idle = False
+
+            await pilot.press("c")
+            await pilot.pause()
+            assert mpv.paused is False, "«c» ya no hace nada"
+
+    asyncio.run(scenario())
+
+
+def test_mpris_play_pause_still_toggles(monkeypatch):
+    """The key went; the D-Bus verb did not, and it has to keep working."""
+    isolate_runtime(monkeypatch)
+
+    async def scenario() -> None:
+        mpv = FakeMpv()
+        application = TidalAmp(object(), mpv)
+        async with application.run_test(size=(150, 24)) as pilot:
+            await pilot.pause()
+            mpv.idle = False
+
+            application.mpris_play_pause()
+            assert mpv.paused is True
+            application.mpris_play_pause()
+            assert mpv.paused is False
+
+    asyncio.run(scenario())
+
+
+def test_x_starts_the_cursor_track_when_nothing_is_loaded(monkeypatch):
+    isolate_runtime(monkeypatch)
+    started: list[int] = []
+    monkeypatch.setattr(TidalAmp, "_play_index", lambda self, i: started.append(i))
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(150, 24)) as pilot:
+            await pilot.pause()
+            application.queue.replace(
+                [Entry(id=i, title=f"t{i}", artist="a", duration=9) for i in range(3)]
+            )
+            application._sync_queue()
+            application.query_one("#playlist", RowList).cursor = 2
+
+            await pilot.press("x")
+            await pilot.pause()
+            assert started == [2]
+
+    asyncio.run(scenario())
+
+
+def test_the_help_key_survives_on_a_narrow_terminal(monkeypatch):
+    """The menu is cropped from the right when it does not fit, so the one
+    entry that explains all the others has to come first."""
+    isolate_runtime(monkeypatch)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(76, 20)) as pilot:
+            await pilot.pause()
+            drawn = application.query_one("#transport-menu").render_line(0).text
+            assert drawn.strip().startswith("?")
 
     asyncio.run(scenario())
 

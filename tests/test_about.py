@@ -57,7 +57,7 @@ def test_the_shortcuts_come_from_the_resolver_not_from_the_defaults():
     sections = about.shortcuts(keys)
     assert "play" in asked
     rows = [row for section in sections for row in section.rows]
-    assert ("ctrl+j", "reproducir") in rows
+    assert ("ctrl+j", "reproducir o pausar (▶ / ‖)") in rows
 
 
 def test_every_section_has_a_title_and_rows():

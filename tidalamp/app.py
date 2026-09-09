@@ -73,7 +73,6 @@ def _entry_metadata(entry: Entry) -> dict:
 DEFAULT_KEYS: dict[str, str] = {
     "prev": "z",
     "play": "x",
-    "pause": "c",
     "stop": "v",
     "next": "b",
     "search": "slash",
@@ -156,7 +155,6 @@ class TidalAmp(App):
     BINDINGS = [
         _bind("prev", _("anterior"), show=True),
         _bind("play", "play", show=True),
-        _bind("pause", _("pausa"), show=True),
         _bind("stop", "stop", show=True),
         _bind("next", _("siguiente"), show=True),
         _bind("search", _("buscar"), show=True),
@@ -208,6 +206,8 @@ class TidalAmp(App):
         self._pending_art: artwork.Cover | None = None
         # cava, when it is installed. None means the RMS fallback.
         self.cava: Cava | None = None
+        # What the play/pause button is currently drawn as.
+        self._transport_playing = False
 
     def get_theme_variable_defaults(self) -> dict[str, str]:
         """Expose the detected palette to the static TCSS stylesheet."""
@@ -228,14 +228,15 @@ class TidalAmp(App):
             yield SeekBar(id="seek")
             yield Slider(id="volume")
             yield Slider(id="balance")
-            yield Static(
-                _(
-                    "  z ◀◀   x ▶   c ‖   v ■   b ▶▶   ? ayuda  / buscar  l lib"
-                    "  y letra  e eq  f/F favorito  s shuf  r rep  q salir"
-                ),
-                id="transport",
-            )
-            yield Static("", id="modes")
+            # Two halves, not one string: the transport keys belong with the
+            # sliders above them, and the windows read as a menu, which they
+            # only do once there is air between the two. Shuffle and repeat
+            # sit on the left with the transport: they are buttons that hold
+            # a state, not places to go. Both halves are filled in by
+            # `_refresh_modes`, which dims the separators and lights the state.
+            with Horizontal(id="transport"):
+                yield Static("", id="transport-play")
+                yield Static("", id="transport-menu")
             yield Static(
                 _("▓ PLAYLIST ▓   d quitar   C vaciar   alt+↑↓ mover"), id="pl-title"
             )
@@ -383,9 +384,15 @@ class TidalAmp(App):
             else:
                 self._stop_spectrum()
         analyzer.level = self.mpv.rms()
-        analyzer.active = not self.mpv.paused and not self.mpv.idle
+        playing = not self.mpv.paused and not self.mpv.idle
+        analyzer.active = playing
         analyzer.tick()
         self.query_one(Marquee).tick()
+        # The play/pause button follows the state, but only redraw it when the
+        # state actually turns over: this runs ten times a second.
+        if playing != self._transport_playing:
+            self._transport_playing = playing
+            self._refresh_modes()
 
     def _tick_slow(self) -> None:
         if not self.mpv.alive:
@@ -433,27 +440,59 @@ class TidalAmp(App):
         else:
             self.status = _("mpv se reinició")
 
+    # A middle dot in the muted colour, not a full box-drawing bar: the row
+    # is a list of small things, and a solid rule between each one shouts
+    # louder than the labels it is separating.
+    SEPARATOR = " · "
+
+    # One play/pause button, not two. The glyph is the action it will do:
+    # «▶» while stopped or paused, «‖» while something is playing, which is
+    # what every transport in the world does. `c` still pauses on its own —
+    # it is in the config file and in muscle memory — it just has no button
+    # of its own any more.
+    TRANSPORT_HEAD = "  z ◀◀ · x "
+    TRANSPORT_TAIL = " · v ■ · b ▶▶"
+
+    # "↻ " and "↻1" are the same width, so toggling repeat does not shove the
+    # rest of the row sideways.
+    REPEAT_GLYPHS = {Repeat.NONE: "↻ ", Repeat.QUEUE: "↻ ", Repeat.TRACK: "↻1"}
+
+    def _separated(self, text: str, body: str, dim: str) -> Text:
+        """Render a `·`-joined run with the separators dimmed."""
+        out = Text()
+        for index, part in enumerate(text.split(self.SEPARATOR)):
+            if index:
+                out.append(self.SEPARATOR, style=dim)
+            out.append(part, style=body)
+        return out
+
     def _refresh_modes(self) -> None:
-        """Render persistent, legible shuffle and repeat state badges."""
+        """Draw the transport row, with shuffle and repeat lit by their state."""
         palette = self.tidalamp_palette
+        ground = palette["transport_background"]
+        body = f"{palette['transport_foreground']} on {ground}"
+        dim = f"{palette['inactive']} on {ground}"
         active = f"bold {palette['active_foreground']} on {palette['accent']}"
-        inactive = f"bold {palette['inactive']} on {palette['track_background']}"
-        repeat = {
-            Repeat.NONE: "OFF",
-            Repeat.QUEUE: "ALL",
-            Repeat.TRACK: "1",
-        }[self.queue.repeat]
-        modes = Text("  ")
-        modes.append(
-            f" SHUF {'ON' if self.queue.shuffle else 'OFF'} ",
-            style=active if self.queue.shuffle else inactive,
-        )
-        modes.append("   ")
-        modes.append(
-            f" REP {repeat} ",
+        inactive = f"bold {palette['inactive']} on {ground}"
+
+        playing = not self.mpv.paused and not self.mpv.idle
+        row = self._separated(self.TRANSPORT_HEAD, body, dim)
+        row.append("‖" if playing else "▶", style=body)
+        row.append_text(self._separated(self.TRANSPORT_TAIL, body, dim))
+        row.append(self.SEPARATOR, style=dim)
+        row.append(" s ⇄ ", style=active if self.queue.shuffle else inactive)
+        row.append(self.SEPARATOR, style=dim)
+        row.append(
+            f" r {self.REPEAT_GLYPHS[self.queue.repeat]} ",
             style=active if self.queue.repeat is not Repeat.NONE else inactive,
         )
-        self.query_one("#modes", Static).update(modes, layout=False)
+        row.append("  ", style=body)
+        self.query_one("#transport-play", Static).update(row, layout=False)
+
+        menu = _("? ayuda · / buscar · l lib · y letra · e eq · f/F favorito · q salir")
+        self.query_one("#transport-menu", Static).update(
+            self._separated(f"{menu}  ", body, dim), layout=False
+        )
 
     # ------------------------------------------------------------------ queue
 
@@ -563,12 +602,24 @@ class TidalAmp(App):
             self._play_index(self.query_one("#playlist", RowList).cursor)
 
     def action_play(self) -> None:
-        if self.queue.current is not None and self.mpv.paused:
+        """Play, resume or pause: whichever the current state calls for.
+
+        One button, one key, one action. There is no second shortcut that
+        pauses: two keys for the same job is the clutter merging the buttons
+        was meant to remove.
+        """
+        if self.queue.current is not None and not self.mpv.idle:
             self.mpv.toggle_pause()
+            self.status = _("pausa") if self.mpv.paused else _("reproduciendo")
         elif len(self.queue):
             self._play_index(self.query_one("#playlist", RowList).cursor)
 
-    def action_pause(self) -> None:
+    def _toggle_pause(self) -> None:
+        """A plain toggle, with no key of its own: MPRIS `PlayPause` uses it.
+
+        Not an `action_`, because nothing on the keyboard reaches it and a
+        bindable name that cannot be bound is a lie in the config file.
+        """
         self.mpv.toggle_pause()
         self.status = _("pausa") if self.mpv.paused else _("reproduciendo")
 
@@ -995,7 +1046,7 @@ class TidalAmp(App):
             self.mpv.toggle_pause()
 
     def mpris_play_pause(self) -> None:
-        self.action_pause()
+        self._toggle_pause()
 
     def mpris_stop(self) -> None:
         self.action_stop()
