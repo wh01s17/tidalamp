@@ -81,7 +81,7 @@ Screen {
 #transport {
     background: $tidalamp-transport-background;
     color: $tidalamp-transport-foreground;
-    height: 1;
+    height: 3;
 }
 
 /* The transport keys keep their place under the sliders; everything else is
@@ -91,15 +91,18 @@ Screen {
     background: $tidalamp-transport-background;
     color: $tidalamp-transport-foreground;
     width: auto;
-    height: 1;
+    height: 3;
 }
 
 #transport-menu {
     background: $tidalamp-transport-background;
     color: $tidalamp-transport-foreground;
     width: 1fr;
-    height: 1;
+    height: 3;
     text-align: right;
+    /* One line, cropped when it does not fit. Wrapped, it climbed into the
+       buttons' rows and the whole band turned to soup. */
+    text-wrap: nowrap;
 }
 
 #pl-title {

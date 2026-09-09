@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import cast
 
 import tidalapi
+from rich.cells import cell_len
 from rich.text import Text
 from textual import work
 from textual.app import App, ComposeResult
@@ -249,6 +250,10 @@ class TidalAmp(App):
     def _check_size(self) -> None:
         """Cover the UI with an explanation when the terminal is too small."""
         self._fit_artwork()
+        # The menu is cropped to its own width, which only exists after layout.
+        # `_check_size` also runs from the resize that precedes compose.
+        if self.query("#transport-menu"):
+            self._refresh_modes()
         width, height = self.size.width, self.size.height
         too_small = width < self.MIN_WIDTH or height < self.MIN_HEIGHT
         notice = self.query_one("#too-small", Static)
@@ -443,19 +448,20 @@ class TidalAmp(App):
     # A middle dot in the muted colour, not a full box-drawing bar: the row
     # is a list of small things, and a solid rule between each one shouts
     # louder than the labels it is separating.
+    # A middle dot in the muted colour, not a full box-drawing bar: the menu
+    # is a list of small things, and a solid rule between each one shouts
+    # louder than the labels it is separating.
     SEPARATOR = " · "
 
-    # One play/pause button, not two. The glyph is the action it will do:
-    # «▶» while stopped or paused, «‖» while something is playing, which is
-    # what every transport in the world does. `c` still pauses on its own —
-    # it is in the config file and in muscle memory — it just has no button
-    # of its own any more.
-    TRANSPORT_HEAD = "  z ◀◀ · x "
-    TRANSPORT_TAIL = " · v ■ · b ▶▶"
-
-    # "↻ " and "↻1" are the same width, so toggling repeat does not shove the
-    # rest of the row sideways.
+    # The transport is drawn as boxed buttons three rows tall. The play/pause
+    # glyph is the action it will do: "▶" while stopped or paused, "‖" while
+    # something is playing, which is what every transport in the world does.
+    # "↻ " and "↻1" are the same width, so toggling repeat does not resize its
+    # button and shove the row sideways.
     REPEAT_GLYPHS = {Repeat.NONE: "↻ ", Repeat.QUEUE: "↻ ", Repeat.TRACK: "↻1"}
+
+    # Between the transport proper and the two buttons that hold a state.
+    BUTTON_GAP = "   "
 
     def _separated(self, text: str, body: str, dim: str) -> Text:
         """Render a `·`-joined run with the separators dimmed."""
@@ -466,32 +472,77 @@ class TidalAmp(App):
             out.append(part, style=body)
         return out
 
+    def _buttons(self) -> list[list[tuple[str, bool]]]:
+        """(label, lit) per button, grouped into the frames they share.
+
+        Two groups, because they are two kinds of thing: the transport does
+        something and springs back, while shuffle and repeat stay pressed.
+        Inside a group the buttons share one frame, so the row reads as one
+        control instead of a handful of loose boxes.
+        """
+        playing = not self.mpv.paused and not self.mpv.idle
+        return [
+            [
+                ("z ◀◀", False),
+                (f"x {'‖' if playing else '▶'}", False),
+                ("v ■", False),
+                ("b ▶▶", False),
+            ],
+            [
+                ("s ⇄", self.queue.shuffle),
+                (
+                    f"r {self.REPEAT_GLYPHS[self.queue.repeat]}",
+                    self.queue.repeat is not Repeat.NONE,
+                ),
+            ],
+        ]
+
     def _refresh_modes(self) -> None:
-        """Draw the transport row, with shuffle and repeat lit by their state."""
+        """Draw the transport, with shuffle and repeat lit by their state."""
         palette = self.tidalamp_palette
         ground = palette["transport_background"]
         body = f"{palette['transport_foreground']} on {ground}"
         dim = f"{palette['inactive']} on {ground}"
-        active = f"bold {palette['active_foreground']} on {palette['accent']}"
-        inactive = f"bold {palette['inactive']} on {ground}"
+        lit = f"bold {palette['active_foreground']} on {palette['accent']}"
 
-        playing = not self.mpv.paused and not self.mpv.idle
-        row = self._separated(self.TRANSPORT_HEAD, body, dim)
-        row.append("‖" if playing else "▶", style=body)
-        row.append_text(self._separated(self.TRANSPORT_TAIL, body, dim))
-        row.append(self.SEPARATOR, style=dim)
-        row.append(" s ⇄ ", style=active if self.queue.shuffle else inactive)
-        row.append(self.SEPARATOR, style=dim)
-        row.append(
-            f" r {self.REPEAT_GLYPHS[self.queue.repeat]} ",
-            style=active if self.queue.repeat is not Repeat.NONE else inactive,
+        rows = [Text("  ", style=body) for _row in range(3)]
+        for group_index, group in enumerate(self._buttons()):
+            if group_index:
+                for row in rows:
+                    row.append(self.BUTTON_GAP, style=body)
+            # The frame is drawn once around the whole group: «┬ │ ┴» between
+            # buttons, «╭ ╰» and «╮ ╯» only at the two ends.
+            edges = ("╭╮", "││", "╰╯")
+            joins = ("┬", "│", "┴")
+            for row, edge, join in zip(rows, edges, joins, strict=True):
+                row.append(edge[0], style=body)
+                for button_index, (label, on) in enumerate(group):
+                    if button_index:
+                        row.append(join, style=body)
+                    width = cell_len(label) + 2
+                    fill = f" {label} " if join == "│" else "─" * width
+                    row.append(fill, style=lit if on else body)
+                row.append(edge[1], style=body)
+        for row in rows:
+            row.append("  ", style=body)
+        self.query_one("#transport-play", Static).update(
+            Text("\n", style=body).join(rows), layout=False
         )
-        row.append("  ", style=body)
-        self.query_one("#transport-play", Static).update(row, layout=False)
 
         menu = _("? ayuda · / buscar · l lib · y letra · e eq · f/F favorito · q salir")
-        self.query_one("#transport-menu", Static).update(
-            self._separated(f"{menu}  ", body, dim), layout=False
+        widget = self.query_one("#transport-menu", Static)
+        line = self._separated(f"{menu}  ", body, dim)
+        # Cropped here rather than left to wrap: a Rich Text wraps whatever
+        # the stylesheet says, and the overflow climbed into the rows the
+        # buttons are drawn on. `? ayuda` leads, so it is the tail that goes.
+        if widget.size.width and line.cell_len > widget.size.width:
+            line.truncate(widget.size.width, overflow="crop")
+        # The menu sits on the buttons' middle row, not above them.
+        widget.update(
+            Text("\n", style=body).join(
+                [Text("", style=body), line, Text("", style=body)]
+            ),
+            layout=False,
         )
 
     # ------------------------------------------------------------------ queue
@@ -626,6 +677,10 @@ class TidalAmp(App):
     def action_stop(self) -> None:
         self.mpv.stop()
         self.queue.playing = -1
+        # The tick reads "mpv went idle" as "the track ended" and moves on.
+        # Stopping makes mpv idle on purpose, so say so first, or the next
+        # tick restarts the queue from the top — which is what «v» did.
+        self._was_idle = True
         self._sync_queue()
         self.query_one(Marquee).text = ""
         self.status = _("detenido")
