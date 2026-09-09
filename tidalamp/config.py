@@ -81,7 +81,7 @@ ENV_VARS: dict[str, str] = {
 def overridden(name: str) -> str | None:
     """The environment variable shadowing ``name``, or None.
 
-    The file is not the last word: `TIDALAMP_QUALITY=LOW tidalamp tui` beats
+    The file is not the last word: `TIDALAMP_QUALITY=LOW tidalamp` beats
     whatever is written down, and a screen that did not say so would show a
     value the app is not using.
     """

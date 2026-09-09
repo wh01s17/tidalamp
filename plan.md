@@ -596,7 +596,8 @@ fichero en sí.
 
 ### CLI — `cli.py`
 
-- [x] `tidalamp login`, `tidalamp tui`, `tidalamp config`, `tidalamp search <query>`.
+- [x] `tidalamp` abre la TUI por defecto; `tidalamp tui` conserva la forma explícita.
+      También están `tidalamp login`, `tidalamp config` y `tidalamp search <query>`.
 - [x] Ayuda, mensajes y plantilla de configuración siguen el locale del proceso.
 
 ### Internacionalización — `i18n.py`

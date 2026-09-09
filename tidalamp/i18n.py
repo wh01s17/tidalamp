@@ -261,8 +261,8 @@ ENGLISH: dict[str, str] = {
         "Cover art in kitty, sixel or half blocks, and a cava spectrum."
     ),
     "MPRIS2 completo, incluida la lista de pistas.": "Full MPRIS2, track list included.",
-    "Interfaz en español e inglés según el locale.": (
-        "Spanish and English interface, chosen by locale."
+    "Arranque directo con tidalamp; interfaz bilingüe según el locale.": (
+        "Direct launch with tidalamp; bilingual interface chosen by locale."
     ),
     # --- favourites
     "«{label}» añadido a favoritos": "“{label}” added to favourites",

@@ -83,6 +83,25 @@ def test_tui_without_mpv_says_so_instead_of_crashing(monkeypatch):
     assert "mpv no está instalado" in result.output
 
 
+def test_the_bare_command_launches_the_tui(monkeypatch):
+    launched = []
+    monkeypatch.setattr(cli, "tui", lambda: launched.append(True))
+
+    result = runner.invoke(cli.app, [])
+
+    assert result.exit_code == 0
+    assert launched == [True]
+
+
+def test_help_does_not_launch_the_tui(monkeypatch):
+    monkeypatch.setattr(cli, "tui", lambda: pytest.fail("abrió la TUI"))
+
+    result = runner.invoke(cli.app, ["--help"])
+
+    assert result.exit_code == 0
+    assert "Commands" in result.output
+
+
 def test_search_prints_ids_for_scripts(monkeypatch):
     class FakeSession:
         def search(self, query, limit=10):

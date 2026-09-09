@@ -61,7 +61,7 @@ def releases() -> tuple[Release, ...]:
                 _("Letras sincronizadas, ecualizador de 10 bandas y balance."),
                 _("Carátula en kitty, sixel o medios bloques, y espectro con cava."),
                 _("MPRIS2 completo, incluida la lista de pistas."),
-                _("Interfaz en español e inglés según el locale."),
+                _("Arranque directo con tidalamp; interfaz bilingüe según el locale."),
             ),
         ),
     )

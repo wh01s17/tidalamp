@@ -118,6 +118,13 @@ def search(query: str, limit: int = 10) -> None:
         typer.echo(f"{track.id:>10}  {artist} - {track.name}")
 
 
+@app.callback(invoke_without_command=True)
+def launch(ctx: typer.Context) -> None:
+    """Open the player when no explicit subcommand was given."""
+    if ctx.invoked_subcommand is None:
+        tui()
+
+
 def main() -> None:
     setup_logging()
     try:

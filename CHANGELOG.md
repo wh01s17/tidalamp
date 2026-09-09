@@ -14,6 +14,8 @@ servicio. El procedimiento y el estado completo están en [`publish.md`](publish
 
 ### Añadido
 
+- `tidalamp` sin subcomando abre directamente el reproductor; `tidalamp tui` se
+  conserva como forma explícita equivalente.
 - Interfaz TUI con la estética de Winamp 2.x: reloj de siete segmentos, marquesina,
   analizador de 19 bandas, barra de posición y sliders de volumen y balance.
 - Play y pausa comparten un único botón y una única tecla (`x`), cuyo icono es la

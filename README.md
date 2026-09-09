@@ -201,7 +201,7 @@ When TIDAL delivers less than requested, the status bar says so (`TIDAL delivere
 HIGH, not HI_RES_LOSSLESS`) instead of leaving the badge to imply it.
 
 ```sh
-TIDALAMP_QUALITY=HIGH tidalamp tui
+TIDALAMP_QUALITY=HIGH tidalamp
 ```
 
 Valid values are `LOW`, `HIGH`, `LOSSLESS`, and `HI_RES_LOSSLESS`.
@@ -335,6 +335,7 @@ Install version `0.1.0` from PyPI with:
 ```sh
 sudo apt install mpv          # or the equivalent for your distribution
 pipx install "tidalamp[art]"  # the art extra adds Pillow for cover rendering
+tidalamp
 ```
 
 ### From the repository
@@ -343,8 +344,11 @@ pipx install "tidalamp[art]"  # the art extra adds Pillow for cover rendering
 python -m venv .venv
 .venv/bin/pip install -e ".[art]"   # drop [art] only if you do not want cover art
 .venv/bin/tidalamp login
-.venv/bin/tidalamp tui
+.venv/bin/tidalamp
 ```
+
+Running `tidalamp` with no subcommand opens the player. The explicit
+`tidalamp tui` command remains available and does exactly the same thing.
 
 Without the `art` extra (Pillow) everything works except the cover, which is simply
 not drawn; tidalamp says so once in the status line at startup.
@@ -412,8 +416,8 @@ With `auto`, the standard `LANGUAGE`, `LC_ALL`, `LC_MESSAGES`, and `LANG` variab
 consulted in that order. To override for one run:
 
 ```sh
-LANGUAGE=es tidalamp tui
-TIDALAMP_LANG=en tidalamp tui
+LANGUAGE=es tidalamp
+TIDALAMP_LANG=en tidalamp
 ```
 
 No gettext catalogue or compiled locale files are required; translations ship inside
@@ -547,7 +551,7 @@ result belongs to a level you have already left.
 - **The network fails:** TIDAL calls are retried three times with backoff for connection
   errors, timeouts, 429 responses, and 5xx responses. A 401 or 404 is not retried.
 
-For diagnostics, `TIDALAMP_DEBUG=1 tidalamp tui` writes to
+For diagnostics, `TIDALAMP_DEBUG=1 tidalamp` writes to
 `~/.local/state/tidalamp/tidalamp.log`. The TUI owns the terminal, so logging goes to a
 file. Among other details, the log records whether each track used the `BTS` or `MPD`
 manifest path.
@@ -610,7 +614,7 @@ Detection reads `$TERM`, `$TERM_PROGRAM`, and `$KITTY_WINDOW_ID`, and falls back
 half blocks, which work reasonably well everywhere. To force a renderer:
 
 ```sh
-TIDALAMP_ART=blocks tidalamp tui   # kitty | sixel | blocks | off
+TIDALAMP_ART=blocks tidalamp   # kitty | sixel | blocks | off
 ```
 
 **Pillow** is required to decode images (`pip install pillow` or
