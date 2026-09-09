@@ -83,7 +83,7 @@ The application is split into independent layers:
 | Audio | Balance and equalizer as mpv filters | `settings.py` |
 | Lyrics | Loading, LRC parsing, and plain-text fallback | `lyrics.py` |
 | Cover art | Downloading, caching, and terminal rendering | `artwork.py` |
-| Theme | Active Omarchy palette or a classic fallback | `theme.py` |
+| Theme | Three layouts, and the palette they are painted in | `theme.py` |
 
 **Search:** `/` searches for tracks and displays them directly, with albums, artists,
 and playlists in three category rows above. A category is fetched only when opened,
@@ -187,9 +187,11 @@ answer whether an item is already a favourite. A toggle would have to download t
 entire favourites list or guess, and a wrong guess could delete something you wanted.
 
 `s` toggles shuffle and `r` cycles repeat (off → queue → track). Both sit on the
-transport row as buttons, `s ⇄` and `r ↻`, lit in the theme's accent while they are on;
-repeat-one shows as `r ↻1`, because that is the one state a colour cannot say on its
-own. Both are also exposed through MPRIS as `Shuffle` and `LoopStatus`.
+transport row as buttons, lit in the palette's accent while they are on. Every state
+is also readable without colour: `⇄○`/`⇄●` for shuffle, and `↻–`/`↻A`/`↻1` for the
+three repeat modes — the `retro`, `nova` and `ascii` layouts spell the same states
+out as `SHUFFLE ○` and `REPEAT 1`. Both are also exposed through MPRIS as `Shuffle` and
+`LoopStatus`.
 
 ## Quality
 
@@ -244,6 +246,23 @@ of failing with a codec error. If it happens frequently, lower the quality with
 
 ## Themes and colours
 
+Two independent settings. `theme` picks the **layout** — how the interface is drawn.
+`palette` picks the **colours** it is drawn in. Any layout works with any palette, and
+both can be changed from the settings window (`o`) without restarting playback.
+
+| `theme` | Look |
+|---|---|
+| `quattro` | The default. Flat, modern, short dividers, left-aligned headings. |
+| `retro` | The 1997 skin as far as a terminal goes: title bars drawn as a rule with the heading centred on it, square transport keys packed shoulder to shoulder, and the toggles spelled `SHUFFLE` and `REPEAT`. |
+| `nova` | Frameless. One flat ground, no boxes anywhere, and colour reserved for the two controls that carry state — an accent rule under whichever toggle is on. |
+| `ascii` | A terminal before it had box drawing: `[ z << ]` bracket keys, rules made of `=` and `-`, and no glyph in the chrome you could not type. The meters keep their block characters. |
+
+`palette` accepts `auto` (follow Omarchy), `classic` (the original green-on-black
+Winamp colours), the built-ins `tokyo-night`, `catppuccin`, `nord` and `gruvbox`, or
+the name of a TOML file you drop in `~/.config/tidalamp/palettes/`. Custom palettes use
+the same format as Omarchy's `colors.toml`, so the built-ins and your own work on any
+Linux, with or without Omarchy.
+
 On Omarchy, tidalamp reads the active palette from
 `$XDG_STATE_HOME/omarchy/current/theme/colors.toml` (or
 `~/.local/state/omarchy/current/theme/colors.toml`) and applies its backgrounds,
@@ -251,9 +270,9 @@ foregrounds, accent, and semantic colours throughout the UI: CSS, lists, clock,
 analyzer, sliders, lyrics, and equalizer. Changing the theme while the TUI is open
 updates the palette within two seconds without disturbing playback.
 
-On other distributions, or when the file is missing or invalid, tidalamp uses its
-original green-on-black Winamp palette. The integration only reads Omarchy state; it
-does not modify themes or require the `omarchy` command.
+On other distributions, or when the file is missing or invalid, tidalamp falls back to
+its original green-on-black Winamp palette. The integration only reads Omarchy state;
+it does not modify themes or require the `omarchy` command.
 
 ## Platform support
 
@@ -331,6 +350,8 @@ not exist:
 quality = "HI_RES_LOSSLESS"   # LOW, HIGH, LOSSLESS, or HI_RES_LOSSLESS
 artwork = "auto"              # auto, kitty, sixel, blocks, or off
 language = "auto"             # auto follows the locale; es or en pin it
+theme = "quattro"             # layout: quattro, retro, nova, or ascii
+palette = "auto"              # colours: auto, classic, a built-in, or your own
 debug = false                 # log to ~/.local/state/tidalamp/tidalamp.log
 
 [keys]
@@ -339,7 +360,8 @@ quit = "ctrl+q"
 ```
 
 Precedence is **environment → file → default**. `TIDALAMP_QUALITY`, `TIDALAMP_ART`,
-`TIDALAMP_LANG`, and `TIDALAMP_DEBUG` therefore override the file for one-off runs;
+`TIDALAMP_LANG`, `TIDALAMP_THEME`, `TIDALAMP_PALETTE`, and `TIDALAMP_DEBUG` therefore
+override the file for one-off runs;
 the settings window labels a row whose value is being shadowed that way, rather than
 showing a value the app is not using. A syntax error in the file does not prevent
 startup; it is logged and the defaults take over.

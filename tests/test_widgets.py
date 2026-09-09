@@ -3,11 +3,16 @@
 from __future__ import annotations
 
 import asyncio
+import unicodedata
 
 import pytest
+from rich.cells import cell_len
 from textual.app import App, ComposeResult
 
-from tidalamp.widgets import Slider
+from tidalamp.library import Row
+from tidalamp.queue import Entry
+from tidalamp.screens import RowList
+from tidalamp.widgets import Marquee, Slider
 
 # Wide enough that the track has room to be wrong in a visible way.
 WIDTH = 44
@@ -79,3 +84,58 @@ def test_the_centred_bar_leans_without_breaking():
         assert line.startswith("VOL ")
         assert line.count("│") == 1
         assert line.count("█") + line.count("░") + 1 == (TRACK // 2) * 2 + 1
+
+
+class TextWidthApp(App):
+    CSS = "Marquee { width: 12; height: 1; } RowList { width: 120; height: 2; }"
+
+    def compose(self) -> ComposeResult:
+        yield Marquee(id="marquee")
+        yield RowList(id="rows")
+
+
+def test_marquee_scrolls_on_graphemes_and_terminal_cells():
+    async def scenario() -> None:
+        app = TextWidthApp()
+        async with app.run_test(size=(124, 8)) as pilot:
+            marquee = app.query_one(Marquee)
+            marquee.text = "東京 e\u0301 🎧 música"
+            await pilot.pause()
+
+            for _ in range(30):
+                line = marquee.render().plain
+                assert cell_len(line) == marquee.size.width
+                assert not (line and unicodedata.combining(line[0]))
+                marquee.tick()
+
+    asyncio.run(scenario())
+
+
+def test_rows_align_unicode_and_show_album_only_when_there_is_room():
+    async def scenario() -> None:
+        app = TextWidthApp()
+        async with app.run_test(size=(124, 8)) as pilot:
+            rows = app.query_one(RowList)
+            entry = Entry(
+                id=1,
+                title="東京 e\u0301 🎧",
+                artist="アーティスト",
+                album="Álbum edición especial",
+                duration=245,
+            )
+            rows.set_rows([Row(label=entry.label, detail=entry.length, entry=entry)])
+            await pilot.pause()
+
+            line = rows.render().plain.splitlines()[0]
+            assert cell_len(line) == rows.size.width
+            assert "Álbum edición especial" in line
+            assert line.endswith("4:05")
+
+            rows.styles.width = 40
+            await pilot.pause()
+            compact = rows.render().plain.splitlines()[0]
+            assert cell_len(compact) == 40
+            assert "Álbum edición especial" not in compact
+            assert compact.endswith("4:05")
+
+    asyncio.run(scenario())

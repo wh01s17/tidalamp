@@ -83,6 +83,60 @@ _OMARCHY_KEYS = {
     "eq_inactive": ("dark_foreground", "foreground"),
 }
 
+# Portable presets use the same small colour vocabulary as Omarchy's
+# ``colors.toml``. They are available on every Linux distribution; ``auto``
+# remains the bridge to the active Omarchy theme when that file exists.
+_BUILTIN_SOURCES: dict[str, dict[str, str]] = {
+    "tokyo-night": {
+        "accent": "#7aa2f7",
+        "background": "#1a1b26",
+        "foreground": "#c0caf5",
+        "muted": "#565f89",
+        "dark_background": "#16161e",
+        "lighter_background": "#24283b",
+        "red": "#f7768e",
+        "yellow": "#e0af68",
+        "green": "#9ece6a",
+        "blue": "#7aa2f7",
+    },
+    "catppuccin": {
+        "accent": "#cba6f7",
+        "background": "#1e1e2e",
+        "foreground": "#cdd6f4",
+        "muted": "#6c7086",
+        "dark_background": "#11111b",
+        "lighter_background": "#313244",
+        "red": "#f38ba8",
+        "yellow": "#f9e2af",
+        "green": "#a6e3a1",
+        "blue": "#89b4fa",
+    },
+    "nord": {
+        "accent": "#88c0d0",
+        "background": "#2e3440",
+        "foreground": "#d8dee9",
+        "muted": "#4c566a",
+        "dark_background": "#242933",
+        "lighter_background": "#3b4252",
+        "red": "#bf616a",
+        "yellow": "#ebcb8b",
+        "green": "#a3be8c",
+        "blue": "#81a1c1",
+    },
+    "gruvbox": {
+        "accent": "#d79921",
+        "background": "#282828",
+        "foreground": "#ebdbb2",
+        "muted": "#928374",
+        "dark_background": "#1d2021",
+        "lighter_background": "#3c3836",
+        "red": "#cc241d",
+        "yellow": "#d79921",
+        "green": "#98971a",
+        "blue": "#458588",
+    },
+}
+
 
 @dataclass(frozen=True)
 class ThemePalette:
@@ -101,6 +155,18 @@ class ThemePalette:
 
 DEFAULT_PALETTE = ThemePalette(DEFAULT_COLORS)
 
+# The three layouts, listed once so the settings screen, the config template
+# and the app itself cannot drift apart. Colour is the other axis and lives in
+# the palettes above: any layout works with any palette.
+#
+#   quattro  a flat, modern TUI treatment; the default
+#   retro    the 1997 skin, as far as a terminal can go: square keys, ruled
+#            title bars and a centred playlist window heading
+#   nova     no frames at all, one flat ground, state carried by colour
+#   ascii     a terminal before it had box drawing: `[ z << ]` keys, rules
+#             made of `=` and `-`, and no glyph the chrome cannot type
+LAYOUTS = ("quattro", "retro", "nova", "ascii")
+
 
 def omarchy_colors_path(
     environ: Mapping[str, str] | None = None, home: Path | None = None
@@ -115,33 +181,96 @@ def omarchy_colors_path(
     return base / "omarchy/current/theme/colors.toml"
 
 
+def palette_dir(
+    environ: Mapping[str, str] | None = None, home: Path | None = None
+) -> Path:
+    """Where portable user palettes live as Omarchy-compatible TOML files."""
+    env = os.environ if environ is None else environ
+    config_home = env.get("XDG_CONFIG_HOME")
+    base = (
+        Path(config_home).expanduser()
+        if config_home
+        else (home or Path.home()) / ".config"
+    )
+    return base / "tidalamp/palettes"
+
+
 def _valid_color(value: Any) -> str | None:
     return value if isinstance(value, str) and _HEX_COLOR.fullmatch(value) else None
 
 
-def load_palette(path: Path | None = None) -> ThemePalette:
-    """Load the active Omarchy palette, or return the exact classic fallback."""
-    colors_path = path or omarchy_colors_path()
-    try:
-        with colors_path.open("rb") as source:
-            omarchy = tomllib.load(source)
-    except (OSError, tomllib.TOMLDecodeError):
-        return DEFAULT_PALETTE
-
-    accent = _valid_color(omarchy.get("accent"))
-    background = _valid_color(omarchy.get("background"))
-    foreground = _valid_color(omarchy.get("foreground"))
+def _from_source(values: Mapping[str, Any], source: str) -> ThemePalette | None:
+    accent = _valid_color(values.get("accent"))
+    background = _valid_color(values.get("background"))
+    foreground = _valid_color(values.get("foreground"))
     if not (accent and background and foreground):
-        return DEFAULT_PALETTE
+        return None
 
     colors: dict[str, str] = {}
     for target, source_names in _OMARCHY_KEYS.items():
         colors[target] = next(
             value
             for source_name in source_names
-            if (value := _valid_color(omarchy.get(source_name))) is not None
+            if (value := _valid_color(values.get(source_name))) is not None
         )
-    return ThemePalette(MappingProxyType(colors), source="omarchy")
+    return ThemePalette(MappingProxyType(colors), source=source)
+
+
+def _read_palette(path: Path, source: str) -> ThemePalette | None:
+    try:
+        with path.open("rb") as handle:
+            values = tomllib.load(handle)
+    except (OSError, tomllib.TOMLDecodeError):
+        return None
+    return _from_source(values, source)
+
+
+def available_palettes(path: Path | None = None) -> tuple[str, ...]:
+    """Built-ins plus safe custom palette slugs, in stable UI order."""
+    custom_dir = path or palette_dir()
+    try:
+        custom = sorted(
+            candidate.stem
+            for candidate in custom_dir.glob("*.toml")
+            if re.fullmatch(r"[A-Za-z0-9_-]+", candidate.stem)
+        )
+    except OSError:
+        custom = []
+    base = ("auto", "classic", *_BUILTIN_SOURCES)
+    return tuple(dict.fromkeys((*base, *custom)))
+
+
+def load_palette(
+    path: Path | None = None,
+    *,
+    name: str = "auto",
+    custom_dir: Path | None = None,
+) -> ThemePalette:
+    """Load an automatic, built-in or portable custom semantic palette.
+
+    ``path`` keeps the direct-file API used by probes and tests. With
+    ``name='auto'`` the active Omarchy palette wins and classic is the safe
+    fallback. Custom files use Omarchy's ``colors.toml`` vocabulary and live
+    under ``~/.config/tidalamp/palettes``.
+    """
+    if path is not None:
+        return _read_palette(path, "omarchy") or DEFAULT_PALETTE
+
+    chosen = name.strip().lower()
+    if chosen == "auto":
+        return _read_palette(omarchy_colors_path(), "omarchy") or DEFAULT_PALETTE
+    if chosen == "classic":
+        return DEFAULT_PALETTE
+    if chosen in _BUILTIN_SOURCES:
+        return (
+            _from_source(_BUILTIN_SOURCES[chosen], f"builtin:{chosen}") or DEFAULT_PALETTE
+        )
+    if not re.fullmatch(r"[a-z0-9_-]+", chosen):
+        return DEFAULT_PALETTE
+    directory = custom_dir or palette_dir()
+    return (
+        _read_palette(directory / f"{chosen}.toml", f"custom:{chosen}") or DEFAULT_PALETTE
+    )
 
 
 def palette_for(owner: Any) -> ThemePalette:

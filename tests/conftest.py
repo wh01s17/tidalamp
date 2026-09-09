@@ -10,6 +10,18 @@ import pytest
 
 from tidalamp.queue import Entry
 
+# Everything `config.reload()` rebinds, which is everything a test can move.
+_CONFIG_GLOBALS = (
+    "FILE",
+    "DEFAULT_QUALITY",
+    "ARTWORK",
+    "LANGUAGE",
+    "THEME",
+    "PALETTE",
+    "DEBUG",
+    "KEYS",
+)
+
 
 class FakeTrack:
     def __init__(self, id: int, name: str = "", artist: str = "", duration: int = 200):
@@ -60,3 +72,29 @@ def spanish_interface():
     # refresh(), not _language(): the language is a setting now, and the
     # locale is only consulted when that setting says «auto».
     i18n.refresh()
+
+
+@pytest.fixture(autouse=True)
+def pristine_config(tmp_path_factory, monkeypatch):
+    """Start every test from the shipped defaults, never the developer's own.
+
+    Two separate traps, and both bit. The settings are module globals, so a
+    test that switched the theme left every later test rendering the other
+    one. And `config.FILE` is read at import time from
+    `~/.config/tidalamp/config.toml`: a suite that does not point that
+    somewhere empty passes or fails on whatever the developer last chose in
+    the running app — which is how a green suite turned red halfway through
+    an afternoon, with nothing but the config file having changed.
+    """
+    from tidalamp import config
+
+    saved = {name: getattr(config, name) for name in _CONFIG_GLOBALS}
+    for variable in config.ENV_VARS.values():
+        monkeypatch.delenv(variable, raising=False)
+    monkeypatch.setattr(
+        config, "CONFIG_FILE", tmp_path_factory.mktemp("config") / "config.toml"
+    )
+    config.reload()
+    yield
+    for name, value in saved.items():
+        setattr(config, name, value)

@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import threading
 
+from rich.cells import cell_len
 from textual.screen import Screen
 from textual.widgets import Static
 
@@ -83,6 +84,9 @@ def isolate_runtime(monkeypatch) -> None:
     monkeypatch.setattr(Settings, "load", classmethod(lambda cls: Settings()))
     monkeypatch.setattr(TidalAmp, "_start_spectrum", lambda self: None)
     monkeypatch.setattr(TidalAmp, "_start_mpris", no_mpris)
+    monkeypatch.setattr(audio_module, "sink", lambda: audio_module.Sink())
+    monkeypatch.setattr(audio_module, "allowed_rates", lambda: ())
+    monkeypatch.setattr(audio_module, "hardware_rates", lambda name: ())
 
 
 def test_slow_tick_does_not_reapply_audio_filters(monkeypatch):
@@ -110,6 +114,16 @@ def transport(application, half: str = "play") -> str:
     return application.query_one(f"#transport-{half}").render_line(LABEL_ROW).text
 
 
+def use_theme(monkeypatch, name: str) -> None:
+    """Both layouts come out of the same widgets; pick one for a test.
+
+    `config.THEME` is a module global, so it is set through monkeypatch and
+    not by hand: conftest restores it either way, but this keeps the reason
+    next to the test that needs it.
+    """
+    monkeypatch.setattr(app_module.config, "THEME", name)
+
+
 def lit(application) -> dict[str, bool]:
     """Whether each state button is drawn on the accent, by its glyph."""
     accent = application.tidalamp_palette["accent"].lower()
@@ -125,8 +139,7 @@ def lit(application) -> dict[str, bool]:
 def test_shuffle_and_repeat_are_lit_buttons_on_the_transport_row(monkeypatch):
     """They used to be «SHUF OFF» / «REP ALL» words on a row of their own.
 
-    Now they are transport buttons like the rest, so the state can only be
-    read from the colour and, for repeat-one, from the glyph.
+    Colour still reinforces the state, but the glyphs also say it explicitly.
     """
     isolate_runtime(monkeypatch)
 
@@ -135,21 +148,23 @@ def test_shuffle_and_repeat_are_lit_buttons_on_the_transport_row(monkeypatch):
         async with application.run_test() as pilot:
             await pilot.pause()
             assert lit(application) == {"⇄": False, "↻": False}
+            assert "⇄○" in transport(application)
+            assert "↻–" in transport(application)
 
             await pilot.press("s")
             await pilot.pause()
             assert lit(application)["⇄"] is True
+            assert "⇄●" in transport(application)
 
             await pilot.press("r")
             await pilot.pause()
             assert lit(application)["↻"] is True
-            assert "↻1" not in transport(application)
+            assert "↻A" in transport(application)
 
             application.mpris_set_loop_status("Track")
             application.mpris_set_shuffle(False)
             await pilot.pause()
             assert lit(application)["⇄"] is False
-            # Repeat-one is the one state a colour cannot say on its own.
             assert "↻1" in transport(application)
 
     asyncio.run(scenario())
@@ -173,6 +188,30 @@ def test_toggling_repeat_does_not_shift_the_rest_of_the_row(monkeypatch):
     asyncio.run(scenario())
 
 
+def test_the_transport_buttons_are_clickable_without_changing_keyboard_controls(
+    monkeypatch,
+):
+    isolate_runtime(monkeypatch)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(120, 32)) as pilot:
+            await pilot.pause()
+            start, end, _action = next(
+                hit for hit in application._transport_hits if hit[2] == "shuffle"
+            )
+            clicked = await pilot.click(
+                "#transport-play", offset=((start + end) // 2, LABEL_ROW)
+            )
+            await pilot.pause()
+
+            assert clicked is True
+            assert application.queue.shuffle is True
+            assert "⇄●" in transport(application)
+
+    asyncio.run(scenario())
+
+
 def test_running_app_follows_an_omarchy_theme_change(monkeypatch):
     isolate_runtime(monkeypatch)
     initial = ThemePalette(dict(DEFAULT_COLORS), source="omarchy")
@@ -181,7 +220,9 @@ def test_running_app_follows_an_omarchy_theme_change(monkeypatch):
     changed_colors["panel"] = "#1a1b26"
     changed = ThemePalette(changed_colors, source="omarchy")
     palettes = iter((initial, changed))
-    monkeypatch.setattr("tidalamp.app.load_palette", lambda: next(palettes))
+    monkeypatch.setattr(
+        "tidalamp.app.load_palette", lambda *args, **kwargs: next(palettes)
+    )
 
     async def scenario() -> None:
         application = TidalAmp(object(), FakeMpv())
@@ -241,7 +282,7 @@ def test_the_cover_box_grows_with_the_terminal_but_leaves_the_row_alone(monkeypa
     isolate_runtime(monkeypatch)
 
     async def scenario() -> None:
-        for size, expected in ((76, 20), 9), ((120, 50), 12), ((180, 100), 20):
+        for size, expected in ((80, 30), 9), ((120, 50), 12), ((180, 100), 20):
             application = TidalAmp(object(), FakeMpv())
             async with application.run_test(size=size) as pilot:
                 await pilot.pause()
@@ -344,7 +385,8 @@ def test_a_modal_takes_the_cover_down_and_the_tick_puts_it_back(monkeypatch):
 
     async def scenario() -> None:
         application = TidalAmp(object(), FakeMpv())
-        async with application.run_test() as pilot:
+        # Roomy on purpose: the compact layout drops the cover by design.
+        async with application.run_test(size=(100, 30)) as pilot:
             art = application.query_one(Artwork)
             cover = a_cover()
             art.show(cover)
@@ -371,7 +413,7 @@ def test_the_same_cover_is_not_fetched_twice(monkeypatch):
 
     async def scenario() -> None:
         application = TidalAmp(object(), FakeMpv())
-        async with application.run_test() as pilot:
+        async with application.run_test(size=(100, 30)) as pilot:
             await pilot.pause()
             entry = Entry(id=1, title="t", artist="a", art_url="https://c/1.jpg")
             application._load_art(entry)
@@ -566,25 +608,224 @@ def test_the_transport_keys_and_the_menu_sit_at_opposite_ends(monkeypatch):
     asyncio.run(scenario())
 
 
-def test_every_button_is_separated_from_the_next(monkeypatch):
+def test_the_retro_theme_squares_each_button_and_spells_the_toggles(monkeypatch):
+    """The original's buttons are separate square keys, not one frame, and
+    its two toggles carry the words SHUFFLE and REPEAT."""
+    isolate_runtime(monkeypatch)
+    use_theme(monkeypatch, "retro")
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(160, 30)) as pilot:
+            await pilot.pause()
+            widget = application.query_one("#transport-play")
+            top, face, bottom = (widget.render_line(y).text for y in range(3))
+
+            # Six buttons, six frames, square corners — not one shared frame.
+            assert top.count("┌") == 6 and top.count("┐") == 6
+            assert bottom.count("└") == 6 and bottom.count("┘") == 6
+            assert face.count("│") == 12
+            assert "┐┌" in top, "los botones van pegados, no fundidos"
+            # No half blocks: they fill their cell, so a row of them came out
+            # as a solid slab instead of an edge.
+            assert not any(glyph in top + face + bottom for glyph in "▛▜▙▟▌▐")
+            assert "SHUFFLE" in face and "REPEAT" in face
+            # The mark, not the colour, is what says the state.
+            assert "SHUFFLE ○" in face and "REPEAT ○" in face
+
+            await pilot.press("s")
+            await pilot.pause()
+            assert "SHUFFLE ●" in transport(application)
+
+    asyncio.run(scenario())
+
+
+def test_the_ascii_theme_types_its_chrome_and_keeps_the_brackets(monkeypatch):
+    """Bracket keys, ASCII rules, and no glyph the chrome cannot type.
+
+    The brackets are also the regression: `Static.update` reads a `str` as
+    Rich markup, so «[ TIDAL AMP ]» came out as two rules with a hole where
+    the title had been.
+    """
+    isolate_runtime(monkeypatch)
+    use_theme(monkeypatch, "ascii")
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(120, 30)) as pilot:
+            await pilot.pause()
+            title = application.query_one("#titlebar", Static).render_line(0).text
+            heading = application.query_one("#pl-title", Static).render_line(0).text
+            face = application.query_one("#transport-play").render_line(1).text
+
+            assert "[ TIDAL AMP ]" in title
+            assert "[ COLA ]" in heading
+            assert "[ z << ]" in face and "[ x >  ]" in face
+            assert "[ s SHUFFLE - ]" in face and "[ r REPEAT - ]" in face
+            # Nothing outside ASCII in any of the three, which is the point.
+            for drawn in (title, heading.split("  ")[0], face):
+                assert drawn.isascii(), drawn
+
+            await pilot.press("s")
+            await pilot.press("r")
+            await pilot.pause()
+            face = application.query_one("#transport-play").render_line(1).text
+            assert "[ s SHUFFLE * ]" in face and "[ r REPEAT * ]" in face
+
+    asyncio.run(scenario())
+
+
+def test_every_look_fits_the_smallest_supported_terminal(monkeypatch):
+    """A layout that does not fit wraps into the row above and ruins both."""
+    isolate_runtime(monkeypatch)
+
+    async def scenario() -> None:
+        for name in app_module.LAYOUTS:
+            app_module.config.THEME = name
+            application = TidalAmp(object(), FakeMpv())
+            async with application.run_test(size=(60, 18)) as pilot:
+                await pilot.pause()
+                transport_row = application.query_one("#transport")
+                play = application.query_one("#transport-play")
+                menu = application.query_one("#transport-menu")
+
+                assert play.size.height == 3, name
+                assert play.region.right <= menu.region.x, name
+                assert menu.region.right <= transport_row.region.right, name
+                for y in range(3):
+                    drawn = play.render_line(y).text
+                    assert cell_len(drawn) <= play.size.width, f"{name} fila {y}"
+
+    asyncio.run(scenario())
+
+
+def test_switching_look_remeasures_the_transport_instead_of_cropping_it(monkeypatch):
+    """The three looks are different widths, and the buttons were being cut
+    to whichever one was on screen when the widget was last measured."""
     isolate_runtime(monkeypatch)
 
     async def scenario() -> None:
         application = TidalAmp(object(), FakeMpv())
-        async with application.run_test(size=(160, 24)) as pilot:
+        async with application.run_test(size=(160, 30)) as pilot:
             await pilot.pause()
-            play = transport(application)
-            menu = transport(application, "menu")
+            widget = application.query_one("#transport-play")
 
-            # Two frames, not six loose boxes: the four transport buttons
-            # share one, and the two that hold a state share the other. Five
-            # bars around four cells, three around two.
-            assert play.count("│") == 5 + 3
-            top = application.query_one("#transport-play").render_line(0).text
-            assert top.count("╭") == 2, "un marco por grupo"
-            assert top.count("┬") == 3 + 1, "las divisiones internas"
-            # Eight menu entries: one separator fewer.
-            assert menu.count(TidalAmp.SEPARATOR.strip()) == 7
+            for name in ("retro", "nova", "quattro"):
+                app_module.config.THEME = name
+                application._apply_appearance()
+                await pilot.pause()
+                drawn = widget.render_line(1).text
+
+                assert cell_len(drawn) <= widget.size.width, name
+                # The last button is drawn whole, not cut off after its key.
+                last = (
+                    "r ↻–"
+                    if name == "quattro"
+                    else f"r {'repeat' if name == 'nova' else 'REPEAT'} ○"
+                )
+                assert last in drawn, name
+
+    asyncio.run(scenario())
+
+
+def test_the_retro_theme_rules_its_two_title_bars(monkeypatch):
+    """The original tells its windows apart by the texture behind the name."""
+    isolate_runtime(monkeypatch)
+    use_theme(monkeypatch, "retro")
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(120, 30)) as pilot:
+            await pilot.pause()
+            for selector, name in (("#titlebar", "A M P"), ("#pl-title", "LISTA")):
+                widget = application.query_one(selector, Static)
+                drawn = widget.render_line(0).text
+
+                assert cell_len(drawn) == widget.size.width, "la regla llena la fila"
+                assert name in drawn
+                assert drawn.startswith("═") and drawn.endswith("═")
+                # Centred: the two halves of the rule are within a cell.
+                left, right = drawn.split(" ", 1)[0], drawn.rsplit(" ", 1)[-1]
+                assert abs(len(left) - len(right)) <= 1
+
+    asyncio.run(scenario())
+
+
+def test_the_nova_theme_carries_state_without_drawing_a_single_box(monkeypatch):
+    isolate_runtime(monkeypatch)
+    use_theme(monkeypatch, "nova")
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(160, 30)) as pilot:
+            await pilot.pause()
+            widget = application.query_one("#transport-play")
+            top, face, under = (widget.render_line(y).text for y in range(3))
+
+            assert not any(glyph in face for glyph in "╭│▛▌"), "nova no dibuja cajas"
+            assert not top.strip(), "la fila de arriba queda vacía"
+            assert not under.strip(), "sin nada encendido, no hay subrayado"
+            assert "s shuffle ○" in face
+
+            await pilot.press("s")
+            await pilot.pause()
+            face = widget.render_line(1).text
+            under = widget.render_line(2).text
+            assert "s shuffle ●" in face
+            # The rule sits exactly under the label it belongs to.
+            start = face.index("s shuffle ●")
+            assert under[start : start + len("s shuffle ●")] == "─" * 11
+            assert under.strip() == "─" * 11, "sólo el que está encendido"
+
+    asyncio.run(scenario())
+
+
+def test_the_quattro_theme_separates_the_groups_without_a_frame(monkeypatch):
+    """The default layout keeps the two groups legible with one divider."""
+    isolate_runtime(monkeypatch)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(160, 30)) as pilot:
+            await pilot.pause()
+            play_widget = application.query_one("#transport-play")
+            play = transport(application)
+
+            assert "╭" not in play_widget.render_line(0).text
+            assert play.count("│") == 1, "un separador entre los dos grupos"
+            for key, glyph in (("z", "◀◀"), ("x", "▶"), ("c", "■"), ("v", "▶▶")):
+                assert f"{key} {glyph}" in play
+            # The rows above and below the labels stay empty, not framed.
+            assert not play_widget.render_line(0).text.strip()
+            assert not play_widget.render_line(2).text.strip()
+
+    asyncio.run(scenario())
+
+
+def test_a_narrow_menu_drops_whole_entries_instead_of_cutting_a_word(monkeypatch):
+    """Half a word behind a «·» reads as a rendering fault."""
+    isolate_runtime(monkeypatch)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(160, 30)) as pilot:
+            await pilot.pause()
+            widget = application.query_one("#transport-menu")
+            whole = transport(application, "menu").strip()
+            assert whole.endswith(("salir", "quit"))
+
+            for width in range(20, 110, 7):
+                widget.styles.width = width
+                await pilot.pause()
+                application._refresh_modes()
+                drawn = transport(application, "menu")
+
+                assert cell_len(drawn) <= width, "el menú no puede desbordar"
+                entries = [part.strip() for part in drawn.split(TidalAmp.SEPARATOR)]
+                assert entries[0].strip() == "? ayuda", "la ayuda va primero"
+                # Every entry that survived is one of the whole ones.
+                for entry in entries:
+                    assert entry in whole.split(TidalAmp.SEPARATOR)
 
     asyncio.run(scenario())
 
@@ -636,7 +877,7 @@ def test_play_and_pause_are_one_button_showing_what_it_will_do(monkeypatch):
     async def scenario() -> None:
         mpv = FakeMpv()
         application = TidalAmp(object(), mpv)
-        async with application.run_test(size=(150, 24)) as pilot:
+        async with application.run_test(size=(150, 30)) as pilot:
             await pilot.pause()
             # Stopped: the button offers to play, and there is no second one.
             drawn = transport(application)
@@ -1266,6 +1507,40 @@ def test_the_settings_cycle_both_ways(monkeypatch, tmp_path):
     asyncio.run(scenario())
 
 
+def test_theme_and_palette_change_live_and_persist(monkeypatch, tmp_path):
+    isolate_runtime(monkeypatch)
+    path = isolate_config(monkeypatch, tmp_path)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(120, 34)) as pilot:
+            await pilot.pause()
+            assert application.query_one("#main").has_class("quattro")
+            assert "╭" not in transport(application)
+
+            screen = ConfigScreen(application._setting_changed)
+            application.push_screen(screen)
+            await pilot.pause()
+
+            screen.cursor = 3  # Tema: quattro -> retro
+            await pilot.press("enter")
+            await pilot.pause()
+            assert app_module.config.THEME == "retro"
+            assert not application.query_one("#main").has_class("quattro")
+            framed = application.query_one("#transport-play").render_line(0).text
+            assert "┌" in framed, "el transporte pasa a los botones cuadrados"
+
+            screen.cursor = 4  # Paleta: auto -> classic
+            await pilot.press("enter")
+            await pilot.pause()
+            assert app_module.config.PALETTE == "classic"
+            assert application.tidalamp_palette.source == "classic"
+            assert app_module.config.read_file(path)["theme"] == "retro"
+            assert app_module.config.read_file(path)["palette"] == "classic"
+
+    asyncio.run(scenario())
+
+
 def test_a_setting_the_environment_overrides_is_labelled(monkeypatch, tmp_path):
     """Showing a value the app is not using would be a lie."""
     isolate_runtime(monkeypatch)
@@ -1302,9 +1577,88 @@ def test_the_screen_reports_what_the_audio_stack_is_doing(monkeypatch, tmp_path)
             application.push_screen(ConfigScreen())
             await settle(pilot, lambda: "Mi DAC" in config_text(application))
             drawn = config_text(application)
-            assert "48000" in drawn
-            # A graph stuck on one rate is the thing worth saying out loud.
-            assert ("48000" in drawn and "resampl" in drawn.lower()) or "remue" in drawn
+            assert "Mi DAC" in drawn and "48000" in drawn
+            # A graph stuck on one rate is the thing worth saying out loud,
+            # and without moving the cursor onto the row that fixes it: the
+            # badge tells the truth about the stream while the DAC gets less.
+            assert "remuestrea" in drawn
+            assert "El grafo remuestrea" in drawn.split("Salida:")[1]
+
+    asyncio.run(scenario())
+
+
+def test_a_graph_that_can_change_rate_says_nothing_alarming(monkeypatch, tmp_path):
+    """The warning has to mean something, so it cannot always be there."""
+    isolate_runtime(monkeypatch)
+    isolate_config(monkeypatch, tmp_path)
+    monkeypatch.setattr(
+        audio_module,
+        "sink",
+        lambda: audio_module.Sink(name="s", description="Mi DAC", rate=96000),
+    )
+    monkeypatch.setattr(audio_module, "allowed_rates", lambda: (44100, 48000, 96000))
+    monkeypatch.setattr(audio_module, "hardware_rates", lambda name: (96000,))
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(100, 34)) as pilot:
+            await pilot.pause()
+            application.push_screen(ConfigScreen())
+            await settle(pilot, lambda: "Mi DAC" in config_text(application))
+
+            assert "remuestrea" not in config_text(application)
+
+    asyncio.run(scenario())
+
+
+def test_a_bluetooth_output_says_so_where_it_cannot_be_missed(monkeypatch, tmp_path):
+    isolate_runtime(monkeypatch)
+    isolate_config(monkeypatch, tmp_path)
+    monkeypatch.setattr(
+        audio_module,
+        "sink",
+        lambda: audio_module.Sink(
+            name="bluez_output.AA", description="Auriculares", rate=48000
+        ),
+    )
+    monkeypatch.setattr(audio_module, "allowed_rates", lambda: (44100, 48000))
+    monkeypatch.setattr(audio_module, "hardware_rates", lambda name: ())
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(100, 34)) as pilot:
+            await pilot.pause()
+            application.push_screen(ConfigScreen())
+            await settle(pilot, lambda: "Auriculares" in config_text(application))
+
+            assert "Bluetooth" in config_text(application)
+
+    asyncio.run(scenario())
+
+
+def test_the_way_out_of_the_settings_survives_a_short_terminal(monkeypatch, tmp_path):
+    """The footer grew a line; the hint is docked so it is never the one cut."""
+    isolate_runtime(monkeypatch)
+    isolate_config(monkeypatch, tmp_path)
+    monkeypatch.setattr(
+        audio_module,
+        "sink",
+        lambda: audio_module.Sink(name="s", description="Mi DAC", rate=48000),
+    )
+    monkeypatch.setattr(audio_module, "allowed_rates", lambda: (48000,))
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(60, 18)) as pilot:
+            await pilot.pause()
+            application.push_screen(ConfigScreen())
+            await settle(pilot, lambda: "Mi DAC" in config_text(application))
+            box = application.screen.query_one("#config-box")
+            hint = application.screen.query_one("#config-hint")
+
+            assert box.region.bottom <= 18
+            assert hint.region.bottom <= box.region.bottom
+            assert "cerrar" in hint.render_line(0).text
 
     asyncio.run(scenario())
 
@@ -1324,7 +1678,7 @@ def test_the_rates_row_writes_and_removes_the_drop_in(monkeypatch, tmp_path):
             application.push_screen(screen)
             await pilot.pause()
 
-            screen.cursor = 4  # the rates row
+            screen.cursor = 6  # the rates row
             await pilot.pause()
             await pilot.press("enter")
             await pilot.pause()
@@ -1356,7 +1710,7 @@ def test_restarting_pipewire_stops_playback_first(monkeypatch, tmp_path):
             application.push_screen(screen)
             await pilot.pause()
 
-            screen.cursor = 5  # the restart row
+            screen.cursor = 7  # the restart row
             await pilot.pause()
             await pilot.press("enter")
             await settle(pilot, lambda: application.status == "hecho")
@@ -1635,9 +1989,10 @@ def test_resolving_a_track_says_so_and_stops_saying_it(monkeypatch):
 
     class Playable:
         url = "https://cdn/a"
-        kbps = "1411"
+        kbps = "16-bit"
         khz = "44.1"
         quality = "LOSSLESS"
+        codec = "flac"
 
     async def scenario() -> None:
         application = TidalAmp(object(), FakeMpv())
@@ -1703,9 +2058,10 @@ def test_a_quality_downgrade_reaches_the_status_line(monkeypatch):
 
     class Downgraded:
         url = "https://cdn/a"
-        kbps = "320"
-        khz = "44"
+        kbps = "320 kbps"
+        khz = "44.1"
         quality = "HIGH"
+        codec = "aac"
         requested = "LOSSLESS"
         downgraded = True
 
@@ -1723,6 +2079,49 @@ def test_a_quality_downgrade_reaches_the_status_line(monkeypatch):
     asyncio.run(scenario())
 
 
+def test_source_output_and_pause_are_separate_truthful_readouts(monkeypatch):
+    isolate_runtime(monkeypatch)
+
+    class HiRes:
+        url = "https://cdn/a"
+        kbps = "24-bit"
+        khz = "176.4"
+        quality = "HI_RES_LOSSLESS"
+        codec = "flac"
+        requested = "HI_RES_LOSSLESS"
+        downgraded = False
+
+    async def scenario() -> None:
+        mpv = FakeMpv()
+        mpv.idle = False
+        mpv.paused = True
+        application = TidalAmp(object(), mpv)
+        async with application.run_test(size=(120, 36)) as pilot:
+            entry = Entry(id=1, title="Thriller", artist="Michael Jackson")
+            application.queue.replace([entry], start=0)
+            application._sync_queue()
+            application._start(entry, HiRes())
+            application._set_sink(
+                audio_module.Sink(
+                    name="alsa_output.usb",
+                    description="FIIO BTR15",
+                    rate=176400,
+                    sample_format="s32le",
+                )
+            )
+            await pilot.pause()
+
+            source = str(application.query_one("#badges", Static).content)
+            output = str(application.query_one("#output", Static).content)
+            assert "SRC  FLAC" in source
+            assert "24-bit" in source and "176.4 kHz" in source
+            assert "HI-RES" in source and "PAUSA" in source
+            assert output == "OUT  FIIO BTR15 · PCM S32LE · 176.4 kHz"
+            assert application.query_one("#volume", Slider).label == "VOL/mpv"
+
+    asyncio.run(scenario())
+
+
 # ------------------------------------------------------------- terminal size
 
 
@@ -1731,13 +2130,52 @@ def test_a_small_terminal_gets_an_explanation_not_a_broken_layout(monkeypatch):
 
     async def scenario() -> None:
         application = TidalAmp(object(), FakeMpv())
-        async with application.run_test(size=(60, 18)) as pilot:
+        async with application.run_test(size=(59, 17)) as pilot:
             await pilot.pause()
             notice = application.query_one("#too-small", Static)
             assert notice.display is True
             text = str(notice.content)
-            assert "60×18" in text
+            assert "59×17" in text
             assert f"{TidalAmp.MIN_WIDTH}×{TidalAmp.MIN_HEIGHT}" in text
+
+    asyncio.run(scenario())
+
+
+def test_sixty_columns_use_the_compact_player_instead_of_a_warning(monkeypatch):
+    isolate_runtime(monkeypatch)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(60, 18)) as pilot:
+            await pilot.pause()
+
+            assert application.query_one("#too-small", Static).display is False
+            assert application.query_one("#main").has_class("compact")
+            assert application.query_one(Artwork).region.width == 0
+            assert application.query_one("#balance").display is False
+            assert application.query_one("#playlist").size.height >= 3
+            assert "↵ reproducir" in str(
+                application.query_one("#pl-title", Static).content
+            )
+            assert "? ayuda" in str(application.query_one("#transport-menu").content)
+
+    asyncio.run(scenario())
+
+
+def test_browser_modal_stays_inside_the_compact_terminal(monkeypatch):
+    isolate_runtime(monkeypatch)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(60, 18)) as pilot:
+            screen = BrowserScreen("PRUEBA", list)
+            application.push_screen(screen)
+            await settle(pilot, lambda: not screen.query_one(Spinner).busy)
+            box = screen.query_one("#browser-box")
+
+            assert box.region.x >= 0 and box.region.y >= 0
+            assert box.region.right <= 60
+            assert box.region.bottom <= 18
 
     asyncio.run(scenario())
 
@@ -1764,7 +2202,7 @@ def test_the_notice_appears_and_clears_as_the_window_is_resized(monkeypatch):
             notice = application.query_one("#too-small", Static)
             assert notice.display is False
 
-            await pilot.resize_terminal(70, 40)
+            await pilot.resize_terminal(59, 40)
             await pilot.pause()
             assert notice.display is True
 

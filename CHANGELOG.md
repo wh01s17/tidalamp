@@ -18,8 +18,23 @@ sección se cierra con su número y su fecha; el procedimiento completo está en
 - El transporte ocupa cuatro teclas contiguas, en el orden de los botones:
   `z` anterior, `x` play/pausa, `c` parar, `v` siguiente. Los rótulos de los
   botones salen de los bindings efectivos, así que siguen a `config.toml`.
-- El transporte se dibuja como botones enmarcados de tres filas, agrupados en dos
-  marcos segmentados: el transporte por un lado y shuffle/repetición por otro.
+- El transporte se dibuja como botones de tres filas, en dos grupos: el transporte por
+  un lado y shuffle/repetición por otro.
+- **Cuatro estructuras visuales, elegibles con `theme`**, independientes del color:
+  `quattro` (por defecto, plana y moderna), `retro` (barras de título dibujadas como
+  una regla con el nombre centrado, teclas cuadradas pegadas y los conmutadores con las
+  palabras `SHUFFLE` y `REPEAT`) y `nova` (sin marcos, un solo fondo, y una regla del
+  acento bajo el conmutador encendido) y `ascii` (un terminal de antes del dibujo de
+  cajas: botones `[ z << ]`, reglas de `=` y `-`, y ningún glifo en el cromado que no
+  se pueda teclear). Se cambian desde la ventana de `o` sin parar la reproducción.
+- **Paletas portables** además de seguir a Omarchy: `classic`, `tokyo-night`,
+  `catppuccin`, `nord`, `gruvbox`, o un TOML propio en
+  `~/.config/tidalamp/palettes/`, con el mismo formato que el `colors.toml` de
+  Omarchy. Cualquier paleta funciona con cualquiera de las tres estructuras.
+- La ventana de configuración avisa en su propia línea, y en el color de aviso, cuando
+  el grafo de PipeWire está fijo en un ritmo y remuestrea todo: la insignia dice la
+  verdad sobre el stream mientras el DAC recibe otra cosa, y no había nada en pantalla
+  que lo delatara sin mover el cursor.
 - **`v` (parar) rearrancaba la lista desde el principio**: dejaba mpv en idle y el
   tick lo leía como «la pista acabó», así que avanzaba a la siguiente — que desde
   una cola parada es la primera.

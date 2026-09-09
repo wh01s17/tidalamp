@@ -15,6 +15,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, cast
 
+from rich.cells import cell_len, set_cell_size
 from rich.text import Text
 from textual import work
 from textual.app import ComposeResult
@@ -31,7 +32,7 @@ from .i18n import _
 from .library import Row
 from .lyrics import LyricsDocument
 from .settings import BAND_LABELS, GAIN_LIMIT, Settings
-from .theme import palette_for
+from .theme import LAYOUTS, available_palettes, palette_for
 from .widgets import EqualizerBars, Slider, Spinner
 
 if TYPE_CHECKING:  # The screens report back to the app; the app owns them.
@@ -75,22 +76,47 @@ class RowList(Widget):
             return self.rows[self.cursor]
         return None
 
+    @staticmethod
+    def _line(row: Row, index: int, marked: int, width: int) -> str:
+        """Fit one row by terminal cells and expose album metadata when wide."""
+        marker = "▶" if index == marked else (" " if row.is_playable else "›")
+        left = f"{marker}{index + 1:>3}. {row.label}"
+        detail_width = min(cell_len(row.detail), max(0, width // 3))
+        detail = set_cell_size(row.detail, detail_width) if detail_width else ""
+        album = row.entry.album if row.entry is not None else ""
+
+        # At wide sizes the album column makes otherwise identical search and
+        # queue rows distinguishable without cluttering the compact layout.
+        album_width = min(24, max(12, width // 5))
+        detail_block = detail_width + 2 if detail else 0
+        left_width = width - album_width - 2 - detail_block
+        if width >= 100 and album and left_width >= 24:
+            line = (
+                f"{set_cell_size(left, left_width)}  {set_cell_size(album, album_width)}"
+            )
+            if detail:
+                line += f"  {detail}"
+            return set_cell_size(line, width)
+
+        left_width = width - detail_width - (1 if detail else 0)
+        line = set_cell_size(left, max(0, left_width))
+        if detail:
+            line += f" {detail}"
+        return set_cell_size(line, width)
+
     def render(self) -> Text:
         palette = palette_for(self)
         if not self.rows:
             return Text(f"  {self.empty_text}", style=palette["empty"])
 
         height = max(1, self.size.height)
-        width = max(20, self.size.width)
+        width = max(1, self.size.width)
         # Keep the cursor in view without a full scrolling container.
         start = max(0, min(self.cursor - height // 2, len(self.rows) - height))
         out = Text()
         for i in range(start, min(len(self.rows), start + height)):
             row = self.rows[i]
-            marker = "▶" if i == self.marked else (" " if row.is_playable else "›")
-            line = f"{marker}{i + 1:>3}. {row.label}"
-            pad = max(1, width - len(line) - len(row.detail) - 1)
-            line = f"{line}{' ' * pad}{row.detail}"[:width]
+            line = self._line(row, i, self.marked, width)
             if i == self.cursor:
                 out.append(
                     line,
@@ -844,9 +870,11 @@ class TrackActionsScreen(ModalScreen[str | None]):
 
 def _crop(text: str, width: int) -> str:
     """One line, ellipsised rather than wrapped."""
-    if len(text) <= width:
+    if cell_len(text) <= width:
         return text
-    return text[: max(0, width - 1)] + "…"
+    if width <= 0:
+        return ""
+    return set_cell_size(text, max(0, width - 1)) + "…"
 
 
 @dataclass(frozen=True)
@@ -922,6 +950,18 @@ class ConfigScreen(ModalScreen[None]):
                 choices=self.LANGUAGES,
                 note=_("al reiniciar"),
             ),
+            Option(
+                _("Tema"),
+                key="theme",
+                choices=LAYOUTS,
+                note=_("estructura visual; se aplica al instante"),
+            ),
+            Option(
+                _("Paleta"),
+                key="palette",
+                choices=available_palettes(),
+                note=_("auto sigue Omarchy; las demás funcionan en cualquier Linux"),
+            ),
             Option(_("Registro de depuración"), key="debug", choices=self.SWITCH),
             Option(_("Ritmos hi-res en PipeWire"), action="rates"),
             Option(_("Reiniciar PipeWire"), action="restart"),
@@ -995,7 +1035,7 @@ class ConfigScreen(ModalScreen[None]):
         # Cropped, not wrapped: a detail that wrapped came back at column
         # zero and broke the indent that ties it to its own row.
         room = widget.size.width or 72
-        labels = max(len(option.label) for option in self._rows)
+        labels = max(cell_len(option.label) for option in self._rows)
 
         rendered = Text()
         for index, option in enumerate(self._rows):
@@ -1006,12 +1046,17 @@ class ConfigScreen(ModalScreen[None]):
                 if selected
                 else palette["body"]
             )
-            row = f" {marker} {option.label:<{labels}}   {self._value(option)}"
+            row = (
+                f" {marker} {set_cell_size(option.label, labels)}   {self._value(option)}"
+            )
             rendered.append(_crop(row, room) + "\n", style=style)
-            detail = f"     {' ' * labels}   {self._detail(option)}"
-            rendered.append(_crop(detail, room) + "\n", style=palette["muted"])
-        rendered.append("\n")
+        current = self._rows[self.cursor]
+        detail = f"     {current.label}: {self._detail(current)}"
+        rendered.append("\n" + _crop(detail, room) + "\n", style=palette["muted"])
         rendered.append(_crop(self._status(), room), style=palette["muted"])
+        warning = self._warning()
+        if warning:
+            rendered.append("\n" + _crop(warning, room), style=palette["warning"])
         widget.update(rendered)
 
     def _status(self) -> str:
@@ -1021,6 +1066,25 @@ class ConfigScreen(ModalScreen[None]):
         return _("  Salida: {name} · {rate} Hz {format}").format(
             name=name, rate=self._sink.rate or "?", format=self._sink.sample_format
         )
+
+    def _warning(self) -> str:
+        """What the output line cannot say on its own.
+
+        A graph pinned to one rate belongs here and not only in the detail of
+        the row that fixes it: the badge tells the truth about the stream
+        while the DAC receives something else, and nothing else on screen
+        gives that away. Its own line, in the warning colour, because a tail
+        appended to the output line was the first thing to be cropped away.
+        """
+        if not self._sink.known:
+            return ""
+        if self._sink.bluetooth:
+            return _("  Bluetooth: no hay hi-res real por esta salida")
+        if len(self._allowed) == 1:
+            return _("  El grafo remuestrea todo a {rate} Hz").format(
+                rate=self._allowed[0]
+            )
+        return ""
 
     # --------------------------------------------------------------- actions
 
@@ -1099,5 +1163,7 @@ _ATTRIBUTES = {
     "quality": "DEFAULT_QUALITY",
     "artwork": "ARTWORK",
     "language": "LANGUAGE",
+    "theme": "THEME",
+    "palette": "PALETTE",
     "debug": "DEBUG",
 }
