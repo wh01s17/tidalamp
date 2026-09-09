@@ -4,8 +4,9 @@ Documento de traspaso. Describe qué existe, qué está verificado, qué falta y
 criterio se tomaron las decisiones, para que cualquiera (humano o modelo) pueda
 retomar el trabajo sin contexto previo.
 
-**Última actualización:** 2026-09-08 (interfaz bilingüe español/inglés terminada,
-catálogo i18n comprobado por AST y README público traducido al inglés)
+**Última actualización:** 2026-09-08 (aviso visible cuando falta Pillow y el README
+ya instala el extra `art` desde el repositorio; antes: interfaz bilingüe
+español/inglés, catálogo i18n comprobado por AST y README público en inglés)
 
 ---
 
@@ -320,7 +321,10 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
 - [x] Recorte centrado al aspecto del recuadro antes de escalar, para no deformar una
       portada cuadrada dentro de un rectángulo de celdas.
 - [x] Pillow es opcional: sin él `decode()` devuelve `None`, no hay carátula y no
-      cambia nada más. Mismo trato que cava.
+      cambia nada más. Mismo trato que cava. **Pero se avisa**: `have_decoder()` se
+      consulta al final de `on_mount` y la barra de estado nombra `".[art]"`. Antes el
+      widget se quedaba oculto en silencio y un clon recién hecho parecía roto — es
+      justo lo que pasó al clonar el repo en otro equipo (2026-09-08).
 - [x] Las imágenes de kitty y sixel se pintan por encima del texto, en una capa que el
       compositor de Textual desconoce: la carátula se retira al apilar una pantalla
       modal y se restaura desde el tick lento al desapilarla, y se borra por id al
@@ -724,7 +728,7 @@ Qué mirar:
    abriría por debajo.
 3. Que al cambiar de pista se sustituya, sin acumular imágenes ni dejar restos al salir.
 
-Si no aparece nada, es que falta Pillow: `.venv/bin/pip install pillow`.
+Si no aparece nada, la barra de estado lo dice: falta Pillow, `.venv/bin/pip install -e ".[art]"`.
 
 ### 9.3 Salida de audio real — HECHO
 

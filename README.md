@@ -268,10 +268,14 @@ pipx install "tidalamp[art]"  # the art extra adds Pillow for cover rendering
 ### From the repository
 
 ```sh
-python -m venv .venv && .venv/bin/pip install -e .
+python -m venv .venv
+.venv/bin/pip install -e ".[art]"   # drop [art] only if you do not want cover art
 .venv/bin/tidalamp login
 .venv/bin/tidalamp tui
 ```
+
+Without the `art` extra (Pillow) everything works except the cover, which is simply
+not drawn; tidalamp says so once in the status line at startup.
 
 The complete release process for PyPI, GitHub Releases, and the AUR is documented in
 [`publish.md`](publish.md). Packaging-specific notes are kept in

@@ -50,3 +50,10 @@ sección se cierra con su número y su fecha; el procedimiento completo está en
 - **La barra de estado quedaba fuera de la pantalla**, así que todo lo que la aplicación
   tenía que decir se escribía donde nadie lo veía.
 - La insignia mostraba «16bit» sobre audio con pérdida.
+- **Sin Pillow no había carátula y no se decía por qué**: el widget se quedaba
+  oculto y el único rastro era un `log.info` en un fichero. Ahora la barra de
+  estado nombra el extra que lo arregla al arrancar, y las instrucciones de
+  instalación desde el repositorio incluyen `".[art]"`, que era donde faltaba.
+- **La barra de estado se comía los corchetes.** `Static.update` interpreta un
+  `str` como marcado de Rich, así que `tidalamp[art]` salía como `tidalamp`.
+  Ahora se le pasa un `Text`, y vale para cualquier mensaje con corchetes.
