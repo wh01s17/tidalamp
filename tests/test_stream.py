@@ -59,22 +59,31 @@ def test_bts_manifest_uses_the_first_url():
     )
     assert playable.url == "https://cdn/a"
     assert playable.manifest == "BTS"
-    assert playable.khz == "44"
+    assert playable.khz == "44.1"
 
 
 def test_a_lossy_stream_shows_its_bitrate_and_not_a_bit_depth():
     """TIDAL reports 16 bits for 320 kbps AAC too: that is what it decodes to."""
     playable = resolve(track_with(FakeManifest(urls=["https://cdn/a"]), "HIGH"))
     assert playable.bit_depth == 16
-    assert playable.kbps == "320"
+    assert playable.kbps == "320 kbps"
 
     low = resolve(track_with(FakeManifest(urls=["https://cdn/a"]), "LOW"))
-    assert low.kbps == "96"
+    assert low.kbps == "96 kbps"
 
 
 def test_a_lossless_stream_shows_its_bit_depth():
     playable = resolve(track_with(FakeManifest(urls=["https://cdn/a"]), "LOSSLESS"))
-    assert playable.kbps == "16bit"
+    assert playable.kbps == "16-bit"
+
+
+def test_fractional_hi_res_rates_are_not_rounded_to_the_wrong_family():
+    stream = FakeStream(FakeManifest(), "HI_RES_LOSSLESS")
+    stream.sample_rate = 176400
+    track = track_with(FakeManifest(), "HI_RES_LOSSLESS")
+    track.get_stream = lambda: stream
+
+    assert resolve(track).khz == "176.4"
 
 
 def test_a_downgrade_is_visible_instead_of_silent(monkeypatch):

@@ -49,6 +49,13 @@ Screen {
 #badges {
     color: $tidalamp-muted;
     height: 1;
+    text-wrap: nowrap;
+}
+
+#output {
+    color: $tidalamp-body;
+    height: 1;
+    text-wrap: nowrap;
 }
 
 /* The display band grows with the terminal to make room for a bigger cover.
@@ -67,14 +74,14 @@ Screen {
 #volume {
     background: $tidalamp-track-background;
     padding: 0 1;
-    width: 44;
+    width: 100%;
     height: 1;
 }
 
 #balance {
     background: $tidalamp-track-background;
     padding: 0 1;
-    width: 44;
+    width: 100%;
     height: 1;
 }
 
@@ -82,6 +89,7 @@ Screen {
     background: $tidalamp-transport-background;
     color: $tidalamp-transport-foreground;
     height: 3;
+    overflow-x: hidden;
 }
 
 /* The transport keys keep their place under the sliders; everything else is
@@ -91,6 +99,7 @@ Screen {
     background: $tidalamp-transport-background;
     color: $tidalamp-transport-foreground;
     width: auto;
+    max-width: 100%;
     height: 3;
 }
 
@@ -110,6 +119,10 @@ Screen {
     color: $tidalamp-title-foreground;
     text-style: bold;
     height: 1;
+    /* Same gutter as #playlist below it: flush against the border, the title
+       was the one row of the panel that touched the frame. */
+    padding: 0 1;
+    text-wrap: nowrap;
 }
 
 #playlist {
@@ -122,7 +135,7 @@ Screen {
 
 #status {
     background: $tidalamp-track-background;
-    color: $tidalamp-status;
+    color: $tidalamp-body;
     height: 1;
     width: 1fr;
 }
@@ -133,7 +146,9 @@ SearchScreen {
 
 #search-box {
     width: 60;
+    max-width: 100%;
     height: auto;
+    max-height: 100%;
     background: $tidalamp-panel;
     border: outer $tidalamp-border;
     padding: 1 2;
@@ -157,7 +172,9 @@ BrowserScreen {
 
 #browser-box {
     width: 84;
+    max-width: 100%;
     height: 26;
+    max-height: 100%;
     background: $tidalamp-panel;
     border: outer $tidalamp-border;
 }
@@ -216,7 +233,9 @@ LyricsScreen {
 
 #lyrics-box {
     width: 84;
+    max-width: 100%;
     height: 28;
+    max-height: 100%;
     background: $tidalamp-panel;
     border: outer $tidalamp-border;
 }
@@ -315,6 +334,9 @@ ConfigScreen {
     background: $tidalamp-transport-background;
     color: $tidalamp-transport-foreground;
     height: 1;
+    /* Docked, so that the line telling you how to close the window is the
+       one thing a short terminal never clips off the bottom. */
+    dock: bottom;
 }
 
 HelpScreen {
@@ -359,9 +381,163 @@ EqScreen {
 
 #eq-box {
     width: 60;
+    max-width: 100%;
     height: 17;
+    max-height: 100%;
     background: $tidalamp-panel;
     border: outer $tidalamp-border;
+}
+
+/* 60–79 columns, or a short terminal: keep every action and a useful queue,
+   but spend no rows or columns on decorative artwork. */
+#main.compact #display {
+    height: 5;
+    padding: 0 1;
+}
+
+#main.compact #art {
+    display: none;
+}
+
+#main.compact #clock {
+    width: 20;
+    height: 3;
+    padding: 0;
+}
+
+#main.compact #readout {
+    padding: 0 0 0 1;
+}
+
+#main.compact #analyzer {
+    height: 1;
+}
+
+#main.compact #balance {
+    display: none;
+}
+
+/* Three layouts share these widgets; each block below is one of them. Colour
+   is the other axis and comes from the palette, so any look works with any
+   palette. Adding one means adding a block here and a builder in app.py.
+
+   Quattro: flatter hierarchy, short dividers and left-aligned headings. */
+#main.quattro {
+    border: solid $tidalamp-border;
+}
+
+#main.quattro #titlebar {
+    background: $tidalamp-panel;
+    color: $tidalamp-accent;
+    text-align: left;
+    padding: 0 1;
+}
+
+#main.quattro #pl-title {
+    background: $tidalamp-track-background;
+    color: $tidalamp-accent;
+}
+
+#main.quattro #transport {
+    background: $tidalamp-panel;
+}
+
+/* Retro: the 1997 skin as far as a terminal goes. A raised outer bevel and
+   title bars drawn as a rule with the heading centred on it, which is what
+   told the original's two windows apart on the desktop. */
+#main.retro {
+    border: outer $tidalamp-border;
+}
+
+#main.retro #titlebar {
+    background: $tidalamp-title-background;
+    color: $tidalamp-title-foreground;
+    text-align: center;
+    text-style: bold;
+    padding: 0;
+}
+
+#main.retro #pl-title {
+    background: $tidalamp-title-background;
+    color: $tidalamp-title-foreground;
+    text-align: center;
+    padding: 0;
+}
+
+#main.retro #transport {
+    background: $tidalamp-panel;
+}
+
+/* Ascii: a terminal before it had box drawing. Textual's own `ascii` border
+   draws with `+ - |`, so even the panel's edge stays typable. */
+#main.ascii {
+    border: ascii $tidalamp-border;
+}
+
+#main.ascii #titlebar {
+    background: $tidalamp-title-background;
+    color: $tidalamp-title-foreground;
+    text-align: center;
+    text-style: bold;
+    padding: 0;
+}
+
+#main.ascii #pl-title {
+    background: $tidalamp-title-background;
+    color: $tidalamp-title-foreground;
+    text-align: left;
+    padding: 0;
+}
+
+#main.ascii #transport {
+    background: $tidalamp-panel;
+}
+
+/* Nova: modern and frameless. One ground throughout, no boxes anywhere, and
+   colour reserved for the two things that actually carry state. Space is the
+   only separator, which is why every band here drops its own background. */
+#main.nova {
+    border: none;
+    padding: 0 1;
+}
+
+#main.nova #titlebar {
+    background: $tidalamp-panel;
+    color: $tidalamp-accent;
+    text-align: left;
+    text-style: bold;
+    padding: 0 1;
+}
+
+#main.nova #display {
+    background: $tidalamp-panel;
+    padding: 1 1 0 1;
+}
+
+#main.nova #seek,
+#main.nova #volume,
+#main.nova #balance {
+    background: $tidalamp-panel;
+}
+
+#main.nova #transport {
+    background: $tidalamp-panel;
+}
+
+#main.nova #pl-title {
+    background: $tidalamp-panel;
+    color: $tidalamp-accent;
+    text-style: none;
+    padding: 0 1;
+}
+
+#main.nova #playlist {
+    background: $tidalamp-panel;
+}
+
+#main.nova #status,
+#main.nova #statusbar {
+    background: $tidalamp-panel;
 }
 
 #eq-title {

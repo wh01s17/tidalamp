@@ -7,6 +7,7 @@ from pathlib import Path
 from tidalamp.theme import (
     DEFAULT_COLORS,
     DEFAULT_PALETTE,
+    available_palettes,
     load_palette,
     omarchy_colors_path,
 )
@@ -88,6 +89,31 @@ def test_minimal_omarchy_palette_never_mixes_in_classic_colors(tmp_path):
     assert palette["danger"] == "#112233"
     assert palette["muted"] == "#ddeeff"
     assert set(palette.colors.values()) <= {"#112233", "#223344", "#ddeeff"}
+
+
+def test_portable_built_in_palettes_do_not_need_omarchy():
+    palette = load_palette(name="tokyo-night")
+
+    assert palette.source == "builtin:tokyo-night"
+    assert palette["accent"] == "#7aa2f7"
+    assert palette["panel"] == "#1a1b26"
+
+
+def test_a_custom_palette_uses_the_omarchy_colors_format(tmp_path):
+    (tmp_path / "ocean.toml").write_text(
+        'accent = "#11aacc"\nbackground = "#102030"\nforeground = "#ddeeff"\n',
+        encoding="utf-8",
+    )
+
+    palette = load_palette(name="ocean", custom_dir=tmp_path)
+
+    assert palette.source == "custom:ocean"
+    assert palette["accent"] == "#11aacc"
+    assert "ocean" in available_palettes(tmp_path)
+
+
+def test_an_invalid_palette_name_falls_back_without_path_traversal(tmp_path):
+    assert load_palette(name="../secret", custom_dir=tmp_path) is DEFAULT_PALETTE
 
 
 def test_omarchy_path_honours_xdg_state_home():

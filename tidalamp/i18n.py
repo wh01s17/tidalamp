@@ -81,6 +81,8 @@ ENGLISH: dict[str, str] = {
     "Calidad": "Quality",
     "Carátula": "Cover art",
     "Idioma": "Language",
+    "Tema": "Theme",
+    "Paleta": "Palette",
     "Registro de depuración": "Debug log",
     "Ritmos hi-res en PipeWire": "Hi-res rates in PipeWire",
     "Reiniciar PipeWire": "Restart PipeWire",
@@ -91,9 +93,21 @@ ENGLISH: dict[str, str] = {
     "sin configurar": "not configured",
     "al reiniciar": "on restart",
     "se aplica a la siguiente pista": "applies to the next track",
+    "estructura visual; se aplica al instante": "visual structure; applies instantly",
+    "auto sigue Omarchy; las demás funcionan en cualquier Linux": (
+        "auto follows Omarchy; the others work on any Linux"
+    ),
+    "tema: {value}": "theme: {value}",
+    "paleta: {value}": "palette: {value}",
     "lo pisa {variable} del entorno": "{variable} in the environment overrides it",
     "  Salida: desconocida": "  Output: unknown",
     "  Salida: {name} · {rate} Hz {format}": "  Output: {name} · {rate} Hz {format}",
+    "  Bluetooth: no hay hi-res real por esta salida": (
+        "  Bluetooth: no real hi-res goes through this output"
+    ),
+    "  El grafo remuestrea todo a {rate} Hz": (
+        "  The graph resamples everything to {rate} Hz"
+    ),
     "no se pudo consultar PipeWire": "could not ask PipeWire",
     "la salida es Bluetooth: no hay hi-res real por ahí": (
         "the output is Bluetooth: no real hi-res goes through it"
@@ -312,9 +326,13 @@ ENGLISH: dict[str, str] = {
     "tiempo": "time",
     "salir": "quit",
     # --- window furniture
-    "▓ PLAYLIST ▓   d quitar   C vaciar   alt+↑↓ mover": (
-        "▓ PLAYLIST ▓   d remove   C clear   alt+↑↓ move"
+    "↵ reproducir · ↑↓ navegar": "↵ play · ↑↓ navigate",
+    "↵ reproducir · ↑↓ navegar · d quitar · alt+↑↓ mover": (
+        "↵ play · ↑↓ navigate · d remove · alt+↑↓ move"
     ),
+    "LISTA DE REPRODUCCIÓN": "PLAYLIST",
+    "cola": "queue",
+    "COLA": "QUEUE",
     " ↵ abrir/reproducir   a añadir   A añadir todo   f/F favorito"
     "   ⌫ atrás   R recargar   esc cerrar": (
         " ↵ open/play   a add   A add all   f/F favourite   ⌫ back   R reload   esc close"
@@ -404,6 +422,11 @@ ENGLISH: dict[str, str] = {
     'artwork = "auto"\n\n'
     "# Idioma: auto sigue al locale del sistema; es o en lo fijan.\n"
     'language = "auto"\n\n'
+    "# Estilo visual: quattro, retro, nova o ascii.\n"
+    'theme = "quattro"\n\n'
+    "# Paleta: auto sigue Omarchy; también classic, tokyo-night, catppuccin,\n"
+    "# nord, gruvbox o un TOML en ~/.config/tidalamp/palettes/.\n"
+    'palette = "auto"\n\n'
     "# Registro en ~/.local/state/tidalamp/tidalamp.log.\n"
     "debug = false\n\n"
     "# Teclas. La izquierda es la acción, la derecha la tecla; varias se separan con\n"
@@ -421,6 +444,11 @@ ENGLISH: dict[str, str] = {
         'artwork = "auto"\n\n'
         "# Language: auto follows the system locale; es or en pin it.\n"
         'language = "auto"\n\n'
+        "# Visual style: quattro, retro, nova or ascii.\n"
+        'theme = "quattro"\n\n'
+        "# Palette: auto follows Omarchy; also classic, tokyo-night, catppuccin,\n"
+        "# nord, gruvbox, or a TOML file in ~/.config/tidalamp/palettes/.\n"
+        'palette = "auto"\n\n'
         "# Log to ~/.local/state/tidalamp/tidalamp.log.\n"
         "debug = false\n\n"
         "# Keys. The action is on the left and the key on the right; separate multiple\n"
@@ -518,6 +546,11 @@ def config_template() -> str:
         'artwork = "auto"\n\n'
         "# Idioma: auto sigue al locale del sistema; es o en lo fijan.\n"
         'language = "auto"\n\n'
+        "# Estilo visual: quattro, retro, nova o ascii.\n"
+        'theme = "quattro"\n\n'
+        "# Paleta: auto sigue Omarchy; también classic, tokyo-night, catppuccin,\n"
+        "# nord, gruvbox o un TOML en ~/.config/tidalamp/palettes/.\n"
+        'palette = "auto"\n\n'
         "# Registro en ~/.local/state/tidalamp/tidalamp.log.\n"
         "debug = false\n\n"
         "# Teclas. La izquierda es la acción, la derecha la tecla; varias se "

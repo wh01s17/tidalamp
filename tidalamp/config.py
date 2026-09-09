@@ -71,6 +71,8 @@ ENV_VARS: dict[str, str] = {
     "quality": "TIDALAMP_QUALITY",
     "artwork": "TIDALAMP_ART",
     "language": "TIDALAMP_LANG",
+    "theme": "TIDALAMP_THEME",
+    "palette": "TIDALAMP_PALETTE",
     "debug": "TIDALAMP_DEBUG",
 }
 
@@ -123,6 +125,12 @@ ARTWORK = setting("artwork", "TIDALAMP_ART", "auto")
 # only ever read from $LANG, which is ambient rather than chosen: it made the
 # one setting a user could not write down.
 LANGUAGE = setting("language", "TIDALAMP_LANG", "auto")
+
+# Layout and colour are deliberately independent. Quattro is a flatter,
+# modern TUI treatment; winamp retains the framed transport. ``auto`` follows
+# an active Omarchy palette and falls back to the built-in classic colours.
+THEME = setting("theme", "TIDALAMP_THEME", "quattro")
+PALETTE = setting("palette", "TIDALAMP_PALETTE", "auto")
 
 DEBUG = flag("debug", "TIDALAMP_DEBUG")
 
@@ -197,11 +205,13 @@ def reload() -> None:
     doing `from .config import DEFAULT_QUALITY` keeps the value it imported.
     Those consumers read `config.DEFAULT_QUALITY` instead — see stream.py.
     """
-    global FILE, DEFAULT_QUALITY, ARTWORK, LANGUAGE, DEBUG, KEYS
+    global FILE, DEFAULT_QUALITY, ARTWORK, LANGUAGE, THEME, PALETTE, DEBUG, KEYS
     FILE = read_file()
     DEFAULT_QUALITY = setting("quality", "TIDALAMP_QUALITY", "HI_RES_LOSSLESS")
     ARTWORK = setting("artwork", "TIDALAMP_ART", "auto")
     LANGUAGE = setting("language", "TIDALAMP_LANG", "auto")
+    THEME = setting("theme", "TIDALAMP_THEME", "quattro")
+    PALETTE = setting("palette", "TIDALAMP_PALETTE", "auto")
     DEBUG = flag("debug", "TIDALAMP_DEBUG")
     KEYS = {str(action): str(key) for action, key in (FILE.get("keys") or {}).items()}
 

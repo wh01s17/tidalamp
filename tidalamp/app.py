@@ -8,14 +8,14 @@ from typing import cast
 import tidalapi
 from rich.cells import cell_len
 from rich.text import Text
-from textual import work
+from textual import events, on, work
 from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, Vertical
 from textual.reactive import reactive
 from textual.widgets import Static
 
-from . import about, artwork, config, i18n, library
+from . import about, artwork, audio, config, i18n, library
 from .auth import NotLoggedIn, ensure_fresh
 from .i18n import _
 from .library import Row
@@ -36,8 +36,8 @@ from .screens import (
 )
 from .settings import Settings
 from .spectrum import Cava, SpectrumUnavailable
-from .stream import StreamUnavailable, cleanup_playlists, resolve
-from .theme import ThemePalette, load_palette
+from .stream import Playable, StreamUnavailable, cleanup_playlists, resolve
+from .theme import LAYOUTS, ThemePalette, load_palette
 from .widgets import (
     Analyzer,
     Artwork,
@@ -152,11 +152,10 @@ class TidalAmp(App):
     CSS_PATH = "winamp.tcss"
     TITLE = "TIDAL AMP"
 
-    # The display alone needs 18 columns of cover, 24 of clock and room for the
-    # readout; below this the layout does not shrink, it overlaps. Saying so is
-    # better than drawing something broken and letting the user guess.
-    MIN_WIDTH = 76
-    MIN_HEIGHT = 20
+    # At 60×18 the compact layout drops the cover and balance row. Below that
+    # even the transport, a useful queue and the status line cannot coexist.
+    MIN_WIDTH = 60
+    MIN_HEIGHT = 18
 
     # Winamp's own transport keys, kept as muscle memory. Rebindable ones come
     # from DEFAULT_KEYS through the config file; navigation stays fixed.
@@ -198,7 +197,7 @@ class TidalAmp(App):
     status = reactive(_("listo"))
 
     def __init__(self, session: tidalapi.Session, mpv: Mpv) -> None:
-        self.tidalamp_palette: ThemePalette = load_palette()
+        self.tidalamp_palette: ThemePalette = load_palette(name=config.PALETTE)
         super().__init__()
         self.session = session
         self.mpv = mpv
@@ -213,10 +212,14 @@ class TidalAmp(App):
         self._art_url = ""
         self._art_hidden = False
         self._pending_art: artwork.Cover | None = None
+        self._compact = False
         # cava, when it is installed. None means the RMS fallback.
         self.cava: Cava | None = None
         # What the play/pause button is currently drawn as.
         self._transport_playing = False
+        self._transport_hits: list[tuple[int, int, str]] = []
+        self._playable: Playable | None = None
+        self._sink = audio.Sink()
 
     def get_theme_variable_defaults(self) -> dict[str, str]:
         """Expose the detected palette to the static TCSS stylesheet."""
@@ -226,13 +229,17 @@ class TidalAmp(App):
 
     def compose(self) -> ComposeResult:
         with MainPanel(id="main"):
-            yield Static("░▒▓ TIDAL AMP ▓▒░", id="titlebar")
+            # markup=False on both headings: a layout that rules them with
+            # «[ TIDAL AMP ]» hands Static a string that Rich would read as a
+            # tag, and the brackets and everything between them disappeared.
+            yield Static(self._title_text(), id="titlebar", markup=False)
             with Horizontal(id="display"):
                 yield Artwork(id="art")
                 yield TimeDisplay(id="clock")
                 with Vertical(id="readout"):
                     yield Marquee(id="marquee")
                     yield Static("", id="badges")
+                    yield Static("OUT  —", id="output")
                     yield Analyzer(id="analyzer")
             yield SeekBar(id="seek")
             yield Slider(id="volume")
@@ -246,9 +253,7 @@ class TidalAmp(App):
             with Horizontal(id="transport"):
                 yield Static("", id="transport-play")
                 yield Static("", id="transport-menu")
-            yield Static(
-                _("▓ PLAYLIST ▓   d quitar   C vaciar   alt+↑↓ mover"), id="pl-title"
-            )
+            yield Static("", id="pl-title", markup=False)
             yield RowList(id="playlist")
             with Horizontal(id="statusbar"):
                 yield Spinner(id="busy")
@@ -257,12 +262,25 @@ class TidalAmp(App):
 
     def _check_size(self) -> None:
         """Cover the UI with an explanation when the terminal is too small."""
-        self._fit_artwork()
-        # The menu is cropped to its own width, which only exists after layout.
-        # `_check_size` also runs from the resize that precedes compose.
-        if self.query("#transport-menu"):
-            self._refresh_modes()
         width, height = self.size.width, self.size.height
+        compact = width < 80 or height < 26
+        compact_changed = compact != self._compact
+        self._compact = compact
+        main = self.query_one("#main")
+        if main.has_class("compact") != compact:
+            main.set_class(compact, "compact")
+        self._layout_classes(main)
+        self._fit_artwork(compact_changed)
+        # These are all cropped or ruled to their own widget's width, which
+        # only exists after layout. `_check_size` also runs from the resize
+        # that precedes compose, hence the guard.
+        if self.query("#transport-menu"):
+            # A resize is the other moment the buttons change width, so it
+            # re-measures too. Both are rare; the ticks are the hot path.
+            self._refresh_modes(relayout=True)
+            self._refresh_playlist_title()
+            titlebar = self.query_one("#titlebar", Static)
+            titlebar.update(self._title_text(titlebar.size.width))
         too_small = width < self.MIN_WIDTH or height < self.MIN_HEIGHT
         notice = self.query_one("#too-small", Static)
         notice.display = too_small
@@ -283,7 +301,7 @@ class TidalAmp(App):
                 )
             )
 
-    def _fit_artwork(self) -> None:
+    def _fit_artwork(self, compact_changed: bool = False) -> None:
         """Grow the cover box with the terminal, then draw the cover again.
 
         Two ceilings. Vertically the display band must not eat the playlist,
@@ -294,14 +312,68 @@ class TidalAmp(App):
         widget = self._artwork()
         if widget is None:
             return
+        display = self.query_one("#display")
+        if self._compact:
+            if widget.cover is not None:
+                widget.show(None)
+            if compact_changed:
+                display.styles.height = 5
+            return
         by_height = self.size.height // 4
         by_width = (self.size.width - CLOCK_WIDTH - READOUT_WIDTH - 4) // 2
-        if not widget.resize(min(by_height, by_width)):
-            return
-        self.query_one("#display").styles.height = max(DISPLAY_HEIGHT, widget.rows)
-        # resize() dropped the cover it had, because it was the old size.
-        if self._art_url:
+        resized = widget.resize(min(by_height, by_width))
+        if compact_changed or resized:
+            display.styles.height = max(DISPLAY_HEIGHT, widget.rows)
+        # resize() dropped the cover it had, because it was the old size. A
+        # compact layout does the same so graphical protocols cannot float
+        # over the queue; expanding fetches it again here.
+        if self._art_url and (resized or widget.cover is None):
             self._art_worker(self._art_url)
+
+    @staticmethod
+    def _layout_classes(main) -> None:
+        """Put exactly one layout class on the panel, for the stylesheet.
+
+        Set rather than toggled blindly: `set_class` on an unchanged class
+        still invalidates the styles, and this runs on every resize.
+        """
+        for name in LAYOUTS:
+            wanted = name == config.THEME
+            if main.has_class(name) != wanted:
+                main.set_class(wanted, name)
+
+    @staticmethod
+    def _ruled(title: str, width: int, rule: str) -> str:
+        """A centred title on a rule that fills the row, Winamp's title bars.
+
+        The original draws its heading over a band of thin horizontal lines,
+        which is what tells its two windows apart from everything else on the
+        desktop. One row of `═` is as close as a terminal gets.
+        """
+        label = f" {title} "
+        if width <= cell_len(label):
+            return label.strip()[:width]
+        slack = width - cell_len(label)
+        left = slack // 2
+        return rule * left + label + rule * (slack - left)
+
+    def _title_text(self, width: int = 0) -> str:
+        if config.THEME == "retro":
+            return self._ruled("T I D A L   A M P", width, "═")
+        if config.THEME == "ascii":
+            return self._ruled("[ TIDAL AMP ]", width, "=")
+        if config.THEME == "nova":
+            return "▍ tidalamp"
+        return "TIDAL AMP  //  PLAYER"
+
+    def _apply_appearance(self) -> None:
+        """Apply structure and palette without restarting playback."""
+        self._layout_classes(self.query_one("#main"))
+        titlebar = self.query_one("#titlebar", Static)
+        titlebar.update(self._title_text(titlebar.size.width))
+        self._refresh_modes(relayout=True)
+        self._refresh_playlist_title()
+        self.screen.refresh()
 
     def on_mount(self) -> None:
         self._check_size()
@@ -311,12 +383,15 @@ class TidalAmp(App):
         # Tied to the player's own ceiling rather than left on the widget
         # default: when the two drifted apart, the bar drew past its track.
         volume.maximum = Mpv.VOLUME_MAX
+        volume.label = "VOL/mpv"
         volume.value = self.mpv.volume
         balance = self.query_one("#balance", Slider)
         balance.label = "BAL"
         balance.centred = True
         self._apply_audio()
         self._start_spectrum()
+        self._refresh_readout()
+        self._refresh_sink_worker()
         self.set_interval(1 / 10, self._tick_fast)
         self.set_interval(1 / 4, self._tick_slow)
         self.set_interval(2, self._refresh_theme)
@@ -329,6 +404,7 @@ class TidalAmp(App):
                 count=len(self.queue)
             )
         self._refresh_modes()
+        self._refresh_playlist_title()
         # Last, so it wins over the queue-restore message: without Pillow the
         # cover never appears and nothing else would ever say why.
         if self.art_protocol is not artwork.Protocol.NONE and not artwork.have_decoder():
@@ -336,7 +412,7 @@ class TidalAmp(App):
 
     def _refresh_theme(self) -> None:
         """Follow an Omarchy theme switch without disturbing other state."""
-        palette = load_palette()
+        palette = load_palette(name=config.PALETTE)
         if palette.colors == self.tidalamp_palette.colors:
             return
         self.tidalamp_palette = palette
@@ -406,6 +482,7 @@ class TidalAmp(App):
         if playing != self._transport_playing:
             self._transport_playing = playing
             self._refresh_modes()
+            self._refresh_readout()
 
     def _tick_slow(self) -> None:
         if not self.mpv.alive:
@@ -453,9 +530,6 @@ class TidalAmp(App):
         else:
             self.status = _("mpv se reinició")
 
-    # A middle dot in the muted colour, not a full box-drawing bar: the row
-    # is a list of small things, and a solid rule between each one shouts
-    # louder than the labels it is separating.
     # A middle dot in the muted colour, not a full box-drawing bar: the menu
     # is a list of small things, and a solid rule between each one shouts
     # louder than the labels it is separating.
@@ -464,20 +538,45 @@ class TidalAmp(App):
     # The transport is drawn as boxed buttons three rows tall. The play/pause
     # glyph is the action it will do: "▶" while stopped or paused, "‖" while
     # something is playing, which is what every transport in the world does.
-    # "↻ " and "↻1" are the same width, so toggling repeat does not resize its
-    # button and shove the row sideways.
-    REPEAT_GLYPHS = {Repeat.NONE: "↻ ", Repeat.QUEUE: "↻ ", Repeat.TRACK: "↻1"}
+    # Every state remains legible without colour and keeps a fixed width.
+    REPEAT_GLYPHS = {Repeat.NONE: "↻–", Repeat.QUEUE: "↻A", Repeat.TRACK: "↻1"}
+
+    # The same three states behind a spelled-out label. One cell each, so the
+    # word keeps its width whichever mode is on.
+    REPEAT_MARKS = {Repeat.NONE: "○", Repeat.QUEUE: "●", Repeat.TRACK: "1"}
+
+    # The same three again, for the layout that spends no Unicode at all.
+    REPEAT_MARKS_ASCII = {Repeat.NONE: "-", Repeat.QUEUE: "*", Repeat.TRACK: "1"}
 
     # Between the transport proper and the two buttons that hold a state.
     BUTTON_GAP = "   "
 
-    def _separated(self, text: str, body: str, dim: str) -> Text:
-        """Render a `·`-joined run with the separators dimmed."""
+    def _separated(self, text: str, body: str, dim: str, room: int = 0) -> Text:
+        """Render a `·`-joined run with the separators dimmed.
+
+        `room` drops whole entries off the tail instead of cutting through
+        one: half a word behind a separator reads as a rendering fault, while
+        a shorter list reads as a shorter list. The first entry is cropped
+        rather than dropped, so a very narrow terminal still shows something.
+        """
+        parts = text.split(self.SEPARATOR)
+        if room:
+            kept: list[str] = []
+            used = 0
+            for part in parts:
+                width = cell_len(part) + (len(self.SEPARATOR) if kept else 0)
+                if kept and used + width > room:
+                    break
+                kept.append(part)
+                used += width
+            parts = kept or [parts[0]]
         out = Text()
-        for index, part in enumerate(text.split(self.SEPARATOR)):
+        for index, part in enumerate(parts):
             if index:
                 out.append(self.SEPARATOR, style=dim)
             out.append(part, style=body)
+        if room and out.cell_len > room:
+            out.truncate(room, overflow="crop")
         return out
 
     @staticmethod
@@ -490,82 +589,270 @@ class TidalAmp(App):
         """
         return about.pretty_keys(keys_for(action).split(",")[0])
 
-    def _buttons(self) -> list[list[tuple[str, bool]]]:
-        """(label, lit) per button, grouped into the frames they share.
+    def _buttons(
+        self, words: bool = False, lower: bool = False, plain: bool = False
+    ) -> list[list[tuple[str, str, bool]]]:
+        """(action, label, lit) per button, in two groups.
 
         Two groups, because they are two kinds of thing: the transport does
         something and springs back, while shuffle and repeat stay pressed.
-        Inside a group the buttons share one frame, so the row reads as one
-        control instead of a handful of loose boxes.
+
+        `words` spells the two toggles out — SHUFFLE and REPEAT, the way the
+        original does — instead of using the `⇄ ↻` glyphs. It costs about a
+        dozen columns, so a compact terminal keeps the glyphs whatever the
+        layout asks for, and the glyphs still say the state on their own.
+
+        `plain` swaps every glyph for its ASCII stand-in. Each one is padded
+        to the width of the widest in its slot (`> ` against `||`), because a
+        button that changes width shifts everything to its right when you
+        press it.
         """
         playing = not self.mpv.paused and not self.mpv.idle
         key = self._button_key
+        separator = "" if self._compact else " "
+        spelled = words and not self._compact
+
+        def word(text: str) -> str:
+            return text.lower() if lower else text.upper()
+
+        if plain:
+            prev, play, stop, nxt = "<<", "||" if playing else "> ", "[]", ">>"
+            on, off = "*", "-"
+            marks = self.REPEAT_MARKS_ASCII
+        else:
+            prev = "◀" if self._compact else "◀◀"
+            play = "‖" if playing else "▶"
+            stop = "■"
+            nxt = "▶" if self._compact else "▶▶"
+            on, off = "●", "○"
+            marks = self.REPEAT_MARKS
+
+        if spelled:
+            # The trailing mark, not the colour, is what says the state: the
+            # three repeat modes have to be told apart on a mono terminal, and
+            # all four labels have to keep one width so the row never shifts.
+            shuffle = (
+                f"{key('shuffle')} {word('shuffle')} {on if self.queue.shuffle else off}"
+            )
+            repeat = f"{key('repeat')} {word('repeat')} {marks[self.queue.repeat]}"
+        elif plain:
+            shuffle = f"{key('shuffle')}{separator}SH{on if self.queue.shuffle else off}"
+            repeat = f"{key('repeat')}{separator}RP{marks[self.queue.repeat]}"
+        else:
+            shuffle = f"{key('shuffle')}{separator}{'⇄●' if self.queue.shuffle else '⇄○'}"
+            repeat = f"{key('repeat')}{separator}{self.REPEAT_GLYPHS[self.queue.repeat]}"
         return [
             [
-                (f"{key('prev')} ◀◀", False),
-                (f"{key('play')} {'‖' if playing else '▶'}", False),
-                (f"{key('stop')} ■", False),
-                (f"{key('next')} ▶▶", False),
+                ("prev", f"{key('prev')}{separator}{prev}", False),
+                ("play", f"{key('play')}{separator}{play}", False),
+                ("stop", f"{key('stop')}{separator}{stop}", False),
+                ("next", f"{key('next')}{separator}{nxt}", False),
             ],
             [
-                (f"{key('shuffle')} ⇄", self.queue.shuffle),
-                (
-                    f"{key('repeat')} {self.REPEAT_GLYPHS[self.queue.repeat]}",
-                    self.queue.repeat is not Repeat.NONE,
-                ),
+                ("shuffle", shuffle, self.queue.shuffle),
+                ("repeat", repeat, self.queue.repeat is not Repeat.NONE),
             ],
         ]
 
-    def _refresh_modes(self) -> None:
-        """Draw the transport, with shuffle and repeat lit by their state."""
+    # Each builder fills `hits` with the (start, end, action) spans of the
+    # clickable faces on the middle row, and returns the three rows to draw.
+    # Adding a look means adding one of these and one block of TCSS; nothing
+    # else in the app asks which layout is on.
+
+    def _transport_quattro(
+        self, hits: list[tuple[int, int, str]], body: str, dim: str, lit: str
+    ) -> list[Text]:
+        """Flat: one divider between the two groups, no frames."""
+        rows = [Text("", style=body) for _row in range(3)]
+        row = rows[1]
+        row.append("  ", style=body)
+        for group_index, group in enumerate(self._buttons()):
+            if group_index:
+                row.append("  │  ", style=dim)
+            for button_index, (action, label, enabled) in enumerate(group):
+                if button_index:
+                    row.append("  ", style=body)
+                width = cell_len(label) + 2
+                hits.append((row.cell_len, row.cell_len + width, action))
+                row.append(f" {label} ", style=lit if enabled else body)
+        return rows
+
+    def _transport_retro(
+        self, hits: list[tuple[int, int, str]], body: str, dim: str, lit: str
+    ) -> list[Text]:
+        """The 1997 transport: one square button each, packed shoulder to
+        shoulder, and the two toggles spelled SHUFFLE and REPEAT.
+
+        The original's buttons are not one segmented frame; they are separate
+        square keys in a row, which is what `┐┌` between two of them says.
+        Square corners, not the rounded ones the flat layout uses.
+
+        Half blocks were tried first, to fake the raised bevel of the real
+        thing. In a terminal they are not an outline: `▀` fills its cell, so a
+        row of them came out as a solid grey slab across the panel. A drawn
+        line is the only edge a terminal actually has.
+        """
+        rows = [Text("  ", style=body) for _row in range(3)]
+        edges = ("┌─┐", "│ │", "└─┘")
+        for group_index, group in enumerate(self._buttons(words=True)):
+            if group_index:
+                for row in rows:
+                    row.append(" " if self._compact else self.BUTTON_GAP, style=body)
+            for action, label, enabled in group:
+                width = cell_len(label) + 2
+                for row, edge in zip(rows, edges, strict=True):
+                    face_row = edge[1] == " "
+                    row.append(edge[0], style=body)
+                    if face_row:
+                        hits.append((row.cell_len, row.cell_len + width, action))
+                    # Only the face lights up: an accent block on all three
+                    # rows swallowed the frame and the button stopped reading
+                    # as a button once it was switched on.
+                    row.append(
+                        f" {label} " if face_row else edge[1] * width,
+                        style=lit if (face_row and enabled) else body,
+                    )
+                    row.append(edge[2], style=body)
+        return rows
+
+    def _transport_ascii(
+        self, hits: list[tuple[int, int, str]], body: str, dim: str, lit: str
+    ) -> list[Text]:
+        """Bracket keys on one line, the way a terminal did it before boxes.
+
+        `[ z << ]` is a button because the brackets say so, not because
+        anything was drawn around it — which is how a BBS or a curses program
+        of the era wrote one. Nothing on this row costs more than ASCII.
+        """
+        rows = [Text("", style=body) for _row in range(3)]
+        row = rows[1]
+        row.append("  ", style=body)
+        # `[ z << ]` needs eight columns for a two-glyph button; at 60 the six
+        # of them plus the menu do not fit, so the brackets close up instead
+        # of the row wrapping into the one below it.
+        pad = "" if self._compact else " "
+        gap = " " if self._compact else "  "
+        for group_index, group in enumerate(self._buttons(words=True, plain=True)):
+            if group_index:
+                row.append(gap, style=dim)
+            for action, label, enabled in group:
+                row.append(gap, style=body)
+                width = cell_len(label) + 2 * len(pad) + 2
+                hits.append((row.cell_len, row.cell_len + width, action))
+                row.append(f"[{pad}", style=dim)
+                row.append(label, style=lit if enabled else body)
+                row.append(f"{pad}]", style=dim)
+        return rows
+
+    def _transport_nova(
+        self, hits: list[tuple[int, int, str]], body: str, dim: str, lit: str
+    ) -> list[Text]:
+        """Modern: no boxes at all. State is a colour and a rule underneath.
+
+        Nothing is drawn around a button, so the row that a frame would have
+        used carries the meaning instead: an underline in the accent under
+        whichever toggle is on. Inverted blocks would have put the loudest
+        thing on screen on the quietest control.
+        """
+        rows = [Text("", style=body) for _row in range(3)]
+        labels, marks = rows[1], rows[2]
+        labels.append("  ", style=body)
+        marks.append("  ", style=body)
+        accent = self.tidalamp_palette["accent"]
+        for group_index, group in enumerate(self._buttons(words=True, lower=True)):
+            if group_index:
+                labels.append("     ", style=body)
+                marks.append("     ", style=body)
+            for button_index, (action, label, enabled) in enumerate(group):
+                if button_index:
+                    labels.append("   ", style=body)
+                    marks.append("   ", style=body)
+                width = cell_len(label)
+                hits.append((labels.cell_len, labels.cell_len + width, action))
+                labels.append(label, style=f"bold {accent}" if enabled else body)
+                marks.append("─" * width if enabled else " " * width, style=accent)
+        return rows
+
+    def _refresh_modes(self, relayout: bool = False) -> None:
+        """Draw the transport, with shuffle and repeat lit by their state.
+
+        `relayout` re-measures the left half instead of reusing the width it
+        already had. It is off for the ticks, which redraw this several times
+        a second and must not ask for a layout pass each time; it is on when
+        the layout changes underfoot, because the three looks are different
+        widths and the buttons were being cropped to the old one.
+        """
         palette = self.tidalamp_palette
         ground = palette["transport_background"]
         body = f"{palette['transport_foreground']} on {ground}"
         dim = f"{palette['inactive']} on {ground}"
         lit = f"bold {palette['active_foreground']} on {palette['accent']}"
 
-        rows = [Text("  ", style=body) for _row in range(3)]
-        for group_index, group in enumerate(self._buttons()):
-            if group_index:
-                for row in rows:
-                    row.append(self.BUTTON_GAP, style=body)
-            # The frame is drawn once around the whole group: «┬ │ ┴» between
-            # buttons, «╭ ╰» and «╮ ╯» only at the two ends.
-            edges = ("╭╮", "││", "╰╯")
-            joins = ("┬", "│", "┴")
-            for row, edge, join in zip(rows, edges, joins, strict=True):
-                row.append(edge[0], style=body)
-                for button_index, (label, on) in enumerate(group):
-                    if button_index:
-                        row.append(join, style=body)
-                    width = cell_len(label) + 2
-                    fill = f" {label} " if join == "│" else "─" * width
-                    row.append(fill, style=lit if on else body)
-                row.append(edge[1], style=body)
+        hits: list[tuple[int, int, str]] = []
+        builder = {
+            "retro": self._transport_retro,
+            "nova": self._transport_nova,
+            "ascii": self._transport_ascii,
+        }.get(config.THEME, self._transport_quattro)
+        rows = builder(hits, body, dim, lit)
         for row in rows:
             row.append("  ", style=body)
         self.query_one("#transport-play", Static).update(
-            Text("\n", style=body).join(rows), layout=False
+            Text("\n", style=body).join(rows), layout=relayout
         )
+        self._transport_hits = hits
 
         menu = _(
             "? ayuda · / buscar · l lib · y letra · e eq · o config"
             " · f/F favorito · q salir"
         )
         widget = self.query_one("#transport-menu", Static)
-        line = self._separated(f"{menu}  ", body, dim)
-        # Cropped here rather than left to wrap: a Rich Text wraps whatever
-        # the stylesheet says, and the overflow climbed into the rows the
-        # buttons are drawn on. `? ayuda` leads, so it is the tail that goes.
-        if widget.size.width and line.cell_len > widget.size.width:
-            line.truncate(widget.size.width, overflow="crop")
+        # Fitted here rather than left to wrap: a Rich Text wraps whatever the
+        # stylesheet says, and the overflow climbed into the rows the buttons
+        # are drawn on. `? ayuda` leads, so it is the tail that goes.
+        room = max(0, widget.size.width - 2)
+        line = self._separated(menu, body, dim, room)
+        if room:
+            line.append("  ", style=body)
         # The menu sits on the buttons' middle row, not above them.
         widget.update(
             Text("\n", style=body).join(
                 [Text("", style=body), line, Text("", style=body)]
             ),
-            layout=False,
+            layout=relayout,
         )
+
+    @on(events.Click, "#transport-play")
+    def _transport_clicked(self, event: events.Click) -> None:
+        """Give the framed transport the mouse behaviour its shape promises."""
+        for start, end, action in self._transport_hits:
+            if start <= event.x < end:
+                getattr(self, f"action_{action}")()
+                event.stop()
+                return
+
+    def _refresh_playlist_title(self) -> None:
+        widget = self.query_one("#pl-title", Static)
+        hints = (
+            _("↵ reproducir · ↑↓ navegar")
+            if self._compact
+            else _("↵ reproducir · ↑↓ navegar · d quitar · alt+↑↓ mover")
+        )
+        if config.THEME == "retro":
+            # The original's playlist is its own window with its own title
+            # bar, and the keys are not written on it. They are one `?` away,
+            # and the transport menu still leads with «? ayuda» in every look.
+            widget.update(self._ruled(_("LISTA DE REPRODUCCIÓN"), widget.size.width, "═"))
+            return
+        if config.THEME == "ascii":
+            room = widget.size.width - cell_len(hints) - 16
+            widget.update(f"--[ {_('COLA')} ]{'-' * max(1, room)}  {hints}")
+            return
+        if config.THEME == "nova":
+            room = widget.size.width - cell_len(hints) - 14
+            widget.update(f"▍ {_('cola')} {'─' * max(1, room)}  {hints}")
+            return
+        widget.update(f"▓ PLAYLIST ▓   {hints}")
 
     # ------------------------------------------------------------------ queue
 
@@ -684,6 +971,7 @@ class TidalAmp(App):
         if self.queue.current is not None and not self.mpv.idle:
             self.mpv.toggle_pause()
             self.status = _("pausa") if self.mpv.paused else _("reproduciendo")
+            self._refresh_readout()
         elif len(self.queue):
             self._play_index(self.query_one("#playlist", RowList).cursor)
 
@@ -705,6 +993,8 @@ class TidalAmp(App):
         self._was_idle = True
         self._sync_queue()
         self.query_one(Marquee).text = ""
+        self._playable = None
+        self._refresh_readout()
         self.status = _("detenido")
 
     def action_next(self) -> None:
@@ -810,6 +1100,9 @@ class TidalAmp(App):
         if entry.art_url == self._art_url:
             return
         self._art_url = entry.art_url
+        if self._compact:
+            widget.show(None)
+            return
         self._art_worker(entry.art_url)
 
     # Its own group: the default one is the resolve worker's, and an exclusive
@@ -864,6 +1157,8 @@ class TidalAmp(App):
         if not self._art_hidden or widget is None:
             return
         self._art_hidden = False
+        if self._compact:
+            return
         widget.show(self._pending_art)
 
     def push_screen(self, screen, callback=None, wait_for_dismiss=False, *, mode=None):
@@ -897,14 +1192,15 @@ class TidalAmp(App):
         self.query_one("#busy", Spinner).stop()
         self.status = message
 
-    def _start(self, entry: Entry, playable) -> None:
+    def _start(self, entry: Entry, playable: Playable) -> None:
         self.query_one("#busy", Spinner).stop()
         self.mpv.load(playable.url)
         self._was_idle = False
-        self.query_one("#badges", Static).update(
-            f"{playable.kbps}  {playable.khz}kHz  {playable.quality}"
-            f"  {self.query_one(Analyzer).source}"
-        )
+        self._playable = playable
+        self._refresh_readout()
+        # PipeWire can switch graph rate when playback starts. Query it off
+        # the UI thread after handing the URL to mpv.
+        self.set_timer(0.25, self._refresh_sink_worker)
         self.status = _("reproduciendo {label}").format(label=entry.label)
         if getattr(playable, "downgraded", False):
             # Say it out loud. The badge shows what arrived, which on its own
@@ -912,6 +1208,65 @@ class TidalAmp(App):
             self.status = _("{status} · TIDAL entregó {got}, no {asked}").format(
                 status=self.status, got=playable.quality, asked=playable.requested
             )
+
+    @staticmethod
+    def _codec_label(playable: Playable) -> str:
+        codec = (playable.codec or "").lower()
+        if codec.startswith("mp4a") or codec == "aac":
+            return "AAC"
+        return codec.upper() or ("AAC" if playable.quality in {"LOW", "HIGH"} else "FLAC")
+
+    def _playback_label(self) -> str:
+        if self.mpv.paused and not self.mpv.idle:
+            return _("pausa").upper()
+        if self._playable is not None and self.queue.current is not None:
+            return _("reproduciendo").upper()
+        return _("detenido").upper()
+
+    def _refresh_readout(self) -> None:
+        """Redraw source, analyser and playback state from cached values."""
+        if not self.query("#badges"):
+            return
+        analyzer = self.query_one(Analyzer)
+        playable = self._playable
+        if playable is None:
+            source = f"SRC  — · {analyzer.source} · {self._playback_label()}"
+        else:
+            quality = {
+                "HI_RES_LOSSLESS": "HI-RES",
+                "LOSSLESS": "LOSSLESS",
+                "HIGH": "HIGH",
+                "LOW": "LOW",
+            }.get(playable.quality, playable.quality)
+            source = (
+                f"SRC  {self._codec_label(playable)} · {playable.kbps} · "
+                f"{playable.khz} kHz · {quality} · {analyzer.source} · "
+                f"{self._playback_label()}"
+            )
+        self.query_one("#badges", Static).update(source)
+        self._refresh_output_line()
+
+    def _refresh_output_line(self) -> None:
+        sink = self._sink
+        if not sink.known:
+            line = "OUT  —"
+        else:
+            parts = [sink.description or sink.name]
+            if sink.sample_format:
+                parts.append(f"PCM {sink.sample_format.upper()}")
+            if sink.rate:
+                parts.append(f"{sink.rate / 1000:g} kHz")
+            line = "OUT  " + " · ".join(parts)
+        self.query_one("#output", Static).update(line)
+
+    @work(thread=True, exclusive=True, group="audio-output")
+    def _refresh_sink_worker(self) -> None:
+        sink = audio.sink()
+        self.call_from_thread(self._set_sink, sink)
+
+    def _set_sink(self, sink: audio.Sink) -> None:
+        self._sink = sink
+        self._refresh_output_line()
 
     # ----------------------------------------------------------------- fiddles
 
@@ -971,6 +1326,14 @@ class TidalAmp(App):
             self.status = _("el idioma cambia al reiniciar tidalamp")
         elif name == "artwork":
             self.status = _("la carátula cambia al reiniciar tidalamp")
+        elif name == "theme":
+            self._apply_appearance()
+            self.status = _("tema: {value}").format(value=config.THEME)
+        elif name == "palette":
+            self.tidalamp_palette = load_palette(name=config.PALETTE)
+            self.refresh_css(animate=False)
+            self._apply_appearance()
+            self.status = _("paleta: {value}").format(value=config.PALETTE)
         elif name == "debug":
             self.status = _("registro: {value}").format(
                 value=_("activado") if config.DEBUG else _("desactivado")

@@ -59,9 +59,8 @@ class Playable:
 
     @property
     def khz(self) -> str:
-        return (
-            f"{round((self.sample_rate or 44100) / 1000)}" if self.sample_rate else "44"
-        )
+        """Sample rate in kHz without throwing away the 44.1 kHz family."""
+        return f"{self.sample_rate / 1000:g}" if self.sample_rate else "—"
 
     @property
     def kbps(self) -> str:
@@ -71,12 +70,12 @@ class Playable:
         kbps AAC stream too — that is the depth it decodes to, not what was
         encoded — so trusting it printed "16bit" over lossy audio.
         """
-        lossy = {"LOW": "96", "HIGH": "320"}
+        lossy = {"LOW": "96 kbps", "HIGH": "320 kbps"}
         if self.quality in lossy:
             return lossy[self.quality]
         if self.bit_depth:
-            return f"{self.bit_depth}bit"
-        return "---"
+            return f"{self.bit_depth}-bit"
+        return "—"
 
     @property
     def downgraded(self) -> bool:

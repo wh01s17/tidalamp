@@ -80,6 +80,8 @@ def show_config() -> None:
     typer.echo(_("Ajustes en uso:"))
     typer.echo(f"  quality  {settings.DEFAULT_QUALITY}")
     typer.echo(f"  artwork  {settings.ARTWORK}")
+    typer.echo(f"  theme    {settings.THEME}")
+    typer.echo(f"  palette  {settings.PALETTE}")
     typer.echo(f"  debug    {str(settings.DEBUG).lower()}")
 
     changed = {a: keys_for(a) for a in DEFAULT_KEYS if keys_for(a) != DEFAULT_KEYS[a]}

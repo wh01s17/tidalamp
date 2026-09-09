@@ -16,7 +16,7 @@ def fresh(monkeypatch, tmp_path, contents: str | None = None, **env: str):
     if contents is not None:
         path.write_text(contents, encoding="utf-8")
 
-    for name in ("TIDALAMP_QUALITY", "TIDALAMP_ART", "TIDALAMP_DEBUG"):
+    for name in config.ENV_VARS.values():
         monkeypatch.delenv(name, raising=False)
     for name, value in env.items():
         monkeypatch.setenv(name, value)
@@ -32,6 +32,9 @@ def fresh(monkeypatch, tmp_path, contents: str | None = None, **env: str):
         "quality", "TIDALAMP_QUALITY", "HI_RES_LOSSLESS"
     )
     module.ARTWORK = module.setting("artwork", "TIDALAMP_ART", "auto")
+    module.LANGUAGE = module.setting("language", "TIDALAMP_LANG", "auto")
+    module.THEME = module.setting("theme", "TIDALAMP_THEME", "quattro")
+    module.PALETTE = module.setting("palette", "TIDALAMP_PALETTE", "auto")
     module.DEBUG = module.flag("debug", "TIDALAMP_DEBUG")
     module.KEYS = {str(a): str(k) for a, k in (module.FILE.get("keys") or {}).items()}
     return module
@@ -44,6 +47,8 @@ def test_with_no_file_the_defaults_stand(monkeypatch, tmp_path):
     settings = fresh(monkeypatch, tmp_path)
     assert settings.DEFAULT_QUALITY == "HI_RES_LOSSLESS"
     assert settings.ARTWORK == "auto"
+    assert settings.THEME == "quattro"
+    assert settings.PALETTE == "auto"
     assert settings.DEBUG is False
     assert settings.KEYS == {}
 
@@ -52,10 +57,15 @@ def test_the_file_overrides_the_defaults(monkeypatch, tmp_path):
     settings = fresh(
         monkeypatch,
         tmp_path,
-        'quality = "HIGH"\nartwork = "blocks"\ndebug = true\n',
+        (
+            'quality = "HIGH"\nartwork = "blocks"\n'
+            'theme = "retro"\npalette = "nord"\ndebug = true\n'
+        ),
     )
     assert settings.DEFAULT_QUALITY == "HIGH"
     assert settings.ARTWORK == "blocks"
+    assert settings.THEME == "retro"
+    assert settings.PALETTE == "nord"
     assert settings.DEBUG is True
 
 
@@ -147,6 +157,8 @@ def test_the_template_is_valid_toml_and_lists_every_action(tmp_path):
 
     parsed = tomllib.loads(text)
     assert parsed["quality"] == "HI_RES_LOSSLESS"
+    assert parsed["theme"] == "quattro"
+    assert parsed["palette"] == "auto"
     assert parsed["keys"] == {}, "las teclas van comentadas, no activas"
     for action in DEFAULT_KEYS:
         assert f"# {action} = " in text
@@ -190,6 +202,8 @@ def test_set_option_writes_each_type_the_way_toml_reads_it(tmp_path):
         "quality": "HIGH",
         "artwork": "auto",
         "language": "en",
+        "theme": "quattro",
+        "palette": "auto",
         "debug": True,
         "keys": {},
     }

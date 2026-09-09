@@ -5,6 +5,7 @@ from __future__ import annotations
 import contextlib
 import random
 
+from rich.cells import set_cell_size, split_graphemes
 from rich.color import Color
 from rich.segment import Segment
 from rich.style import Style
@@ -73,8 +74,9 @@ class Marquee(Widget):
     def tick(self) -> None:
         width = max(1, self.size.width)
         padded = f"{self.text}   ***   "
-        if len(padded) > width:
-            self._offset = (self._offset + 1) % len(padded)
+        graphemes, cells = split_graphemes(padded)
+        if cells > width:
+            self._offset = (self._offset + 1) % len(graphemes)
         else:
             self._offset = 0
 
@@ -84,10 +86,14 @@ class Marquee(Widget):
         if not self.text:
             return Text("TIDAL AMP", style=style)
         padded = f"{self.text}   ***   "
-        if len(padded) <= width:
-            return Text(self.text[:width], style=style)
-        doubled = padded + padded
-        return Text(doubled[self._offset : self._offset + width], style=style)
+        graphemes, cells = split_graphemes(padded)
+        if cells <= width:
+            return Text(set_cell_size(self.text, width), style=style)
+        # Offset and crop on grapheme boundaries. Code-point slicing split
+        # combining accents and made CJK/emoji rows wider than their widget.
+        start = graphemes[self._offset % len(graphemes)][0]
+        rotated = padded[start:] + padded[:start]
+        return Text(set_cell_size(rotated + rotated, width), style=style)
 
 
 class Analyzer(Widget):
