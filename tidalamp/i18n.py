@@ -66,6 +66,9 @@ ENGLISH: dict[str, str] = {
     ),
     # --- artwork
     "sin carátula: {error}": "no cover: {error}",
+    'sin carátula: falta Pillow (pip install "tidalamp[art]")': (
+        'no cover: Pillow is missing (pip install "tidalamp[art]")'
+    ),
     # --- favourites
     "«{label}» añadido a favoritos": "“{label}” added to favourites",
     "«{label}» quitado de favoritos": "“{label}” removed from favourites",

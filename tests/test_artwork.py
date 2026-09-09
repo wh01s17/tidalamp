@@ -128,6 +128,12 @@ def test_without_pillow_there_is_simply_no_cover(monkeypatch):
     monkeypatch.setattr(builtins, "__import__", no_pillow)
     assert artwork.decode(solid((32, 32), (1, 2, 3)), 4, 2) is None
     assert artwork.render(solid((32, 32), (1, 2, 3)), 4, 2, Protocol.BLOCKS) is None
+    # And the app can ask beforehand, so the empty corner gets an explanation.
+    assert artwork.have_decoder() is False
+
+
+def test_have_decoder_is_true_when_pillow_is_installed():
+    assert artwork.have_decoder() is True
 
 
 # ------------------------------------------------------------------ half blocks

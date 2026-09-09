@@ -821,6 +821,10 @@ class TidalAmp(App):
                 count=len(self.queue)
             )
         self._refresh_modes()
+        # Last, so it wins over the queue-restore message: without Pillow the
+        # cover never appears and nothing else would ever say why.
+        if self.art_protocol is not artwork.Protocol.NONE and not artwork.have_decoder():
+            self.status = _('sin carátula: falta Pillow (pip install "tidalamp[art]")')
 
     def _refresh_theme(self) -> None:
         """Follow an Omarchy theme switch without disturbing other state."""
@@ -901,7 +905,9 @@ class TidalAmp(App):
         seek = self.query_one(SeekBar)
         seek.position, seek.total = position, duration
         self.query_one("#volume", Slider).value = self.mpv.volume
-        self.query_one("#status", Static).update(f" {self.status}")
+        # Text, not str: a status carrying square brackets — "tidalamp[art]",
+        # or whatever an exception put in there — would be eaten as markup.
+        self.query_one("#status", Static).update(Text(f" {self.status}"))
 
         # mpv going idle after having played something means the track ended.
         idle = self.mpv.idle

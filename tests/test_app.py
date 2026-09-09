@@ -8,7 +8,7 @@ import threading
 from textual.screen import Screen
 from textual.widgets import Static
 
-from tidalamp import library
+from tidalamp import artwork, library
 from tidalamp.app import BrowserScreen, TidalAmp
 from tidalamp.artwork import Cover, Protocol
 from tidalamp.library import Row
@@ -464,6 +464,52 @@ def test_the_status_bar_is_actually_on_screen(monkeypatch):
             bar = application.query_one("#statusbar")
             assert bar.region.bottom <= application.size.height
             assert bar.region.height == 1
+
+    asyncio.run(scenario())
+
+
+def test_a_missing_pillow_is_announced_instead_of_leaving_an_empty_corner(monkeypatch):
+    """Without Pillow the cover widget simply never becomes visible.
+
+    That used to be a `log.info` to a file nobody reads, so a fresh clone
+    looked broken. The status line now names the extra that fixes it.
+    """
+    isolate_runtime(monkeypatch)
+    monkeypatch.setattr(artwork, "have_decoder", lambda: False)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(100, 40)) as pilot:
+            await pilot.pause()
+            assert "Pillow" in application.status
+
+    asyncio.run(scenario())
+
+
+def test_a_status_with_square_brackets_reaches_the_screen_intact(monkeypatch):
+    """`Static.update` reads a str as markup, and ate the `[art]` in the advice."""
+    isolate_runtime(monkeypatch)
+    monkeypatch.setattr(artwork, "have_decoder", lambda: False)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(100, 40)) as pilot:
+            await pilot.pause(0.3)
+            drawn = application.query_one("#status").render_line(0).text
+            assert "tidalamp[art]" in drawn
+
+    asyncio.run(scenario())
+
+
+def test_a_present_pillow_says_nothing(monkeypatch):
+    isolate_runtime(monkeypatch)
+    monkeypatch.setattr(artwork, "have_decoder", lambda: True)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(100, 40)) as pilot:
+            await pilot.pause()
+            assert "Pillow" not in application.status
 
     asyncio.run(scenario())
 

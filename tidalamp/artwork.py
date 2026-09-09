@@ -149,6 +149,20 @@ def fetch(url: str, *, root: Path | None = None) -> bytes:
 # --------------------------------------------------------------------- decoding
 
 
+def have_decoder() -> bool:
+    """Whether Pillow is importable, i.e. whether a cover can be drawn at all.
+
+    Without it every protocol degrades to nothing, and silently: the widget
+    just never becomes visible. The app asks this at startup so it can say so
+    once instead of leaving an empty corner unexplained.
+    """
+    try:
+        import PIL  # noqa: F401
+    except ImportError:
+        return False
+    return True
+
+
 def decode(data: bytes, cols: int, rows: int, *, cell: tuple[int, int] = CELL):
     """Decode and fit the cover to ``cols`` × ``rows`` cells.
 
