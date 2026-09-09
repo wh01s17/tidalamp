@@ -57,4 +57,6 @@ def spanish_interface():
 
     i18n.use("es")
     yield
-    i18n.use(i18n._language())
+    # refresh(), not _language(): the language is a setting now, and the
+    # locale is only consulted when that setting says «auto».
+    i18n.refresh()

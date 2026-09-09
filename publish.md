@@ -155,7 +155,9 @@ pertenezcan a esa versión.
 
 ### 3.2. Actualizar los números de versión
 
-Edita estos archivos:
+La versión vive en **cuatro** sitios. `release.yml` sólo compara el tag con el primero,
+y `tests/test_about.py::test_every_copy_of_the_version_agrees` ata los otros dos que
+son de Python: si alguno se queda atrás, la suite falla antes de llegar al tag.
 
 1. En `pyproject.toml`:
 
@@ -163,7 +165,33 @@ Edita estos archivos:
    version = "0.1.0"
    ```
 
-2. En `packaging/aur/PKGBUILD`:
+2. En `tidalamp/__init__.py`:
+
+   ```python
+   __version__ = "0.1.0"
+   ```
+
+   Es el respaldo de `about.version()` cuando no hay metadata instalada, y lo que ve
+   quien ejecuta desde un checkout.
+
+3. En `tidalamp/about.py`, la entrada correspondiente de `releases()`: el número, la
+   fecha —que hasta la publicación dice «sin publicar»— y las notas de la versión.
+   Es lo que muestra «Cambios por versión» en la pantalla de ayuda (`?`).
+
+   ```python
+   Release(
+       "0.1.0",
+       "2026-09-15",
+       (
+           _("…"),
+       ),
+   ),
+   ```
+
+   Va aquí y no leído de `CHANGELOG.md` a propósito: ese fichero no viaja dentro del
+   wheel, así que la pantalla saldría vacía para todo el que instale el paquete.
+
+4. En `packaging/aur/PKGBUILD`:
 
    ```sh
    pkgver=0.1.0
@@ -189,7 +217,10 @@ actuales bajo la versión y fecha de publicación:
 ...
 ```
 
-Revisa que las notas describan sólo cambios incluidos en el commit que se etiquetará.
+Revisa que las notas describan sólo cambios incluidos en el commit que se etiquetará, y
+que el resumen de `about.releases()` (paso 3.2) diga lo mismo en corto: son dos textos
+para dos públicos —el changelog completo y las cuatro líneas que caben en la pantalla
+de ayuda— y no deben contradecirse.
 
 ### 3.4. Regenerar `.SRCINFO`
 
@@ -490,7 +521,11 @@ principal completo al AUR.
 ## 9. Lista final antes de anunciar la versión
 
 - [ ] `CHANGELOG.md` contiene `X.Y.Z` y la fecha correcta.
-- [ ] `pyproject.toml`, `PKGBUILD` y `.SRCINFO` muestran la misma versión.
+- [ ] `pyproject.toml`, `tidalamp/__init__.py`, `tidalamp/about.py`, `PKGBUILD` y
+      `.SRCINFO` muestran la misma versión (§3.2). La suite lo comprueba para los tres
+      primeros; `.SRCINFO` no lo cubre nadie más que esta casilla.
+- [ ] La pantalla de ayuda (`?`) muestra la versión y sus notas, y la fecha ya no dice
+      «sin publicar».
 - [ ] Las pruebas, Ruff, mypy, build y `twine check` pasan.
 - [ ] El CI del commit de versión está en verde.
 - [ ] Existe el tag anotado `vX.Y.Z` y apunta al commit correcto.
@@ -558,7 +593,9 @@ Para la segunda versión y las siguientes no se repite la configuración de PyPI
 GitHub environment ni la clave SSH del AUR. El ciclo es:
 
 1. elegir una versión nueva;
-2. actualizar changelog, `pyproject.toml`, `pkgver` y `pkgrel=1`;
+2. actualizar changelog, los cuatro sitios de la versión (§3.2: `pyproject.toml`,
+   `tidalamp/__init__.py`, `releases()` en `tidalamp/about.py`, y `pkgver` con
+   `pkgrel=1` en el `PKGBUILD`);
 3. validar y construir;
 4. confirmar el commit y esperar el CI;
 5. crear y subir el tag;

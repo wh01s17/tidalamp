@@ -5,8 +5,37 @@ and no browser in the middle: device flow + mpv.
 
 ![TidalAmp adapting to different Omarchy themes](img/tidalamp-banner.svg)
 
+## Hi-res, all the way to the DAC
+
+tidalamp asks TIDAL for `HI_RES_LOSSLESS` by default and plays FLAC up to
+**24-bit / 192 kHz**, with the bit depth and sample rate of the running stream on
+screen. When TIDAL delivers less than was asked for, the status bar says so instead of
+leaving the badge to imply otherwise.
+
+Verified on the hardware, which is the only check no software layer can fake: a FiiO
+BTR15 reads `PCM 176.4K` on its own display while the player reads
+`24bit 176kHz HI_RES_LOSSLESS` and the settings window reads
+`FIIO BTR15 · 176400 Hz s32le`.
+
+Three things had to be right for that, and two of them are not in the player:
+
+- **The stream.** Hi-res arrives as a segmented DASH manifest, and two separate bugs
+  meant no hi-res track played at all — see [Two traps in the hi-res
+  path](#two-traps-in-the-hi-res-path).
+- **The graph.** PipeWire runs at one sample rate and resamples everything into it, so
+  a 24/96 stream commonly reaches the DAC at 48 kHz while every badge tells the truth
+  about the stream. The settings window detects this, says so plainly, and fixes it —
+  see [The audio stack](#the-audio-stack).
+- **The chain.** No software volume attenuation and no filters: with the balance
+  centred and the equalizer flat, mpv carries `astats` alone, which measures and does
+  not touch the signal.
+
+Bluetooth cannot carry any of this, whatever the rates say, and the settings window
+warns when the output is a Bluetooth sink.
+
 ## Contents
 
+- [Hi-res, all the way to the DAC](#hi-res-all-the-way-to-the-dac)
 - [How it works](#how-it-works)
 - [Desktop integration (MPRIS)](#desktop-integration-mpris)
 - [Queue and library](#queue-and-library)
@@ -293,12 +322,15 @@ The normal interface returns automatically when the terminal is enlarged.
 
 ## Configuration
 
-Everything is optional. `tidalamp config` displays the effective settings and creates
-`~/.config/tidalamp/config.toml` if it does not exist:
+Everything is optional, and everything can be set from inside the player: `o` opens
+the [settings window](#settings), which writes the file for you. `tidalamp config`
+shows the effective settings and creates `~/.config/tidalamp/config.toml` if it does
+not exist:
 
 ```toml
 quality = "HI_RES_LOSSLESS"   # LOW, HIGH, LOSSLESS, or HI_RES_LOSSLESS
 artwork = "auto"              # auto, kitty, sixel, blocks, or off
+language = "auto"             # auto follows the locale; es or en pin it
 debug = false                 # log to ~/.local/state/tidalamp/tidalamp.log
 
 [keys]
@@ -307,8 +339,13 @@ quit = "ctrl+q"
 ```
 
 Precedence is **environment → file → default**. `TIDALAMP_QUALITY`, `TIDALAMP_ART`,
-and `TIDALAMP_DEBUG` therefore override the file for one-off runs. A syntax error in
-the file does not prevent startup; it is logged and the defaults take over.
+`TIDALAMP_LANG`, and `TIDALAMP_DEBUG` therefore override the file for one-off runs;
+the settings window labels a row whose value is being shadowed that way, rather than
+showing a value the app is not using. A syntax error in the file does not prevent
+startup; it is logged and the defaults take over.
+
+Settings written from the window keep the file's comments: it edits the line in place
+instead of dumping the settings back through a parser.
 
 Under `[keys]`, the action is on the left and the key on the right; separate multiple
 keys with commas. Valid actions are listed in the table below, and `tidalamp config`
@@ -317,14 +354,23 @@ and Esc—because a typo there could make the browser unusable.
 
 ### Language
 
-The interface and command-line messages follow the standard `LANGUAGE`, `LC_ALL`,
-`LC_MESSAGES`, and `LANG` variables. English and Spanish are built in; Spanish is the
-source language and the fallback for unsupported or neutral locales. To override the
-language for one run:
+English and Spanish are built in; Spanish is the source language and the fallback for
+unsupported or neutral locales.
+
+The `language` setting decides, and `auto` hands the decision to the locale. The
+setting comes first on purpose: `$LANG` is ambient rather than chosen, and a system in
+Spanish is not a request for this program to be in Spanish.
+
+```toml
+language = "en"   # auto, es, or en
+```
+
+With `auto`, the standard `LANGUAGE`, `LC_ALL`, `LC_MESSAGES`, and `LANG` variables are
+consulted in that order. To override for one run:
 
 ```sh
 LANGUAGE=es tidalamp tui
-LANGUAGE=en tidalamp tui
+TIDALAMP_LANG=en tidalamp tui
 ```
 
 No gettext catalogue or compiled locale files are required; translations ship inside
@@ -332,7 +378,10 @@ the pure-Python wheel.
 
 ## Keys
 
-The defaults deliberately match Winamp and may be changed as described above.
+The defaults follow Winamp, with one deliberate departure: Winamp spent `c` on a
+separate pause, and here play and pause share one button, so the transport is four
+adjacent keys in the order the buttons appear. All of them may be changed as described
+above, and the buttons then show the key that actually works.
 
 | Key | Action |
 |---|---|
@@ -527,8 +576,11 @@ tidalamp.
 
 ## Cover art
 
-Album art is drawn to the left of the display in an 18×9-cell box. The renderer is
-selected automatically from the terminal's capabilities:
+Album art is drawn to the left of the display, in a box that grows with the terminal
+from 18×9 cells up to 40×20. Two ceilings keep it in its place: it takes at most a
+quarter of the height, so it cannot eat the playlist, and it leaves room on its row for
+the clock and the marquee — a tall but narrow terminal keeps the small box. The
+renderer is selected automatically from the terminal's capabilities:
 
 | Protocol | Terminals | Result |
 |---|---|---|
@@ -547,7 +599,8 @@ TIDALAMP_ART=blocks tidalamp tui   # kitty | sixel | blocks | off
 
 **Pillow** is required to decode images (`pip install pillow` or
 `pacman -S python-pillow`). Without it, cover art is omitted and everything else keeps
-working—the same treatment as a missing cava. Covers are cached under
+working—the same treatment as a missing cava—and the status bar says so at startup,
+because an empty corner explains nothing on its own. Covers are cached under
 `~/.cache/tidalamp/art/`, keyed by URL. TIDAL includes the image ID in the path, so a
 URL never changes its content.
 

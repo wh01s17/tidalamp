@@ -4,8 +4,9 @@ Documento de traspaso. Describe qué existe, qué está verificado, qué falta y
 criterio se tomaron las decisiones, para que cualquiera (humano o modelo) pueda
 retomar el trabajo sin contexto previo.
 
-**Última actualización:** 2026-09-08 (pantalla de configuración con todo lo que antes
-pedía editar el TOML o exportar variables, incluidos los ritmos hi-res de PipeWire;
+**Última actualización:** 2026-09-08 (cadena hi-res verificada en el hardware —el DAC
+marca `PCM 176.4K`—; pantalla de configuración con todo lo que antes pedía editar el
+TOML o exportar variables, incluidos los ritmos hi-res de PipeWire;
 menú de acciones al pulsar ↵ sobre una pista,
 con radio de TIDAL y «reproducir a continuación»; tope de volumen en 100 y slider que
 no se deforma; pantalla de ayuda con todos los atajos, créditos y notas de versión; los modales salieron de `app.py` a `screens.py`,
@@ -156,7 +157,10 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
 - [x] Reloj de siete segmentos, con alternancia transcurrido/restante (`t`).
 - [x] Marquee del título con scroll.
 - [x] Analizador de 19 bandas con balística ataque rápido / caída lenta y marcas de pico.
-- [x] Barra de posición y slider de volumen.
+- [x] Barra de posición y slider de volumen, este último con tope en
+      `Mpv.VOLUME_MAX` (100). El slider lee esa constante en vez de heredar su propio
+      máximo: cuando los dos rangos se separaron, la barra se dibujaba más ancha que su
+      pista y se llevaba por delante el número.
 - [x] Playlist con cursor, marcador de pista en curso y scroll centrado.
 - [x] Búsqueda en TIDAL en modal, ejecutada en hilo para no bloquear la UI.
 - [x] Avance automático al terminar la pista (se detecta por `idle-active` de mpv).
@@ -510,12 +514,18 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
       shuffle en vez de regenerarla, así que reordenar no vuelve a barajar lo que suena
       después, y el cursor y la marca de «sonando» siguen a la pista movida.
 
-### Configuración — `config.py`, `app.py`
+### Fichero de configuración — `config.py`, `app.py`
+
+Lo que la pantalla de `o` escribe está en «Configuración» más arriba; esto es el
+fichero en sí.
 
 - [x] `~/.config/tidalamp/config.toml`, leído con `tomllib` (sin dependencias).
       Precedencia **entorno → fichero → defecto**: una variable de entorno es para una
       ejecución suelta y tiene que ganar. Un TOML roto no impide arrancar: se registra
       y mandan los valores por defecto.
+- [x] Ajustes: `quality`, `artwork`, `language` y `debug`. `ENV_VARS` es la lista única
+      de los cuatro con su variable de entorno, así que añadir uno lo hace aparecer a la
+      vez en la plantilla, en la pantalla y en `overridden()`.
 - [x] Teclas rebindables por acción en `[keys]`, con `DEFAULT_KEYS` como fuente única.
       **Las de navegación no son rebindables** a propósito: un error de dedo en las
       flechas dejaría al usuario sin poder salir del navegador.
@@ -533,8 +543,10 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
 - [x] Interfaz TUI, navegador, CLI y errores visibles en español e inglés. El español
       sigue escrito directamente en el código como idioma fuente y es el fallback para
       locales no soportados.
-- [x] Detección por `LANGUAGE` → `LC_ALL` → `LC_MESSAGES` → `LANG`, con override
-      sencillo para pruebas y ejecuciones puntuales.
+- [x] Decide el ajuste `language`; `auto` delega en el locale, y ahí la detección va
+      por `LANGUAGE` → `LC_ALL` → `LC_MESSAGES` → `LANG`. El ajuste manda a propósito:
+      `$LANG` es ambiente y no elección, y un sistema en español no es una petición de
+      que *este* programa lo esté. Hay override sencillo para pruebas.
 - [x] El catálogo no usa gettext ni artefactos compilados. Una prueba recorre el AST,
       exige que cada llamada a `_()` sea literal y tenga exactamente una traducción,
       comprueba los placeholders y prohíbe sombrear la función `_`.
@@ -578,19 +590,19 @@ Distinguir esto importa: parte del código nunca se ha ejecutado contra TIDAL re
 | Hi-res **hasta el DAC**            | **VERIFICADO EN EL HARDWARE**     | La pantalla del propio FiiO BTR15 muestra `PCM 176.4K` mientras la app dice `24bit 176kHz HI_RES_LOSSLESS` y la pantalla de configuración `Salida: FIIO BTR15 · 176400 Hz s32le`. Es la única comprobación que ninguna capa de software puede falsear: está aguas abajo de TIDAL, de mpv y de PipeWire. Confirma además que el drop-in de `allowed-rates` respeta **las dos familias**: 176,4 kHz es múltiplo de 44,1, no de 48, así que el grafo siguió a la pista en vez de acercarla a su ritmo. Antes de esto, con `allowed-rates = [ 48000 ]`, el mismo stream llegaba remuestreado a 48 kHz con la insignia diciendo la verdad sobre el stream. |
 | Ruta MPD -> HLS (hi-res)           | **VERIFICADO CONTRA TIDAL REAL**  | Matriz de las cuatro calidades sobre dos pistas reales; con `HI_RES_LOSSLESS` la rama es MPD, FLAC 24 bit/96 kHz, 69 segmentos. `ffprobe` sobre la playlist reescrita da flac/96000/24 y `ffmpeg` decodifica 3 s a un WAV de 1.152.102 bytes (exactamente 96000×3×2×2). La app real con mpv de verdad: insignias `24bit 96kHz HI_RES_LOSSLESS`, posición 12,3 s de 266 s, RMS −19,2 dBFS. La playlist sin reescribir falla con *error reading header* en el mismo ffmpeg. |
 | Empaquetado (sdist / wheel / AUR)  | **Verificado salvo la publicación** | `python -m build` + `twine check` en ambos artefactos; 89 pruebas desde el sdist extraído; `bash -n` y `makepkg --printsrcinfo` sobre el PKGBUILD; `pacman -Si` confirma que todas las dependencias están en `extra`. No se ha ejecutado `makepkg -si` ni se ha publicado nada: el tag no existe todavía. |
-| Carátula                           | **VERIFICADO A LA VISTA**     | Captura del usuario en kitty: la portada de Thriller se dibuja con el protocolo gráfico en su recuadro, a la izquierda del reloj, sin invadir el marquee ni el analizador. Además: | Unidades sobre los tres codificadores, incluida una vuelta completa de sixel a píxeles; la app real bajo un pty con `TERM=xterm-kitty` emite el APC gráfico anclado en la esquina del widget, y en medios bloques pyte muestra el recuadro de 18×9 con el resto del display intacto. Nadie ha mirado todavía una portada real en una ventana de kitty. |
+| Carátula                           | **VERIFICADO A LA VISTA**     | Capturas del usuario en kitty, dos veces: la portada de Thriller se dibuja con el protocolo gráfico en su recuadro, a la izquierda del reloj, sin invadir el marquee ni el analizador, y con el recuadro ya adaptativo. Unidades sobre los tres codificadores, incluida una vuelta completa de sixel a píxeles; la app real bajo un pty con `TERM=xterm-kitty` emite el APC gráfico anclado en la esquina del widget, y en medios bloques pyte muestra el recuadro con el resto del display intacto. |
 | Indicador de carga y barra de estado | **Verificado**                  | Unitarias del `Spinner` y de los tres momentos del navegador (raíz, abrir un nivel, volver atrás) con un loader bloqueado a propósito; la app real bajo pty midió `#statusbar` dentro de la pantalla y pintó `⠦ resolviendo «Schism»…` en la última fila. |
 | «Mis playlists» y caché de niveles | **Verificado contra TIDAL real**  | cProfile sobre la cuenta del usuario localizó las 111 peticiones; tras el cambio, la app real bajo un pty abre «Mis playlists» en 0,39 s (antes 19,87 s) y en 0,13 s la segunda vez. Unitarias: una petición por página, paginación, claves de caché y `R`. |
 
-**Ojo con la sesión:** `~/.config/tidalamp/session.json` **ya no existe** (comprobado
-el 2026-09-08, después de la sesión en la que el usuario reprodujo música). Todo lo que
-diga «contra TIDAL real» en esta tabla empieza, hoy, por `tidalamp login`, que es
-interactivo por definición: el device flow pide abrir una URL y autorizar.
+**Sobre la sesión:** `~/.config/tidalamp/session.json` **existe** (comprobado el
+2026-09-08, después de que el usuario reprodujera hi-res con ella). Si desaparece,
+todo lo que diga «contra TIDAL real» en esta tabla vuelve a empezar por
+`tidalamp login`, que es interactivo por definición: el device flow pide abrir una URL
+y autorizar, y eso no se automatiza desde aquí.
 
-Con la sesión rehecha, la instrumentación de la rama de manifiesto ya está puesta:
-`TIDALAMP_DEBUG=1 tidalamp tui`, reproducir una pista en cada calidad y leer
-`~/.local/state/tidalamp/tidalamp.log`. Es lo primero que debería hacer quien retome
-esto delante de un terminal de verdad.
+La instrumentación de la rama de manifiesto sigue puesta, por si hace falta repetirla:
+`TIDALAMP_DEBUG=1 tidalamp tui` —o `debug = true` desde la pantalla de `o`—, reproducir
+una pista en cada calidad y leer `~/.local/state/tidalamp/tidalamp.log`.
 
 ## 6. Pendiente
 
@@ -602,10 +614,9 @@ probadas sólo con dobles.
 queda pide credenciales o un par de ojos: el alta en PyPI y el AUR, y las
 verificaciones contra TIDAL real.
 
-**Aviso para quien retome esto:** ya no hay sesión guardada. `~/.config/tidalamp/`
-está vacío, así que las comprobaciones «contra TIDAL real» de §5 empiezan por
-`tidalamp login`, que es interactivo por definición (device flow) y no se puede
-automatizar.
+**Aviso para quien retome esto:** hay sesión guardada y funciona (§5). Lo que no se
+puede automatizar desde aquí sigue siendo rehacerla: `tidalamp login` es interactivo
+por definición (device flow).
 
 ### ~~P1 — Exponer MPRIS en D-Bus~~ ✅ HECHO
 
@@ -853,6 +864,10 @@ analizador en `FFT` con espectro real, barra de estado visible con
 «reproduciendo Michael Jackson – Thriller». Se conserva el procedimiento por si hay que
 repetirlo tras un cambio.
 
+Más tarde, la misma pista sirvió para la comprobación que faltaba y que ninguna de
+estas tres cubría: que el hi-res llegue **al DAC** sin remuestrear. La pantalla del
+FiiO BTR15 marcando `PCM 176.4K` es la prueba; está en la tabla de §5.
+
 Sólo queda §9.4, que es una decisión, no una prueba. Y el alta en PyPI y la subida al
 AUR, aparte, para cuando el proyecto esté cerrado.
 
@@ -882,7 +897,8 @@ Qué anotar: si con música sonando las bandas responden a la música de verdad.
 
 ### 9.2 Carátula en kitty — HECHO
 
-En la misma sesión, la portada va a la izquierda del reloj, en un recuadro de 18×9. Tu
+En la misma sesión, la portada va a la izquierda del reloj, en un recuadro que crece
+con el terminal (18×9 a 40×20). Tu
 terminal es kitty, así que se dibuja con su protocolo gráfico: píxeles de verdad.
 
 ```sh
@@ -902,10 +918,15 @@ Si no aparece nada, la barra de estado lo dice: falta Pillow, `.venv/bin/pip ins
 
 ### 9.3 Salida de audio real — HECHO
 
-Todo lo verificado hasta ahora ha sido con `ao=null`: mpv decodifica de verdad (RMS
-−19,2 dBFS sobre una pista hi-res) pero no ha salido sonido por PipeWire en ninguna
-sesión automatizada. Basta con reproducir una pista hi-res y una normal, y comprobar
-que se oyen y que las insignias dicen `24bit 96kHz HI_RES_LOSSLESS` en la primera.
+Todo lo verificado por vía automatizada es con `ao=null`: mpv decodifica de verdad (RMS
+−19,2 dBFS sobre una pista hi-res) pero no sale sonido por PipeWire en ninguna sesión
+de pruebas. Para repetirlo a mano: reproducir una pista hi-res y una normal, comprobar
+que se oyen y que las insignias dicen `24bit … HI_RES_LOSSLESS` en la primera.
+
+**Y mirar el DAC, no sólo la insignia.** Las dos cosas pueden discrepar: si PipeWire
+tiene el grafo fijo en un ritmo, la insignia dice la verdad sobre el stream mientras el
+DAC recibe 48 kHz. La pantalla de `o` lo detecta y lo arregla; un DAC con pantalla lo
+confirma, y si no la tiene, `grep Momentary /proc/asound/card*/stream0` mientras suena.
 
 ### 9.4 Decisión pendiente, no comprobación
 

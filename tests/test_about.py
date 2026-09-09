@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 
 from tidalamp import __version__, about
@@ -17,6 +19,36 @@ def test_the_credits_point_at_the_authors_repository():
 def test_the_version_is_the_one_the_package_declares():
     # Installed metadata wins, but in a checkout both are the same string.
     assert about.version() == __version__
+
+
+def pyproject_version() -> str | None:
+    """The version in pyproject.toml, or None when it is not next to us.
+
+    It ships in the sdist, so this runs in the AUR's `check()` too; from an
+    installed wheel there is nothing to compare against and the test skips.
+    """
+    import tomllib
+
+    path = Path(__file__).resolve().parent.parent / "pyproject.toml"
+    if not path.is_file():
+        return None
+    with path.open("rb") as handle:
+        return str(tomllib.load(handle)["project"]["version"])
+
+
+def test_every_copy_of_the_version_agrees():
+    """A release edits pyproject.toml and the PKGBUILD; two more copies live
+    here, and nothing but this test would notice them drifting.
+
+    `release.yml` already refuses a tag that disagrees with pyproject.toml, so
+    tying the rest to it is what keeps the About screen from announcing a
+    version the package is not."""
+    declared = pyproject_version()
+    if declared is None:
+        pytest.skip("pyproject.toml no está junto al paquete instalado")
+
+    assert __version__ == declared, "tidalamp/__init__.py"
+    assert about.releases()[0].version == declared, "about.releases()"
 
 
 @pytest.mark.parametrize(
