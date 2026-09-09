@@ -289,15 +289,15 @@ Omarchy, and the automated test suite runs on Ubuntu. It should work on other de
 Linux distributions that provide Python 3.11 or newer and `mpv`, although real
 playback has not yet been tested on each of them.
 
-| Platform                                                | Status                                                                                            |
-| ------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
-| Arch Linux / Omarchy                                    | Supported and tested; the AUR is the recommended installation channel                             |
-| Debian / Ubuntu                                         | Supported through PyPI; the automated suite runs on Ubuntu                                        |
-| Fedora, openSUSE, and other desktop Linux distributions | Expected to work through PyPI, but not yet tested with real playback                              |
-| WSL2                                                    | Best effort; audio must be configured separately and desktop integration may be unavailable       |
-| macOS                                                   | Unsupported and untested; the core may run, but the Linux desktop and audio integrations will not |
-| Windows                                                 | Not compatible: mpv is controlled through a Unix socket and desktop integration uses D-Bus/MPRIS  |
-| BSD and Android/Termux                                  | Unsupported and untested                                                                          |
+| Platform                                                | Status                                                                                                      |
+| ------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| Arch Linux / Omarchy                                    | Supported and tested; install from PyPI for now. The AUR package is prepared but not yet published         |
+| Debian / Ubuntu                                         | Supported through PyPI; the automated suite runs on Ubuntu                                                |
+| Fedora, openSUSE, and other desktop Linux distributions | Expected to work through PyPI, but not yet tested with real playback                                      |
+| WSL2                                                    | Best effort; audio must be configured separately and desktop integration may be unavailable                |
+| macOS                                                   | Unsupported and untested; the core may run, but the Linux desktop and audio integrations will not          |
+| Windows                                                 | Not compatible: mpv is controlled through a Unix socket and desktop integration uses D-Bus/MPRIS           |
+| BSD and Android/Termux                                  | Unsupported and untested                                                                                   |
 
 A missing D-Bus session only disables MPRIS and desktop media controls; it does not
 stop playback. Cover art also falls back to terminal blocks when kitty graphics and
@@ -305,20 +305,32 @@ sixel are unavailable.
 
 ## Installation
 
+> [!IMPORTANT]
+> **Availability for version 0.1.0:** PyPI is the active installation channel. The AUR
+> package is ready, but its publication is delayed because
+> [registration of new AUR accounts remains closed](https://lists.archlinux.org/archives/list/aur-general%40lists.archlinux.org/message/2IJD5MFHSLXARQTOP4FH64CJLW2BIIGC/)
+> during the service's security hardening. No reopening date has been announced.
+
 **pip does not install `mpv`.** It must be present on the system; without it, tidalamp
 exits on startup with `MpvNotFound`. Python 3.11 or newer is also required. Install
 `cava` if you want a real spectrum instead of the RMS meter.
 
 ### Arch Linux (AUR)
 
+The `tidalamp` AUR package is not public yet. Once new-account registration reopens
+and the package has a public AUR page, this will be the recommended Arch installation:
+
 ```sh
 yay -S tidalamp        # installs mpv and the other dependencies
 ```
 
-This is the recommended channel on Arch because it can declare `mpv` as a real
-dependency and `cava` as optional.
+Do not run that command yet: there is currently no package for `yay` to find. The AUR
+will be the recommended channel because it can declare `mpv` as a real dependency and
+`cava` as optional.
 
 ### Other Linux distributions (PyPI)
+
+Install version `0.1.0` from PyPI with:
 
 ```sh
 sudo apt install mpv          # or the equivalent for your distribution

@@ -51,7 +51,7 @@ def releases() -> tuple[Release, ...]:
     return (
         Release(
             "0.1.0",
-            _("sin publicar"),
+            "2026-09-09",
             (
                 _("Interfaz Winamp 2.x: reloj, marquesina, analizador y playlist."),
                 _("Reproducción con mpv por IPC, hasta FLAC 24 bit/96 kHz."),

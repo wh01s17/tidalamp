@@ -5,9 +5,12 @@ versionado es [semántico](https://semver.org/lang/es/).
 
 ## [Sin publicar]
 
-Todavía no hay ninguna versión publicada en PyPI ni en el AUR. Cuando la haya, esta
-sección se cierra con su número y su fecha; el procedimiento completo está en
-[`publish.md`](publish.md).
+## [0.1.0] - 2026-09-09
+
+Primera versión pública de tidalamp, distribuida mediante PyPI y GitHub Releases. El
+paquete del AUR está preparado, pero su publicación queda aplazada mientras siga
+cerrado el registro público de cuentas nuevas por el endurecimiento de seguridad del
+servicio. El procedimiento y el estado completo están en [`publish.md`](publish.md).
 
 ### Añadido
 

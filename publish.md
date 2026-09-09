@@ -9,7 +9,20 @@ lugares que usa el proyecto:
 
 El orden importa. Primero se prepara y valida el código, después se crea el tag —que
 publica automáticamente en PyPI—, luego se crea el GitHub Release y finalmente se
-calcula el checksum y se publica el paquete en el AUR.
+calcula el checksum y, cuando vuelva a ser posible obtener una cuenta, se publica el
+paquete en el AUR.
+
+> [!IMPORTANT]
+> **Estado de preparación a 2026-09-09:** la versión `0.1.0` está cerrada y lista para
+> publicarse en PyPI y GitHub Releases. El environment `pypi` de GitHub y el *pending
+> publisher* de PyPI ya están configurados. La publicación en el AUR queda aplazada
+> por una causa externa:
+> [el registro público de cuentas nuevas continúa cerrado](https://lists.archlinux.org/archives/list/aur-general%40lists.archlinux.org/message/2IJD5MFHSLXARQTOP4FH64CJLW2BIIGC/)
+> durante el endurecimiento de seguridad posterior a
+> [la oleada de paquetes maliciosos](https://lists.archlinux.org/archives/list/aur-general%40lists.archlinux.org/message/4JRS73YVTE7JUYHHE3ZDUIHXYHXZ3YQQ/).
+> No se ha anunciado una fecha de reapertura y el mantenedor no tiene una cuenta
+> anterior. Esto no bloquea PyPI ni GitHub Releases: el lanzamiento puede continuar
+> por esos dos canales y completar el AUR más adelante.
 
 Los ejemplos usan `0.1.0`. En versiones posteriores hay que sustituirlo por la versión
 correspondiente.
@@ -37,22 +50,30 @@ con OIDC.
 
 ### 1.2. Crear el environment `pypi` en GitHub
 
+**Completado el 2026-09-09.** El environment existe, exige la revisión manual de
+`wh01s17`, no permite saltarse las reglas de protección y no contiene secretos. Los
+pasos siguientes conservan la configuración exacta para poder auditarla o recrearla.
+
 1. Abre `https://github.com/wh01s17/tidalamp`.
 2. Entra en **Settings → Environments**.
 3. Pulsa **New environment**.
 4. Escribe exactamente `pypi` y pulsa **Configure environment**.
-5. No añadas ningún secreto de PyPI.
+5. En las reglas de protección, añade al menos una persona en **Required reviewers**
+   para que cada publicación necesite aprobación manual.
+6. No añadas ningún secreto de PyPI.
 
-Opcionalmente se puede exigir aprobación manual antes de publicar. Si se restringen
-las ramas y tags permitidos, hay que permitir tags con el patrón `v*`; de lo contrario
-el job quedará bloqueado.
+La aprobación manual es una protección obligatoria para este flujo de publicación.
+Si además se restringen las ramas y tags permitidos, hay que permitir tags con el
+patrón `v*`; de lo contrario el job quedará bloqueado.
 
 El nombre debe coincidir con `environment: pypi` en
 `.github/workflows/release.yml`.
 
 ### 1.3. Registrar el pending publisher en PyPI
 
-Como `tidalamp` todavía no existe en PyPI, hay que registrar un *pending publisher*:
+**Completado el 2026-09-09.** PyPI muestra el publisher pendiente con los cinco valores
+de la tabla siguiente. Como `tidalamp` todavía no existe en PyPI, se conservará como
+pendiente hasta que el workflow publique por primera vez:
 
 1. Inicia sesión en `https://pypi.org/`.
 2. Abre **Account settings → Publishing**.
@@ -74,6 +95,12 @@ paso inmediatamente antes de la primera publicación. Cuando el workflow publiqu
 primera vez, PyPI creará el proyecto y convertirá el publisher pendiente en uno normal.
 
 ### 1.4. Preparar la cuenta y la clave SSH del AUR
+
+> [!WARNING]
+> Este paso está bloqueado para quien no tenga ya una cuenta: el AUR mantiene cerrado
+> el registro público de usuarios nuevos y no ofrece una cola de alta manual. Detente
+> aquí y retoma esta sección sólo cuando el proyecto anuncie oficialmente la
+> reapertura. No uses una cuenta ajena ni intentes eludir el cierre.
 
 1. Crea o abre tu cuenta en `https://aur.archlinux.org/`.
 2. Genera una clave dedicada para el AUR:
@@ -293,13 +320,20 @@ git status --short
 Añade los archivos de la versión, crea el commit y sube `main`:
 
 ```sh
-git add CHANGELOG.md pyproject.toml packaging/aur/PKGBUILD packaging/aur/.SRCINFO
+git add \
+  CHANGELOG.md \
+  pyproject.toml \
+  tidalamp/__init__.py \
+  tidalamp/about.py \
+  packaging/aur/PKGBUILD \
+  packaging/aur/.SRCINFO
 git commit -m "chore(release): prepare ${TIDALAMP_TAG}"
 git push origin main
 ```
 
-Si la versión también contiene otros archivos ya revisados, deben incluirse en el
-commit correspondiente antes de crear el tag.
+Esos seis nombres cubren todas las copias de la versión, la fecha y las notas, además
+del paquete del AUR. Si la versión también contiene otros archivos ya revisados, deben
+incluirse en el commit correspondiente antes de crear el tag.
 
 En GitHub, abre **Actions → CI** y espera a que el commit de `main` termine en verde.
 No crees el tag sobre un commit cuyo CI no haya finalizado correctamente.
@@ -423,6 +457,11 @@ El AUR no necesita estos assets: usa el tarball automático del tag.
 ## 8. Finalizar y publicar el paquete AUR
 
 Esta sección se ejecuta en Arch Linux después de que el tag sea público.
+
+El cierre del registro no impide ejecutar §8.1–§8.3: se puede calcular el checksum,
+probar el paquete localmente y guardar esos metadatos en el repositorio principal. Sin
+una cuenta anterior del AUR, §8.4–§8.6 quedan en pausa hasta que se reabra el registro.
+PyPI y el GitHub Release no tienen que esperar al AUR.
 
 ### 8.1. Calcular el checksum definitivo
 
@@ -585,6 +624,14 @@ Comprueba:
 - que la rama sea `master`;
 - que el commit incluya juntos `PKGBUILD` y `.SRCINFO`.
 
+### El registro de una cuenta nueva en el AUR no está disponible
+
+No es un fallo de tidalamp ni de la red local. El AUR cerró temporalmente el registro
+público como parte de su respuesta de seguridad y no admite solicitudes manuales de
+alta. Conserva preparado el paquete, sigue los anuncios de `aur-general` y retoma
+§1.4 y §8.4–§8.6 sólo cuando Arch comunique la reapertura. No automatices reintentos ni
+uses credenciales de otra persona.
+
 ### Se descubre un fallo grave después de publicar
 
 No reemplaces el tag ni intentes sobrescribir PyPI. Corrige el fallo, incrementa la
@@ -593,8 +640,9 @@ márcalo como *yanked* en PyPI y explica la sustitución en GitHub y en el AUR.
 
 ## 11. Publicaciones posteriores
 
-Para la segunda versión y las siguientes no se repite la configuración de PyPI,
-GitHub environment ni la clave SSH del AUR. El ciclo es:
+Para la segunda versión y las siguientes no se repite la configuración de PyPI ni el
+GitHub environment. Tampoco se repite la clave SSH del AUR una vez que sea posible
+crear la cuenta y completar esa configuración. El ciclo normal es:
 
 1. elegir una versión nueva;
 2. actualizar changelog, los cuatro sitios de la versión (§3.2: `pyproject.toml`,
@@ -619,3 +667,5 @@ commit en el AUR.
 - [GitHub: administrar Releases](https://docs.github.com/en/repositories/releasing-projects-on-github/managing-releases-in-a-repository)
 - [GitHub: administrar environments](https://docs.github.com/en/actions/how-tos/deploy/configure-and-manage-deployments/manage-environments)
 - [ArchWiki: pautas de publicación en el AUR](https://wiki.archlinux.org/title/AUR_submission_guidelines)
+- [AUR: cierre inicial por paquetes maliciosos](https://lists.archlinux.org/archives/list/aur-general%40lists.archlinux.org/message/4JRS73YVTE7JUYHHE3ZDUIHXYHXZ3YQQ/)
+- [AUR: estado del servicio y registro aún cerrado](https://lists.archlinux.org/archives/list/aur-general%40lists.archlinux.org/message/2IJD5MFHSLXARQTOP4FH64CJLW2BIIGC/)

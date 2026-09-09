@@ -4,7 +4,10 @@ Documento de traspaso. Describe qué existe, qué está verificado, qué falta y
 criterio se tomaron las decisiones, para que cualquiera (humano o modelo) pueda
 retomar el trabajo sin contexto previo.
 
-**Última actualización:** 2026-09-08 (cadena hi-res verificada en el hardware —el DAC
+**Última actualización:** 2026-09-09 (versión `0.1.0` cerrada y preparada para PyPI;
+Trusted Publishing configurado; publicación en el AUR aplazada sin fecha porque el
+registro público de cuentas nuevas continúa cerrado durante el endurecimiento de seguridad;
+cadena hi-res verificada en el hardware —el DAC
 marca `PCM 176.4K`—; pantalla de configuración con todo lo que antes pedía editar el
 TOML o exportar variables, incluidos los ritmos hi-res de PipeWire;
 menú de acciones al pulsar ↵ sobre una pista,
@@ -648,7 +651,7 @@ Distinguir esto importa: parte del código nunca se ha ejecutado contra TIDAL re
 | Ruta BTS / MPD -> HLS              | **VERIFICADO CONTRA TIDAL REAL**  | Ambas ramas cubiertas por tests con manifiestos fijados, y `stream.resolve()` registra cuál toma. La lectura real ya se hizo: es la matriz de las cuatro calidades sobre dos pistas de la fila siguiente, donde `HI_RES_LOSSLESS` cae en MPD y el resto en BTS —lo que dice la trampa de §7 sobre pedir una calidad y no obtenerla. Esta fila decía «PARCIAL» por una reproducción real que llevaba hecha desde entonces. |
 | Hi-res **hasta el DAC**            | **VERIFICADO EN EL HARDWARE**     | La pantalla del propio FiiO BTR15 muestra `PCM 176.4K` mientras la app dice `24bit 176kHz HI_RES_LOSSLESS` y la pantalla de configuración `Salida: FIIO BTR15 · 176400 Hz s32le`. Es la única comprobación que ninguna capa de software puede falsear: está aguas abajo de TIDAL, de mpv y de PipeWire. Confirma además que el drop-in de `allowed-rates` respeta **las dos familias**: 176,4 kHz es múltiplo de 44,1, no de 48, así que el grafo siguió a la pista en vez de acercarla a su ritmo. Antes de esto, con `allowed-rates = [ 48000 ]`, el mismo stream llegaba remuestreado a 48 kHz con la insignia diciendo la verdad sobre el stream. |
 | Ruta MPD -> HLS (hi-res)           | **VERIFICADO CONTRA TIDAL REAL**  | Matriz de las cuatro calidades sobre dos pistas reales; con `HI_RES_LOSSLESS` la rama es MPD, FLAC 24 bit/96 kHz, 69 segmentos. `ffprobe` sobre la playlist reescrita da flac/96000/24 y `ffmpeg` decodifica 3 s a un WAV de 1.152.102 bytes (exactamente 96000×3×2×2). La app real con mpv de verdad: insignias `24bit 96kHz HI_RES_LOSSLESS`, posición 12,3 s de 266 s, RMS −19,2 dBFS. La playlist sin reescribir falla con *error reading header* en el mismo ffmpeg. |
-| Empaquetado (sdist / wheel / AUR)  | **Verificado salvo la publicación** | `python -m build` + `twine check` en ambos artefactos; 89 pruebas desde el sdist extraído; `bash -n` y `makepkg --printsrcinfo` sobre el PKGBUILD; `pacman -Si` confirma que todas las dependencias están en `extra`. No se ha ejecutado `makepkg -si` ni se ha publicado nada: el tag no existe todavía. |
+| Empaquetado (sdist / wheel / AUR)  | **Verificado salvo la publicación** | `python -m build` + `twine check` en ambos artefactos; 89 pruebas desde el sdist extraído; `bash -n` y `makepkg --printsrcinfo` sobre el PKGBUILD; `pacman -Si` confirma que todas las dependencias están en `extra`. El environment de GitHub y el *pending publisher* de PyPI ya están configurados. No se ha ejecutado `makepkg -si` ni se ha publicado nada porque aún no existe el tag; el envío final al AUR está además bloqueado externamente mientras siga cerrado el registro de cuentas nuevas. |
 | Carátula                           | **VERIFICADO A LA VISTA**     | Capturas del usuario en kitty, dos veces: la portada de Thriller se dibuja con el protocolo gráfico en su recuadro, a la izquierda del reloj, sin invadir el marquee ni el analizador, y con el recuadro ya adaptativo. Unidades sobre los tres codificadores, incluida una vuelta completa de sixel a píxeles; la app real bajo un pty con `TERM=xterm-kitty` emite el APC gráfico anclado en la esquina del widget, y en medios bloques pyte muestra el recuadro con el resto del display intacto. |
 | Indicador de carga y barra de estado | **Verificado**                  | Unitarias del `Spinner` y de los tres momentos del navegador (raíz, abrir un nivel, volver atrás) con un loader bloqueado a propósito; la app real bajo pty midió `#statusbar` dentro de la pantalla y pintó `⠦ resolviendo «Schism»…` en la última fila. |
 | «Mis playlists» y caché de niveles | **Verificado contra TIDAL real**  | cProfile sobre la cuenta del usuario localizó las 111 peticiones; tras el cambio, la app real bajo un pty abre «Mis playlists» en 0,39 s (antes 19,87 s) y en 0,13 s la segunda vez. Unitarias: una petición por página, paginación, claves de caché y `R`. |
@@ -672,11 +675,16 @@ probadas sólo con dobles.
 **Orden propuesto (2026-09-09):** ~~P5 empaquetado~~ y ~~carátula~~ ✅ hechos. No queda
 funcionalidad: lo que hay abierto pide credenciales tuyas o un par de ojos.
 
-1. El alta en PyPI y la subida al AUR (§6, P5). Es lo único que bloquea publicar.
-2. Mirar `retro` y `ascii` en un terminal de verdad (§9.5). Cuesta dos minutos y es la
+1. Subir el commit de la versión `0.1.0` a `main`, esperar el CI y crear el tag
+   anotado `v0.1.0`, que iniciará la publicación en PyPI. Trusted Publishing ya está
+   configurado.
+2. Publicar en el AUR cuando vuelva a abrir el registro de cuentas nuevas. El paquete
+   está preparado y se puede probar localmente, pero el alta final depende del
+   servicio externo y no tiene fecha anunciada.
+3. Mirar `retro` y `ascii` en un terminal de verdad (§9.5). Cuesta dos minutos y es la
    única comprobación barata que sigue pendiente.
-3. Una letra real de TIDAL, lo último de §5 que sólo se ha probado con dobles.
-4. §9.4, que es una decisión y no una prueba.
+4. Una letra real de TIDAL, lo último de §5 que sólo se ha probado con dobles.
+5. §9.4, que es una decisión y no una prueba.
 
 **Aviso para quien retome esto:** hay sesión guardada y funciona (§5). Lo que no se
 puede automatizar desde aquí sigue siendo rehacerla: `tidalamp login` es interactivo
@@ -758,11 +766,15 @@ dejará de importar y con él no arranca la aplicación entera.
       - [x] El aviso de `mpv` está en la primera línea de `description` del
             `pyproject.toml` (lo que ve PyPI) y encabeza la sección de instalación del
             README.
-      - [ ] **Pendiente y no automatizable desde aquí:** dar de alta el *pending
-            publisher* en PyPI y crear el entorno `pypi` en GitHub (sin eso el job
-            `publish` falla con un error de OIDC), y subir el PKGBUILD al AUR. Ambos
-            piden credenciales del usuario. Además `sha256sums` sigue en `SKIP` hasta
-            que exista el tag: se rellena con `updpkgsums`.
+      - [x] PyPI Trusted Publishing configurado el 2026-09-09: environment `pypi` en
+            GitHub con revisión manual y *pending publisher* con owner `wh01s17`,
+            repositorio `tidalamp`, workflow `release.yml` y environment `pypi`.
+      - [ ] **AUR bloqueado externamente:** el registro público de cuentas nuevas
+            continúa cerrado por el endurecimiento de seguridad y el mantenedor no
+            tiene una cuenta anterior. No hay fecha anunciada ni un alta manual que
+            completar. `sha256sums` sigue en `SKIP` hasta que exista el tag; después se
+            puede ejecutar `updpkgsums` y `makepkg -Csi` aunque el push al AUR tenga que
+            esperar.
 
 ## 7. Trampas conocidas
 
@@ -959,8 +971,11 @@ Más tarde, la misma pista sirvió para la comprobación que faltaba y que ningu
 estas tres cubría: que el hi-res llegue **al DAC** sin remuestrear. La pantalla del
 FiiO BTR15 marcando `PCM 176.4K` es la prueba; está en la tabla de §5.
 
-Queda §9.5, que sí es una comprobación, y §9.4, que es una decisión y no una prueba. Y
-el alta en PyPI y la subida al AUR, aparte, para cuando el proyecto esté cerrado.
+Queda §9.5, que sí es una comprobación, y §9.4, que es una decisión y no una prueba.
+La versión `0.1.0` ya está cerrada y PyPI tiene listo Trusted Publishing; quedan subir
+el commit, comprobar el CI y crear el tag que inicia la publicación. El alta y la
+subida al AUR quedan aparte y sin fecha hasta que Arch reabra el registro público de
+cuentas nuevas.
 
 ### 9.1 Espectro real de cava — HECHO
 

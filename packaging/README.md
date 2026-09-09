@@ -4,6 +4,14 @@ Dos canales que se complementan: el AUR para Arch, donde se puede declarar `mpv`
 dependencia real y `cava` como opcional, y PyPI para el resto de distribuciones Linux,
 donde no se puede. Windows no es compatible y macOS no está soportado ni probado.
 
+> [!IMPORTANT]
+> **Versión 0.1.0:** preparada para publicarse mediante PyPI Trusted Publishing. El
+> `PKGBUILD` del AUR también está preparado, pero su publicación final queda aplazada
+> porque
+> [el registro de cuentas nuevas sigue cerrado](https://lists.archlinux.org/archives/list/aur-general%40lists.archlinux.org/message/2IJD5MFHSLXARQTOP4FH64CJLW2BIIGC/)
+> durante el endurecimiento de seguridad del servicio y no se ha anunciado una fecha
+> de reapertura.
+
 La guía completa, paso a paso, para preparar la versión, configurar PyPI, crear el
 GitHub Release y publicar en el AUR está en [`../publish.md`](../publish.md). Este
 archivo conserva el resumen y las decisiones específicas del empaquetado.
@@ -11,18 +19,22 @@ archivo conserva el resumen y las decisiones específicas del empaquetado.
 ## Publicar una versión
 
 1. Cerrar la sección «Sin publicar» de `CHANGELOG.md` con el número y la fecha.
-2. Subir `version` en `pyproject.toml` y `pkgver` en `packaging/aur/PKGBUILD`.
+2. Actualizar la versión en `pyproject.toml`, `tidalamp/__init__.py`, la entrada de
+   `releases()` en `tidalamp/about.py` y `pkgver` en `packaging/aur/PKGBUILD`; al
+   cambiar `pkgver`, devolver `pkgrel` a `1`.
 3. Regenerar el `.SRCINFO`: `cd packaging/aur && makepkg --printsrcinfo > .SRCINFO`.
-4. Commit, `git tag vX.Y.Z`, `git push --tags`.
+4. Crear el commit, un tag anotado con `git tag -a vX.Y.Z -m "tidalamp X.Y.Z"` y
+   subir únicamente ese tag con `git push origin vX.Y.Z`.
 5. El tag dispara `.github/workflows/release.yml`, que comprueba que el tag coincide
    con la versión del `pyproject.toml`, construye sdist y wheel, pasa `twine check` y
    publica en PyPI.
-6. Actualizar el `sha256sums` del PKGBUILD (§AUR) y subirlo al AUR.
+6. Actualizar el `sha256sums` del PKGBUILD (§AUR) y, cuando el registro vuelva a estar
+   disponible, subirlo al AUR.
 
 ## PyPI (Trusted Publishing)
 
-El workflow publica con OIDC de GitHub Actions, no con un token de larga vida. Antes
-del primer `push --tags` hay que darlo de alta una sola vez:
+**Configurado el 2026-09-09.** El workflow publica con OIDC de GitHub Actions, no con
+un token de larga vida. La configuración actual, que sólo se realiza una vez, es:
 
 - En PyPI → *Your projects* → *Publishing* → *Add a new pending publisher*:
   - PyPI Project Name: `tidalamp`
@@ -30,15 +42,22 @@ del primer `push --tags` hay que darlo de alta una sola vez:
   - Repository name: `tidalamp`
   - Workflow name: `release.yml`
   - Environment name: `pypi`
-- En GitHub → *Settings* → *Environments* → crear el entorno `pypi`.
+- En GitHub → *Settings* → *Environments* → crear el entorno `pypi`, con al menos una
+  persona en **Required reviewers** para aprobar manualmente cada publicación.
 
-Sin esos dos pasos el job `publish` falla con un error de OIDC, no con uno de
-credenciales; es lo esperado.
+Si se elimina alguno de esos dos elementos, el job `publish` fallará con un error de
+OIDC, no con uno de credenciales.
 
 ## AUR
 
 El `PKGBUILD` construye desde el tarball del tag en GitHub. Todas las dependencias
 están en los repos oficiales (`extra`), así que no arrastra nada del AUR.
+
+La receta siguiente permanece lista para la primera publicación. Como el mantenedor
+no tiene una cuenta anterior y el alta pública continúa cerrada, se puede preparar y
+probar el paquete localmente, pero no clonar ni enviar todavía el repositorio AUR. No
+hay un procedimiento alternativo legítimo: hay que esperar el anuncio oficial de
+reapertura.
 
 `sha256sums` está como `SKIP` porque hasta que existe el tag no hay tarball que
 resumir. Con el tag publicado:
@@ -54,9 +73,16 @@ namcap PKGBUILD tidalamp-*.pkg.tar.zst
 Y para subirlo, con el repositorio del AUR clonado aparte:
 
 ```sh
-git clone ssh://aur@aur.archlinux.org/tidalamp.git aur-tidalamp
-cp packaging/aur/{PKGBUILD,.SRCINFO} aur-tidalamp/
-cd aur-tidalamp && git commit -am "tidalamp X.Y.Z" && git push
+TIDALAMP_AUR_DIR="../aur-tidalamp"
+git -c init.defaultBranch=master clone \
+  ssh://aur@aur.archlinux.org/tidalamp.git \
+  "$TIDALAMP_AUR_DIR"
+cp packaging/aur/PKGBUILD "$TIDALAMP_AUR_DIR/PKGBUILD"
+cp packaging/aur/.SRCINFO "$TIDALAMP_AUR_DIR/.SRCINFO"
+git -C "$TIDALAMP_AUR_DIR" add PKGBUILD .SRCINFO
+git -C "$TIDALAMP_AUR_DIR" diff --cached
+git -C "$TIDALAMP_AUR_DIR" commit -m "tidalamp X.Y.Z"
+git -C "$TIDALAMP_AUR_DIR" push origin master
 ```
 
 El AUR exige que `PKGBUILD` y `.SRCINFO` vayan en el mismo commit y que la raíz del

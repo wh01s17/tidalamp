@@ -245,7 +245,6 @@ ENGLISH: dict[str, str] = {
         "Not affiliated with TIDAL, Aspiro, or the Winamp trademark holders."
     ),
     "Cambios por versión": "Changes by version",
-    "sin publicar": "unreleased",
     "Interfaz Winamp 2.x: reloj, marquesina, analizador y playlist.": (
         "Winamp 2.x interface: clock, marquee, analyser and playlist."
     ),
