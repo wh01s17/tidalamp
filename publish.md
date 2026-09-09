@@ -179,13 +179,17 @@ son de Python: si alguno se queda atrás, la suite falla antes de llegar al tag.
    Es lo que muestra «Cambios por versión» en la pantalla de ayuda (`?`).
 
    ```python
-   Release(
-       "0.1.0",
-       "2026-09-15",
-       (
-           _("…"),
-       ),
-   ),
+   def releases() -> tuple[Release, ...]:
+       return (
+           Release(
+               "0.1.0",
+               "2026-09-15",
+               (
+                   _("…"),
+                   _("…"),
+               ),
+           ),
+       )
    ```
 
    Va aquí y no leído de `CHANGELOG.md` a propósito: ese fichero no viaja dentro del
