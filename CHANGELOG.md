@@ -23,7 +23,8 @@ sección se cierra con su número y su fecha; el procedimiento completo está en
 - Búsqueda de pistas, álbumes, artistas y playlists.
 - Favoritos de TIDAL con `f` y `F`.
 - Servicio MPRIS2 completo, incluida la interfaz `TrackList`.
-- Carátula en el terminal por protocolo de kitty, sixel o medios bloques.
+- Carátula en el terminal por protocolo de kitty, sixel o medios bloques, en un
+  recuadro que crece con el terminal (de 18×9 a 40×20) junto con el analizador.
 - Letras sincronizadas (LRC) con respaldo a texto plano.
 - Ecualizador de diez bandas y balance, como filtros de mpv, con persistencia.
 - Espectro real con `cava` cuando está instalado, y vúmetro RMS cuando no.
@@ -32,6 +33,10 @@ sección se cierra con su número y su fecha; el procedimiento completo está en
 - Entrada de escritorio e icono, y aviso cuando el terminal es más pequeño de 76×20.
 - Empaquetado para el AUR y para PyPI, con publicación por *Trusted Publishing*.
 - Interfaz y CLI bilingües español/inglés según el locale, con fallback al español.
+- Ventana de ayuda (`?` o `h`) con todos los atajos agrupados y leídos de los
+  bindings efectivos, así que una tecla rebindeada en `config.toml` aparece como
+  la que hay que pulsar. Incluye «Acerca de» —versión, autor, repositorio y
+  licencia— y el resumen de cambios de cada versión.
 - README público en inglés.
 
 ### Corregido
@@ -50,10 +55,19 @@ sección se cierra con su número y su fecha; el procedimiento completo está en
 - **La barra de estado quedaba fuera de la pantalla**, así que todo lo que la aplicación
   tenía que decir se escribía donde nadie lo veía.
 - La insignia mostraba «16bit» sobre audio con pérdida.
+- **La barra de volumen se rompía por encima de 100.** El relleno no estaba
+  acotado al ancho de la pista, así que a 105 el número se corría, a 115 salía
+  del widget y a 130 la línea era tan larga que no se dibujaba nada: quedaba
+  «VOL» y una fila vacía. El widget ya no deja que ningún valor le deforme la
+  pista, y el volumen tiene tope en 100 —por encima mpv aplica ganancia digital
+  sobre una señal ya normalizada, que satura—, tanto por teclado como por MPRIS.
 - **Sin Pillow no había carátula y no se decía por qué**: el widget se quedaba
   oculto y el único rastro era un `log.info` en un fichero. Ahora la barra de
   estado nombra el extra que lo arregla al arrancar, y las instrucciones de
   instalación desde el repositorio incluyen `".[art]"`, que era donde faltaba.
-- **La barra de estado se comía los corchetes.** `Static.update` interpreta un
-  `str` como marcado de Rich, así que `tidalamp[art]` salía como `tidalamp`.
-  Ahora se le pasa un `Text`, y vale para cualquier mensaje con corchetes.
+- **Los corchetes desaparecían del texto que no escribimos nosotros.**
+  `Static.update` interpreta un `str` como marcado de Rich: un álbum llamado
+  «Lateralus [Deluxe Edition]» se dibujaba como «Lateralus », y un nombre con
+  una etiqueta de cierre (`[/]`) lanzaba `MarkupError` en pleno render. Los
+  cuatro `Static` que reciben nombres de TIDAL, títulos de pista o mensajes de
+  excepción se construyen ahora con `markup=False`.

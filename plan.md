@@ -4,9 +4,11 @@ Documento de traspaso. Describe qué existe, qué está verificado, qué falta y
 criterio se tomaron las decisiones, para que cualquiera (humano o modelo) pueda
 retomar el trabajo sin contexto previo.
 
-**Última actualización:** 2026-09-08 (aviso visible cuando falta Pillow y el README
-ya instala el extra `art` desde el repositorio; antes: interfaz bilingüe
-español/inglés, catálogo i18n comprobado por AST y README público en inglés)
+**Última actualización:** 2026-09-08 (pantalla de ayuda con todos los atajos, créditos
+y notas de versión; los modales salieron de `app.py` a `screens.py`,
+la carátula sigue el tamaño del terminal, `markup=False` en los `Static` que reciben
+texto de TIDAL, aviso visible cuando falta Pillow y un job de CI que instala sin
+extras; antes: interfaz bilingüe español/inglés y README público en inglés)
 
 ---
 
@@ -50,8 +52,12 @@ tidalamp/
   auth.py       Device flow y persistencia de sesión. Lanza NotLoggedIn.
   stream.py     Track -> Playable (URL o playlist HLS local). Lanza StreamUnavailable.
   player.py     Clase Mpv: spawn del proceso, socket IPC, transporte, medición RMS.
-  widgets.py    TimeDisplay, Marquee, Analyzer, SeekBar, Slider. Sin lógica de negocio.
-  app.py        TidalAmp y sus modales de búsqueda, biblioteca, letras y ecualizador.
+  widgets.py    TimeDisplay, Marquee, Analyzer, SeekBar, Slider, Artwork. Sin lógica
+                de negocio.
+  screens.py    RowList y los cinco modales: búsqueda, biblioteca, ecualizador,
+                letras y ayuda. No guardan estado del reproductor: reciben lo que necesitan
+                al construirse y contestan por `dismiss`.
+  app.py        TidalAmp: layout, transporte, workers y el pegamento con MPRIS.
   winamp.tcss   Paleta y layout.
   queue.py      Entry (metadatos serializables + Track perezoso) y Queue (orden,
                 shuffle, repeat, persistencia). No conoce la UI.
@@ -64,6 +70,8 @@ tidalamp/
   artwork.py    Carátula: descarga con cache, y codificación kitty / sixel /
                 medios bloques. Sin Textual ni tidalapi.
   i18n.py       Español como fuente y fallback, catálogo inglés y detección de locale.
+  about.py      Créditos, licencia, repositorio y notas de versión, más el mapa de
+                atajos que pinta la ayuda. Datos puros: sin Textual.
   mpris.py      Servicio MPRIS2 en D-Bus. Habla con la app por el Protocol
                 PlayerBackend, así que no conoce Textual ni tidalapi.
   cli.py        Entrypoint typer: login / tui / search.
@@ -72,17 +80,22 @@ packaging/
   README.md     Procedimiento de publicación en PyPI y en el AUR.
   aur/PKGBUILD  Receta de Arch; `.SRCINFO` se regenera con makepkg.
 .github/workflows/
-  ci.yml        pytest en 3.11–3.14.
+  ci.yml        pytest en 3.11–3.14, un job sin extras y ruff/mypy.
   release.yml   tag v* -> build -> twine check -> PyPI por OIDC.
 ```
 
 Dependencia en un solo sentido:
 
 ```text
-cli -> app -> {player, stream, widgets, mpris, library, lyrics, spectrum, settings}
-       app -> {queue, net, artwork} -> {auth, config}
+cli -> app -> {player, stream, widgets, screens, mpris, lyrics, spectrum, settings}
+       app -> {queue, net, artwork, library} -> {auth, config}
+       screens -> {widgets, library, settings, lyrics, theme, about}
        widgets -> artwork  (sólo los tipos Cover/Protocol y el borrado de kitty)
 ```
+
+`RowList` vive en `screens.py` y no en `widgets.py` a propósito: pinta un
+`library.Row`, y `library` importa `tidalapi`. Ponerlo con los demás widgets
+arrastraría TIDAL al único módulo que deliberadamente no lo conoce.
 
 `widgets.py` no conoce TIDAL ni mpv; recibe valores por reactives. Mantener esa
 separación: es lo que permitiría añadir otro frontend (ver §6).
@@ -320,6 +333,12 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
       escribir no impide ver la carátula.
 - [x] Recorte centrado al aspecto del recuadro antes de escalar, para no deformar una
       portada cuadrada dentro de un rectángulo de celdas.
+- [x] El recuadro **crece con el terminal** (`Artwork.resize`, `TidalAmp._fit_artwork`):
+      de 18×9 en el mínimo de 76×20 hasta 40×20, con dos topes — un cuarto de la altura,
+      para no comerse la playlist, y lo que deje la fila que comparte con el reloj (24
+      celdas) y el marquee (30). Un terminal alto pero estrecho se queda en 18×9. Al
+      cambiar de tamaño se vuelve a pedir la carátula, porque la que había era del
+      tamaño viejo. El analizador pasó a `height: 1fr` para llenar la banda que crece.
 - [x] Pillow es opcional: sin él `decode()` devuelve `None`, no hay carátula y no
       cambia nada más. Mismo trato que cava. **Pero se avisa**: `have_decoder()` se
       consulta al final de `on_mount` y la barra de estado nombra `".[art]"`. Antes el
@@ -329,6 +348,26 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
       compositor de Textual desconoce: la carátula se retira al apilar una pantalla
       modal y se restaura desde el tick lento al desapilarla, y se borra por id al
       desmontar el widget.
+
+### Ayuda y acerca de — `about.py`, `screens.py`
+
+- [x] `?` o `h` abren `HelpScreen`: todos los atajos agrupados por lo que estás
+      haciendo (reproducción, volumen, cola, ventanas, favoritos, y los del navegador),
+      más «Acerca de» y el resumen de cambios por versión.
+- [x] La tabla se construye con `keys_for`, **no** con `DEFAULT_KEYS`: una tecla
+      rebindeada en `config.toml` aparece como la que hay que pulsar de verdad. Los
+      atajos que el diseño deja fijos (flechas, ↵, esc, a, A, R) van como literales.
+- [x] `about.pretty_keys` traduce los nombres de Textual a la tecla que se pulsa:
+      `slash` → `/`, `d,delete` → `d / del`, `alt+up` → `alt+↑`.
+- [x] Créditos: autor `wh01s17`, repositorio, licencia GPL-3.0-or-later con su URL, y
+      versión leída de la metadata instalada con `__version__` de respaldo.
+- [x] Las notas de versión son datos en `about.py` y no un parseo de `CHANGELOG.md`:
+      ese fichero no va dentro del wheel, así que la pantalla habría salido vacía para
+      todo el que instalase el paquete — que es justo para quien es la pantalla.
+- [x] `about.py` no importa Textual, así que se prueba sin levantar una app.
+- [x] La caja cede a `max-width: 100%`, al revés que los demás modales, porque lleva
+      URLs y a 76×20 se cortarían.
+- [x] `push_screen` ya retiraba la carátula de kitty al apilar; la ayuda lo hereda.
 
 ### Tests — `tests/`
 
@@ -506,12 +545,13 @@ dejará de importar y con él no arranca la aplicación entera.
 
 ### P5 — Acabado
 
-- [x] Slider de balance (`,` `.` `\`), como filtro `pan`.
+- [x] Slider de balance (`,` `.` `\`), como filtro `pan`. El de volumen va de 0 a
+      `Mpv.VOLUME_MAX` (100): mpv llega a 130, pero eso es ganancia digital sobre una
+      señal ya normalizada y satura. El tope vale igual para el teclado y para MPRIS.
 - [x] Ventana de ecualizador de 10 bandas (`e`) sobre el filtro `equalizer`.
 - [x] Carátula en el terminal vía protocolo Kitty/sixel, con medios bloques como
-      fallback universal. Ver §4. Ya se verificó a la vista en kitty; queda como posible
-      mejora decidir si el recuadro debe seguir el tamaño del terminal en vez de ser
-      18×9 fijo.
+      fallback universal. Ver §4. Verificada a la vista en kitty. El recuadro ya no es
+      18×9 fijo: sigue al terminal entre 18×9 y 40×20.
 - [x] Letras sincronizadas y fallback a texto plano (`y`).
 - [x] Colores adaptados al tema Omarchy activo, con cambio en vivo y fallback clásico.
 - [x] Interfaz bilingüe español/inglés según el locale, incluidos errores, CLI y la
@@ -550,6 +590,13 @@ Cosas que ya costaron tiempo una vez:
 - **Sintaxis de la etiqueta de filtro en mpv**: es `--af=@etiqueta:lavfi=[...]`, con la
   etiqueta **delante**. Ponerla detrás (`lavfi=[...]@etiqueta`) hace que mpv aborte al
   arrancar y el socket IPC nunca aparece.
+- **Un widget no debe fiarse del valor que le dan.** `Slider` calculaba el relleno
+  como `int(valor / máximo * pista)` sin acotarlo, y el player permitía 130 mientras
+  el slider seguía creyendo que el máximo era 100. Con el valor fuera de rango la barra
+  crecía más que su pista, empujaba el número fuera del widget y, pasado cierto punto,
+  la línea era tan larga que Textual no dibujaba nada. Dos lecciones: acotar en el
+  render, y no dejar que un rango viva como número mágico en un módulo mientras otro
+  supone otro (`Mpv.VOLUME_MAX`, leído por el slider en `on_mount`).
 - **`box-sizing` de Textual es `border-box`**: el `padding` come de la altura
   declarada. Un widget con `height: 3` y `padding-top: 1` sólo pinta 2 filas.
 - **El socket IPC comparte stream con los eventos async de mpv**: hay que leer líneas
@@ -592,6 +639,12 @@ Cosas que ya costaron tiempo una vez:
   Textual lo lee como pulsaciones. `q=2` silencia esas respuestas; y por eso tampoco
   se consulta al terminal para detectar el protocolo. `C=1` es el otro imprescindible:
   sin él la imagen mueve el cursor por debajo del compositor.
+- **`Static.update` lee un `str` como marcado de Rich.** Un texto que no escribimos
+  nosotros —un nombre de TIDAL («Lateralus [Deluxe Edition]»), el título de una pista,
+  el mensaje de una excepción— pierde todo lo que va desde el primer corchete, y si
+  lleva una etiqueta de cierre (`[/]`) lanza `MarkupError` en pleno render. Los cuatro
+  `Static` que reciben texto ajeno se construyen con `markup=False`; los que reciben un
+  `Text` ya construido (playlist, marquesina, letras) nunca corrieron peligro.
 - **Una imagen de kitty flota por encima del texto.** Un modal se abre *debajo* de la
   carátula, no encima. Hay que retirarla al apilar la pantalla y restaurarla al
   desapilarla; `z=-1` no sirve, porque entonces el fondo del propio widget la taparía.

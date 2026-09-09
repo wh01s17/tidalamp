@@ -23,6 +23,7 @@ and no browser in the middle: device flow + mpv.
 - [Configuration](#configuration)
   - [Language](#language)
 - [Keys](#keys)
+- [Help and about](#help-and-about)
 - [While something is loading](#while-something-is-loading)
 - [When something fails](#when-something-fails)
 - [Lyrics](#lyrics)
@@ -348,7 +349,25 @@ The defaults deliberately match Winamp and may be changed as described above.
 | `←` `→` | seek ±5 seconds |
 | `+` `-` | change volume |
 | `t` | toggle elapsed / remaining time |
+| `?` `h` | open the help window |
 | `q` | quit |
+
+## Help and about
+
+`?` (or `h`) opens a window listing every key with what it does, grouped by
+what you are doing: playback, volume, the queue, the windows, favourites, and
+the keys that only apply inside search and the library.
+
+It reads the bindings from the running app, not from a hardcoded list, so a key
+rebound in `config.toml` shows up there as the key you actually have to press.
+
+The same window carries the *About* section — version, author, repository,
+licence — and a summary of what each released version brought. Those notes live
+in `tidalamp/about.py` rather than being parsed out of `CHANGELOG.md`, which is
+not shipped inside the wheel.
+
+`↑` `↓` scroll, `PgUp` `PgDn` a page, `Home` `End` jump to either end, and
+`?`, `h` or `Esc` close it.
 
 ## While something is loading
 
