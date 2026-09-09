@@ -5,6 +5,12 @@ versionado es [semántico](https://semver.org/lang/es/).
 
 ## [Sin publicar]
 
+### Añadido
+
+- El README explica cómo actualizar una instalación con `pipx upgrade`, incluido
+  que el extra `art` se conserva y que justo después de publicar una versión pip
+  puede responder «already at latest version» por su caché del índice.
+
 ## [0.1.1] - 2026-09-09
 
 Versión de documentación y de primer contacto: lo que veía quien instalaba tidalamp

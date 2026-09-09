@@ -44,7 +44,7 @@ Authorize once through the link it prints, and the session is kept at
 ## Installation
 
 > [!IMPORTANT]
-> **Availability for version 0.1.0:** PyPI is the active installation channel. The AUR
+> **Availability:** PyPI is the active installation channel. The AUR
 > package is ready, but its publication is delayed because
 > [registration of new AUR accounts remains closed](https://lists.archlinux.org/archives/list/aur-general%40lists.archlinux.org/message/2IJD5MFHSLXARQTOP4FH64CJLW2BIIGC/)
 > during the service's security hardening. No reopening date has been announced.
@@ -103,6 +103,36 @@ command remains available and does exactly the same thing.
 
 The release process is documented in [`publish.md`](publish.md), and packaging notes
 in [`packaging/README.md`](packaging/README.md).
+
+### Updating
+
+```sh
+pipx upgrade tidalamp
+```
+
+pipx reinstalls from the spec it was given, so the `art` extra is kept. `pipx
+upgrade-all` covers tidalamp along with everything else pipx manages.
+
+Right after a release, pipx may still answer *already at latest version* with the
+previous number: pip caches the package index for a few minutes. Either wait, or skip
+the cache for one run:
+
+```sh
+PIP_NO_CACHE_DIR=1 pipx upgrade tidalamp
+```
+
+From a repository checkout instead:
+
+```sh
+git pull
+.venv/bin/pip install -e ".[art]"
+```
+
+`mpv` and `cava` are system packages — your distribution updates those, not pipx.
+
+There is no `--version` flag. The running version is on the help screen (`?`, under
+_About_), together with the notes for each release; `pipx list` shows what is
+installed.
 
 ### Minimum size
 
