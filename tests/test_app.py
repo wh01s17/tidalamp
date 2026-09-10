@@ -2525,6 +2525,34 @@ def test_switching_layout_keeps_the_cover_off_the_seek_bar(theme, monkeypatch):
     asyncio.run(scenario())
 
 
+def test_the_band_follows_the_padding_even_when_nothing_resized(monkeypatch):
+    """The padding is the other half of the sum and settles on its own
+    schedule: at startup the layout class lands before Textual has recomputed
+    the styles, so the first pass reads none and the second resizes nothing.
+    Tying the correction to the cover having changed size skipped it."""
+    isolate_runtime(monkeypatch)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(150, 44)) as pilot:
+            await pilot.pause()
+            application.query_one(Artwork).show(a_cover())
+            await pilot.pause()
+
+            display = application.query_one("#display")
+            before = int(display.styles.height.value)
+            # A layout that pads where the last one did not, with a cover that
+            # is already the right size, so `resize()` reports nothing.
+            display.styles.padding = (2, 1, 0, 0)
+            application._fit_artwork()
+
+            # The declared height, not the laid-out one: this is what the band
+            # is responsible for, and the geometry follows a frame later.
+            assert int(display.styles.height.value) == before + 2
+
+    asyncio.run(scenario())
+
+
 def test_a_document_window_is_no_wider_than_what_it_holds(monkeypatch):
     """The browser is a table and spends every cell. Help and lyrics are
     documents, and an 85% box on a wide terminal left two thirds of itself

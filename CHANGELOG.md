@@ -12,7 +12,10 @@ versionado es [semántico](https://semver.org/lang/es/).
   tamaño, y cada disposición lleva un padding distinto: al cambiar de tema la banda
   conservaba el alto de la anterior y la imagen sobresalía una fila. Como un protocolo
   gráfico no se recorta a su widget sino que pinta encima, esa fila caía sobre la barra.
-  Se veía sobre todo en `nova`.
+  Se veía sobre todo en `nova`, y también al arrancar con ese tema ya elegido: la clase
+  de la disposición se aplica antes de que se recalculen los estilos, así que la primera
+  medición no veía el padding y la segunda no redimensionaba nada. El alto se recalcula
+  ahora siempre.
 
 ### Cambiado
 

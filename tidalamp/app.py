@@ -370,8 +370,15 @@ class TidalAmp(App):
         by_height = self.size.height // 4
         by_width = (self.size.width - CLOCK_WIDTH - READOUT_WIDTH - 4) // 2
         resized = widget.resize(min(by_height, by_width))
-        if compact_changed or resized:
-            self._fit_display_band()
+        # Unconditionally, not only when the cover changed size. The padding
+        # is the other half of the sum and it settles on its own schedule: at
+        # startup the layout class is set before Textual has recomputed the
+        # styles, so the first pass reads no padding, and the second pass —
+        # where the real terminal size arrives — resizes nothing and used to
+        # skip the correction. Assigning a height that is already right costs
+        # nothing; getting here and not assigning it cost a row of cover on
+        # top of the seek bar.
+        self._fit_display_band()
         # resize() dropped the cover it had, because it was the old size. A
         # compact layout does the same so graphical protocols cannot float
         # over the queue; expanding fetches it again here.

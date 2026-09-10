@@ -749,6 +749,13 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
       la otra, porque cada una lleva un padding distinto, y al cambiar de tema en vivo
       la banda conservaba el alto calculado bajo la anterior. En `nova` eso ponía la
       carátula justo encima de la línea de tiempo.
+- [x] Por eso el alto se reasigna **siempre** que corre `_fit_artwork`, y no sólo cuando
+      la carátula cambió de tamaño. El padding se asienta a su ritmo: al arrancar, la
+      clase de la disposición se pone antes de que Textual recalcule los estilos, así
+      que la primera pasada lee cero padding y la segunda —la del tamaño real del
+      terminal— no redimensiona nada y se saltaba la corrección. Asignar un alto que ya
+      era correcto no cuesta nada; llegar hasta ahí y no asignarlo costaba una fila de
+      carátula sobre la barra de posición.
 
 ### Carátula en `blocks` — `artwork.py`, `widgets.py`
 
