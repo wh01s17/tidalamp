@@ -50,6 +50,17 @@ def releases() -> tuple[Release, ...]:
     """Newest first. Translated at call time, not at import time."""
     return (
         Release(
+            "0.3.0",
+            "2026-09-10",
+            (
+                _("El analizador llega al borde y tiene cuatro formas."),
+                _("Buscador en la cola con ctrl+f, sin renumerar las pistas."),
+                _("La ayuda en dos pestañas: atajos y acerca de."),
+                _("tidalamp --version imprime la versión en el terminal."),
+                _("El analizador cuesta mucho menos en pantallas 4K."),
+            ),
+        ),
+        Release(
             "0.2.0",
             "2026-09-10",
             (

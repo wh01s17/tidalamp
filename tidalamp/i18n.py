@@ -238,6 +238,22 @@ ENGLISH: dict[str, str] = {
     ),
     " ↑↓ desplazar   ← ayuda   ?/h/esc cerrar": " ↑↓ scroll   ← help   ?/h/esc close",
     "Acerca de": "About",
+    # --- notas de versión 0.3.0
+    "El analizador llega al borde y tiene cuatro formas.": (
+        "The analyzer reaches the edge and comes in four shapes."
+    ),
+    "Buscador en la cola con ctrl+f, sin renumerar las pistas.": (
+        "Search the queue with ctrl+f; the track numbers stay true."
+    ),
+    "La ayuda en dos pestañas: atajos y acerca de.": (
+        "The help screen in two tabs: keys, and about."
+    ),
+    "tidalamp --version imprime la versión en el terminal.": (
+        "tidalamp --version prints the version in the terminal."
+    ),
+    "El analizador cuesta mucho menos en pantallas 4K.": (
+        "The analyzer costs far less on 4K displays."
+    ),
     "Filtro en el navegador con /: estrecha el nivel donde estés.": (
         "Filter in the browser with /: it narrows the level you are on."
     ),

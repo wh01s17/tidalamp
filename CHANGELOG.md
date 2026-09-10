@@ -5,6 +5,59 @@ versionado es [semántico](https://semver.org/lang/es/).
 
 ## [Sin publicar]
 
+## [0.3.0] - 2026-09-10
+
+### Añadido
+
+- **Formas para el analizador**, elegibles en la ventana de ajustes (`o`, en
+  Apariencia), en `config.toml` o con `TIDALAMP_VISUALIZER`: `bars` son las barras de
+  siempre, `mirror` las hace crecer hacia arriba y hacia abajo desde una línea central,
+  `curve` dibuja el contorno del espectro como una línea de un glifo por columna, y
+  `fine` dibuja esa misma línea sobre la rejilla de puntos del Braille, con el doble de
+  resolución horizontal y los puntos entre muestra y muestra encendidos, así que sale
+  un trazo continuo en vez de una fila de marcas sueltas. `fine` necesita una fuente
+  que traiga Braille: casi todas lo hacen, pero una que no dibuja cuadraditos y a un
+  terminal no se le puede preguntar de antemano, por eso es una forma que se elige y no
+  una a la que nada cae solo. Las cuatro se dibujan donde el analizador ha estado
+  siempre —al lado de la carátula, bajo los datos de la pista— y las cuatro llegan
+  hasta el borde derecho de la ventana; antes las barras se paraban a las 19 y dejaban
+  vacíos dos tercios de la columna. Las cuatro leen el mismo frame de cava, que ahora
+  se pide con más bandas de las que dibuja ninguna y cada forma remuestrea, así que
+  cambiar de una a otra cuesta un repintado y no reinicia el FFT.
+
+- **Buscador en la cola**, con `ctrl+f`. Abre una barra bajo la lista, al estilo del
+  filtro `/` del navegador de la biblioteca: no tapa la cola, la estrecha debajo
+  mientras se escribe, y a la derecha dice cuántas pistas quedan de cuántas. Ignora
+  mayúsculas y acentos, exige que cada palabra aparezca en algún sitio y busca también
+  por el álbum de la pista. Las filas conservan **el número que tienen de verdad en la
+  cola**: una coincidencia que sale como `47` dice dónde está en el orden de
+  reproducción en vez de fingir que es la primera. `↵` devuelve las flechas a la lista
+  con el filtro puesto y `esc` lo quita dejando el cursor en la pista a la que se había
+  llegado. Todo lo que actúa sobre la fila seleccionada —`↵`, `d`, `alt+↑`, `alt+↓`,
+  `f`— actúa sobre esa pista y no sobre el sitio que ocupa en la pantalla. La tecla es
+  rebindeable como cualquier otra, con la acción `filter_queue`.
+
+- **`tidalamp -v` / `tidalamp --version`**: imprime `tidalamp <versión>` en el terminal
+  y sale. El número estaba sólo dentro de la interfaz, y quien lo necesita suele
+  necesitarlo justo cuando la interfaz no arranca. Responde antes de que nada pida
+  sesión, `mpv` ni un terminal de cierto tamaño, y lee la misma versión que enseña la
+  pantalla de ayuda.
+
+### Cambiado
+
+- **El analizador es mucho más barato en pantallas grandes.** Las barras se topan en 64
+  bandas y se ensanchan para cubrir el ancho, en vez de multiplicarse y adelgazar según
+  crece el terminal, y los tramos de un mismo color se mandan al terminal en una sola
+  secuencia de escape en lugar de una por celda. A 380x50 —un 4K— eso baja el coste de
+  la app de **55% de un núcleo a 8%** a diez frames por segundo. También sale ganando el
+  analizador de siempre en un terminal normal: pinta menos tramos que antes.
+
+- **La ayuda pasa a dos pestañas**: «Ayuda» son los atajos y `→` lleva a «Acerca de»,
+  con los créditos, la licencia y los cambios por versión; `←` vuelve. Antes era un
+  documento seguido en el que todo eso quedaba tres pantallas por debajo de lo único
+  que se abre la ventana a mirar. Cada pestaña recuerda por dónde iba, la barra de
+  título marca en cuál estás, y el pie dice a dónde lleva la flecha que queda.
+
 ## [0.2.0] - 2026-09-10
 
 ### Añadido
