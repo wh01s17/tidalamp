@@ -50,6 +50,17 @@ def releases() -> tuple[Release, ...]:
     """Newest first. Translated at call time, not at import time."""
     return (
         Release(
+            "0.2.0",
+            "2026-09-10",
+            (
+                _("Filtro en el navegador con /: estrecha el nivel donde estés."),
+                _("Las ventanas toman la pantalla; opcionalmente translúcidas."),
+                _("Con transparencia, la carátula va en medios bloques."),
+                _("Configuración agrupada en Audio, Apariencia y General."),
+                _("Paleta black: fondo negro con acentos grises y blancos."),
+            ),
+        ),
+        Release(
             "0.1.1",
             "2026-09-09",
             (

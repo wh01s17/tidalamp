@@ -5,6 +5,8 @@ versionado es [semántico](https://semver.org/lang/es/).
 
 ## [Sin publicar]
 
+## [0.2.0] - 2026-09-10
+
 ### Añadido
 
 - **Paleta `black`**: negro puro de fondo y todo lo demás en grises y blancos. Es la

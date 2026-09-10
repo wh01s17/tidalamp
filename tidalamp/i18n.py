@@ -228,6 +228,21 @@ ENGLISH: dict[str, str] = {
     "▓ AYUDA ▓  {name} {version}": "▓ HELP ▓  {name} {version}",
     " ↑↓ desplazar   ?/h/esc cerrar": " ↑↓ scroll   ?/h/esc close",
     "Acerca de": "About",
+    "Filtro en el navegador con /: estrecha el nivel donde estés.": (
+        "Filter in the browser with /: it narrows the level you are on."
+    ),
+    "Las ventanas toman la pantalla; opcionalmente translúcidas.": (
+        "Windows take the screen; translucent if you want them to be."
+    ),
+    "Con transparencia, la carátula va en medios bloques.": (
+        "With transparency on, the cover is drawn with half blocks."
+    ),
+    "Configuración agrupada en Audio, Apariencia y General.": (
+        "Settings grouped into Audio, Appearance and General."
+    ),
+    "Paleta black: fondo negro con acentos grises y blancos.": (
+        "black palette: a black ground with grey and white accents."
+    ),
     "Cliente de TIDAL para terminal, con una interfaz retro.": (
         "A TIDAL client for the terminal, with a retro player interface."
     ),
