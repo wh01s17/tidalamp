@@ -50,6 +50,17 @@ def releases() -> tuple[Release, ...]:
     """Newest first. Translated at call time, not at import time."""
     return (
         Release(
+            "0.5.0",
+            "2026-09-10",
+            (
+                _("u deshace el último vaciado de la cola."),
+                _("Ocho presets de ecualizador, con p y P."),
+                _("Añadir una pista a una playlist que ya tienes."),
+                _("La carátula en blocks, al doble de resolución."),
+                _("space reproduce; m abre el menú sobre la cola."),
+            ),
+        ),
+        Release(
             "0.4.0",
             "2026-09-10",
             (

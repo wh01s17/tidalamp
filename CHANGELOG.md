@@ -5,6 +5,8 @@ versionado es [semántico](https://semver.org/lang/es/).
 
 ## [Sin publicar]
 
+## [0.5.0] - 2026-09-10
+
 ### Arreglado
 
 - **Al cambiar de tema en vivo, la carátula se montaba sobre la barra de posición.** El

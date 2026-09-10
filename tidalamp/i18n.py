@@ -238,6 +238,18 @@ ENGLISH: dict[str, str] = {
     ),
     " ↑↓ desplazar   ← ayuda   ?/h/esc cerrar": " ↑↓ scroll   ← help   ?/h/esc close",
     "Acerca de": "About",
+    # --- notas de versión 0.5.0
+    "u deshace el último vaciado de la cola.": "u undoes the last queue clear.",
+    "Ocho presets de ecualizador, con p y P.": "Eight equalizer presets, on p and P.",
+    "Añadir una pista a una playlist que ya tienes.": (
+        "Add a track to a playlist you already have."
+    ),
+    "La carátula en blocks, al doble de resolución.": (
+        "Cover art in blocks, at twice the resolution."
+    ),
+    "space reproduce; m abre el menú sobre la cola.": (
+        "space plays; m opens the menu on the queue."
+    ),
     # --- notas de versión 0.4.0
     "g vuelve a la pista que suena; p guarda la cola en TIDAL.": (
         "g goes back to the playing track; p saves the queue to TIDAL."
