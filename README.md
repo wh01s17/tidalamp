@@ -175,6 +175,7 @@ show the key that actually works.
 | `↑` `↓` `Enter` | navigate; on a track, open the track menu          |
 | `l`             | open the library browser                           |
 | `f` `F`         | add to / remove from favourites                    |
+| `/`             | inside the browser, filter the level you are on    |
 | `R`             | reload the level, bypassing the cache              |
 | `y`             | show lyrics for the current track                  |
 | `s` `r`         | shuffle (`⇄`) / repeat (`↻`), on the transport row |
@@ -206,6 +207,31 @@ artists. Enter a level with `↵` and go back with `⌫`.
 - `a` appends an item without interrupting the current track. On a playlist or album,
   it appends all of its contents.
 - `A` appends every track in the current level.
+
+Modal windows — the library, search, settings, lyrics, help — take a share of the
+terminal rather than a fixed 84x26, so a large screen gets a large library.
+
+Turn `transparency` on (in the settings window, or in the config file) and they open
+over a translucent scrim instead, leaving the player visible and dimmed behind them: a
+terminal cannot blur, and the scrim is what stands in for it. While a modal is open the
+player stops redrawing itself, so the scrim costs less than the opaque window did.
+
+Turning it on also limits the cover to `blocks` or `off` for as long as it lasts, and
+switches to `blocks` when it has to, saying so. Blocks are ordinary
+characters, so the window draws over them; an image sent with the kitty or sixel
+protocol is painted by the terminal *over* the text, which would put the album art on
+top of the window you are reading. The change applies immediately — the cover is redrawn
+with the new protocol without restarting tidalamp.
+
+- `/` **filters the level you are on**, from a bar at the foot of the window that
+  narrows the list underneath instead of covering it. What it filters is whatever the
+  level holds: tracks in your favourites, playlists in `My playlists`, albums, artists,
+  or a category of search results. Case and accents are ignored — `sinfonia` finds
+  *Sinfonía* — every word you type has to match somewhere, and a track is also found by
+  its album, which is not on the line unless you turned that column on. `↵` applies the
+  filter and gives the arrows back to the list; `Esc` clears it and leaves the browser
+  open, on the row you had reached. The `more…` row is never filtered out, because a
+  level is one page deep until you ask for the rest.
 
 `f` adds the selected track, album, artist, or playlist to TIDAL favourites; `F`
 removes it.
@@ -343,7 +369,9 @@ both can be changed from the settings window (`o`) without restarting playback.
 </table>
 
 `palette` accepts `auto` (follow Omarchy), `classic` (green-on-black, the player's own),
-the built-ins `tokyo-night`, `catppuccin`, `nord` and `gruvbox`, or the name of a TOML
+the built-ins `tokyo-night`, `catppuccin`, `nord`, `gruvbox` and `black` — pure black
+with grey and white accents, where lightness carries what hue carries elsewhere — or the
+name of a TOML
 file you drop in `~/.config/tidalamp/palettes/`. Custom palettes use the same format as
 Omarchy's `colors.toml`, so the built-ins and your own work on any Linux, with or
 without Omarchy.

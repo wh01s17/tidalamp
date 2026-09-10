@@ -127,7 +127,7 @@ def unknown_key_actions() -> list[str]:
     return sorted(set(config.KEYS) - set(DEFAULT_KEYS))
 
 
-# Fixed pieces of the display band, from winamp.tcss. `_fit_artwork` needs
+# Fixed pieces of the display band, from styles.tcss. `_fit_artwork` needs
 # them to work out how much of the row is left for the cover.
 CLOCK_WIDTH = 24
 READOUT_WIDTH = 30
@@ -149,7 +149,7 @@ class MainPanel(Vertical):
 class TidalAmp(App):
     """Main application."""
 
-    CSS_PATH = "winamp.tcss"
+    CSS_PATH = "styles.tcss"
     TITLE = "TIDAL AMP"
 
     # At 60×18 the compact layout drops the cover and balance row. Below that
@@ -217,6 +217,8 @@ class TidalAmp(App):
         self.cava: Cava | None = None
         # What the play/pause button is currently drawn as.
         self._transport_playing = False
+        # What the status line already says, so writing it again is free.
+        self._status_line = ""
         self._transport_hits: list[tuple[int, int, str]] = []
         self._playable: Playable | None = None
         self._sink = audio.Sink()
@@ -474,6 +476,26 @@ class TidalAmp(App):
     # ------------------------------------------------------------------- ticks
 
     def _tick_fast(self) -> None:
+        playing = not self.mpv.paused and not self.mpv.idle
+        # The play/pause button follows the state, but only redraw it when the
+        # state actually turns over: this runs ten times a second. It happens
+        # behind a modal too, so closing one never shows a stale glyph.
+        if playing != self._transport_playing:
+            self._transport_playing = playing
+            self._refresh_modes()
+            self._refresh_readout()
+
+        # Nothing behind a modal is worth animating. The scrim leaves the
+        # player visible on purpose, and a translucent screen is what makes
+        # that expensive: every analyzer frame repaints the player *and*
+        # blends the whole terminal again, ten times a second. Measured on a
+        # 4K terminal with the library open, 240x62: 8.8% of a core with the
+        # backdrop still against 37.7% with it dancing behind a window nobody
+        # is looking at. cava keeps only its latest frame, so the analyzer
+        # picks up where the music is — not where it was — on the way back.
+        if len(self.screen_stack) > 1:
+            return
+
         analyzer = self.query_one(Analyzer)
         if self.cava is not None:
             if self.cava.alive:
@@ -481,16 +503,9 @@ class TidalAmp(App):
             else:
                 self._stop_spectrum()
         analyzer.level = self.mpv.rms()
-        playing = not self.mpv.paused and not self.mpv.idle
         analyzer.active = playing
         analyzer.tick()
         self.query_one(Marquee).tick()
-        # The play/pause button follows the state, but only redraw it when the
-        # state actually turns over: this runs ten times a second.
-        if playing != self._transport_playing:
-            self._transport_playing = playing
-            self._refresh_modes()
-            self._refresh_readout()
 
     def _tick_slow(self) -> None:
         if not self.mpv.alive:
@@ -498,13 +513,22 @@ class TidalAmp(App):
             return
 
         position, duration = self.mpv.position, self.mpv.duration
-        clock = self.query_one(TimeDisplay)
-        clock.seconds, clock.total = position, duration
+        # The same rule as the fast tick: a player nobody is looking at does
+        # not redraw itself. Four times a second, a moving clock behind a
+        # modal costs a repaint of the player *and* a blend of the whole
+        # terminal, for a second hand under a scrim.
+        if len(self.screen_stack) == 1:
+            clock = self.query_one(TimeDisplay)
+            clock.seconds, clock.total = position, duration
 
-        seek = self.query_one(SeekBar)
-        seek.position, seek.total = position, duration
-        self.query_one("#volume", Slider).value = self.mpv.volume
-        self.query_one("#status", Static).update(f" {self.status}")
+            seek = self.query_one(SeekBar)
+            seek.position, seek.total = position, duration
+            self.query_one("#volume", Slider).value = self.mpv.volume
+        # The status line is the exception. A favourite added from the browser
+        # reports there, and through the scrim it is legible, so it is written
+        # even behind a modal — and it costs nothing when the words are the
+        # same, which four times a second they almost always are.
+        self._refresh_status()
 
         # mpv going idle after having played something means the track ended.
         idle = self.mpv.idle
@@ -518,6 +542,15 @@ class TidalAmp(App):
         if self._mpris_ready:
             self.mpris.publish()
             self.mpris.publish_tracks()
+
+    def _refresh_status(self) -> None:
+        """Write the status line, and only when it changed: `Static.update()`
+        repaints whether or not the words moved."""
+        line = f" {self.status}"
+        if line == self._status_line:
+            return
+        self._status_line = line
+        self.query_one("#status", Static).update(line)
 
     def _recover_mpv(self) -> None:
         """mpv died under us. Respawn it instead of freezing the UI on a dead
@@ -1134,7 +1167,50 @@ class TidalAmp(App):
             )
             return
         if url == self._art_url:
-            self.call_from_thread(widget.show, cover)
+            self.call_from_thread(self._art_ready, cover)
+
+    def _reload_art(self) -> None:
+        """Draw the cover again with the protocol that is now configured.
+
+        It used to take a restart, which was tolerable while the cover was a
+        detail of the display. It stopped being tolerable when transparency
+        began moving this setting on the user's behalf: they turned on «let
+        the player show through the window» and the hole where the cover had
+        been stayed there until they restarted the very thing they were
+        configuring.
+        """
+        self.art_protocol = artwork.detect_protocol(configured=config.ARTWORK)
+        widget = self._artwork()
+        if widget is None:
+            return
+        # Down first, and through `show(None)`: a kitty cover is a picture the
+        # terminal is holding on our behalf, and it outlives the cells it was
+        # drawn over until something deletes it. That is what `show(None)`
+        # sends. Then the caches go, so the reload is not mistaken for the
+        # cover that is already up.
+        self._art_hidden = False
+        self._pending_art = None
+        widget.show(None)
+        self._art_url = ""
+        entry = self.queue.current
+        if entry is not None:
+            self._load_art(entry)
+
+    def _art_ready(self, cover: artwork.Cover) -> None:
+        """Put a freshly rendered cover up — and take it straight back down if
+        there is a window in front of it.
+
+        A cover that lands while a modal is open used to be painted over that
+        modal, because a pixel protocol draws above the text no matter when it
+        arrived. It happens on any track change made from the browser, not
+        only when the protocol is switched. Half blocks are text and stay.
+        """
+        widget = self._artwork()
+        if widget is None:
+            return
+        widget.show(cover)
+        if len(self.screen_stack) > 1:
+            self._hide_art()
 
     def _artwork(self) -> Artwork | None:
         """The cover widget, or ``None`` before ``compose`` has produced it.
@@ -1150,11 +1226,16 @@ class TidalAmp(App):
     def _hide_art(self) -> None:
         """Take the cover down while another screen is in front.
 
-        kitty and sixel images live above the text, so a modal would open
-        underneath the cover instead of over it.
+        kitty and sixel images live above the text: the terminal paints them
+        over the cells, so a modal would open *underneath* the cover instead
+        of over it. Half blocks are ordinary characters and stack like any
+        other text, so those stay — which is what the scrim behind a modal is
+        for, and a cover that blinked out on `l` was the one hole in it.
         """
         widget = self._artwork()
         if self._art_hidden or widget is None or widget.cover is None:
+            return
+        if widget.cover.protocol is artwork.Protocol.BLOCKS:
             return
         self._art_hidden = True
         self._pending_art = widget.cover
@@ -1171,6 +1252,10 @@ class TidalAmp(App):
 
     def push_screen(self, screen, callback=None, wait_for_dismiss=False, *, mode=None):
         self._hide_art()
+        # The `transparency` setting travels as a class rather than as two
+        # copies of the stylesheet: the CSS says what transparent looks like,
+        # this says whether this window is.
+        screen.set_class(config.TRANSPARENCY, "transparent")
         return super().push_screen(screen, callback, wait_for_dismiss, mode=mode)
 
     @work(thread=True, exclusive=True)
@@ -1328,7 +1413,8 @@ class TidalAmp(App):
             i18n.refresh()
             self.status = _("el idioma cambia al reiniciar tidalamp")
         elif name == "artwork":
-            self.status = _("la carátula cambia al reiniciar tidalamp")
+            self._reload_art()
+            self.status = _("carátula: {value}").format(value=config.ARTWORK)
         elif name == "theme":
             self._apply_appearance()
             self.status = _("tema: {value}").format(value=config.THEME)
@@ -1345,6 +1431,14 @@ class TidalAmp(App):
                 for widget in screen.query(RowList):
                     widget.refresh()
             self.status = _("columnas: {count}").format(count=len(config.COLUMNS))
+        elif name == "transparency":
+            for screen in self.screen_stack:
+                screen.set_class(config.TRANSPARENCY, "transparent")
+            self.status = (
+                _("transparencia activada")
+                if config.TRANSPARENCY
+                else _("transparencia desactivada")
+            )
         elif name == "debug":
             self.status = _("registro: {value}").format(
                 value=_("activado") if config.DEBUG else _("desactivado")

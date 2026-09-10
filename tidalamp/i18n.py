@@ -162,9 +162,6 @@ ENGLISH: dict[str, str] = {
     "el idioma cambia al reiniciar tidalamp": (
         "the language changes when tidalamp restarts"
     ),
-    "la carátula cambia al reiniciar tidalamp": (
-        "cover art changes when tidalamp restarts"
-    ),
     # --- track action menu
     "reproducir o pausar (▶ / ‖)": "play or pause (▶ / ‖)",
     "Menú de pista: ahora, a continuación, radio y favoritos.": (
@@ -224,6 +221,9 @@ ENGLISH: dict[str, str] = {
     "añadir a la cola": "add to the queue",
     "añadir el nivel entero": "add the whole level",
     "recargar, ignorando la caché": "reload, ignoring the cache",
+    "filtrar el nivel: escribe y la lista se estrecha": (
+        "filter the level: type and the list narrows"
+    ),
     "añadir o quitar de favoritos": "add to or remove from favourites",
     "▓ AYUDA ▓  {name} {version}": "▓ HELP ▓  {name} {version}",
     " ↑↓ desplazar   ?/h/esc cerrar": " ↑↓ scroll   ?/h/esc close",
@@ -279,6 +279,33 @@ ENGLISH: dict[str, str] = {
     # --- browser
     "cargando…": "loading…",
     "vacío": "empty",
+    "Transparencia": "Transparency",
+    "Audio": "Audio",
+    "Apariencia": "Appearance",
+    "General": "General",
+    "deja ver el reproductor detrás de las ventanas": (
+        "lets the player show through the windows"
+    ),
+    "transparencia activada": "transparency on",
+    "transparencia desactivada": "transparency off",
+    "  La carátula pasa a blocks: kitty y sixel pintan la imagen sobre el\n"
+    "  texto y taparían la ventana.\n"
+    "  {url}": (
+        "  The cover switches to blocks: kitty and sixel paint the image over\n"
+        "  the text, and it would cover the window.\n"
+        "  {url}"
+    ),
+    "blocks se dibuja con texto y sobrevive a las ventanas": (
+        "blocks is drawn with text and survives the windows"
+    ),
+    "con transparencia sólo caben las que dibuja el texto": (
+        "with transparency, only the ones drawn with text fit"
+    ),
+    "carátula: {value}": "cover: {value}",
+    "filtrar este nivel…": "filter this level…",
+    "nada coincide con «{query}»": "nothing matches “{query}”",
+    "{shown} de {total}": "{shown} of {total}",
+    "{total} en este nivel": "{total} in this level",
     "cargando {level}…": "loading {level}…",
     "abriendo {label}…": "opening {label}…",
     "cargando más…": "loading more…",
@@ -331,6 +358,7 @@ ENGLISH: dict[str, str] = {
     "añadir": "add",
     "añadir todo": "add all",
     "recargar": "reload",
+    "filtrar": "filter",
     "favorito": "favourite",
     "quitar favorito": "remove favourite",
     "banda anterior": "previous band",
@@ -361,10 +389,6 @@ ENGLISH: dict[str, str] = {
     "LISTA DE REPRODUCCIÓN": "PLAYLIST",
     "cola": "queue",
     "COLA": "QUEUE",
-    " ↵ abrir/reproducir   a añadir   A añadir todo   f/F favorito"
-    "   ⌫ atrás   R recargar   esc cerrar": (
-        " ↵ open/play   a add   A add all   f/F favourite   ⌫ back   R reload   esc close"
-    ),
     " ↑↓ desplazar   y/esc cerrar": " ↑↓ scroll   y/esc close",
     "? ayuda · / buscar · l lib · y letra · e eq · o config · f/F favorito · q salir": (
         "? help · / search · l lib · y lyrics · e eq · o config · f/F favourite · q quit"
@@ -456,10 +480,14 @@ ENGLISH: dict[str, str] = {
     "# Estilo visual: quattro, retro, nova o ascii.\n"
     'theme = "quattro"\n\n'
     "# Paleta: auto sigue Omarchy; también classic, tokyo-night, catppuccin,\n"
-    "# nord, gruvbox o un TOML en ~/.config/tidalamp/palettes/.\n"
+    "# nord, gruvbox, black o un TOML en ~/.config/tidalamp/palettes/.\n"
     'palette = "auto"\n\n'
     "# Registro en ~/.local/state/tidalamp/tidalamp.log.\n"
     "debug = false\n\n"
+    "# Deja ver el reproductor a través de las ventanas superpuestas. Al activarla,\n"
+    "# la carátula pasa a medios bloques: kitty y sixel pintan la imagen por encima\n"
+    "# del texto y taparían la ventana.\n"
+    "transparency = false\n\n"
     "# Teclas. La izquierda es la acción, la derecha la tecla; varias se separan con\n"
     "# comas. Las de navegación (flechas, RePág/AvPág, Enter, Esc) no se cambian.\n"
     "[keys]\n"
@@ -481,10 +509,16 @@ ENGLISH: dict[str, str] = {
         "# Visual style: quattro, retro, nova or ascii.\n"
         'theme = "quattro"\n\n'
         "# Palette: auto follows Omarchy; also classic, tokyo-night, catppuccin,\n"
-        "# nord, gruvbox, or a TOML file in ~/.config/tidalamp/palettes/.\n"
+        "# nord, gruvbox, black, or a TOML file in ~/.config/tidalamp/palettes/.\n"
         'palette = "auto"\n\n'
         "# Log to ~/.local/state/tidalamp/tidalamp.log.\n"
         "debug = false\n\n"
+        "# Let the player show through the windows that open over it. Turning it "
+        "on\n"
+        "# switches the cover to half blocks: kitty and sixel paint the image over "
+        "the\n"
+        "# text, and it would cover the window.\n"
+        "transparency = false\n\n"
         "# Keys. The action is on the left and the key on the right; separate multiple\n"
         "# keys with commas. Navigation keys (arrows, Page Up/Down, Enter, Esc) "
         "are fixed.\n"
@@ -586,10 +620,16 @@ def config_template() -> str:
         "# Estilo visual: quattro, retro, nova o ascii.\n"
         'theme = "quattro"\n\n'
         "# Paleta: auto sigue Omarchy; también classic, tokyo-night, catppuccin,\n"
-        "# nord, gruvbox o un TOML en ~/.config/tidalamp/palettes/.\n"
+        "# nord, gruvbox, black o un TOML en ~/.config/tidalamp/palettes/.\n"
         'palette = "auto"\n\n'
         "# Registro en ~/.local/state/tidalamp/tidalamp.log.\n"
         "debug = false\n\n"
+        "# Deja ver el reproductor a través de las ventanas superpuestas. Al "
+        "activarla,\n"
+        "# la carátula pasa a medios bloques: kitty y sixel pintan la imagen por "
+        "encima\n"
+        "# del texto y taparían la ventana.\n"
+        "transparency = false\n\n"
         "# Teclas. La izquierda es la acción, la derecha la tecla; varias se "
         "separan con\n"
         "# comas. Las de navegación (flechas, RePág/AvPág, Enter, Esc) no se cambian.\n"

@@ -4,7 +4,12 @@ Documento de traspaso. Describe qué existe, qué está verificado, qué falta y
 criterio se tomaron las decisiones, para que cualquiera (humano o modelo) pueda
 retomar el trabajo sin contexto previo.
 
-**Última actualización:** 2026-09-09 (versión `0.1.0` cerrada y preparada para PyPI;
+**Última actualización:** 2026-09-10 (ventanas superpuestas proporcionales al terminal
+—inservibles en 4K a 84x26— sobre un velo translúcido que deja ver el reproductor, con
+el fondo congelado mientras hay un modal abierto para que eso cueste menos que antes;
+antes: filtro `/` dentro del navegador de la
+biblioteca, en una barra al pie que estrecha el nivel sin taparlo, y barra de ayuda del
+navegador que ya no se corta a mitad de palabra; antes: versión `0.1.0` cerrada y preparada para PyPI;
 Trusted Publishing configurado; publicación en el AUR aplazada sin fecha porque el
 registro público de cuentas nuevas continúa cerrado durante el endurecimiento de seguridad;
 cadena hi-res verificada en el hardware —el DAC
@@ -61,11 +66,11 @@ tidalamp/
   player.py     Clase Mpv: spawn del proceso, socket IPC, transporte, medición RMS.
   widgets.py    TimeDisplay, Marquee, Analyzer, SeekBar, Slider, Artwork. Sin lógica
                 de negocio.
-  screens.py    RowList y los seis modales: búsqueda, biblioteca, ecualizador,
+  screens.py    RowList, `fit_hints()` y los seis modales: búsqueda, biblioteca, ecualizador,
                 letras, ayuda y el menú de acciones de una pista. No guardan estado del reproductor: reciben lo que necesitan
                 al construirse y contestan por `dismiss`.
   app.py        TidalAmp: layout, transporte, workers y el pegamento con MPRIS.
-  winamp.tcss   Paleta y layout.
+  styles.tcss   Paleta y layout de todo lo que se dibuja.
   queue.py      Entry (metadatos serializables + Track perezoso) y Queue (orden,
                 shuffle, repeat, persistencia). No conoce la UI.
   library.py    Navegación de la biblioteca. Devuelve listas de Row, paginadas.
@@ -155,7 +160,7 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
 - [x] `rms()`: nivel en dBFS vía el filtro `astats` de mpv.
 - [x] `close()` con terminación limpia y borrado del socket.
 
-### Interfaz — `app.py`, `widgets.py`, `winamp.tcss`
+### Interfaz — `app.py`, `widgets.py`, `styles.tcss`
 
 - [x] Reloj de siete segmentos, con alternancia transcurrido/restante (`t`).
 - [x] Marquee del título con scroll.
@@ -193,7 +198,7 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
       reservado a los dos controles que llevan estado, con una regla del acento debajo
       del que está encendido.
 - [x] Paletas portables además de Omarchy: `classic`, `tokyo-night`, `catppuccin`,
-      `nord`, `gruvbox`, o un TOML propio en `~/.config/tidalamp/palettes/` con el
+      `nord`, `gruvbox`, `black`, o un TOML propio en `~/.config/tidalamp/palettes/` con el
       mismo formato que el `colors.toml` de Omarchy. El nombre se valida contra
       `[a-z0-9_-]+` antes de tocar el disco, así que una paleta no es una ruta.
 - [x] Paleta completa tomada del tema Omarchy activo cuando existe; recarga en vivo
@@ -286,11 +291,115 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
       la red útil eran 0,25 s. Como no editamos playlists, `_playlists_level()` parsea
       el listado con `Playlist.parse()` (que no pide nada) y se salta la factoría.
       Además ahora pagina como el resto. Resultado en la app real: **0,39 s**.
+- [x] **Filtro del nivel con `/`** (`library.matches` + `BrowserScreen`). Una barra al
+      pie del navegador, como el buscador de un navegador web: no es un modal, no tapa
+      la lista, la estrecha debajo mientras se teclea y a la derecha dice «12 de 103».
+      Filtra lo que el nivel contenga, que es justo lo que el usuario pidió: pistas en
+      «Pistas favoritas», playlists en «Mis playlists», álbumes, artistas o una categoría
+      de resultados de búsqueda.
+      - `matches()` compara sin mayúsculas ni acentos (NFD + descarte de combinantes),
+        exige que **cada palabra** escrita aparezca en algún sitio, y mira etiqueta,
+        detalle y **álbum de la pista** —que no está en la línea salvo que se haya
+        activado esa columna, y es lo que la gente recuerda.
+      - La fila «más…» **nunca se filtra**. Un nivel tiene una página hasta que alguien
+        pide el resto; esconder la única forma de pedirlo diría que 12 de 766 favoritos
+        son todo lo que hay, que es la misma mentira que se arregló en `_paged`.
+      - El filtro pertenece al nivel: entrar en otro, volver con `⌫` o recargar con `R`
+        lo dejan limpio, porque abrir un nivel ya escondido a medias y sin nada que lo
+        explique es peor que no filtrar.
+      - `↵` aplica y devuelve las flechas a la lista; `esc` lo quita **y deja el
+        navegador abierto**, con el cursor en la fila a la que se había llegado; el
+        segundo `esc` ya cierra.
+      - `RowList.extend_at` desapareció: la página que llega se empalma sobre la lista
+        del nivel **identificando la fila «más…» por sí misma**, no por su número, porque
+        bajo un filtro el número en pantalla no es su sitio en el nivel. Sigue siendo un
+        empalme in situ sobre la lista que entregó la caché, así que las páginas ya
+        traídas siguen ahí al volver.
 - [x] Caché de niveles en memoria (`library.cached` / `library.forget`): volver a
       entrar en un nivel ya visitado es instantáneo. Sólo en memoria, porque una
       biblioteca cambia desde otros dispositivos; `R` en el navegador olvida el nivel y
       lo vuelve a pedir. La lista cacheada se entrega tal cual, no copiada, para que
       las páginas que el usuario ya cargó con «más…» sigan ahí al volver.
+
+### Configuración — `screens.py`, `config.py`
+
+- [x] **Agrupada por temática**: Audio (calidad, ritmos hi-res, reiniciar PipeWire),
+      Apariencia (tema, paleta, transparencia, carátula, columnas) y General (idioma,
+      registro). Diez ajustes en una columna se leían como diez interruptores sin
+      relación. Las cabeceras se dibujan desde `Option.group`, así que el cursor sigue
+      indexando sólo filas reales y ningún test que busca por etiqueta se entera.
+- [x] La lista se desplaza a mano alrededor del cursor cuando no cabe. Las cabeceras
+      costaron cinco líneas y en 60x18 dejaron filas seleccionables e invisibles a la
+      vez. La ventana se calcula desde el alto del **terminal** menos `CHROME`, no desde
+      el widget: la caja crece con su texto y sólo la recorta el layout, que ocurre
+      *después* de este render, así que preguntarle a la caja o a la lista devuelve el
+      alto del texto justo cuando hace falta el otro.
+- [x] La ventana crece con su propio texto (`height: auto`) con un suelo de 24 filas.
+      Un `1fr` dentro de una caja `auto` se come todas las filas del terminal —se probó,
+      y quedaba media ventana vacía en 4K—; una altura fija dejaba el mismo hueco.
+- [x] **La carátula sigue al ajuste en vivo** (`_reload_art`). Antes pedía reiniciar, lo
+      cual convertía «enciendo la transparencia para ver el reproductor» en «veo el
+      reproductor con un agujero donde estaba la carátula hasta el próximo arranque».
+      Baja la imagen vieja con `show(None)` —que es lo que manda el borrado de kitty—,
+      redetecta el protocolo y vuelve a pedir la carátula de la pista en curso.
+- [x] **Una carátula que aterriza con un modal abierto se retira sola** (`_art_ready`).
+      No era sólo cosa del cambio de protocolo: una imagen de píxeles se pinta sobre el
+      texto llegue cuando llegue, así que empezar una pista desde el navegador dejaba la
+      portada encima del navegador. Las de medios bloques se quedan donde caen.
+- [x] **La carátula se restringe mientras hay transparencia**: `ARTWORKS_OVER_PLAYER`
+      deja `blocks` y `off`, y las filas se reconstruyen al cambiar el interruptor para
+      que la lista de al lado no siga describiendo el ajuste como era. `auto` se cae de
+      la lista a propósito: es una promesa que cumple el terminal, y en uno con kitty
+      promete exactamente lo que la transparencia no puede tener. Al apagarla vuelven
+      los cinco modos, y el valor no se restaura solo porque no se guarda cuál era.
+- [x] **Transparencia como ajuste** (`transparency`, `TIDALAMP_TRANSPARENCY`), apagada
+      por defecto. Encenderla escribe `artwork = "blocks"` cuando la carátula la dibuja
+      kitty o sixel, y lo anuncia en la propia pantalla con enlace a la especificación
+      del protocolo de kitty. No es un capricho: esas imágenes las pinta el terminal por
+      encima del texto, así que la ventana se abriría debajo de la carátula, y quien
+      enciende la transparencia lo hace justamente para ver lo que hay detrás. Se apagó
+      por defecto para que nadie pierda resolución de carátula sin haberlo pedido.
+      El ajuste viaja como clase CSS (`ModalScreen.transparent`), no como una segunda
+      hoja de estilos, y se aplica también a las ventanas ya abiertas.
+
+### Ventanas superpuestas — `styles.tcss`, `app.py`
+
+- [x] **Tamaño proporcional al terminal.** Eran 84x26 fijas: en 4K, un sello en medio de
+      un campo vacío. Los paneles (biblioteca, letra, ayuda) toman el 85% del terminal,
+      con `min-width: 60` para el mínimo que la app acepta y `max-width: 160` porque
+      pasada esa anchura una línea de pista es casi todo hueco y el ojo tiene que viajar
+      para leer una fila. Los diálogos crecen con el terminal dentro de lo que pide su
+      contenido.
+- [x] **Velo translúcido en vez de fondo opaco.** La regla `Screen` de este fichero
+      pisaba el `background: $background 60%` que Textual ya da a `ModalScreen` —un
+      selector de tipo alcanza a las subclases—, así que abrir un modal borraba el
+      reproductor de la pantalla. Ahora `ModalScreen` lleva `$tidalamp-screen 55%` y las
+      cajas van esmeriladas (`panel 85%`, borde al 70%), de modo que el borde de la
+      ventana se lee como cristal sobre el reproductor y no como un bisel recortado
+      encima. Un terminal no sabe desenfocar; el velo es lo que hace de desenfoque.
+      El 85% del panel no es capricho: al 60% se transparentaba el texto de la cola a
+      través de los diálogos, y eso parece un fallo de dibujo, no cristal.
+- [x] **El fondo se congela mientras hay un modal delante**, que es lo que hace que el
+      velo salga gratis. Con la pantalla translúcida, Textual ya no puede saltarse lo
+      que hay debajo: cada fotograma del analizador repintaba el reproductor y volvía a
+      mezclar el terminal entero, diez veces por segundo. Medido en 240x62 con la
+      biblioteca abierta: **37,7% de un núcleo contra 0,5%** con el fondo quieto, y el
+      opaco de antes costaba 8,8%. `_tick_fast` sale antes de animar y `_tick_slow` no
+      mueve reloj, barra ni volumen mientras `len(screen_stack) > 1`.
+      - Sigue corriendo lo que no es cosmético: fin de pista, `mpv.alive`, MPRIS y el
+        botón de play/pausa cuando el estado da la vuelta, para que cerrar el modal no
+        enseñe un glifo viejo.
+      - La línea de estado es la excepción deliberada: un favorito añadido desde el
+        navegador informa ahí y a través del velo se lee. Se escribe siempre, pero sólo
+        cuando cambia (`_refresh_status`), porque `Static.update()` repinta aunque las
+        palabras sean las mismas y esto corre cuatro veces por segundo.
+- [x] **La carátula de medios bloques ya no se retira** al abrir un modal: son
+      caracteres normales y la ventana se dibuja encima sin más. La de kitty o sixel
+      sigue retirándose, y no es un descuido: el terminal pinta esas imágenes por encima
+      de las celdas, así que el modal se abriría *debajo* de la carátula. Quien quiera
+      verla mientras navega puede poner `Carátula: blocks` en la pantalla de `o`.
+      La decisión se toma por el protocolo de la carátula que hay puesta, no por el que
+      el terminal sabría hacer.
 
 ### Robustez — `net.py`, `player.py`, `auth.py`
 
@@ -394,7 +503,7 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
       modal y se restaura desde el tick lento al desapilarla, y se borra por id al
       desmontar el widget.
 
-### Barra de transporte — `app.py`, `winamp.tcss`
+### Barra de transporte — `app.py`, `styles.tcss`
 
 - [x] Dos mitades en un `Horizontal`: a la izquierda las teclas de transporte, a la
       derecha las ventanas alineadas al borde (`width: 1fr; text-align: right`). Antes
@@ -633,6 +742,12 @@ Distinguir esto importa: parte del código nunca se ha ejecutado contra TIDAL re
 | Cola: shuffle / repeat             | **Verificado**                    | Unitarias de recorrido en los tres modos y prueba Textual de indicadores persistentes por teclado y setters MPRIS.                                                             |
 | Cola: persistencia                 | **Verificado**                    | Ida y vuelta a disco, y dos sesiones reales de la app encadenadas.                                                                                                              |
 | Navegador de biblioteca            | **Verificado**                    | Drill-down, `↵`, `a` y `A` con una sesión simulada.                                                                                                                             |
+| Configuración agrupada             | **Verificado**                    | Dos unitarias: el orden Audio, Apariencia y General con cada fila bajo su cabecera, y en 60x18 el cursor en la última fila sigue dibujado, con su cabecera. Renderizado a imagen en 240x62 y 60x18. |
+| Transparencia como ajuste          | **Verificado**                    | Tres unitarias: el modal abre sólido, encenderla lo vuelve translúcido en la ventana ya abierta, y con carátula kitty escribe `artwork = blocks` y enseña el aviso con el enlace; con carátula de bloques no toca nada. |
+| Ventanas proporcionales y velo    | **Verificado**                    | Renderizado real a 240x62, 100x30 y el mínimo 60x18, con captura a imagen de biblioteca, búsqueda, configuración, ayuda y ecualizador. |
+| Coste del velo                     | **Medido**                        | 240x62 con la biblioteca abierta: 37,7% de un núcleo con el fondo animándose, 8,8% con el modal opaco de antes, **0,5%** con el fondo congelado. Tres pruebas fijan que el analizador y el reloj se paran detrás de un modal y que la línea de estado no. |
+| Filtro del nivel (`/`)             | **Verificado**                    | Seis unitarias de `library.matches` (acentos, varias palabras, álbum) y siete en la app real headless: la barra abre sin tapar el nivel, «sober» deja 1 de 3, la fila «más…» sobrevive, la página que llega bajo filtro cae en su sitio dentro del nivel, `esc` quita el filtro antes de cerrar y el nivel siguiente abre limpio. Falta verlo contra la biblioteca real. |
+| Barra de ayuda del navegador       | **Verificado**                    | Medida en la app real: a 82 columnas entraba `… ⌫ atrás   R` y el resto lo comía el borde. Ahora `fit_hints()` suelta entradas enteras por prioridad y la línea termina siempre en `esc cerrar`. |
 | Paginación de la biblioteca        | **Verificado**                    | Unitarias sobre `_paged`, y la app real headless: nivel de 103 pistas → 101 filas con `más…`, `↵` sobre ella → 103 filas sin `más…`.                                            |
 | Paginación con páginas filtradas   | **VERIFICADO CONTRA TIDAL REAL**  | En la cuenta del usuario, «Pistas favoritas» pasó de 90 filas sin `más…` a 8 páginas y **699 pistas alcanzables de 766**; los 67 restantes TIDAL no los devuelve en ninguna página. Álbumes 539 y artistas 397 igual. Unitarias con un doble que filtra la página después del límite. |
 | Búsqueda por categorías            | **VERIFICADO CONTRA TIDAL REAL**  | «tool» devuelve 101 pistas en 0,34 s con tres filas de categoría; abrirlas da 101 álbumes, 101 artistas y 76 playlists, una petición cada una y sólo al abrirlas. |
@@ -644,7 +759,7 @@ Distinguir esto importa: parte del código nunca se ha ejecutado contra TIDAL re
 | Balance y ecualizador              | **Verificado**                    | Grafos validados con `ffmpeg -af` de verdad; en la app real los filtros llegan a mpv, se guardan, y se reaplican tras reiniciar mpv.                                            |
 | Reintentos de red                  | **Verificado**                    | Unitarias: reintenta conexión/timeout/503, no reintenta 404, se rinde al tercer intento.                                                                                        |
 | Letras sincronizadas               | **Verificado con dobles**         | 9 pruebas de LRC, texto plano, ventanas, carga y fallos transitorios; el trabajo de red queda fuera del loop. Falta probar una letra real de TIDAL.                             |
-| Paletas: Omarchy, integradas y propias | **Verificado**                 | Unitarias con paletas temporales, las cinco integradas (`classic`, `tokyo-night`, `catppuccin`, `nord`, `gruvbox`), un TOML propio leído de su directorio y un nombre con `../` rechazado sin tocar el disco; más montaje Textual y cambio en vivo. La máquina cambió de Wh01s17 a Tokyo Night y el lector tomó el nuevo acento. |
+| Paletas: Omarchy, integradas y propias | **Verificado**                 | Unitarias con paletas temporales, las seis integradas (`classic`, `tokyo-night`, `catppuccin`, `nord`, `gruvbox`, `black`), un TOML propio leído de su directorio y un nombre con `../` rechazado sin tocar el disco; más montaje Textual y cambio en vivo. La máquina cambió de Wh01s17 a Tokyo Night y el lector tomó el nuevo acento. |
 | Estructuras (`theme`): las cuatro | **VERIFICADO A LA VISTA, A MEDIAS** | Pruebas Textual por estructura: los botones cuadrados de `retro` y sus dos barras regladas, el subrayado del acento en `nova`, los corchetes de `ascii`, que ninguna se sale a 60×18 y que ninguna deja la carátula sobre la barra de posición. **A la vista en kitty el usuario confirmó `quattro` y `nova`.** De `retro` sólo llegó a verse la versión de medios bloques, que se descartó por eso mismo (§7); la de teclas cuadradas y `ascii` no se han visto nunca en un terminal real, sólo bajo prueba. |
 | Refresco del token                 | **VERIFICADO CONTRA TIDAL REAL**  | Copia de la sesión real con el access token invalidado a mano: la app arranca, reescribe el token, completa el handshake (user id y país) y la API responde. El fichero real quedó intacto. Además 10 unitarias con dobles, incluida la del 401 que tidalapi deja escapar. |
 | **`login` y reproducción real**    | **VERIFICADO POR EL USUARIO**     | El usuario ejecutó `tidalamp tui` con su cuenta y reprodujo TOOL - Schism (Lateralus) el 2026-09-08. Login, búsqueda, `stream.resolve()` y salida de audio funcionan de verdad. |

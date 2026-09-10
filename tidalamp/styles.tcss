@@ -1,8 +1,67 @@
-/* Semantic palette: Omarchy when available, classic Winamp elsewhere. */
+/* The whole interface: layout, chrome and the semantic palette behind both.
+   The palette follows Omarchy when there is one and falls back to the classic
+   colours otherwise; the four looks (quattro, retro, nova, ascii) are blocks
+   at the foot of this file, one each. */
 
 Screen {
     background: $tidalamp-screen;
     layers: base notice;
+}
+
+/* Every modal is centred; whether the player shows through it is the
+   `transparency` setting, which the app hangs on the screen as a class.
+
+   A type selector matches subclasses, so the `Screen` rule above was painting
+   an opaque ground over the whole terminal — Textual's own `ModalScreen` dims
+   to 60% and this file was overriding it without meaning to. A terminal
+   cannot blur what is behind a window, so a translucent scrim is what stands
+   in for it: the player stays readable around the box, dimmed enough that the
+   box is plainly what has the keys. */
+ModalScreen {
+    align: center middle;
+    background: $tidalamp-screen;
+}
+
+ModalScreen.transparent {
+    background: $tidalamp-screen 55%;
+}
+
+/* With transparency on, every modal box is frosted rather than solid: the
+   panel and its border let a little of what is behind them through, so the
+   edge of the window reads as glass over the player instead of a hard bevel
+   cut out of it. The widgets inside keep their own opaque grounds, so it is
+   the frame that goes soft and never the text on a list. 85% and not less:
+   at 60% the queue's own text showed through the dialogs, which reads as a
+   drawing bug rather than as glass. */
+.transparent #search-box,
+.transparent #browser-box,
+.transparent #lyrics-box,
+.transparent #actions-box,
+.transparent #config-box,
+.transparent #columns-box,
+.transparent #help-box,
+.transparent #eq-box {
+    background: $tidalamp-panel 85%;
+    border: outer $tidalamp-border 70%;
+}
+
+/* The two shapes a modal takes.
+
+   A pane is a list to walk, so it takes a share of the terminal instead of a
+   fixed 84x26: on a 4K screen that box was a stamp in the middle of an empty
+   field, and the library it was showing four rows of has hundreds. It stops
+   growing sideways at 160 columns, past which a track line is mostly gap and
+   the eye has to travel to read one row. The minimum keeps it useful at the
+   60x18 the app refuses to run below. */
+#browser-box,
+#lyrics-box,
+#help-box {
+    width: 85%;
+    min-width: 60;
+    max-width: 160;
+    height: 85%;
+    min-height: 16;
+    max-height: 100%;
 }
 
 /* Sits above everything so a broken layout is never what the user sees. */
@@ -140,13 +199,10 @@ Screen {
     width: 1fr;
 }
 
-SearchScreen {
-    align: center middle;
-}
-
 #search-box {
-    width: 60;
-    max-width: 100%;
+    width: 45%;
+    min-width: 50;
+    max-width: 90;
     height: auto;
     max-height: 100%;
     background: $tidalamp-panel;
@@ -166,17 +222,10 @@ SearchScreen {
     border: tall $tidalamp-input-border;
 }
 
-BrowserScreen {
-    align: center middle;
-}
-
 #browser-box {
-    width: 84;
-    max-width: 100%;
-    height: 26;
-    max-height: 100%;
     background: $tidalamp-panel;
     border: outer $tidalamp-border;
+    padding: 1 2;
 }
 
 #statusbar {
@@ -221,23 +270,39 @@ BrowserScreen {
     padding: 0 1;
 }
 
+/* The filter bar, at the foot of the browser and over nothing. */
+#browser-filter-bar {
+    height: 1;
+    background: $tidalamp-track-background;
+}
+
+#browser-filter {
+    background: $tidalamp-track-background;
+    color: $tidalamp-accent;
+    border: none;
+    height: 1;
+    width: 1fr;
+    padding: 0 1;
+}
+
+#browser-filter-count {
+    background: $tidalamp-track-background;
+    color: $tidalamp-transport-foreground;
+    height: 1;
+    width: auto;
+    padding: 0 1;
+}
+
 #browser-hint {
     background: $tidalamp-transport-background;
     color: $tidalamp-transport-foreground;
     height: 1;
 }
 
-LyricsScreen {
-    align: center middle;
-}
-
 #lyrics-box {
-    width: 84;
-    max-width: 100%;
-    height: 28;
-    max-height: 100%;
     background: $tidalamp-panel;
     border: outer $tidalamp-border;
+    padding: 1 2;
 }
 
 #lyrics-title {
@@ -268,14 +333,11 @@ LyricsScreen {
     height: 1;
 }
 
-TrackActionsScreen {
-    align: center middle;
-}
-
 #actions-box {
     /* Sized to its content: a four-line menu, not another full-height pane. */
-    width: 46;
-    max-width: 100%;
+    width: 35%;
+    min-width: 46;
+    max-width: 68;
     height: auto;
     background: $tidalamp-panel;
     border: outer $tidalamp-border;
@@ -302,14 +364,16 @@ TrackActionsScreen {
     height: 1;
 }
 
-ConfigScreen {
-    align: center middle;
-}
-
 #config-box {
-    width: 76;
-    max-width: 100%;
+    width: 65%;
+    min-width: 60;
+    max-width: 130;
+    /* Its own text decides, with a floor. Eleven rows in the middle of a 4K
+       terminal read as a business card; a share of the screen read as half an
+       empty window, because a `1fr` list inside an `auto` box takes every row
+       there is. The floor only rounds the card up. */
     height: auto;
+    min-height: 24;
     max-height: 100%;
     background: $tidalamp-panel;
     border: outer $tidalamp-border;
@@ -326,17 +390,16 @@ ConfigScreen {
 #config-list {
     background: $tidalamp-display-background;
     color: $tidalamp-body;
+    /* `auto`, not `1fr`: the box is auto too, and a `1fr` child inside an
+       auto parent takes every row the terminal has. */
     height: auto;
-    padding: 1 1;
-}
-
-ColumnsScreen {
-    align: center middle;
+    padding: 1 2;
 }
 
 #columns-box {
-    width: 52;
-    max-width: 100%;
+    width: 40%;
+    min-width: 52;
+    max-width: 84;
     height: auto;
     max-height: 100%;
     background: $tidalamp-panel;
@@ -374,19 +437,12 @@ ColumnsScreen {
     dock: bottom;
 }
 
-HelpScreen {
-    align: center middle;
-}
-
 #help-box {
-    /* The other modals are a fixed 84 wide, which clips at the 76x20 minimum.
-       This one holds URLs, so it gives way instead of cutting them off. */
-    width: 84;
-    max-width: 100%;
-    height: 30;
-    max-height: 100%;
+    /* This one holds URLs, so a narrow terminal gives it the whole width
+       rather than cutting them off. */
     background: $tidalamp-panel;
     border: outer $tidalamp-border;
+    padding: 1 2;
 }
 
 #help-title {
@@ -410,15 +466,15 @@ HelpScreen {
     height: 1;
 }
 
-EqScreen {
-    align: center middle;
-}
-
 #eq-box {
-    width: 60;
-    max-width: 100%;
-    height: 17;
-    max-height: 100%;
+    width: 50%;
+    min-width: 60;
+    max-width: 100;
+    /* Taller faders on a tall terminal: `#eq-bars` is 1fr, so the rows the
+       box gains go to the bands and not to its chrome. */
+    height: 40%;
+    min-height: 17;
+    max-height: 28;
     background: $tidalamp-panel;
     border: outer $tidalamp-border;
 }

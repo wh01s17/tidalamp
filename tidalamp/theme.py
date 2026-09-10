@@ -135,6 +135,32 @@ _BUILTIN_SOURCES: dict[str, dict[str, str]] = {
         "green": "#98971a",
         "blue": "#458588",
     },
+    # Black on black, with everything else carried by how light a grey is.
+    # It spells out more of the vocabulary than the palettes above, which give
+    # only the ten keys they had to: with no `dark_foreground`, the secondary
+    # text (status, empty lists, inactive labels, the equaliser's idle bands)
+    # falls back to plain `foreground`, and a monochrome palette where the
+    # quiet text is as bright as the loud text has nothing left to say with.
+    # `red`, `yellow`, `green` and `blue` keep their jobs — danger, warning,
+    # playable rows, containers — and become four greys, brightest for the one
+    # that matters most, because lightness is the only axis here.
+    "black": {
+        "accent": "#f5f5f5",
+        "background": "#000000",
+        "foreground": "#e6e6e6",
+        "muted": "#3a3a3a",
+        "dark_foreground": "#8a8a8a",
+        "light_foreground": "#cfcfcf",
+        "bright_foreground": "#ffffff",
+        "dark_background": "#000000",
+        "lighter_background": "#141414",
+        "selection": "#5a5a5a",
+        "red": "#ffffff",
+        "yellow": "#bdbdbd",
+        "green": "#d0d0d0",
+        "bright_green": "#ffffff",
+        "blue": "#9a9a9a",
+    },
 }
 
 

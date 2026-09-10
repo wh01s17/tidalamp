@@ -7,9 +7,102 @@ versionado es [semántico](https://semver.org/lang/es/).
 
 ### Añadido
 
+- **Paleta `black`**: negro puro de fondo y todo lo demás en grises y blancos. Es la
+  primera monocroma, así que declara más vocabulario que las otras: sin
+  `dark_foreground`, el texto secundario —estado, listas vacías, etiquetas inactivas,
+  las bandas apagadas del ecualizador— caía en el `foreground` de siempre, y una paleta
+  sin color donde lo callado brilla igual que lo importante no tiene con qué decirlo.
+  `red`, `yellow`, `green` y `blue` conservan su papel (error, aviso, pistas
+  reproducibles, contenedores) y se vuelven cuatro grises, porque aquí el único eje es
+  cuánta luz tiene cada cosa. Una prueba fija que ningún color de la paleta tiene tono.
+
+- **Filtro dentro del navegador de la biblioteca**, con `/`. Abre una barra al pie de
+  la ventana, al estilo del buscador de un navegador web: no tapa el nivel, lo estrecha
+  debajo mientras se escribe, y a la derecha dice cuántas filas quedan de cuántas. Filtra
+  lo que el nivel tenga —pistas en favoritas, playlists en «Mis playlists», álbumes,
+  artistas o una categoría de resultados—, ignora mayúsculas y acentos (`sinfonia`
+  encuentra *Sinfonía*), exige que cada palabra escrita aparezca en algún sitio y busca
+  también por el álbum de la pista, que no está en la línea salvo que se active esa
+  columna. `↵` aplica el filtro y devuelve las flechas a la lista; `esc` lo quita y deja
+  el navegador abierto sobre la fila a la que se había llegado. La fila «más…» nunca se
+  filtra: un nivel sólo tiene una página hasta que alguien pide el resto, y esconder la
+  única forma de pedirlo convertiría el filtro en una mentira sobre 766 favoritos.
+
 - El README explica cómo actualizar una instalación con `pipx upgrade`, incluido
   que el extra `art` se conserva y que justo después de publicar una versión pip
   puede responder «already at latest version» por su caché del índice.
+
+### Cambiado
+
+- **La carátula cambia de protocolo en vivo**, sin reiniciar. Era tolerable pedir un
+  reinicio mientras esto era un detalle del display; dejó de serlo cuando la
+  transparencia empezó a mover ese ajuste por su cuenta, porque quien la encendía se
+  quedaba con el hueco de la carátula hasta el siguiente arranque de lo mismo que estaba
+  configurando. `_reload_art()` baja la imagen vieja —una carátula de kitty la sostiene
+  el terminal y sobrevive a las celdas donde se pintó hasta que algo la borra—, cambia
+  el protocolo y vuelve a pedirla.
+- **Una carátula que llega con una ventana abierta ya no se pinta encima de ella.** Pasa
+  con cualquier cambio de pista hecho desde el navegador, no sólo al cambiar el
+  protocolo: una imagen de píxeles se dibuja sobre el texto llegue cuando llegue. Ahora
+  aterriza y se retira sola si hay un modal delante. Las de medios bloques se quedan.
+- **Con la transparencia encendida, la carátula sólo ofrece `blocks` y `off`.** Las
+  demás dejan de estar en la lista mientras dure, porque `kitty` y `sixel` pintarían la
+  imagen sobre la ventana y `auto` promete justamente eso en un terminal que las sabe
+  hacer. Al apagarla vuelven los cinco modos. El aviso sale sólo cuando el cambio quita
+  una imagen de verdad: pasar de `auto` a `blocks` donde `auto` ya era `blocks` cambia
+  la palabra de la fila y nada de la pantalla.
+- **La transparencia es una opción, no una imposición.** Nueva fila
+  «Transparencia» en la pantalla de `o` (`transparency` en el fichero,
+  `TIDALAMP_TRANSPARENCY` en el entorno), apagada por defecto. Al encenderla, la
+  carátula pasa automáticamente a `blocks` y la pantalla lo dice en vez de mover
+  un ajuste a espaldas de nadie: kitty y sixel hacen que el terminal pinte la
+  imagen por encima del texto, así que la ventana se abriría debajo de la
+  carátula. El aviso enlaza la especificación del protocolo de kitty, que es
+  donde está documentado ese orden de dibujo.
+- **La pantalla de configuración va agrupada por temática**: Audio, Apariencia y
+  General. Diez ajustes en una sola columna se leían como diez interruptores sin
+  relación, con la calidad del stream pegada al color de los bordes. La lista se
+  desplaza sola cuando el terminal es pequeño, así que las filas de abajo ya no
+  quedan seleccionables e invisibles a la vez, que es lo que pasaba al añadir las
+  cabeceras. La ventana crece con su propio texto en vez de quedarse en once
+  filas en medio de una pantalla 4K.
+- `winamp.tcss` pasa a llamarse `styles.tcss`. Aloja el layout entero y los
+  cuatro estilos visuales, de los cuales «retro» es sólo uno; el nombre viejo
+  describía una skin que hace tiempo dejó de ser todo lo que hay dentro.
+
+- **Las ventanas superpuestas ocupan la pantalla que hay.** Eran 84x26 fijas, así que
+  en 4K quedaban como un sello en medio de un campo vacío. Ahora la biblioteca, la
+  letra y la ayuda toman el 85% del terminal (con un tope de 160 columnas, pasadas las
+  cuales una línea de pista es casi todo hueco) y los diálogos —buscar, configuración,
+  columnas, ecualizador, menú de la pista— crecen con él dentro de lo que pide su
+  contenido. En el terminal mínimo de 60x18 siguen cabiendo.
+- **El reproductor se ve detrás.** El fondo de los modales dejó de ser opaco: ahora es
+  un velo translúcido, y el marco de cada ventana es de cristal esmerilado en vez de un
+  bisel macizo. Un terminal no sabe desenfocar, así que el velo es lo que hace de
+  desenfoque. La regla `Screen` del proyecto pisaba sin querer el 60% que Textual ya
+  aplica a `ModalScreen`, y por eso hasta ahora el reproductor desaparecía del todo.
+- **Con un modal abierto, el reproductor deja de repintarse.** Es lo que hace que lo
+  anterior salga gratis: con la pantalla translúcida, cada fotograma del analizador
+  repintaba el reproductor *y* volvía a mezclar el terminal entero, diez veces por
+  segundo. Medido en 240x62 con la biblioteca abierta: **37,7% de un núcleo animándose
+  contra 0,5% con el fondo quieto** —menos que el 8,8% que costaba antes de todo esto,
+  cuando el modal era opaco. Lo que no es cosmético sigue corriendo detrás: fin de
+  pista, salud de mpv, MPRIS y la línea de estado, que es donde informa un favorito
+  añadido desde el navegador. La carátula dibujada con medios bloques ya no se retira
+  al abrir un modal; la de kitty o sixel sigue haciéndolo porque el terminal la pinta
+  por encima del texto y taparía la ventana.
+- La línea de estado sólo se reescribe cuando cambia. Se refrescaba cuatro veces por
+  segundo dijera lo que dijera, y `Static.update()` repinta igual.
+
+### Corregido
+
+- La barra de ayuda del navegador cabe en la ventana. Era un único literal de 97
+  celdas dentro de un recuadro de 84, así que el terminal la cortaba a mitad de
+  palabra y dejaba una «R» suelta contra el borde, con `R recargar` y `esc cerrar`
+  perdidos. Ahora se arma por piezas y suelta entradas enteras, de la menos esencial
+  a la más, hasta que la línea entra: se va antes `R recargar` que `esc cerrar`, y
+  `f/F favorito` aguanta más que `A añadir todo` porque `A` se adivina desde `a` y
+  los favoritos no se adivinan de ninguna parte.
 
 ## [0.1.1] - 2026-09-09
 
@@ -17,6 +110,15 @@ Versión de documentación y de primer contacto: lo que veía quien instalaba ti
 fuera de Arch estaba escrito para Arch. Ningún cambio en la reproducción.
 
 ### Añadido
+
+- **Paleta `black`**: negro puro de fondo y todo lo demás en grises y blancos. Es la
+  primera monocroma, así que declara más vocabulario que las otras: sin
+  `dark_foreground`, el texto secundario —estado, listas vacías, etiquetas inactivas,
+  las bandas apagadas del ecualizador— caía en el `foreground` de siempre, y una paleta
+  sin color donde lo callado brilla igual que lo importante no tiene con qué decirlo.
+  `red`, `yellow`, `green` y `blue` conservan su papel (error, aviso, pistas
+  reproducibles, contenedores) y se vuelven cuatro grises, porque aquí el único eje es
+  cuánta luz tiene cada cosa. Una prueba fija que ningún color de la paleta tiene tono.
 
 - Cuando falta `mpv` o `cava`, el mensaje nombra la orden de instalación de la
   distribución que se está ejecutando, leída de `/etc/os-release`. Antes decía
@@ -56,6 +158,15 @@ cerrado el registro público de cuentas nuevas por el endurecimiento de segurida
 servicio. El procedimiento y el estado completo están en [`publish.md`](publish.md).
 
 ### Añadido
+
+- **Paleta `black`**: negro puro de fondo y todo lo demás en grises y blancos. Es la
+  primera monocroma, así que declara más vocabulario que las otras: sin
+  `dark_foreground`, el texto secundario —estado, listas vacías, etiquetas inactivas,
+  las bandas apagadas del ecualizador— caía en el `foreground` de siempre, y una paleta
+  sin color donde lo callado brilla igual que lo importante no tiene con qué decirlo.
+  `red`, `yellow`, `green` y `blue` conservan su papel (error, aviso, pistas
+  reproducibles, contenedores) y se vuelven cuatro grises, porque aquí el único eje es
+  cuánta luz tiene cada cosa. Una prueba fija que ningún color de la paleta tiene tono.
 
 - `tidalamp` sin subcomando abre directamente el reproductor; `tidalamp tui` se
   conserva como forma explícita equivalente.

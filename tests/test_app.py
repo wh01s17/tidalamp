@@ -18,10 +18,15 @@ from tidalamp.artwork import Cover, Protocol
 from tidalamp.library import Row
 from tidalamp.player import Mpv
 from tidalamp.queue import Entry, Queue
-from tidalamp.screens import TRACK_ACTIONS, ColumnsScreen, TrackActionsScreen
+from tidalamp.screens import (
+    BROWSER_HINTS,
+    TRACK_ACTIONS,
+    ColumnsScreen,
+    TrackActionsScreen,
+)
 from tidalamp.settings import Settings
 from tidalamp.theme import DEFAULT_COLORS, ThemePalette
-from tidalamp.widgets import Artwork, Slider, Spinner
+from tidalamp.widgets import Analyzer, Artwork, Slider, Spinner, TimeDisplay
 
 
 async def settle(pilot, done, tries: int = 100) -> None:
@@ -399,7 +404,7 @@ def test_a_pixel_protocol_goes_out_as_a_zero_width_control_segment(monkeypatch):
     asyncio.run(scenario())
 
 
-def test_a_modal_takes_the_cover_down_and_the_tick_puts_it_back(monkeypatch):
+def test_a_modal_takes_a_pixel_cover_down_and_the_tick_puts_it_back(monkeypatch):
     """kitty images float above the text, so a modal would open under them."""
     isolate_runtime(monkeypatch)
 
@@ -408,7 +413,7 @@ def test_a_modal_takes_the_cover_down_and_the_tick_puts_it_back(monkeypatch):
         # Roomy on purpose: the compact layout drops the cover by design.
         async with application.run_test(size=(100, 30)) as pilot:
             art = application.query_one(Artwork)
-            cover = a_cover()
+            cover = a_cover(Protocol.KITTY, escape="\x1b_Ga=T\x1b\\")
             art.show(cover)
             await pilot.pause()
 
@@ -422,6 +427,195 @@ def test_a_modal_takes_the_cover_down_and_the_tick_puts_it_back(monkeypatch):
             application._tick_slow()
             assert art.cover is cover
             assert not application._art_hidden
+
+    asyncio.run(scenario())
+
+
+def test_switching_the_cover_protocol_redraws_it_without_a_restart(monkeypatch):
+    """It used to say «al reiniciar», which was tolerable while this was a
+    detail of the display. Transparency now moves this setting on the user's
+    behalf, and a hole where the cover was until the next launch is not."""
+    isolate_runtime(monkeypatch)
+    asked: list[str] = []
+    monkeypatch.setattr(TidalAmp, "_art_worker", lambda self, url: asked.append(url))
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        application.art_protocol = Protocol.KITTY
+        async with application.run_test(size=(100, 30)) as pilot:
+            await pilot.pause()
+            entry = Entry(id=1, title="t", artist="a", art_url="https://c/1.jpg")
+            application.queue.replace([entry], start=0)
+            application._load_art(entry)
+            application.query_one(Artwork).show(a_cover(Protocol.KITTY))
+            asked.clear()
+
+            # Through monkeypatch: it is a module global, and leaving it set
+            # would follow the next test into its own run.
+            monkeypatch.setattr(app_module.config, "ARTWORK", "blocks")
+            application._setting_changed("artwork")
+            await pilot.pause()
+
+            assert application.art_protocol is Protocol.BLOCKS
+            # The old picture came down — a kitty image outlives its cells
+            # until something deletes it — and the new one was asked for.
+            assert asked == ["https://c/1.jpg"]
+
+    asyncio.run(scenario())
+
+
+def test_a_cover_that_lands_while_a_modal_is_open_does_not_cover_it(monkeypatch):
+    """A pixel cover is painted above the text whenever it arrives, so a track
+    started from the browser used to drop the album art onto the browser."""
+    isolate_runtime(monkeypatch)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(100, 30)) as pilot:
+            await pilot.pause()
+            application.push_screen(Screen())
+            await pilot.pause()
+
+            application._art_ready(a_cover(Protocol.KITTY))
+            assert application.query_one(Artwork).cover is None
+            assert application._art_hidden
+
+            # Text covers have no such problem and stay where they land.
+            application._art_hidden = False
+            blocks = a_cover(Protocol.BLOCKS)
+            application._art_ready(blocks)
+            assert application.query_one(Artwork).cover is blocks
+
+    asyncio.run(scenario())
+
+
+def test_a_cover_drawn_as_text_stays_up_behind_a_modal(monkeypatch):
+    """Half blocks are characters like any other, so a modal draws over them.
+    Taking them down anyway left a hole in the player behind the scrim."""
+    isolate_runtime(monkeypatch)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(100, 30)) as pilot:
+            art = application.query_one(Artwork)
+            cover = a_cover(Protocol.BLOCKS)
+            art.show(cover)
+            await pilot.pause()
+
+            application.push_screen(Screen())
+            await pilot.pause()
+
+            assert art.cover is cover
+            assert not application._art_hidden
+
+    asyncio.run(scenario())
+
+
+# ------------------------------------------------ el fondo detrás de un modal
+
+
+def test_the_player_stops_animating_behind_a_modal(monkeypatch):
+    """The scrim leaves the player visible, and a translucent screen means
+    every analyzer frame repaints it and blends the whole terminal again.
+    Measured at 240x62 with the library open: 8.8% of a core against 37.7%."""
+    isolate_runtime(monkeypatch)
+    ticks = []
+    monkeypatch.setattr(Analyzer, "tick", lambda self: ticks.append(1))
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(100, 30)) as pilot:
+            await pilot.pause()
+            # The app's own timer fires this too, so each phase counts from
+            # zero rather than against a total nobody controls.
+            ticks.clear()
+            application._tick_fast()
+            assert ticks
+
+            application.push_screen(Screen())
+            await pilot.pause()
+            ticks.clear()
+            application._tick_fast()
+            assert not ticks, "el fondo no debería animarse tras un modal"
+
+            application.pop_screen()
+            await pilot.pause()
+            ticks.clear()
+            application._tick_fast()
+            assert ticks, "y debería seguir donde estaba al volver"
+
+    asyncio.run(scenario())
+
+
+def test_the_clock_stops_behind_a_modal_but_the_music_does_not(monkeypatch):
+    isolate_runtime(monkeypatch)
+
+    async def scenario() -> None:
+        mpv = FakeMpv()
+        application = TidalAmp(object(), mpv)
+        async with application.run_test(size=(100, 30)) as pilot:
+            await pilot.pause()
+            clock = application.query_one(TimeDisplay)
+            mpv.position, mpv.duration = 30.0, 200.0
+            application._tick_slow()
+            assert clock.seconds == 30.0
+
+            application.push_screen(Screen())
+            await pilot.pause()
+            mpv.position = 90.0
+            application._tick_slow()
+            assert clock.seconds == 30.0, "el reloj de detrás no vale un repintado"
+
+            # What is not cosmetic keeps running: mpv going idle after having
+            # played still means the track ended.
+            mpv.idle = False
+            application._tick_slow()
+            assert application._was_idle is False
+
+            application.pop_screen()
+            await pilot.pause()
+            application._tick_slow()
+            assert clock.seconds == 90.0
+
+    asyncio.run(scenario())
+
+
+def test_the_status_line_is_written_behind_a_modal_but_only_when_it_changed(
+    monkeypatch,
+):
+    """A favourite added from the browser reports on the status line, and
+    through the scrim it is legible — so that one keeps being written. Four
+    times a second, though, it almost always says the same thing."""
+    isolate_runtime(monkeypatch)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(100, 30)) as pilot:
+            await pilot.pause()
+            status = application.query_one("#status", Static)
+            writes = []
+            # On the instance, not on `Static`: patching the class caught the
+            # repaint of every other Static in the app and made the count
+            # depend on which tick happened to land during the test.
+            monkeypatch.setattr(
+                status, "update", lambda text="": writes.append(text), raising=False
+            )
+
+            application.push_screen(Screen())
+            await pilot.pause()
+            # Flush whatever the startup left on the line before watching it:
+            # the app's own timer runs this four times a second, so which
+            # side of the first write the spy lands on is not ours to pick.
+            application._tick_slow()
+            writes.clear()
+
+            application.status = "«Schism» añadido a favoritos"
+            application._tick_slow()
+            assert writes == [" «Schism» añadido a favoritos"]
+
+            application._tick_slow()
+            application._tick_slow()
+            assert len(writes) == 1, "repetir lo mismo no debería repintar"
 
     asyncio.run(scenario())
 
@@ -1137,6 +1331,236 @@ def test_the_help_key_survives_on_a_narrow_terminal(monkeypatch):
     asyncio.run(scenario())
 
 
+# -------------------------------------------------------- el filtro del nivel
+
+
+def library_rows() -> list[Row]:
+    """A level with two tracks, a container and a page that is not loaded."""
+    schism = Entry(id=1, title="Schism", artist="TOOL", album="Lateralus")
+    sober = Entry(id=2, title="Sober", artist="TOOL", album="Undertow")
+    return [
+        Row(label=schism.label, detail="6:47", entry=schism),
+        Row(label=sober.label, detail="5:06", entry=sober),
+        Row(label="Sinfonía nº 9", detail="4 pistas", key="playlist:9"),
+        Row(label="más…", detail="siguientes 100", more=lambda: [Row(label="Ænema")]),
+    ]
+
+
+def open_browser(application, rows=None):
+    level = rows if rows is not None else library_rows()
+    application.push_screen(BrowserScreen("MI BIBLIOTECA", lambda: level))
+
+
+async def type_into_filter(pilot, text: str) -> None:
+    for character in text:
+        await pilot.press(character)
+    await pilot.pause()
+
+
+def visible_labels(screen) -> list[str]:
+    return [row.label for row in screen.query_one(RowList).rows]
+
+
+def test_slash_opens_a_filter_bar_and_leaves_the_level_on_screen(monkeypatch):
+    """Like the bar at the foot of a browser: it narrows the list underneath
+    instead of covering it with a window of its own."""
+    isolate_runtime(monkeypatch)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(100, 30)) as pilot:
+            open_browser(application)
+            await pilot.pause()
+            screen = application.screen
+            assert screen.query_one("#browser-filter-bar").display is False
+
+            await pilot.press("slash")
+            await pilot.pause()
+
+            assert screen.query_one("#browser-filter-bar").display is True
+            assert isinstance(application.screen, BrowserScreen)
+            assert len(visible_labels(screen)) == 4
+            assert "3 en este nivel" in (
+                screen.query_one("#browser-filter-count").render_line(0).text
+            )
+
+    asyncio.run(scenario())
+
+
+def test_typing_narrows_the_level_and_says_how_much_is_left(monkeypatch):
+    isolate_runtime(monkeypatch)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(100, 30)) as pilot:
+            open_browser(application)
+            await pilot.pause()
+            screen = application.screen
+            await pilot.press("slash")
+            await type_into_filter(pilot, "sober")
+
+            assert visible_labels(screen) == ["TOOL - Sober", "más…"]
+            assert "1 de 3" in (
+                screen.query_one("#browser-filter-count").render_line(0).text
+            )
+
+    asyncio.run(scenario())
+
+
+def test_the_filter_reaches_what_the_line_does_not_show(monkeypatch):
+    """The album is not on the line unless that column is on, and it is what
+    people remember. Accents are not required either."""
+    isolate_runtime(monkeypatch)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(100, 30)) as pilot:
+            open_browser(application)
+            await pilot.pause()
+            screen = application.screen
+            await pilot.press("slash")
+            await type_into_filter(pilot, "lateralus")
+            assert visible_labels(screen) == ["TOOL - Schism", "más…"]
+
+            await pilot.press(*["backspace"] * len("lateralus"))
+            await type_into_filter(pilot, "sinfonia")
+            assert visible_labels(screen) == ["Sinfonía nº 9", "más…"]
+
+    asyncio.run(scenario())
+
+
+def test_the_more_row_survives_the_filter(monkeypatch):
+    """A level is one page deep until somebody asks for the rest. Hiding the
+    only way to ask would claim that what matched is all there is."""
+    isolate_runtime(monkeypatch)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(100, 30)) as pilot:
+            open_browser(application)
+            await pilot.pause()
+            screen = application.screen
+            await pilot.press("slash")
+            await type_into_filter(pilot, "nada de esto existe")
+
+            assert visible_labels(screen) == ["más…"]
+            assert "0 de 3" in (
+                screen.query_one("#browser-filter-count").render_line(0).text
+            )
+
+    asyncio.run(scenario())
+
+
+def test_a_page_pulled_under_a_filter_lands_where_it_belongs(monkeypatch):
+    """The «más…» row is spliced by itself, not by the number on screen: under
+    a filter that number is not its place in the level."""
+    isolate_runtime(monkeypatch)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(100, 30)) as pilot:
+            open_browser(application)
+            await pilot.pause()
+            screen = application.screen
+            await pilot.press("slash")
+            await type_into_filter(pilot, "sober")
+            # ↵ commits the filter and hands the keys back to the list; the
+            # cursor then walks to «más…», the second and last visible row.
+            await pilot.press("enter")
+            await pilot.press("down")
+            await pilot.press("enter")
+            await settle(pilot, lambda: all(r.more is None for r in screen._level()))
+
+            # The page replaced the «más…» row at the end of the level, and
+            # the three rows above it are still there in order.
+            assert [row.label for row in screen._level()] == [
+                "TOOL - Schism",
+                "TOOL - Sober",
+                "Sinfonía nº 9",
+                "Ænema",
+            ]
+            # And what is on screen is still only what matched.
+            assert visible_labels(screen) == ["TOOL - Sober"]
+
+    asyncio.run(scenario())
+
+
+def test_escape_drops_the_filter_before_it_closes_the_window(monkeypatch):
+    isolate_runtime(monkeypatch)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(100, 30)) as pilot:
+            open_browser(application)
+            await pilot.pause()
+            screen = application.screen
+            await pilot.press("slash")
+            await type_into_filter(pilot, "sober")
+            await pilot.press("escape")
+            await pilot.pause()
+
+            assert isinstance(application.screen, BrowserScreen)
+            assert screen.query_one("#browser-filter-bar").display is False
+            assert len(visible_labels(screen)) == 4
+            # The cursor stays on the row the filter was opened to reach.
+            assert screen.query_one(RowList).current.label == "TOOL - Sober"
+
+            await pilot.press("escape")
+            await pilot.pause()
+            assert not isinstance(application.screen, BrowserScreen)
+
+    asyncio.run(scenario())
+
+
+def test_the_filter_belongs_to_the_level_it_was_typed_in(monkeypatch):
+    """Opening another level with the last one's word still applied would hide
+    most of it, with nothing on screen saying why."""
+    isolate_runtime(monkeypatch)
+    inner = [Row(label="Himno a la alegría", detail="9:00")]
+    rows = [Row(label="Sinfonía nº 9", detail="1 pista", loader=lambda: inner)]
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(100, 30)) as pilot:
+            open_browser(application, rows)
+            await pilot.pause()
+            screen = application.screen
+            await pilot.press("slash")
+            await type_into_filter(pilot, "sinfonia")
+            await pilot.press("enter")  # commits the filter, keeps it applied
+            await pilot.press("enter")  # opens the level under the cursor
+            await settle(pilot, lambda: len(screen._level()) == 1)
+
+            assert screen._filter == ""
+            assert screen.query_one("#browser-filter-bar").display is False
+            assert visible_labels(screen) == ["Himno a la alegría"]
+
+    asyncio.run(scenario())
+
+
+def test_the_footer_drops_whole_hints_instead_of_cropping_one(monkeypatch):
+    """It was one literal, and at the browser's own width the terminal ate
+    «R recargar   esc cerrar», leaving a stray «R» against the border."""
+    isolate_runtime(monkeypatch)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(100, 30)) as pilot:
+            open_browser(application)
+            await pilot.pause()
+            hint = application.screen.query_one("#browser-hint")
+            line = hint.render_line(0).text
+
+            assert cell_len(line) <= hint.size.width
+            assert line.rstrip().endswith("esc cerrar")
+            assert "/ filtrar" in line
+            # Whatever survived, survived whole.
+            for key, label, _drop in BROWSER_HINTS:
+                assert (f"{key} {label}" in line) or (label not in line)
+
+    asyncio.run(scenario())
+
+
 # ---------------------------------------------------------------- track menu
 
 
@@ -1565,6 +1989,191 @@ def test_the_settings_cycle_both_ways(monkeypatch, tmp_path):
             await pilot.press("right")
             await pilot.pause()
             assert app_module.config.DEFAULT_QUALITY == "HI_RES_LOSSLESS"
+
+    asyncio.run(scenario())
+
+
+def test_the_settings_are_grouped_by_what_they_are_about(monkeypatch, tmp_path):
+    """Ten switches in one column read as ten unrelated switches: the quality
+    of the stream sat next to the colour of the borders."""
+    isolate_runtime(monkeypatch)
+    isolate_config(monkeypatch, tmp_path)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(120, 40)) as pilot:
+            await pilot.pause()
+            application.push_screen(ConfigScreen(application._setting_changed))
+            await pilot.pause()
+            drawn = application.screen.query_one("#config-list").render_line
+            lines = [drawn(y).text for y in range(30)]
+            at = {
+                name: next(i for i, line in enumerate(lines) if line.strip() == name)
+                for name in ("Audio", "Apariencia", "General")
+            }
+            assert at["Audio"] < at["Apariencia"] < at["General"]
+
+            def row(label: str) -> int:
+                return next(i for i, line in enumerate(lines) if label in line)
+
+            assert at["Audio"] < row("Calidad") < at["Apariencia"]
+            assert at["Apariencia"] < row("Transparencia") < at["General"]
+            assert at["General"] < row("Idioma")
+
+    asyncio.run(scenario())
+
+
+def test_the_settings_list_scrolls_instead_of_hiding_the_cursor(monkeypatch, tmp_path):
+    """The window grows to its text and stops at the terminal. On a small one
+    the rows past the fold used to be selectable and invisible at once."""
+    isolate_runtime(monkeypatch)
+    isolate_config(monkeypatch, tmp_path)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(60, 18)) as pilot:
+            await pilot.pause()
+            screen = ConfigScreen(application._setting_changed)
+            application.push_screen(screen)
+            await pilot.pause()
+            last = len(screen._rows) - 1
+            for _ in range(last):
+                await pilot.press("down")
+            await pilot.pause()
+
+            widget = application.screen.query_one("#config-list")
+            lines = [widget.render_line(y).text for y in range(widget.size.height)]
+            assert any(screen._rows[last].label in line for line in lines)
+            # And its heading came with it, so the row is not orphaned.
+            assert any(line.strip() == screen._rows[last].group for line in lines)
+
+    asyncio.run(scenario())
+
+
+def test_a_modal_is_solid_until_transparency_is_turned_on(monkeypatch, tmp_path):
+    isolate_runtime(monkeypatch)
+    isolate_config(monkeypatch, tmp_path)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(120, 34)) as pilot:
+            await pilot.pause()
+            screen = ConfigScreen(application._setting_changed)
+            application.push_screen(screen)
+            await pilot.pause()
+            assert not screen.has_class("transparent")
+
+            screen.cursor = config_row(screen, "Transparencia")
+            await pilot.press("enter")
+            await pilot.pause()
+
+            assert app_module.config.TRANSPARENCY is True
+            # On the window that is already open, not only on the next one:
+            # the answer belongs under the cursor that asked for it.
+            assert screen.has_class("transparent")
+
+    asyncio.run(scenario())
+
+
+def test_turning_transparency_on_moves_a_pixel_cover_to_blocks(monkeypatch, tmp_path):
+    """The player behind the window is the whole point, and a kitty cover has
+    to come down for the window to be visible at all. Blocks stay up."""
+    isolate_runtime(monkeypatch)
+    path = isolate_config(monkeypatch, tmp_path)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        application.art_protocol = Protocol.KITTY
+        async with application.run_test(size=(120, 34)) as pilot:
+            await pilot.pause()
+            screen = ConfigScreen(application._setting_changed)
+            application.push_screen(screen)
+            await pilot.pause()
+            screen.cursor = config_row(screen, "Transparencia")
+            await pilot.press("enter")
+            await pilot.pause()
+
+            assert app_module.config.ARTWORK == "blocks"
+            assert app_module.config.read_file(path)["artwork"] == "blocks"
+            # And it says so, rather than moving a setting behind the user's
+            # back: it costs the cover its resolution.
+            assert "blocks" in screen._notice
+            assert screen.KITTY_DOCS in screen._notice
+            drawn = application.screen.query_one("#config-list").render_line
+            lines = [drawn(y).text for y in range(34)]
+            assert any(screen.KITTY_DOCS in line for line in lines)
+
+    asyncio.run(scenario())
+
+
+def test_a_cover_that_is_already_text_changes_without_a_word(monkeypatch, tmp_path):
+    """`auto` on a terminal where auto already meant blocks: the row has to
+    say a word the shortened list contains, but nothing was taken away, so
+    there is nothing to warn about."""
+    isolate_runtime(monkeypatch)
+    path = isolate_config(monkeypatch, tmp_path)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        application.art_protocol = Protocol.BLOCKS
+        async with application.run_test(size=(120, 34)) as pilot:
+            await pilot.pause()
+            screen = ConfigScreen(application._setting_changed)
+            application.push_screen(screen)
+            await pilot.pause()
+            screen.cursor = config_row(screen, "Transparencia")
+            await pilot.press("enter")
+            await pilot.pause()
+
+            assert app_module.config.TRANSPARENCY is True
+            assert app_module.config.read_file(path)["artwork"] == "blocks"
+            assert screen._notice == ""
+
+    asyncio.run(scenario())
+
+
+def test_transparency_leaves_the_cover_only_what_a_window_can_cover(
+    monkeypatch, tmp_path
+):
+    """With the player showing through, `kitty` is not a choice any more: it
+    would put the album art on top of the window. The list says so by not
+    offering it, and gives it back when transparency goes off."""
+    isolate_runtime(monkeypatch)
+    isolate_config(monkeypatch, tmp_path)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        application.art_protocol = Protocol.KITTY
+        async with application.run_test(size=(120, 34)) as pilot:
+            await pilot.pause()
+            screen = ConfigScreen(application._setting_changed)
+            application.push_screen(screen)
+            await pilot.pause()
+
+            def cover_row():
+                return screen._rows[config_row(screen, "Carátula")]
+
+            assert cover_row().choices == ConfigScreen.ARTWORKS
+
+            screen.cursor = config_row(screen, "Transparencia")
+            await pilot.press("enter")
+            await pilot.pause()
+            assert cover_row().choices == ConfigScreen.ARTWORKS_OVER_PLAYER
+
+            # And cycling it now only ever lands on one of those two.
+            screen.cursor = config_row(screen, "Carátula")
+            seen = set()
+            for _ in range(4):
+                await pilot.press("enter")
+                await pilot.pause()
+                seen.add(app_module.config.ARTWORK)
+            assert seen == set(ConfigScreen.ARTWORKS_OVER_PLAYER)
+
+            screen.cursor = config_row(screen, "Transparencia")
+            await pilot.press("enter")
+            await pilot.pause()
+            assert app_module.config.TRANSPARENCY is False
+            assert cover_row().choices == ConfigScreen.ARTWORKS
 
     asyncio.run(scenario())
 

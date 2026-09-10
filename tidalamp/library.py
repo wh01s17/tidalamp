@@ -8,6 +8,7 @@ from a worker thread, never on the UI loop.
 
 from __future__ import annotations
 
+import unicodedata
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from functools import partial
@@ -60,7 +61,7 @@ def cached(key: str, loader: Callable[[], list[Row]]) -> Callable[[], list[Row]]
     """Memoise one level's rows under ``key``.
 
     The cached list is handed out as-is, not copied, on purpose: loading
-    another page mutates the level in place (see ``RowList.extend_at``), so the
+    another page mutates the level in place (see ``BrowserScreen._merge``), so
     pages the user already pulled are still there when they come back."""
 
     def load() -> list[Row]:
@@ -305,6 +306,35 @@ def root(session: tidalapi.Session) -> list[Row]:
             ),
         ),
     ]
+
+
+def _folded(text: str) -> str:
+    """Lower-case and strip accents, so «sinfonia» finds «Sinfonía».
+
+    Typing accents to search is a tax nobody pays willingly, and TIDAL's
+    catalogue writes the same artist both ways depending on the release.
+    """
+    decomposed = unicodedata.normalize("NFD", text)
+    return "".join(c for c in decomposed if not unicodedata.combining(c)).casefold()
+
+
+def matches(query: str, row: Row) -> bool:
+    """Does ``row`` answer to ``query``?
+
+    Every whitespace-separated term has to appear somewhere in the row: its
+    label, its detail, and — for a track — its album, which is only on screen
+    if the user turned that column on but is often what they remember. Terms
+    rather than the whole string, so «tool lateralus» finds a line that reads
+    «TOOL - Schism» with «Lateralus» in a column that may not even be shown.
+
+    A row that carries no ``more`` and matches nothing is hidden; deciding
+    what to do with the «más…» row is the caller's business, because it is
+    not a piece of music but the way to reach the rest of the level.
+    """
+    entry = row.entry
+    parts = [row.label, row.detail, entry.album if entry is not None else ""]
+    haystack = _folded(" ".join(part for part in parts if part))
+    return all(term in haystack for term in _folded(query).split())
 
 
 class NotFavouritable(RuntimeError):

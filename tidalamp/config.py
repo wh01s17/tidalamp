@@ -75,6 +75,7 @@ ENV_VARS: dict[str, str] = {
     "theme": "TIDALAMP_THEME",
     "palette": "TIDALAMP_PALETTE",
     "debug": "TIDALAMP_DEBUG",
+    "transparency": "TIDALAMP_TRANSPARENCY",
 }
 
 
@@ -157,6 +158,13 @@ COLUMNS = columns()
 
 DEBUG = flag("debug", "TIDALAMP_DEBUG")
 
+# Whether a modal lets the player show through it. Off by default, and not
+# because it looks worse: turning it on forces the cover to half blocks, since
+# kitty and sixel images are painted over the text and would cover the very
+# window they are meant to sit behind. That is a trade nobody should be made
+# to take without asking for it.
+TRANSPARENCY = flag("transparency", "TIDALAMP_TRANSPARENCY")
+
 # Key overrides, action name to key. Empty means "the defaults in app.py".
 KEYS: dict[str, str] = {
     str(action): str(key) for action, key in (FILE.get("keys") or {}).items()
@@ -229,7 +237,7 @@ def reload() -> None:
     Those consumers read `config.DEFAULT_QUALITY` instead — see stream.py.
     """
     global FILE, DEFAULT_QUALITY, ARTWORK, LANGUAGE, THEME, PALETTE, COLUMNS
-    global DEBUG, KEYS
+    global DEBUG, TRANSPARENCY, KEYS
     FILE = read_file()
     DEFAULT_QUALITY = setting("quality", "TIDALAMP_QUALITY", "HI_RES_LOSSLESS")
     ARTWORK = setting("artwork", "TIDALAMP_ART", "auto")
@@ -238,6 +246,7 @@ def reload() -> None:
     PALETTE = setting("palette", "TIDALAMP_PALETTE", "auto")
     COLUMNS = columns()
     DEBUG = flag("debug", "TIDALAMP_DEBUG")
+    TRANSPARENCY = flag("transparency", "TIDALAMP_TRANSPARENCY")
     KEYS = {str(action): str(key) for action, key in (FILE.get("keys") or {}).items()}
 
 

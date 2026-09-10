@@ -26,7 +26,7 @@ from textual.screen import ModalScreen
 from textual.widget import Widget
 from textual.widgets import Input, Static
 
-from . import about, audio, columns, config, library
+from . import about, artwork, audio, columns, config, library
 from .auth import ensure_fresh
 from .i18n import _
 from .library import Row
@@ -53,16 +53,6 @@ class RowList(Widget):
     def set_rows(self, rows: list[Row]) -> None:
         self.rows = rows
         self.cursor = 0
-        self.refresh()
-
-    def extend_at(self, index: int, rows: list[Row]) -> None:
-        """Replace the row at ``index`` with ``rows``. This is how a "más…"
-        row turns into the page it just fetched, in place, without losing the
-        user's scroll position."""
-        if not 0 <= index < len(self.rows):
-            return
-        self.rows[index : index + 1] = rows
-        self.cursor = min(index, max(0, len(self.rows) - 1))
         self.refresh()
 
     def move(self, delta: int) -> None:
@@ -225,6 +215,44 @@ class SearchScreen(ModalScreen[str]):
         self.dismiss("")
 
 
+# The browser's footer: key, what it does, and how early it goes when the
+# window is too narrow to hold the whole line — higher leaves first. Every one
+# of these is in the help window too, so the line keeps what nobody would
+# guess and drops what they would: `A` is `a` again on the whole level and
+# reads as its pair, while `f/F` is a TIDAL account you can only find here.
+BROWSER_HINTS: tuple[tuple[str, str, int], ...] = (
+    ("↵", _("abrir/reproducir"), 1),
+    ("/", _("filtrar"), 2),
+    ("a", _("añadir"), 3),
+    ("A", _("añadir todo"), 6),
+    ("f/F", _("favorito"), 5),
+    ("⌫", _("atrás"), 4),
+    ("R", _("recargar"), 7),
+    ("esc", _("cerrar"), 0),
+)
+
+# Between two entries of the footer.
+HINT_GAP = "   "
+
+
+def fit_hints(hints: tuple[tuple[str, str, int], ...], width: int) -> str:
+    """As much of the footer as fits, dropping by priority rather than by
+    cropping the end.
+
+    It used to be one literal string, and at 84 columns — the browser's own
+    width — the terminal ate «R recargar   esc cerrar» off the right edge.
+    A hint the user cannot read is not a hint, so the line now gives up whole
+    entries, from the least essential, until the rest fits.
+    """
+    keep = list(hints)
+    while keep:
+        line = " " + HINT_GAP.join(f"{key} {label}" for key, label, _drop in keep)
+        if cell_len(line) <= width:
+            return line
+        keep.remove(max(keep, key=lambda hint: (hint[2], hints.index(hint))))
+    return ""
+
+
 def favourite_message(session, row: Row, add: bool) -> str:
     """Do the favourite and phrase the result. Shared by both screens."""
     ensure_fresh(session)
@@ -247,6 +275,7 @@ class BrowserScreen(ModalScreen[tuple | None]):
         Binding("pageup", "page_up", "", show=False),
         Binding("pagedown", "page_down", "", show=False),
         Binding("enter", "choose", _("abrir/reproducir"), show=False),
+        Binding("slash", "filter", _("filtrar"), show=False),
         Binding("backspace,left", "back", _("atrás"), show=False),
         Binding("a", "append_one", _("añadir"), show=False),
         Binding("A", "append_all", _("añadir todo"), show=False),
@@ -268,6 +297,12 @@ class BrowserScreen(ModalScreen[tuple | None]):
         # Stack of (title, rows, key, loader) so backspace can walk back up and
         # `R` can refetch the level it is looking at.
         self._stack: list[tuple[str, list[Row], str, object]] = []
+        # The filter lives here, not in `RowList`: what it narrows is the level
+        # on the stack, and the widget only ever shows the part that matched.
+        self._filter = ""
+        # What the list says when it has no rows to show, which is not the same
+        # sentence while loading, after an error, and under a filter.
+        self._empty = _("cargando…")
 
     def compose(self) -> ComposeResult:
         with Vertical(id="browser-box"):
@@ -277,18 +312,25 @@ class BrowserScreen(ModalScreen[tuple | None]):
                 yield Static(self._root_title, id="browser-title", markup=False)
                 yield Spinner(id="browser-spinner")
             yield RowList(id="browser-list")
-            yield Static(
-                _(
-                    " ↵ abrir/reproducir   a añadir   A añadir todo   f/F favorito"
-                    "   ⌫ atrás   R recargar   esc cerrar"
-                ),
-                id="browser-hint",
-            )
+            # The filter bar, Firefox-style: it opens at the foot of the window
+            # without covering the level, so the list narrows under the eyes of
+            # whoever is typing. Hidden until `/`.
+            with Horizontal(id="browser-filter-bar"):
+                yield Input(placeholder=_("filtrar este nivel…"), id="browser-filter")
+                # markup=False here and below: both carry text the user typed
+                # or a TIDAL name, and a «[» in either would be read as a tag.
+                yield Static("", id="browser-filter-count", markup=False)
+            yield Static("", id="browser-hint", markup=False)
 
     def on_mount(self) -> None:
-        self.query_one(RowList).empty_text = _("cargando…")
+        self.query_one("#browser-filter-bar", Horizontal).display = False
+        self.query_one(RowList).empty_text = self._empty
+        self._render_hint()
         self._busy(_("cargando {level}…").format(level=self._root_title.lower()))
         self._load(self._root_title, self._root_loader, self._root_key)
+
+    def on_resize(self, event) -> None:
+        self._render_hint()
 
     def _busy(self, label: str) -> None:
         self.query_one(Spinner).start(label)
@@ -307,17 +349,108 @@ class BrowserScreen(ModalScreen[tuple | None]):
 
     def _failed(self, exc: Exception) -> None:
         self._idle()
+        self._empty = _("error: {error}").format(error=exc)
         widget = self.query_one(RowList)
-        widget.empty_text = _("error: {error}").format(error=exc)
+        widget.empty_text = self._empty
         widget.refresh()
 
     def _push(self, title: str, rows: list[Row], key: str = "", loader=None) -> None:
         self._idle()
         self._stack.append((title, rows, key, loader))
-        widget = self.query_one(RowList)
-        widget.empty_text = _("vacío")
-        widget.set_rows(rows)
+        self._empty = _("vacío")
+        # A filter belongs to the level it was typed in: opening another one
+        # with the last level's word still applied would hide most of it.
+        self._clear_filter()
         self.query_one("#browser-title", Static).update(title)
+
+    # ----------------------------------------------------------------- view
+
+    def _level(self) -> list[Row]:
+        """The rows of the level on screen, filter or no filter.
+
+        This is the list the cache handed out, so pages pulled with «más…» are
+        spliced into it and are still there on the way back into the level.
+        """
+        return self._stack[-1][1] if self._stack else []
+
+    def _visible(self) -> list[Row]:
+        """The part of the level the filter lets through.
+
+        The «más…» row always survives it. A level is one page deep until
+        somebody asks for the rest, and a filter that hid the only way to ask
+        would quietly claim that 12 of 766 favourites are all there is.
+        """
+        rows = self._level()
+        if not self._filter:
+            return rows
+        return [
+            row
+            for row in rows
+            if row.more is not None or library.matches(self._filter, row)
+        ]
+
+    def _show(self, cursor: int = 0) -> None:
+        """Put the visible rows on screen with the cursor at ``cursor``."""
+        widget = self.query_one(RowList)
+        rows = self._visible()
+        widget.empty_text = (
+            _("nada coincide con «{query}»").format(query=self._filter)
+            if self._filter
+            else self._empty
+        )
+        widget.set_rows(rows)
+        widget.cursor = max(0, min(cursor, len(rows) - 1))
+        widget.refresh()
+        self._render_hint()
+
+    def _render_hint(self) -> None:
+        """The footer, and the match count next to the filter box."""
+        width = self.query_one("#browser-hint", Static).size.width
+        self.query_one("#browser-hint", Static).update(fit_hints(BROWSER_HINTS, width))
+        if not self.query_one("#browser-filter-bar", Horizontal).display:
+            return
+        # Rows, not lines: the «más…» row is neither a match nor a candidate.
+        shown = sum(1 for row in self._visible() if row.more is None)
+        total = sum(1 for row in self._level() if row.more is None)
+        self.query_one("#browser-filter-count", Static).update(
+            _("{shown} de {total}").format(shown=shown, total=total)
+            if self._filter
+            else _("{total} en este nivel").format(total=total)
+        )
+
+    # --------------------------------------------------------------- filter
+
+    def action_filter(self) -> None:
+        """Open the filter bar and start typing into it."""
+        self.query_one("#browser-filter-bar", Horizontal).display = True
+        self._render_hint()
+        self.query_one("#browser-filter", Input).focus()
+
+    def on_input_changed(self, event: Input.Changed) -> None:
+        value = event.value.strip()
+        # `_clear_filter` empties the box itself; the message it posts arrives
+        # afterwards and must not throw the cursor back to the top of a level
+        # the user is already looking at.
+        if value == self._filter:
+            return
+        self._filter = value
+        self._show()
+
+    def on_input_submitted(self, event: Input.Submitted) -> None:
+        """↵ hands the keys back to the list and leaves the filter applied."""
+        self.query_one("#browser-filter", Input).blur()
+        self.set_focus(None)
+
+    def _clear_filter(self) -> None:
+        """Drop the filter and close its bar, keeping the cursor on the row it
+        was on: the whole point of narrowing a level is to reach a row in it."""
+        current = self.query_one(RowList).current
+        self._filter = ""
+        self.query_one("#browser-filter", Input).value = ""
+        self.query_one("#browser-filter-bar", Horizontal).display = False
+        self.set_focus(None)
+        rows = self._level()
+        self._show(next((i for i, row in enumerate(rows) if row is current), 0))
 
     # ------------------------------------------------------------------ keys
 
@@ -341,12 +474,17 @@ class BrowserScreen(ModalScreen[tuple | None]):
         # lands, is for a level the user has left.
         self._idle()
         self._stack.pop()
-        title, rows, _key, _loader = self._stack[-1]
-        widget = self.query_one(RowList)
-        widget.set_rows(rows)
+        title, _rows, _key, _loader = self._stack[-1]
+        self._empty = _("vacío")
+        self._clear_filter()
         self.query_one("#browser-title", Static).update(title)
 
     def action_close(self) -> None:
+        # esc closes the filter before it closes the window, the way it does
+        # everywhere else: the first one undoes what the last key did.
+        if self.query_one("#browser-filter-bar", Horizontal).display:
+            self._clear_filter()
+            return
         self.dismiss(None)
 
     def action_reload(self) -> None:
@@ -363,6 +501,7 @@ class BrowserScreen(ModalScreen[tuple | None]):
             return
         library.forget(key)
         self._stack.pop()
+        self._empty = _("cargando…")
         self._busy(_("recargando {level}…").format(level=title))
         self._load(title, loader, key)
 
@@ -375,10 +514,11 @@ class BrowserScreen(ModalScreen[tuple | None]):
             # The title stays put: losing it to say "loading" costs the user
             # the one label that says where they are.
             self._busy(_("cargando más…"))
-            self._load_more(widget.cursor, row.more)
+            self._load_more(row, row.more)
             return
         if row.loader is not None:
-            self.query_one(RowList).empty_text = _("cargando…")
+            self._empty = _("cargando…")
+            widget.empty_text = self._empty
             self._busy(_("abriendo {label}…").format(label=row.label))
             self._load(row.label, row.loader, row.key)
             return
@@ -395,7 +535,8 @@ class BrowserScreen(ModalScreen[tuple | None]):
         if row is None or row.entry is None:
             return
         if action == "play":
-            # The whole level goes into the queue, so the rest follows on.
+            # The whole level goes into the queue, so the rest follows on —
+            # the level as shown, so a filtered one queues what it narrowed to.
             entries = [r.entry for r in widget.rows if r.entry is not None]
             index = entries.index(row.entry) if row.entry in entries else 0
             self.dismiss(("play", entries, index))
@@ -403,24 +544,30 @@ class BrowserScreen(ModalScreen[tuple | None]):
         self.dismiss((action, [row.entry], 0))
 
     @work(thread=True, exclusive=True)
-    def _load_more(self, index: int, more) -> None:
+    def _load_more(self, marker: Row, more) -> None:
         try:
             rows = more()
         except Exception as exc:
             self.app.call_from_thread(self._failed, exc)
             return
-        self.app.call_from_thread(self._merge, index, rows)
+        self.app.call_from_thread(self._merge, marker, rows)
 
-    def _merge(self, index: int, rows: list[Row]) -> None:
+    def _merge(self, marker: Row, rows: list[Row]) -> None:
+        """Turn the «más…» row into the page it just fetched, in place.
+
+        By the row itself and not by its number, because under a filter the
+        number on screen is not the number in the level. The splice lands on
+        the level list — the one the cache handed out — so the page stays put
+        for the next visit, and then the filter is applied again over it.
+        """
         self._idle()
-        widget = self.query_one(RowList)
-        widget.extend_at(index, rows)
-        # The stack holds the level so backspace can restore it; keep it in
-        # sync with what is now on screen.
-        if self._stack:
-            title, _rows, key, loader = self._stack[-1]
-            self._stack[-1] = (title, widget.rows, key, loader)
-            self.query_one("#browser-title", Static).update(title)
+        level = self._level()
+        index = next((i for i, row in enumerate(level) if row is marker), -1)
+        if index < 0:
+            return
+        cursor = self.query_one(RowList).cursor
+        level[index : index + 1] = rows
+        self._show(cursor)
 
     def action_append_one(self) -> None:
         row = self.query_one(RowList).current
@@ -1091,6 +1238,9 @@ class Option:
     choices: tuple[str, ...] = ()
     action: str = ""
     note: str = ""
+    # The heading this row lives under. Rows are drawn in this order and the
+    # heading is printed once, when it changes.
+    group: str = ""
 
 
 class ConfigScreen(ModalScreen[None]):
@@ -1113,8 +1263,18 @@ class ConfigScreen(ModalScreen[None]):
 
     cursor = reactive(0)
 
+    # What the window spends on everything that is not the list of settings:
+    # the box's border (2), its title bar, the hint at its foot, and the
+    # list's own top and bottom padding (2). Kept next to the stylesheet that
+    # sets them, because it is the stylesheet this has to agree with.
+    CHROME = 6
+
     QUALITIES = ("LOW", "HIGH", "LOSSLESS", "HI_RES_LOSSLESS")
     ARTWORKS = ("auto", "kitty", "sixel", "blocks", "off")
+    # What is left of that list once a window has to be drawn over the cover.
+    # `auto` is not on it because it is a promise the terminal keeps, and on a
+    # kitty terminal it promises exactly the thing transparency cannot have.
+    ARTWORKS_OVER_PLAYER = ("blocks", "off")
     LANGUAGES = ("auto", "es", "en")
     SWITCH = ("false", "true")
 
@@ -1127,49 +1287,86 @@ class ConfigScreen(ModalScreen[None]):
         self._allowed: tuple[int, ...] = ()
         self._hardware: tuple[int, ...] = ()
         self._rows: list[Option] = []
+        # Set when a change here drags another setting with it. It stays up
+        # until the screen closes, which is as long as it is true.
+        self._notice = ""
 
     # ------------------------------------------------------------------ rows
 
     def _options(self) -> list[Option]:
+        """Every row, in the order they are drawn, grouped by what they are
+        about rather than by the order they happened to be written in.
+
+        Ten settings in one column read as a list of unrelated switches: the
+        quality of the stream sat next to the colour of the borders. Three
+        headings cost three lines and turn it into three short lists.
+        """
+        audio = _("Audio")
+        looks = _("Apariencia")
+        general = _("General")
         return [
             Option(
                 _("Calidad"),
                 key="quality",
                 choices=self.QUALITIES,
                 note=_("se aplica a la siguiente pista"),
+                group=audio,
             ),
-            Option(
-                _("Carátula"),
-                key="artwork",
-                choices=self.ARTWORKS,
-                note=_("al reiniciar"),
-            ),
-            Option(
-                _("Idioma"),
-                key="language",
-                choices=self.LANGUAGES,
-                note=_("al reiniciar"),
-            ),
-            Option(
-                _("Columnas de la cola"),
-                action="columns",
-                note=_("qué metadatos se ven en la lista"),
-            ),
+            Option(_("Ritmos hi-res en PipeWire"), action="rates", group=audio),
+            Option(_("Reiniciar PipeWire"), action="restart", group=audio),
             Option(
                 _("Tema"),
                 key="theme",
                 choices=LAYOUTS,
                 note=_("estructura visual; se aplica al instante"),
+                group=looks,
             ),
             Option(
                 _("Paleta"),
                 key="palette",
                 choices=available_palettes(),
                 note=_("auto sigue Omarchy; las demás funcionan en cualquier Linux"),
+                group=looks,
             ),
-            Option(_("Registro de depuración"), key="debug", choices=self.SWITCH),
-            Option(_("Ritmos hi-res en PipeWire"), action="rates"),
-            Option(_("Reiniciar PipeWire"), action="restart"),
+            Option(
+                _("Transparencia"),
+                key="transparency",
+                choices=self.SWITCH,
+                note=_("deja ver el reproductor detrás de las ventanas"),
+                group=looks,
+            ),
+            Option(
+                _("Carátula"),
+                key="artwork",
+                choices=(
+                    self.ARTWORKS_OVER_PLAYER if config.TRANSPARENCY else self.ARTWORKS
+                ),
+                note=(
+                    _("con transparencia sólo caben las que dibuja el texto")
+                    if config.TRANSPARENCY
+                    else _("blocks se dibuja con texto y sobrevive a las ventanas")
+                ),
+                group=looks,
+            ),
+            Option(
+                _("Columnas de la cola"),
+                action="columns",
+                note=_("qué metadatos se ven en la lista"),
+                group=looks,
+            ),
+            Option(
+                _("Idioma"),
+                key="language",
+                choices=self.LANGUAGES,
+                note=_("al reiniciar"),
+                group=general,
+            ),
+            Option(
+                _("Registro de depuración"),
+                key="debug",
+                choices=self.SWITCH,
+                group=general,
+            ),
         ]
 
     def compose(self) -> ComposeResult:
@@ -1196,6 +1393,15 @@ class ConfigScreen(ModalScreen[None]):
     def watch_cursor(self) -> None:
         if self.is_mounted:
             self._render_list()
+
+    def on_resize(self, event) -> None:
+        """Draw again once the box has a size.
+
+        On mount there is no layout yet, so the window below has no idea how
+        many rows it may spend and hands back the whole list. This is where it
+        finds out, and where a terminal resized under an open window does too.
+        """
+        self._render_list()
 
     # --------------------------------------------------------------- drawing
 
@@ -1248,8 +1454,18 @@ class ConfigScreen(ModalScreen[None]):
         room = widget.size.width or 72
         labels = max(cell_len(option.label) for option in self._rows)
 
-        rendered = Text()
+        # Rows and headings first, as (text, style, row index) so the window
+        # below can find the cursor among them.
+        lines: list[tuple[str, str, int]] = []
+        group = ""
         for index, option in enumerate(self._rows):
+            if option.group != group:
+                group = option.group
+                # No blank line before the first heading: the row above it is
+                # the title bar, which already separates them.
+                if index:
+                    lines.append(("", palette["body"], -1))
+                lines.append((f" {group}", f"bold {palette['accent']}", -1))
             selected = index == self.cursor
             marker = "›" if selected else " "
             style = (
@@ -1257,18 +1473,55 @@ class ConfigScreen(ModalScreen[None]):
                 if selected
                 else palette["body"]
             )
-            row = (
-                f" {marker} {set_cell_size(option.label, labels)}   {self._value(option)}"
+            lines.append(
+                (
+                    f" {marker} {set_cell_size(option.label, labels)}   "
+                    f"{self._value(option)}",
+                    style,
+                    index,
+                )
             )
-            rendered.append(_crop(row, room) + "\n", style=style)
+
         current = self._rows[self.cursor]
-        detail = f"     {current.label}: {self._detail(current)}"
-        rendered.append("\n" + _crop(detail, room) + "\n", style=palette["muted"])
-        rendered.append(_crop(self._status(), room), style=palette["muted"])
+        footer = [(f"     {current.label}: {self._detail(current)}", palette["muted"])]
+        footer.append((self._status(), palette["muted"]))
         warning = self._warning()
         if warning:
-            rendered.append("\n" + _crop(warning, room), style=palette["warning"])
+            footer.append((warning, palette["warning"]))
+        footer += [(line, palette["warning"]) for line in self._notice.splitlines()]
+
+        rendered = Text()
+        for text, style in self._window(lines, len(footer)):
+            rendered.append(_crop(text, room) + "\n", style=style)
+        for text, style in footer:
+            rendered.append("\n" + _crop(text, room), style=style)
         widget.update(rendered)
+
+    def _window(
+        self, lines: list[tuple[str, str, int]], footer: int
+    ) -> list[tuple[str, str]]:
+        """The slice of the rows that fits, with the cursor inside it.
+
+        The box grows to its content and stops at the terminal, so on a small
+        one the rows past the fold used to be selectable and invisible at the
+        same time: the cursor went somewhere nobody could see. Grouping the
+        settings cost five more lines and made that reachable, so the list
+        scrolls now — by hand, the way the help and the plain lyrics do.
+        """
+        # From the terminal, not from the widgets. The box grows to its text
+        # and stops at the screen, so both it and the list report the height
+        # of the text right up until the layout clips them — which happens
+        # after this runs, and this is what decides what there is to clip.
+        height = self.size.height - self.CHROME
+        # The blank line between the rows and the footer is part of the cost.
+        room = height - footer - 1
+        if height <= 0 or room >= len(lines):
+            return [(text, style) for text, style, _index in lines]
+        cursor = next(
+            (at for at, (_t, _s, index) in enumerate(lines) if index == self.cursor), 0
+        )
+        start = max(0, min(cursor - room // 2, len(lines) - room))
+        return [(text, style) for text, style, _index in lines[start : start + room]]
 
     def _status(self) -> str:
         if not self._sink.known:
@@ -1334,12 +1587,52 @@ class ConfigScreen(ModalScreen[None]):
             index = 0
             step = 0
         value: object = option.choices[(index + step) % len(option.choices)]
-        if option.key == "debug":
+        if option.key in _FLAGS:
             value = value == "true"
         config.set_option(option.key, value)
         if self._on_change is not None:
             self._on_change(option.key)
+        if option.key == "transparency":
+            if value is True:
+                self._limit_artwork()
+            # The cover's own choices depend on this switch, so the rows are
+            # rebuilt rather than left describing the setting as it was.
+            self._rows = self._options()
         self._render_list()
+
+    # Terminals that paint the cover over the text instead of among it. The
+    # protocol is the terminal's, not ours, and neither one lets a window open
+    # on top of an image that the terminal draws last.
+    PIXEL_PROTOCOLS = (artwork.Protocol.KITTY, artwork.Protocol.SIXEL)
+    KITTY_DOCS = "https://sw.kovidgoyal.net/kitty/graphics-protocol/"
+
+    def _limit_artwork(self) -> None:
+        """Turning transparency on leaves the cover only what a window can be
+        drawn over.
+
+        Otherwise the one thing the user turned transparency on to see — the
+        player behind the window — comes with a hole in it, because a pixel
+        cover has to be taken down for the window to be visible at all. Half
+        blocks are ordinary characters, so they stay put and the window draws
+        over them, and `off` was already nothing to take down.
+
+        Announced only when it actually took a picture away: moving `auto` to
+        `blocks` on a terminal where `auto` already meant blocks changes the
+        word on the row and nothing on the screen.
+        """
+        if config.ARTWORK in self.ARTWORKS_OVER_PLAYER:
+            return
+        loses_the_image = self.player.art_protocol in self.PIXEL_PROTOCOLS
+        config.set_option("artwork", "blocks")
+        if self._on_change is not None:
+            self._on_change("artwork")
+        if not loses_the_image:
+            return
+        self._notice = _(
+            "  La carátula pasa a blocks: kitty y sixel pintan la imagen sobre el\n"
+            "  texto y taparían la ventana.\n"
+            "  {url}"
+        ).format(url=self.KITTY_DOCS)
 
     def _toggle_rates(self) -> None:
         if audio.rates_configured():
@@ -1375,6 +1668,9 @@ class ConfigScreen(ModalScreen[None]):
 
 
 # The module attribute each config key is resolved into.
+# Settings the file holds as booleans while the screen cycles "true"/"false".
+_FLAGS = ("debug", "transparency")
+
 _ATTRIBUTES = {
     "quality": "DEFAULT_QUALITY",
     "artwork": "ARTWORK",
@@ -1382,4 +1678,5 @@ _ATTRIBUTES = {
     "theme": "THEME",
     "palette": "PALETTE",
     "debug": "DEBUG",
+    "transparency": "TRANSPARENCY",
 }

@@ -410,6 +410,55 @@ def writer_session():
     return SimpleNamespace(user=SimpleNamespace(favorites=favorites)), favorites
 
 
+# ------------------------------------------------------------------- filtrar
+
+
+def track_row(title: str, artist: str = "TOOL", album: str = "") -> Row:
+    entry = Entry(id=1, title=title, artist=artist, album=album)
+    return Row(label=entry.label, detail="4:00", entry=entry)
+
+
+def test_the_filter_reads_label_and_detail():
+    row = Row(label="Mis mejores canciones", detail="42 pistas")
+    assert library.matches("mejores", row)
+    assert library.matches("42", row)
+    assert not library.matches("peores", row)
+
+
+def test_the_filter_ignores_case_and_accents():
+    """Typing accents to search is a tax nobody pays, and TIDAL writes the
+    same name both ways depending on the release."""
+    row = Row(label="Sinfonía nº 9")
+    assert library.matches("sinfonia", row)
+    assert library.matches("SINFONÍA", row)
+    assert library.matches("sinfonía", row)
+
+
+def test_every_term_has_to_match_somewhere():
+    row = track_row("Schism", album="Lateralus")
+    assert library.matches("tool schism", row)
+    assert library.matches("schism tool", row)
+    assert not library.matches("tool sober", row)
+
+
+def test_a_track_is_found_by_its_album_even_when_no_column_shows_it():
+    """The album is what people remember, and it is only on the line if the
+    user turned that column on."""
+    row = track_row("Schism", album="Lateralus")
+    assert library.matches("lateralus", row)
+    assert library.matches("tool lateralus", row)
+
+
+def test_a_level_row_without_an_entry_is_matched_by_its_name():
+    row = Row(label="Pistas favoritas", key="fav:tracks")
+    assert library.matches("favoritas", row)
+    assert not library.matches("albumes", row)
+
+
+def test_an_empty_query_matches_everything():
+    assert library.matches("   ", track_row("Schism"))
+
+
 def test_a_track_row_favourites_the_track():
     session, favorites = writer_session()
     row = Row(label="x", entry=Entry(id=42, title="Schism", artist="TOOL"))

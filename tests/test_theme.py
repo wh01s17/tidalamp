@@ -99,6 +99,30 @@ def test_portable_built_in_palettes_do_not_need_omarchy():
     assert palette["panel"] == "#1a1b26"
 
 
+def test_the_black_palette_is_black_and_grey_all_the_way_down():
+    """Black ground, and every other colour a grey: hue is not the axis here,
+    lightness is, so a stray blue would be the only coloured thing on screen."""
+    palette = load_palette(name="black")
+
+    assert palette.source == "builtin:black"
+    assert palette["screen"] == "#000000"
+    assert palette["panel"] == "#000000"
+    assert palette["display_background"] == "#000000"
+    for name, value in palette.colors.items():
+        red, green, blue = value[1:3], value[3:5], value[5:7]
+        assert red == green == blue, f"{name} = {value} no es un gris"
+
+    # The quiet text has to be quieter than the loud text, which is the only
+    # thing left to say it with. Without a `dark_foreground` in the source,
+    # both would come out as plain `foreground`.
+    def level(name: str) -> int:
+        return int(palette[name][1:3], 16)
+
+    assert level("status") < level("body") < level("accent")
+    assert level("border") < level("body")
+    assert "black" in available_palettes()
+
+
 def test_a_custom_palette_uses_the_omarchy_colors_format(tmp_path):
     (tmp_path / "ocean.toml").write_text(
         'accent = "#11aacc"\nbackground = "#102030"\nforeground = "#ddeeff"\n',

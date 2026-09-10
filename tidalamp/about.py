@@ -191,6 +191,7 @@ def shortcuts(keys) -> tuple[Section, ...]:
                 ("← / ⌫", _("volver al nivel anterior")),
                 ("a", _("añadir a la cola")),
                 ("A", _("añadir el nivel entero")),
+                ("/", _("filtrar el nivel: escribe y la lista se estrecha")),
                 ("R", _("recargar, ignorando la caché")),
                 ("f / F", _("añadir o quitar de favoritos")),
                 ("esc", _("cerrar")),
