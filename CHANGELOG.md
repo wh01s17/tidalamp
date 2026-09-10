@@ -5,6 +5,15 @@ versionado es [semántico](https://semver.org/lang/es/).
 
 ## [Sin publicar]
 
+### Arreglado
+
+- **Al cambiar de tema en vivo, la carátula se montaba sobre la barra de posición.** El
+  alto de la banda del display se recalculaba sólo cuando la carátula cambiaba de
+  tamaño, y cada disposición lleva un padding distinto: al cambiar de tema la banda
+  conservaba el alto de la anterior y la imagen sobresalía una fila. Como un protocolo
+  gráfico no se recorta a su widget sino que pinta encima, esa fila caía sobre la barra.
+  Se veía sobre todo en `nova`.
+
 ### Cambiado
 
 - **La carátula en modo `blocks` tiene el doble de resolución horizontal.** Se dibujaba

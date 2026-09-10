@@ -736,6 +736,20 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
 - [x] Los duplicados se permiten. Pedir que se añada la misma cola dos veces es algo que
       alguien puede querer, y deduplicar a sus espaldas no es una decisión de esto.
 
+### Alto de la banda del display — `app.py`
+
+- [x] La banda se dimensiona con `_fit_display_band()`: el alto de la carátula **más el
+      padding** que le ponga la disposición. `height` es border-box, así que el padding
+      sale del contenido y una banda medida sólo por la carátula la deja una fila corta.
+- [x] Y esa fila importa porque **un protocolo gráfico no se recorta a su widget**:
+      pinta encima de lo que haya debajo. La fila sobrante cae sobre la barra de
+      posición en vez de perderse.
+- [x] Son **dos** las cosas que cambian esa suma, y durante un tiempo sólo se atendía
+      una. Que la carátula cambie de tamaño era la evidente; cambiar de disposición es
+      la otra, porque cada una lleva un padding distinto, y al cambiar de tema en vivo
+      la banda conservaba el alto calculado bajo la anterior. En `nova` eso ponía la
+      carátula justo encima de la línea de tiempo.
+
 ### Carátula en `blocks` — `artwork.py`, `widgets.py`
 
 - [x] **Cuatro muestras por celda** con los glifos de cuadrante, no una con `▀`. El

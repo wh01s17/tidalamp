@@ -2500,6 +2500,31 @@ def test_the_cover_sits_against_the_frame(theme, monkeypatch):
     asyncio.run(scenario())
 
 
+@pytest.mark.parametrize("theme", ["nova", "retro", "ascii"])
+def test_switching_layout_keeps_the_cover_off_the_seek_bar(theme, monkeypatch):
+    """Each layout pads the band differently, and the height was only ever
+    worked out when the cover resized: switching left it one row short, and a
+    graphical protocol does not clip -- it paints over what is below."""
+    isolate_runtime(monkeypatch)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(150, 44)) as pilot:
+            await pilot.pause()
+            application.query_one(Artwork).show(a_cover())
+            await pilot.pause()
+
+            use_theme(monkeypatch, theme)
+            application._apply_appearance()
+            await pilot.pause()
+
+            art = application.query_one(Artwork)
+            seek = application.query_one("#seek")
+            assert art.region.bottom <= seek.region.y, theme
+
+    asyncio.run(scenario())
+
+
 def test_a_document_window_is_no_wider_than_what_it_holds(monkeypatch):
     """The browser is a table and spends every cell. Help and lyrics are
     documents, and an 85% box on a wide terminal left two thirds of itself

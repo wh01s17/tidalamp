@@ -371,20 +371,34 @@ class TidalAmp(App):
         by_width = (self.size.width - CLOCK_WIDTH - READOUT_WIDTH - 4) // 2
         resized = widget.resize(min(by_height, by_width))
         if compact_changed or resized:
-            # The band has to be as tall as the cover *plus* whatever padding
-            # the layout puts around it: `height` is border-box, so padding
-            # comes out of the content. A graphical protocol does not clip to
-            # its widget — it paints over what is below — so one row of unpaid
-            # padding put the bottom of the cover on the seek bar.
-            padding = display.styles.padding
-            display.styles.height = (
-                max(DISPLAY_HEIGHT, widget.rows) + padding.top + padding.bottom
-            )
+            self._fit_display_band()
         # resize() dropped the cover it had, because it was the old size. A
         # compact layout does the same so graphical protocols cannot float
         # over the queue; expanding fetches it again here.
         if self._art_url and (resized or widget.cover is None):
             self._art_worker(self._art_url)
+
+    def _fit_display_band(self) -> None:
+        """Make the band as tall as the cover plus whatever padding it carries.
+
+        `height` is border-box, so padding comes out of the content: a band
+        sized for the cover alone leaves it a row short. And a graphical
+        protocol does not clip to its widget — it paints over whatever is
+        below — so that row lands on the seek bar rather than being cut off.
+
+        Its own function because two things change the sum. The cover resizing
+        is the obvious one; switching layout is the other, since each carries
+        different padding, and for a while that one went unnoticed: the band
+        kept the height worked out under the layout before it.
+        """
+        widget = self._artwork()
+        if widget is None:
+            return
+        display = self.query_one("#display")
+        padding = display.styles.padding
+        display.styles.height = (
+            max(DISPLAY_HEIGHT, widget.rows) + padding.top + padding.bottom
+        )
 
     @staticmethod
     def _layout_classes(main) -> None:
@@ -425,6 +439,10 @@ class TidalAmp(App):
     def _apply_appearance(self) -> None:
         """Apply structure and palette without restarting playback."""
         self._layout_classes(self.query_one("#main"))
+        # Each layout pads the display band differently, so the height worked
+        # out under the last one is wrong under this one.
+        if not self._compact:
+            self._fit_display_band()
         titlebar = self.query_one("#titlebar", Static)
         titlebar.update(self._title_text(titlebar.size.width))
         self._refresh_modes(relayout=True)
