@@ -55,6 +55,11 @@ docstring, y eso es deliberado.
 - `plan.md` es el documento de traspaso: qué existe, qué está verificado y **con qué
   criterio se tomó cada decisión**. Si tomas una decisión de arquitectura, va ahí, con
   el motivo. Si pierdes una tarde con una trampa, va a §7, para que nadie la repita.
+- `next.md` es la cola de trabajo comprometido para la próxima versión: qué entra, por
+  qué, las trampas conocidas y cómo se comprueba. **Cuando algo de ahí queda hecho se
+  borra de ahí**, y su rastro pasa a `CHANGELOG.md` en la línea de usuario y a `plan.md`
+  en el detalle. Una lista que acumula entradas tachadas deja de decir qué falta.
+- `publish.md` es el procedimiento de publicación, de la versión al tag y al AUR.
 - `CHANGELOG.md` se actualiza en el mismo commit que el cambio.
 
 ## Mensajes de commit

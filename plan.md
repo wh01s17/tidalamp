@@ -908,6 +908,11 @@ una pista en cada calidad y leer `~/.local/state/tidalamp/tidalamp.log`.
 
 ## 6. Pendiente
 
+> [!NOTE]
+> La funcionalidad comprometida para la próxima versión vive en
+> [next.md](./next.md), con sus trampas y su forma de comprobarse. Esta sección
+> es el estado general del proyecto; aquella es la cola de trabajo.
+
 P1–P4 están cerradas: lo que queda no es funcionalidad que falte para que el
 reproductor sirva, sino acabado, distribución y confirmar contra TIDAL real cosas hoy
 probadas sólo con dobles.
