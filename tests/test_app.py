@@ -1093,7 +1093,8 @@ def test_the_transport_runs_z_x_c_v_across_the_keyboard(monkeypatch):
     isolate_runtime(monkeypatch)
     keys = app_module.DEFAULT_KEYS
 
-    assert [keys["prev"], keys["play"], keys["stop"], keys["next"]] == list("zxcv")
+    faces = [keys[action].split(",")[0] for action in ("prev", "play", "stop", "next")]
+    assert faces == list("zxcv")
     assert "b" not in {
         key for binding in TidalAmp.BINDINGS for key in binding.key.split(",")
     }
@@ -2466,6 +2467,72 @@ def test_a_document_window_is_no_wider_than_what_it_holds(monkeypatch):
             await pilot.resize_terminal(76, 20)
             await pilot.pause()
             assert application.screen.query_one("#help-box").size.width >= 50
+
+    asyncio.run(scenario())
+
+
+def test_space_plays_and_pauses_like_x(monkeypatch):
+    """What every other player uses, and nothing in the main window wanted."""
+    isolate_runtime(monkeypatch)
+
+    async def scenario() -> None:
+        mpv = FakeMpv()
+        application = TidalAmp(object(), mpv)
+        async with application.run_test(size=(120, 32)) as pilot:
+            await pilot.pause()
+            application.queue.replace([a_deftones_track()], start=0)
+            mpv.idle = False
+
+            await pilot.press("space")
+            await pilot.pause()
+            assert mpv.paused is True
+
+            await pilot.press("space")
+            await pilot.pause()
+            assert mpv.paused is False
+
+    asyncio.run(scenario())
+
+
+def test_m_opens_the_track_menu_on_the_queue_row(monkeypatch):
+    """The same menu the browser opens with ↵. There it has to be asked for
+    because ↵ queues the whole level; here ↵ plays the row."""
+    isolate_runtime(monkeypatch)
+    monkeypatch.setattr(TidalAmp, "_resolve_worker", lambda self, entry: None)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(120, 32)) as pilot:
+            await pilot.pause()
+            application.queue.replace(
+                [a_deftones_track(), Entry(id=2, title="b", artist="x")], start=-1
+            )
+            application._sync_queue()
+            application.query_one("#playlist", RowList).cursor = 1
+            await pilot.press("m")
+            await pilot.pause()
+
+            assert isinstance(application.screen, TrackActionsScreen)
+            await pilot.press("a")
+            await settle(pilot, lambda: application.queue.playing >= 0)
+
+            assert application.queue.playing == 1, "toca la fila del cursor"
+
+    asyncio.run(scenario())
+
+
+def test_the_track_menu_says_so_when_the_queue_is_empty(monkeypatch):
+    isolate_runtime(monkeypatch)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(120, 32)) as pilot:
+            await pilot.pause()
+            await pilot.press("m")
+            await pilot.pause()
+
+            assert len(application.screen_stack) == 1
+            assert "pista" in application.status
 
     asyncio.run(scenario())
 

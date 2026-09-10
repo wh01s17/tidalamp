@@ -111,7 +111,9 @@ def test_keys_are_read_from_the_file(monkeypatch, tmp_path):
 def test_an_action_without_an_override_keeps_the_winamp_key():
     from tidalamp.app import DEFAULT_KEYS, keys_for
 
-    assert keys_for("play") == "x"
+    # Winamp's letter is still the one a button shows and the one this test
+    # is about; space rides behind it as a second binding.
+    assert keys_for("play").split(",")[0] == "x"
     assert keys_for("quit") == DEFAULT_KEYS["quit"]
 
 

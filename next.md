@@ -103,6 +103,10 @@ es lo que se quiere la mayoría de las veces.
 entró cuando falla un lote a mitad, contar cuántas llegaron y olvidar la caché del nivel.
 Todo eso vive en `save_queue_playlist` y no hay que reescribirlo.
 
+**Va en el menú de la pista**, junto a «reproducir ahora», «a continuación», la radio y
+favoritos. Es el sitio donde ya se pregunta qué hacer con una canción, y desde la 0.4.0
+ese menú se abre en los dos lados: con ↵ en la biblioteca y con `m` en la cola.
+
 **Lo nuevo es elegir el destino**, que es una lista que el navegador ya sabe pintar.
 
 **Trampas.**

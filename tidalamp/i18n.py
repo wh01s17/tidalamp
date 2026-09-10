@@ -173,7 +173,6 @@ ENGLISH: dict[str, str] = {
     "Menú de pista: ahora, a continuación, radio y favoritos.": (
         "Track menu: play now, play next, radio and favourites."
     ),
-    "Menú de la pista (↵ sobre una canción)": "Track menu (↵ on a song)",
     "abrir el nivel, o el menú de la pista": "open the level, or the track menu",
     "elegir con el cursor": "choose with the cursor",
     "reproducir ahora": "play now",
@@ -364,6 +363,11 @@ ENGLISH: dict[str, str] = {
     "{total} en este nivel": "{total} in this level",
     "buscar en la cola…": "search the queue…",
     "buscar en la cola": "search the queue",
+    "menú de la pista": "track menu",
+    "menú de la pista del cursor": "menu for the track under the cursor",
+    "Menú de la pista (↵ en la biblioteca, m en la cola)": (
+        "Track menu (↵ in the library, m in the queue)"
+    ),
     "buscar en la cola: escribe y se estrecha": "search the queue: type and it narrows",
     "volver a la pista que suena": "go to the playing track",
     "guardar la cola como playlist": "save the queue as a playlist",

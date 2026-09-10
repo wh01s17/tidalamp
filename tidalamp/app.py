@@ -33,6 +33,7 @@ from .screens import (
     PlaylistNameScreen,
     RowList,
     SearchScreen,
+    TrackActionsScreen,
     favourite_message,
 )
 from .settings import Settings
@@ -80,11 +81,15 @@ def _entry_metadata(entry: Entry) -> dict:
 # one spent a key on a separate pause, and pause now shares the play button.
 DEFAULT_KEYS: dict[str, str] = {
     "prev": "z",
-    "play": "x",
+    # Space is what every other player uses, and nothing in the main window
+    # wanted it. `x` stays first so the transport button keeps its Winamp
+    # letter: `_button_key` draws the first key bound and no more.
+    "play": "x,space",
     "stop": "c",
     "next": "v",
     "search": "slash",
     "filter_queue": "ctrl+f",
+    "track_menu": "m",
     "to_playing": "g",
     "save_playlist": "p",
     "library": "l",
@@ -176,6 +181,7 @@ class TidalAmp(App):
         _bind("next", _("siguiente"), show=True),
         _bind("search", _("buscar"), show=True),
         _bind("filter_queue", _("buscar en la cola")),
+        _bind("track_menu", _("menú de la pista")),
         _bind("to_playing", _("volver a la pista que suena")),
         _bind("save_playlist", _("guardar la cola como playlist")),
         _bind("library", _("biblioteca"), show=True),
@@ -1012,6 +1018,36 @@ class TidalAmp(App):
         self._render_queue_filter()
         self.queue.save()
         self._fill_years()
+
+    def action_track_menu(self) -> None:
+        """Open the track menu on the queue row under the cursor.
+
+        The same menu the browser opens with ↵. There it had to be asked for
+        because ↵ already queued the whole level; here ↵ plays the row, and
+        the menu is what carries everything else it can do.
+        """
+        row = self.query_one("#playlist", RowList).current
+        if row is None or row.entry is None:
+            self.status = _("no hay ninguna pista seleccionada")
+            return
+        self.push_screen(TrackActionsScreen(row.entry.label), self._queue_menu_chosen)
+
+    def _queue_menu_chosen(self, action: str | None) -> None:
+        """Act on a queue row the way the browser acts on one of its own.
+
+        `play` is the one that differs: in the browser it queues the level and
+        starts there, and here the level *is* the queue, so it only has to
+        start. Everything else is the same call the browser's answer makes.
+        """
+        if action is None:
+            return
+        index = self._cursor_index()
+        if index < 0:
+            return
+        if action == "play":
+            self._play_index(index)
+            return
+        self._browser_result((action, [self.queue[index]], 0))
 
     def _fill_years(self) -> None:
         """Ask TIDAL for the years the queue is missing, out of the way.

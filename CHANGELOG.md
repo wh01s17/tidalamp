@@ -5,6 +5,17 @@ versionado es [semántico](https://semver.org/lang/es/).
 
 ## [Sin publicar]
 
+### Añadido
+
+- **La barra espaciadora reproduce y pausa**, que es lo que hace cualquier otro
+  reproductor y nada en la ventana principal estaba usando. `x` sigue siendo la primera,
+  así que el botón del transporte conserva su letra de Winamp.
+
+- **`m` abre el menú de la pista sobre la fila de la cola**, el mismo que la biblioteca
+  abre con ↵: reproducir ahora, a continuación, la radio de la pista y favoritos. En la
+  biblioteca hay que preguntarlo porque ↵ encola el nivel entero; en la cola ↵ ya
+  reproduce la fila, y el menú es lo que lleva todo lo demás.
+
 ## [0.4.0] - 2026-09-10
 
 ### Arreglado
