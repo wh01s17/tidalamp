@@ -402,19 +402,23 @@ file you drop in `~/.config/tidalamp/palettes/`. Custom palettes use the same fo
 Omarchy's `colors.toml`, so the built-ins and your own work on any Linux, with or
 without Omarchy.
 
-The same layout, repainted. Five of these are Omarchy themes picked up through `auto`;
-the first is the player's own `classic`, which is what you get anywhere else.
+The same layout, repainted. These are Omarchy themes picked up through `auto`, plus
+the player's own `classic` green-on-black, which is what you get anywhere else.
 
 <table>
   <tr>
-    <td width="33%"><img src="https://raw.githubusercontent.com/wh01s17/tidalamp/main/img/palette-emerald.webp" alt="Green on black"></td>
-    <td width="33%"><img src="https://raw.githubusercontent.com/wh01s17/tidalamp/main/img/palette-green.webp" alt="Muted green"></td>
-    <td width="33%"><img src="https://raw.githubusercontent.com/wh01s17/tidalamp/main/img/palette-amber.webp" alt="Amber on black"></td>
+    <td width="20%"><img src="https://raw.githubusercontent.com/wh01s17/tidalamp/main/img/palette-emerald.webp" alt="Bright green on black"></td>
+    <td width="20%"><img src="https://raw.githubusercontent.com/wh01s17/tidalamp/main/img/palette-green.webp" alt="Muted green on black"></td>
+    <td width="20%"><img src="https://raw.githubusercontent.com/wh01s17/tidalamp/main/img/palette-mint.webp" alt="Green on navy"></td>
+    <td width="20%"><img src="https://raw.githubusercontent.com/wh01s17/tidalamp/main/img/palette-amber.webp" alt="Amber on black"></td>
+    <td width="20%"><img src="https://raw.githubusercontent.com/wh01s17/tidalamp/main/img/palette-sand.webp" alt="Sand on warm grey"></td>
   </tr>
   <tr>
-    <td width="33%"><img src="https://raw.githubusercontent.com/wh01s17/tidalamp/main/img/palette-orange.webp" alt="Orange on navy"></td>
-    <td width="33%"><img src="https://raw.githubusercontent.com/wh01s17/tidalamp/main/img/palette-blue.webp" alt="Blue on navy"></td>
-    <td width="33%"><img src="https://raw.githubusercontent.com/wh01s17/tidalamp/main/img/palette-daylight.webp" alt="Blue on a light background"></td>
+    <td width="20%"><img src="https://raw.githubusercontent.com/wh01s17/tidalamp/main/img/palette-orange.webp" alt="Orange on navy"></td>
+    <td width="20%"><img src="https://raw.githubusercontent.com/wh01s17/tidalamp/main/img/palette-cyan.webp" alt="Cyan on a dark ground"></td>
+    <td width="20%"><img src="https://raw.githubusercontent.com/wh01s17/tidalamp/main/img/palette-blue.webp" alt="Blue on navy"></td>
+    <td width="20%"><img src="https://raw.githubusercontent.com/wh01s17/tidalamp/main/img/palette-daylight.webp" alt="Blue on cream"></td>
+    <td width="20%"><img src="https://raw.githubusercontent.com/wh01s17/tidalamp/main/img/palette-paper.webp" alt="Grey on white"></td>
   </tr>
 </table>
 
