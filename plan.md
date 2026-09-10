@@ -4,7 +4,17 @@ Documento de traspaso. Describe qué existe, qué está verificado, qué falta y
 criterio se tomaron las decisiones, para que cualquiera (humano o modelo) pueda
 retomar el trabajo sin contexto previo.
 
-**Última actualización:** 2026-09-10 (ventanas superpuestas proporcionales al terminal
+**Última actualización:** 2026-09-10 (el analizador con cuatro formas —`bars`,
+`mirror`, `curve` y `fine`, esta última un trazo continuo sobre la rejilla Braille— elegibles desde la ventana de ajustes, todas dibujadas donde ha estado
+siempre pero llegando al borde derecho, y **mucho más baratas en 4K**: 55% de un núcleo
+antes, 8% ahora, topando las bandas y mandando los tramos de un color de una vez;
+buscador en la cola con `ctrl+f`, en una barra
+bajo la lista como el filtro del navegador, con las filas conservando el número que
+tienen de verdad en la cola; `tidalamp -v` / `--version` imprime la versión
+en el terminal, que hasta ahora sólo estaba dentro de la TUI; la ayuda en dos pestañas —los atajos y «Acerca
+de»— con → y ← para pasar de una a otra, en vez de un documento único donde los
+créditos y las notas de versión quedaban tres pantallas por debajo de lo que se venía
+a mirar; antes: ventanas superpuestas proporcionales al terminal
 —inservibles en 4K a 84x26— sobre un velo translúcido que deja ver el reproductor, con
 el fondo congelado mientras hay un modal abierto para que eso cueste menos que antes;
 antes: filtro `/` dentro del navegador de la
@@ -64,8 +74,8 @@ tidalamp/
   auth.py       Device flow y persistencia de sesión. Lanza NotLoggedIn.
   stream.py     Track -> Playable (URL o playlist HLS local). Lanza StreamUnavailable.
   player.py     Clase Mpv: spawn del proceso, socket IPC, transporte, medición RMS.
-  widgets.py    TimeDisplay, Marquee, Analyzer, SeekBar, Slider, Artwork. Sin lógica
-                de negocio.
+  widgets.py    TimeDisplay, Marquee, Analyzer (cinco formas), SeekBar, Slider,
+                Artwork. Sin lógica de negocio.
   screens.py    RowList, `fit_hints()` y los seis modales: búsqueda, biblioteca, ecualizador,
                 letras, ayuda y el menú de acciones de una pista. No guardan estado del reproductor: reciben lo que necesitan
                 al construirse y contestan por `dismiss`.
@@ -90,7 +100,7 @@ tidalamp/
                 lanzar: nada de esto está en el camino que reproduce música.
   mpris.py      Servicio MPRIS2 en D-Bus. Habla con la app por el Protocol
                 PlayerBackend, así que no conoce Textual ni tidalapi.
-  cli.py        Entrypoint typer: login / tui / search.
+  cli.py        Entrypoint typer: login / tui / config / search, y `--version`.
 
 packaging/
   README.md     Procedimiento de publicación en PyPI y en el AUR.
@@ -439,6 +449,72 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
       vúmetro RMS sin cortar la reproducción.
 - [x] Con espectro real no se aplica la ponderación por bandas del vúmetro: cava ya
       suaviza, y reponderar sólo distorsionaría lo que ha medido.
+- [x] **Cuatro formas, un ajuste** (`visualizer`): `bars` son las barras de siempre,
+      `mirror` las hace crecer hacia arriba y hacia abajo desde una línea central,
+      `curve` dibuja el contorno del espectro con un glifo por columna, y `fine` dibuja
+      esa misma línea sobre la rejilla de puntos del Braille.
+- [x] **Las tres se dibujan en el mismo sitio**: el widget del readout, al lado de la
+      carátula y bajo los datos de la pista, y las tres llegan al borde derecho. Hubo
+      una versión con una fila propia a todo el ancho bajo el reproductor y estaba mal
+      por dos motivos: empezaba debajo de la carátula en vez de al lado, y le quitaba
+      cinco filas a la cola. Un widget, un `mode`, cero cambios de disposición.
+- [x] Las barras ya no se paran a las 19. Eso dejaba vacíos dos tercios de la columna
+      en cualquier terminal ancho, que es donde se pasa el rato.
+- [x] A cava se le piden `Analyzer.BANDS` (128) bandas, que no es lo que dibuja ninguna
+      de las tres: cada forma remuestrea ese frame a lo suyo. Pedirle exactamente lo
+      que hay en pantalla obligaría a reiniciar el proceso en cada redimensionado y en
+      cada cambio de forma, y un reinicio es un hueco en la imagen. Al bajar se
+      promedia y al subir se interpola: lo segundo es un dibujo más suave de la misma
+      curva, no una medición más fina, y nada aguas abajo la trata como tal.
+- [x] **El coste en 4K era el problema, y eran las secuencias de escape.** Rich hace un
+      tramo (`Span`) por cada `append`, y el terminal una secuencia por tramo. Sin
+      topar las bandas y con un `append` por celda, a 380 columnas eran **950 tramos
+      por frame** a 10 fps. Dos arreglos:
+      - `MAX_BARS = 64`: las barras se topan ahí y se **ensanchan** para cubrir el
+        ancho en vez de multiplicarse y adelgazar. `_slots()` reparte el ancho exacto
+        entre las bandas (`width * i // count`), porque un `width // count` a secas
+        deja hasta `count` celdas sin pintar a la derecha, que es justo el borde al que
+        estas formas existen para llegar.
+      - `_runs()`: una línea se manda como un tramo por **racha de mismo estilo**, no
+        uno por celda. Un espectro real es sobre todo tramos largos del mismo color.
+      Y de paso `_styles()` resuelve la paleta y el color de cada banda **una vez por
+      frame**; antes era una llamada a `palette_for` por celda, mil por frame.
+- [x] Medido a 380x50 (un 4K), 10 fps, con la app real headless: **54,5% de un núcleo
+      antes, 7,3% después** en `bars`; 57,9% → 8,2% en `mirror`; 12,2% → 7,7% en
+      `curve`. Los tramos por frame pasan de 950 a 76 en `bars`. Dos pruebas lo fijan:
+      una con un espectro con forma de música y otra con uno construido para reventar
+      las rachas, que comprueba el techo duro de `filas × MAX_BARS`.
+- [x] `mirror` usa medios bloques en las dos mitades en lugar de la rampa de octavos de
+      las barras: la gracia de la forma es la simetría, y una mitad dibujada ocho veces
+      más fina que la otra no la tiene. Con menos de tres filas —la disposición compacta
+      deja una— no hay dónde poner la línea central y dibuja `bars`.
+- [x] `curve` dibuja un glifo por columna y nada debajo. Eso es lo que la hace una
+      línea y no una segunda forma de barras. Sus celdas vacías van sin estilo, así que
+      una fila callada entera es una sola racha.
+- [x] `fine` es la misma línea sobre Braille: una celda es una rejilla de 2x4 puntos y
+      un punto de código los lleva los ocho (`U+2800` más un bit por punto), así que
+      hay ocho posiciones direccionables donde antes había un bloque.
+- [x] Lo que `fine` gana sobre `curve` **no es precisión vertical**: la rampa de
+      octavos tiene ocho pasos por celda y los puntos tienen cuatro. Gana las dos cosas
+      que hacen que una línea sea una línea: el doble de resolución horizontal —dos
+      bandas por columna— y que se encienden también los puntos entre una muestra y la
+      siguiente, encontrándose con los vecinos a mitad de camino. Sin eso es una fila
+      de marcas sueltas y cada pendiente fuerte se rompe en huecos.
+- [x] Una celda es un glifo y no puede ser de dos colores: el color de la celda sale de
+      la más fuerte de sus dos bandas.
+- [x] `fine` **necesita una fuente con Braille** y no hay manera de preguntárselo al
+      terminal por adelantado. Casi todas lo traen (las Nerd Fonts, DejaVu, Noto), pero
+      una que no dibuja cuadraditos. Por eso es una forma que se elige a mano y no una
+      a la que nada cae solo, y el ajuste lo dice en su nota. No se intenta detectar:
+      una detección que no puede acertar es peor que la advertencia.
+- [x] `curve` y `fine` son las dos sin tope de bandas: su gracia es justo la resolución
+      por columna. `fine` cuesta 1,69 ms de render a 380 columnas frente a 0,86 de
+      `curve`, y 12 tramos por frame; a 380x50 la app va a 9,5% de un núcleo contra el
+      8,0% de `curve`. Sigue a un mundo del 55% que había que arreglar.
+- [x] Hubo un `waterfall` (espectrograma desplazándose). Se quitó: en cinco filas y con
+      medios bloques se veía como una mancha, no como un espectrograma.
+- [x] Un nombre que no esté entre los cuatro cae a `bars`. El ajuste sale de un fichero
+      que se edita a mano.
 
 ### Balance y ecualizador — `settings.py`, `player.py`, `app.py`
 
@@ -601,6 +677,20 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
 - [x] `?` o `h` abren `HelpScreen`: todos los atajos agrupados por lo que estás
       haciendo (reproducción, volumen, cola, ventanas, favoritos, y los del navegador),
       más «Acerca de» y el resumen de cambios por versión.
+- [x] Dos pestañas, no un documento seguido: «Ayuda» son los atajos, y `→` pasa a
+      «Acerca de», que lleva los créditos, la licencia y los cambios por versión; `←`
+      vuelve. Todo eso vivía debajo de los atajos y estaba a tres pantallas de scroll
+      de lo único que se abre la ventana a mirar.
+- [x] Cada pestaña guarda su desplazamiento (`_offsets`), así que volver a los atajos
+      cae donde se dejaron y no arriba del todo. `_lines` y `_offset` son propiedades
+      sobre la pestaña activa: el scroll no sabe que hay pestañas.
+- [x] Las dos páginas se construyen al montar, no al pulsar `→`: son datos fijos
+      mientras la ventana está abierta y así el cambio de pestaña es un repintado.
+- [x] La barra de título es el selector: la pestaña activa va en `▓ … ▓` con el acento
+      y la otra en `inactive`. La versión sigue al final, donde un terminal estrecho la
+      recorta sin perder nada que «Acerca de» no repita.
+- [x] La línea del pie dice a dónde lleva la flecha que queda (`→ acerca de` o
+      `← ayuda`), que es la única pista de que la segunda pestaña existe.
 - [x] La tabla se construye con `keys_for`, **no** con `DEFAULT_KEYS`: una tecla
       rebindeada en `config.toml` aparece como la que hay que pulsar de verdad. Los
       atajos que el diseño deja fijos (flechas, ↵, esc, a, A, R) van como literales.
@@ -679,6 +769,31 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
       alineada a la derecha dentro de ella. Medida por fila, un `11:53` era una celda
       más ancho que un `5:07` y empujaba la columna de álbum: una columna que sólo
       cuadra mientras ninguna pista pasa de diez minutos no es una columna.
+- [x] **Buscador en la cola con `ctrl+f`** (`filter_queue`, rebindeable). Barra bajo la
+      lista, la misma forma que el filtro `/` del navegador porque es el mismo gesto
+      sobre otra lista, y `library.matches` es la misma función: acentos, varias
+      palabras y el álbum de la pista.
+- [x] La tecla no es `/` porque `/` ya es «buscar en TIDAL» en la ventana principal.
+      `ctrl+f` es lo que busca en un navegador o en un editor, y es de las pocas
+      combinaciones que no chocaban con las letras sueltas del reproductor.
+- [x] Filtrar rompe la equivalencia «fila en pantalla = posición en la cola», que era
+      lo que usaban `↵`, `d`, `alt+↑↓` y la marca de reproducción. `_shown` es el mapa
+      entre las dos, y `_queue_index`, `_cursor_index` y `_row_at` son los tres únicos
+      sitios donde se traduce: ninguna acción vuelve a leer el cursor a pelo.
+- [x] Las filas conservan **el número real** en la cola (`Row.number`). Renumerar las
+      coincidencias 1, 2, 3 habría afirmado un orden de reproducción que no es el que
+      sigue el reproductor, y el número es justo lo que dice dónde está la pista.
+- [x] `_row_at` devuelve `-1` cuando el filtro esconde la posición, y eso es una
+      respuesta: la pista que suena puede no ser una de las que se están buscando. La
+      marca `▶` desaparece, el cursor no salta a una fila ajena, y la reproducción
+      sigue exactamente igual.
+- [x] Mover una pista con el filtro puesto sí funciona, aunque la lista no parezca
+      reordenarse —la pista con la que se intercambia puede estar escondida—: lo que
+      cambia a la vista es el número de la cabecera de la línea, que es la posición.
+- [x] `AUTO_FOCUS = None` en la app. Textual enfoca solo el primer widget enfocable de
+      la pantalla, y desde que la principal tiene un `Input` ese widget se comía `x`,
+      `c` y todo lo demás nada más arrancar. Las pantallas que quieren cursor en una
+      caja ya lo pedían explícitamente.
 - [x] La cola se restaura al arrancar.
 - [x] `alt+↑` / `alt+↓` reordenan la cola. `Queue.move()` remapea la permutación de
       shuffle en vez de regenerarla, así que reordenar no vuelve a barajar lo que suena
@@ -707,6 +822,11 @@ fichero en sí.
 
 - [x] `tidalamp` abre la TUI por defecto; `tidalamp tui` conserva la forma explícita.
       También están `tidalamp login`, `tidalamp config` y `tidalamp search <query>`.
+- [x] `tidalamp -v` / `--version` imprime `tidalamp <versión>` y sale. Es opción eager
+      del callback, no una orden: así responde antes de que nada pida sesión, mpv o un
+      terminal de cierto tamaño, que es justo la instalación rota desde la que se pide
+      el número para un informe de fallo. La versión sale de `about.version()`, la
+      misma que enseña la ayuda, así que no hay dos números que puedan discrepar.
 - [x] Ayuda, mensajes y plantilla de configuración siguen el locale del proceso.
 
 ### Internacionalización — `i18n.py`
@@ -747,6 +867,10 @@ Distinguir esto importa: parte del código nunca se ha ejecutado contra TIDAL re
 | Ventanas proporcionales y velo    | **Verificado**                    | Renderizado real a 240x62, 100x30 y el mínimo 60x18, con captura a imagen de biblioteca, búsqueda, configuración, ayuda y ecualizador. |
 | Coste del velo                     | **Medido**                        | 240x62 con la biblioteca abierta: 37,7% de un núcleo con el fondo animándose, 8,8% con el modal opaco de antes, **0,5%** con el fondo congelado. Tres pruebas fijan que el analizador y el reloj se paran detrás de un modal y que la línea de estado no. |
 | Filtro del nivel (`/`)             | **Verificado**                    | Seis unitarias de `library.matches` (acentos, varias palabras, álbum) y siete en la app real headless: la barra abre sin tapar el nivel, «sober» deja 1 de 3, la fila «más…» sobrevive, la página que llega bajo filtro cae en su sitio dentro del nivel, `esc` quita el filtro antes de cerrar y el nivel siguiente abre limpio. Falta verlo contra la biblioteca real. |
+| Formas del analizador              | **Verificado**                    | Dieciséis unitarias: las cuatro usan todas las columnas que se les dan a 80, 200 y 380, `mirror` es simétrica sobre su línea central y cae a `bars` cuando no caben tres filas, `curve` dibuja un glifo por columna y nada debajo, `fine` dibuja sólo Braille o espacios, pasa por todas las columnas con un espectro en rampa —que es donde se vería si no uniera las muestras—, no rellena hasta el suelo con la señal al máximo y pone dos bandas por columna; el remuestreo promedia al bajar e interpola al subir, y las cuatro leen el mismo frame de 128 bandas. En la app real: cambiar el ajuste cambia la forma sin mover el widget, la forma llega al borde, el analizador empieza en la misma columna que los datos de la pista y a la derecha de la carátula, un valor inventado cae a `bars`, y la ventana de ajustes escribe el fichero y lo aplica al instante. Render de las cuatro a 120x32 en retro + nord. Falta verlo con audio real y cava, y `fine` en la fuente del usuario. |
+| Coste del analizador en 4K         | **Medido**                        | 380x50 a 10 fps con la app real headless: `bars` **54,5% de un núcleo → 7,3%**, `mirror` 57,9% → 8,2%, `curve` 12,2% → 7,7%. `fine` llegó después y va a 9,5%, la más cara de las cuatro y aun así lejos del problema. Los tramos de estilo por frame pasan de 950 a 76 en `bars`, de 950 a 49 en `mirror` y de 379 a 28 en `curve`; el render del widget, de 4,56 ms a 0,45 ms. Dos pruebas fijan el techo. |
+| Buscador de la cola (`ctrl+f`)      | **Verificado**                    | Siete unitarias en la app real headless: `ctrl+f` abre la barra y enfoca la caja, «later» deja 1 de 3, `esc` la cierra y devuelve las 3 filas dejando el cursor en la pista a la que se había llegado, la fila filtrada conserva el número 3, `↵` sobre ella reproduce la tercera de la cola y `d` quita esa, la marca `▶` desaparece mientras el filtro esconde lo que suena y vuelve cuando lo enseña, y escribir `x` en la caja no pausa el reproductor. Render a 96x28 con la barra abierta. Falta verlo contra una cola larga real. |
+| Ayuda en dos pestañas              | **Verificado**                    | Dos unitarias en la app headless: `→` lleva a «Acerca de» y dibuja el repositorio, `←` vuelve a los atajos con el desplazamiento donde se dejó, y ninguna de las dos flechas se sale por los extremos. Render a 100x30 de las dos pestañas, con la activa marcada en la barra de título. |
 | Barra de ayuda del navegador       | **Verificado**                    | Medida en la app real: a 82 columnas entraba `… ⌫ atrás   R` y el resto lo comía el borde. Ahora `fit_hints()` suelta entradas enteras por prioridad y la línea termina siempre en `esc cerrar`. |
 | Paginación de la biblioteca        | **Verificado**                    | Unitarias sobre `_paged`, y la app real headless: nivel de 103 pistas → 101 filas con `más…`, `↵` sobre ella → 103 filas sin `más…`.                                            |
 | Paginación con páginas filtradas   | **VERIFICADO CONTRA TIDAL REAL**  | En la cuenta del usuario, «Pistas favoritas» pasó de 90 filas sin `más…` a 8 páginas y **699 pistas alcanzables de 766**; los 67 restantes TIDAL no los devuelve en ninguna página. Álbumes 539 y artistas 397 igual. Unitarias con un doble que filtra la página después del límite. |
@@ -821,7 +945,8 @@ Ver §4. Paginación y reordenado con `Alt+↑/↓` incluidos. Queda uno menor:
 `spectrum.py` lanza cava contra el sink y el analizador dibuja sus frames; sin cava
 sigue el vúmetro RMS y la insignia `FFT`/`RMS` dice cuál es cuál. Pendientes:
 
-- [x] Arrancar el cava real instalado: proceso vivo y frame de 19 bandas.
+- [x] Arrancar el cava real instalado: proceso vivo y frame de bandas (19 entonces; se
+      le piden 64 desde que las formas anchas remuestrean el mismo frame).
 - [x] Observar el frame con señal de audio real para validar la captura del sink.
 - [ ] cava escucha el sink, no nuestro mpv: si suena otra cosa a la vez, se cuela. Se
       arreglaría enrutando mpv a un sink propio de PipeWire, a cambio de un nodo por

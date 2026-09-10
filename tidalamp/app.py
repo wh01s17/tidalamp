@@ -13,7 +13,7 @@ from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, Vertical
 from textual.reactive import reactive
-from textual.widgets import Static
+from textual.widgets import Input, Static
 
 from . import about, artwork, audio, columns, config, i18n, library
 from .auth import NotLoggedIn, ensure_fresh
@@ -83,6 +83,7 @@ DEFAULT_KEYS: dict[str, str] = {
     "stop": "c",
     "next": "v",
     "search": "slash",
+    "filter_queue": "ctrl+f",
     "library": "l",
     "lyrics": "y",
     "equalizer": "e",
@@ -152,6 +153,12 @@ class TidalAmp(App):
     CSS_PATH = "styles.tcss"
     TITLE = "TIDAL AMP"
 
+    # Nothing takes focus on its own. The player is driven by bindings, which
+    # only fire while no widget is eating the keys, and the queue's search box
+    # is a widget that would otherwise grab them at startup and swallow `x`.
+    # Every screen that wants a cursor in a box focuses it itself.
+    AUTO_FOCUS = None
+
     # At 60×18 the compact layout drops the cover and balance row. Below that
     # even the transport, a useful queue and the status line cannot coexist.
     MIN_WIDTH = 60
@@ -165,6 +172,7 @@ class TidalAmp(App):
         _bind("stop", "stop", show=True),
         _bind("next", _("siguiente"), show=True),
         _bind("search", _("buscar"), show=True),
+        _bind("filter_queue", _("buscar en la cola")),
         _bind("library", _("biblioteca"), show=True),
         _bind("lyrics", _("letra"), show=True),
         _bind("equalizer", _("ecualizador"), show=True),
@@ -175,6 +183,7 @@ class TidalAmp(App):
         Binding("pageup", "cursor_page_up", "", show=False),
         Binding("pagedown", "cursor_page_down", "", show=False),
         Binding("enter", "play_selected", _("reproducir"), show=False),
+        Binding("escape", "close_queue_filter", "", show=False),
         _bind("remove", _("quitar")),
         _bind("move_up", _("subir")),
         _bind("move_down", _("bajar")),
@@ -222,6 +231,10 @@ class TidalAmp(App):
         self._transport_hits: list[tuple[int, int, str]] = []
         self._playable: Playable | None = None
         self._sink = audio.Sink()
+        # What the queue is narrowed to, and which queue positions that
+        # leaves on screen. Empty filter means every position, in order.
+        self._queue_filter = ""
+        self._shown: list[int] = []
 
     def get_theme_variable_defaults(self) -> dict[str, str]:
         """Expose the detected palette to the static TCSS stylesheet."""
@@ -257,6 +270,14 @@ class TidalAmp(App):
                 yield Static("", id="transport-menu")
             yield Static("", id="pl-title", markup=False)
             yield RowList(id="playlist")
+            # The queue's own search bar, the same shape as the browser's: it
+            # opens under the list without covering it, so the queue narrows
+            # under the eyes of whoever is typing. Hidden until ctrl+f.
+            with Horizontal(id="queue-filter-bar"):
+                yield Input(placeholder=_("buscar en la cola…"), id="queue-filter")
+                # markup=False: it counts rows for text the user typed, and a
+                # «[» in it would be read as a tag.
+                yield Static("", id="queue-filter-count", markup=False)
             with Horizontal(id="statusbar"):
                 yield Spinner(id="busy")
                 yield Static("", id="status", markup=False)
@@ -279,6 +300,7 @@ class TidalAmp(App):
         if self.query("#transport-menu"):
             # A resize is the other moment the buttons change width, so it
             # re-measures too. Both are rare; the ticks are the hot path.
+            self._apply_visualizer()
             self._refresh_modes(relayout=True)
             self._refresh_playlist_title()
             titlebar = self.query_one("#titlebar", Static)
@@ -387,6 +409,7 @@ class TidalAmp(App):
 
     def on_mount(self) -> None:
         self._check_size()
+        self.query_one("#queue-filter-bar", Horizontal).display = False
         playlist = self.query_one("#playlist", RowList)
         playlist.empty_text = _("cola vacía — / para buscar, l para tu biblioteca")
         volume = self.query_one("#volume", Slider)
@@ -409,7 +432,7 @@ class TidalAmp(App):
 
         if self.queue.load():
             self._sync_queue()
-            playlist.cursor = max(0, self.queue.resume_at)
+            playlist.cursor = max(0, self._row_at(self.queue.resume_at))
             self.status = _("cola restaurada ({count} pistas)").format(
                 count=len(self.queue)
             )
@@ -440,23 +463,46 @@ class TidalAmp(App):
         self.mpv.set_filter("eq", self.settings.eq_graph())
         self.query_one("#balance", Slider).value = int(self.settings.balance * 100)
 
+    def _apply_visualizer(self) -> None:
+        """Put the shape the setting names on the analyser.
+
+        The shape only changes how the readout's analyser draws itself, not
+        where it is: all of them live beside the cover, under the track
+        details, and the wide ones simply use the rest of that column instead
+        of stopping at nineteen bars. A name that is not one of them — the
+        setting comes from a file the user edits by hand — is the classic one.
+        """
+        wanted = config.VISUALIZER if config.VISUALIZER in Analyzer.MODES else "bars"
+        self._analyzer().mode = wanted
+
+    def _analyzer(self) -> Analyzer:
+        return self.query_one("#analyzer", Analyzer)
+
     def _start_spectrum(self) -> None:
         """Use cava for a real FFT when it is available. Its absence is not an
-        error: the analyser falls back to the RMS meter and says so."""
-        analyzer = self.query_one(Analyzer)
+        error: the analyser falls back to the RMS meter and says so.
+
+        One process feeds every shape, at a band count none of them draws
+        directly: each resamples it. Asking cava for exactly what is on screen
+        would mean restarting it on every resize and on every change of shape,
+        and a restart is a gap in the picture.
+        """
         try:
-            self.cava = Cava(bars=Analyzer.BARS)
+            self.cava = Cava(bars=Analyzer.BANDS)
         except SpectrumUnavailable:
-            analyzer.spectrum = None
+            self._feed_spectrum(None)
             return
-        analyzer.spectrum = self.cava.frame()
+        self._feed_spectrum(self.cava.frame())
 
     def _stop_spectrum(self) -> None:
         """Drop back to the RMS meter, for good."""
         if self.cava is not None:
             self.cava.close()
             self.cava = None
-        self.query_one(Analyzer).spectrum = None
+        self._feed_spectrum(None)
+
+    def _feed_spectrum(self, frame: list[float] | None) -> None:
+        self._analyzer().spectrum = frame
 
     async def _start_mpris(self) -> None:
         """Claim the MPRIS bus name. A desktop without a session bus is not an
@@ -496,12 +542,12 @@ class TidalAmp(App):
         if len(self.screen_stack) > 1:
             return
 
-        analyzer = self.query_one(Analyzer)
         if self.cava is not None:
             if self.cava.alive:
-                analyzer.spectrum = self.cava.frame()
+                self._feed_spectrum(self.cava.frame())
             else:
                 self._stop_spectrum()
+        analyzer = self._analyzer()
         analyzer.level = self.mpv.rms()
         analyzer.active = playing
         analyzer.tick()
@@ -898,14 +944,101 @@ class TidalAmp(App):
     # ------------------------------------------------------------------ queue
 
     def _sync_queue(self) -> None:
-        """Push the queue into the playlist widget."""
+        """Push the queue into the playlist widget, through the filter.
+
+        The widget only ever holds the rows the filter lets through, so a row
+        on screen is no longer the same number as a position in the queue.
+        `_shown` is the map between the two, and every action that acts on a
+        track goes through it.
+        """
         playlist = self.query_one("#playlist", RowList)
-        cursor = playlist.cursor
-        playlist.rows = [Row(label=e.label, detail=e.length, entry=e) for e in self.queue]
-        playlist.cursor = max(0, min(cursor, len(playlist.rows) - 1))
-        playlist.marked = self.queue.playing
+        # Where the cursor was, in queue terms, so a queue that changed under
+        # it — or a filter that just narrowed — leaves it on the same track.
+        was = self._queue_index(playlist.cursor)
+        rows = [
+            Row(label=entry.label, detail=entry.length, entry=entry, number=position + 1)
+            for position, entry in enumerate(self.queue)
+        ]
+        self._shown = [
+            position
+            for position, row in enumerate(rows)
+            if not self._queue_filter or library.matches(self._queue_filter, row)
+        ]
+        playlist.rows = [rows[position] for position in self._shown]
+        playlist.cursor = max(0, self._row_at(was))
+        playlist.marked = self._row_at(self.queue.playing)
         playlist.refresh()
+        self._render_queue_filter()
         self.queue.save()
+
+    # ---------------------------------------------------------- queue filter
+
+    def _queue_index(self, cursor: int) -> int:
+        """Which track in the queue the row at ``cursor`` is. -1 when none."""
+        if 0 <= cursor < len(self._shown):
+            return self._shown[cursor]
+        return -1
+
+    def _cursor_index(self) -> int:
+        """The queue position under the cursor. -1 when the queue is empty."""
+        return self._queue_index(self.query_one("#playlist", RowList).cursor)
+
+    def _row_at(self, position: int) -> int:
+        """Where queue position ``position`` sits on screen.
+
+        -1 when the filter is hiding it, which is a real answer: the track
+        playing right now may well not be one of the ones being searched for.
+        """
+        try:
+            return self._shown.index(position)
+        except ValueError:
+            return -1
+
+    def _render_queue_filter(self) -> None:
+        """The count next to the search box: how much of the queue is left."""
+        if not self.query("#queue-filter-bar"):
+            return
+        if not self.query_one("#queue-filter-bar", Horizontal).display:
+            return
+        self.query_one("#queue-filter-count", Static).update(
+            _("{shown} de {total}").format(shown=len(self._shown), total=len(self.queue))
+            if self._queue_filter
+            else _("{total} en la cola").format(total=len(self.queue))
+        )
+
+    def action_filter_queue(self) -> None:
+        """Open the search bar under the queue and start typing into it."""
+        self.query_one("#queue-filter-bar", Horizontal).display = True
+        self._render_queue_filter()
+        self.query_one("#queue-filter", Input).focus()
+
+    def _clear_queue_filter(self) -> None:
+        """Drop the filter and close its bar, leaving the cursor on the track
+        it was on: narrowing the queue is how you reach a track in it."""
+        self._queue_filter = ""
+        self.query_one("#queue-filter", Input).value = ""
+        self.query_one("#queue-filter-bar", Horizontal).display = False
+        self.set_focus(None)
+        self._sync_queue()
+
+    def action_close_queue_filter(self) -> None:
+        """esc undoes the last thing that happened, and nothing else."""
+        if self.query_one("#queue-filter-bar", Horizontal).display:
+            self._clear_queue_filter()
+
+    @on(Input.Changed, "#queue-filter")
+    def _queue_filter_changed(self, event: Input.Changed) -> None:
+        value = event.value.strip()
+        if value == self._queue_filter:
+            return
+        self._queue_filter = value
+        self._sync_queue()
+
+    @on(Input.Submitted, "#queue-filter")
+    def _queue_filter_submitted(self, event: Input.Submitted) -> None:
+        """↵ hands the keys back to the queue and leaves the filter applied."""
+        self.query_one("#queue-filter", Input).blur()
+        self.set_focus(None)
 
     # ------------------------------------------------------------------ search
 
@@ -1000,7 +1133,7 @@ class TidalAmp(App):
 
     def action_play_selected(self) -> None:
         if len(self.queue):
-            self._play_index(self.query_one("#playlist", RowList).cursor)
+            self._play_index(self._cursor_index())
 
     def action_play(self) -> None:
         """Play, resume or pause: whichever the current state calls for.
@@ -1014,7 +1147,7 @@ class TidalAmp(App):
             self.status = _("pausa") if self.mpv.paused else _("reproduciendo")
             self._refresh_readout()
         elif len(self.queue):
-            self._play_index(self.query_one("#playlist", RowList).cursor)
+            self._play_index(self._cursor_index())
 
     def _toggle_pause(self) -> None:
         """A plain toggle, with no key of its own: MPRIS `PlayPause` uses it.
@@ -1051,22 +1184,28 @@ class TidalAmp(App):
             self._play_index(index)
 
     def action_remove(self) -> None:
-        playlist = self.query_one("#playlist", RowList)
-        if len(self.queue):
-            self.queue.remove(playlist.cursor)
+        index = self._cursor_index()
+        if index >= 0:
+            self.queue.remove(index)
             self._sync_queue()
             self.status = _("pista quitada de la cola")
 
     def _move_entry(self, delta: int) -> None:
-        playlist = self.query_one("#playlist", RowList)
-        if not len(self.queue):
+        """Move the track under the cursor one place along the queue.
+
+        Under a filter the rows on screen may not visibly reorder — the track
+        it swapped with can be one the filter is hiding — but the number at
+        the head of the line is the queue position, and that does change.
+        """
+        index = self._cursor_index()
+        if index < 0:
             return
-        moved = self.queue.move(playlist.cursor, delta)
-        if moved == playlist.cursor:
+        moved = self.queue.move(index, delta)
+        if moved == index:
             return
         self._sync_queue()
-        playlist.cursor = moved
-        playlist.marked = self.queue.playing
+        playlist = self.query_one("#playlist", RowList)
+        playlist.cursor = max(0, self._row_at(moved))
         playlist.refresh()
 
     def action_move_up(self) -> None:
@@ -1111,8 +1250,13 @@ class TidalAmp(App):
         entry = self.queue[index]
         self.queue.playing = index
         playlist = self.query_one("#playlist", RowList)
-        playlist.cursor = index
-        playlist.marked = index
+        row = self._row_at(index)
+        # A track started from outside the filter — «next», the radio, MPRIS —
+        # can be one the filter hides. The cursor stays where the user left it
+        # rather than jumping to an unrelated row.
+        if row >= 0:
+            playlist.cursor = row
+        playlist.marked = row
         playlist.refresh()
         self.query_one(Marquee).text = f"{index + 1}. {entry.label} ({entry.length})"
         # The spinner carries the message while we wait; repeating it in the
@@ -1320,7 +1464,7 @@ class TidalAmp(App):
         """Redraw source, analyser and playback state from cached values."""
         if not self.query("#badges"):
             return
-        analyzer = self.query_one(Analyzer)
+        analyzer = self._analyzer()
         playable = self._playable
         if playable is None:
             source = f"SRC  — · {analyzer.source} · {self._playback_label()}"
@@ -1423,6 +1567,9 @@ class TidalAmp(App):
             self.refresh_css(animate=False)
             self._apply_appearance()
             self.status = _("paleta: {value}").format(value=config.PALETTE)
+        elif name == "visualizer":
+            self._apply_visualizer()
+            self.status = _("visualizador: {value}").format(value=config.VISUALIZER)
         elif name == "columns":
             # RowList reads the setting at render time, so the queue only
             # needs telling to draw itself again — no reload, and the browser

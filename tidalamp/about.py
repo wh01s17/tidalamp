@@ -168,6 +168,7 @@ def shortcuts(keys) -> tuple[Section, ...]:
                 ("↑ / ↓", _("mover el cursor")),
                 ("pgup / pgdn", _("una página")),
                 ("↵", _("reproducir la pista del cursor")),
+                (key("filter_queue"), _("buscar en la cola: escribe y se estrecha")),
                 (key("remove"), _("quitar la pista del cursor")),
                 (key("move_up"), _("subir la pista en la cola")),
                 (key("move_down"), _("bajar la pista en la cola")),

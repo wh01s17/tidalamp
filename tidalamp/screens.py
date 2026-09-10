@@ -33,7 +33,7 @@ from .library import Row
 from .lyrics import LyricsDocument
 from .settings import BAND_LABELS, GAIN_LIMIT, Settings
 from .theme import LAYOUTS, available_palettes, palette_for
-from .widgets import EqualizerBars, Slider, Spinner
+from .widgets import Analyzer, EqualizerBars, Slider, Spinner
 
 if TYPE_CHECKING:  # The screens report back to the app; the app owns them.
     from .app import TidalAmp
@@ -131,6 +131,9 @@ class RowList(Widget):
         its own name, with its detail on the right as before.
         """
         marker = "▶" if index == marked else (" " if row.is_playable else "›")
+        # The row's own number when it carries one — a filtered queue keeps
+        # the positions it really has — and its place on screen otherwise.
+        number = index + 1 if row.number is None else row.number
         entry = row.entry
         chosen = [
             columns.BY_NAME[name] for name in config.COLUMNS if name in columns.BY_NAME
@@ -144,7 +147,7 @@ class RowList(Widget):
             sized = []
 
         if sized and entry is not None:
-            head = f"{marker}{index + 1:>3}. "
+            head = f"{marker}{number:>3}. "
             title_width = width - sum(size + cls.GAP for _c, size in sized)
             name = entry.title if "artist" in shown else row.label
             line = head + set_cell_size(name, title_width - cell_len(head))
@@ -156,7 +159,7 @@ class RowList(Widget):
             return set_cell_size(line, width)
 
         detail = cls._cell(row.detail, detail_width, "right") if detail_width else ""
-        left = f"{marker}{index + 1:>3}. {row.label}"
+        left = f"{marker}{number:>3}. {row.label}"
         left_width = width - detail_width - (1 if detail else 0)
         line = set_cell_size(left, max(0, left_width))
         if detail:
@@ -977,6 +980,11 @@ class LyricsScreen(ModalScreen[None]):
 class HelpScreen(ModalScreen[None]):
     """Every key the app answers to, plus who wrote it and what changed.
 
+    Two tabs rather than one long document: the keys are what the screen is
+    opened for, and the credits and the release notes were three screenfuls
+    of scrolling below them. → moves to «Acerca de», ← comes back, and each
+    tab remembers where it was left.
+
     Built from the *effective* bindings, not from a hardcoded list: `keys` is
     the app's resolver, so a key rebound in `config.toml` shows up here as the
     key the user actually has to press.
@@ -986,38 +994,103 @@ class HelpScreen(ModalScreen[None]):
         Binding("escape,question_mark,h", "close", _("cerrar")),
         Binding("up", "up", _("arriba"), show=False),
         Binding("down", "down", _("abajo"), show=False),
+        Binding("right", "next_tab", _("acerca de"), show=False),
+        Binding("left", "prev_tab", _("ayuda"), show=False),
         Binding("pageup", "page_up", "", show=False),
         Binding("pagedown", "page_down", "", show=False),
         Binding("home", "top", "", show=False),
         Binding("end", "bottom", "", show=False),
     ]
 
+    # The tabs, left to right. `→` walks towards the end of this tuple and
+    # `←` back towards its start, so the order here is the order on screen.
+    SHORTCUTS, ABOUT = 0, 1
+
     def __init__(self, keys: Callable[[str], str]) -> None:
         super().__init__()
         self._keys = keys
-        self._offset = 0
-        # Built once on mount: nothing in it changes while the screen is open.
-        self._lines: list[tuple[str, str]] = []
+        self._tab = self.SHORTCUTS
+        # One scroll position per tab: coming back to the keys should land
+        # where you left them, not at the top.
+        self._offsets = [0, 0]
+        # Built once on mount: nothing in them changes while the screen is
+        # open, and building both costs less than rebuilding on every →.
+        self._pages: list[list[tuple[str, str]]] = [[], []]
+
+    # The rest of the screen scrolls «the current page», so both of these read
+    # through the tab instead of every caller having to index it.
+
+    @property
+    def _lines(self) -> list[tuple[str, str]]:
+        return self._pages[self._tab]
+
+    @property
+    def _offset(self) -> int:
+        return self._offsets[self._tab]
+
+    @_offset.setter
+    def _offset(self, value: int) -> None:
+        self._offsets[self._tab] = value
 
     def compose(self) -> ComposeResult:
         with Vertical(id="help-box"):
-            yield Static(
-                _("▓ AYUDA ▓  {name} {version}").format(
-                    name="TIDAL AMP", version=about.version()
-                ),
-                id="help-title",
-            )
+            yield Static("", id="help-title", markup=False)
             yield Static("", id="help-body", markup=False)
-            yield Static(_(" ↑↓ desplazar   ?/h/esc cerrar"), id="help-hint")
+            yield Static("", id="help-hint", markup=False)
 
     def on_mount(self) -> None:
-        self._lines = self._build()
+        self._pages = [self._build_shortcuts(), self._build_about()]
+        self._render_tabs()
         self._render_window()
+
+    # ---------------------------------------------------------------- tabs
+
+    def _titles(self) -> tuple[str, str]:
+        """Translated at call time, like everything else the screen draws."""
+        return (_("AYUDA"), _("ACERCA DE"))
+
+    def _render_tabs(self) -> None:
+        """The title bar, with the tab you are on marked and the other dim.
+
+        The version rides at the end because it is the one thing a user is
+        asked to quote in a bug report; a narrow terminal clips it and loses
+        nothing the «Acerca de» tab does not repeat.
+        """
+        palette = palette_for(self)
+        bar = Text()
+        for index, title in enumerate(self._titles()):
+            if index == self._tab:
+                bar.append(f"▓ {title} ▓", style=f"bold {palette['accent']}")
+            else:
+                bar.append(f"  {title}  ", style=palette["inactive"])
+        bar.append(f"  TIDAL AMP {about.version()}", style=palette["title_foreground"])
+        self.query_one("#help-title", Static).update(bar)
+
+        hint = (
+            _(" ↑↓ desplazar   → acerca de   ?/h/esc cerrar")
+            if self._tab == self.SHORTCUTS
+            else _(" ↑↓ desplazar   ← ayuda   ?/h/esc cerrar")
+        )
+        self.query_one("#help-hint", Static).update(hint)
+
+    def _go_to(self, tab: int) -> None:
+        tab = max(0, min(tab, len(self._pages) - 1))
+        if tab == self._tab:
+            return
+        self._tab = tab
+        self._render_tabs()
+        self._render_window()
+
+    def action_next_tab(self) -> None:
+        self._go_to(self._tab + 1)
+
+    def action_prev_tab(self) -> None:
+        self._go_to(self._tab - 1)
 
     # ------------------------------------------------------------- content
 
-    def _build(self) -> list[tuple[str, str]]:
-        """The whole document as (style, text) pairs, top to bottom.
+    def _build_shortcuts(self) -> list[tuple[str, str]]:
+        """The key map as (style, text) pairs, top to bottom.
 
         A flat list rather than a scrolling container: the screen windows it
         by hand, the way the plain-text lyrics do, so it needs no widget that
@@ -1031,6 +1104,12 @@ class HelpScreen(ModalScreen[None]):
             for key, description in section.rows:
                 lines.append(("row", f"  {key:<{width}}   {description}"))
             lines.append(("blank", ""))
+
+        return self._trimmed(lines)
+
+    def _build_about(self) -> list[tuple[str, str]]:
+        """Who wrote it, under what licence, and what each version brought."""
+        lines: list[tuple[str, str]] = []
 
         lines.append(("heading", _("Acerca de")))
         for text in (
@@ -1065,6 +1144,11 @@ class HelpScreen(ModalScreen[None]):
                 lines.append(("row", f"    · {change}"))
             lines.append(("blank", ""))
 
+        return self._trimmed(lines)
+
+    @staticmethod
+    def _trimmed(lines: list[tuple[str, str]]) -> list[tuple[str, str]]:
+        """Without the separator the last block left hanging under itself."""
         while lines and lines[-1][0] == "blank":
             lines.pop()
         return lines
@@ -1346,6 +1430,13 @@ class ConfigScreen(ModalScreen[None]):
                     if config.TRANSPARENCY
                     else _("blocks se dibuja con texto y sobrevive a las ventanas")
                 ),
+                group=looks,
+            ),
+            Option(
+                _("Visualizador"),
+                key="visualizer",
+                choices=Analyzer.MODES,
+                note=_("forma del analizador; fine necesita una fuente con Braille"),
                 group=looks,
             ),
             Option(
@@ -1677,6 +1768,7 @@ _ATTRIBUTES = {
     "language": "LANGUAGE",
     "theme": "THEME",
     "palette": "PALETTE",
+    "visualizer": "VISUALIZER",
     "debug": "DEBUG",
     "transparency": "TRANSPARENCY",
 }

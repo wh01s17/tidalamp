@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 from typer.testing import CliRunner
 
-from tidalamp import cli, config, i18n
+from tidalamp import about, cli, config, i18n
 from tidalamp.auth import NotLoggedIn
 from tidalamp.player import MpvNotFound
 
@@ -100,6 +100,19 @@ def test_help_does_not_launch_the_tui(monkeypatch):
 
     assert result.exit_code == 0
     assert "Commands" in result.output
+
+
+@pytest.mark.parametrize("flag", ["--version", "-v"])
+def test_the_version_flag_prints_the_version_without_opening_the_tui(flag, monkeypatch):
+    """It is what a bug report is asked to quote, so it must not need a
+    session, mpv, or a terminal the player would fit in."""
+    monkeypatch.setattr(cli, "tui", lambda: pytest.fail("abrió la TUI"))
+    monkeypatch.setattr(cli, "load_session", lambda: pytest.fail("pidió sesión"))
+
+    result = runner.invoke(cli.app, [flag])
+
+    assert result.exit_code == 0
+    assert result.output.strip() == f"tidalamp {about.version()}"
 
 
 def test_search_prints_ids_for_scripts(monkeypatch):

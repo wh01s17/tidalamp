@@ -130,9 +130,14 @@ git pull
 
 `mpv` and `cava` are system packages — your distribution updates those, not pipx.
 
-There is no `--version` flag. The running version is on the help screen (`?`, under
-_About_), together with the notes for each release; `pipx list` shows what is
-installed.
+To check which version is running:
+
+```sh
+tidalamp --version    # or -v
+```
+
+The same number is on the help screen (`?`, then `→` for _About_), together with the
+notes for each release; `pipx list` shows what is installed.
 
 ### Minimum size
 
@@ -172,6 +177,7 @@ show the key that actually works.
 | --------------- | -------------------------------------------------- |
 | `z` `x` `c` `v` | previous / play-pause / stop / next                |
 | `/`             | search TIDAL                                       |
+| `ctrl+f`        | search the queue                                   |
 | `↑` `↓` `Enter` | navigate; on a track, open the track menu          |
 | `l`             | open the library browser                           |
 | `f` `F`         | add to / remove from favourites                    |
@@ -242,8 +248,20 @@ is also readable without colour: `⇄○`/`⇄●` for shuffle, and `↻–`/`�
 three repeat modes — the `retro`, `nova` and `ascii` layouts spell the same states out
 as `SHUFFLE ○` and `REPEAT 1`.
 
+`ctrl+f` **searches the queue**, from a bar under the playlist, the same gesture the
+browser's `/` is: type and the queue narrows to what matches, without covering it. It
+matches the same way — case and accents ignored, every word has to appear somewhere,
+and a track is also found by its album. The rows keep the number they really have in
+the queue, so a match numbered `47` tells you where it is in the playing order rather
+than pretending to be the first track. `↵` gives the arrows back to the list with the
+filter still applied, and `Esc` clears it and leaves the cursor on the track you had
+reached. Everything that acts on the selected row — `↵`, `d`, `alt+↑`, `alt+↓`, `f` —
+acts on that track and not on its place on screen.
+
 `alt+↑` and `alt+↓` move the selected track. With shuffle enabled, moving a row does
-not reshuffle what comes next.
+not reshuffle what comes next. While the queue is filtered the rows may not visibly
+reorder — the track it swapped with can be one the filter is hiding — but the number
+at the head of the line changes, because that is the queue position.
 
 Long levels are paginated in groups of 100. The final row is `more…`; pressing `↵` on
 it loads the next page **into the same level** without losing the cursor position.
@@ -410,6 +428,7 @@ writes `~/.config/tidalamp/config.toml`, so a change made once stays made.
 | Quality   | `LOW` `HIGH` `LOSSLESS` `HI_RES_LOSSLESS` | the next track |
 | Cover art | `auto` `kitty` `sixel` `blocks` `off`     | on restart     |
 | Language  | `auto` `es` `en`                          | on restart     |
+| Visualizer | `bars` `mirror` `curve` `fine`            | immediately   |
 | Debug log | on / off                                  | immediately    |
 
 `tidalamp config` shows the effective settings and creates the file if it does not
@@ -422,6 +441,7 @@ language = "auto"             # auto follows the locale; es or en pin it
 columns = "artist,album,year,duration"   # queue columns, comma separated
 theme = "quattro"             # layout: quattro, retro, nova, or ascii
 palette = "auto"              # colours: auto, classic, a built-in, or your own
+visualizer = "bars"           # analyzer shape: bars, mirror, curve, or fine
 debug = false                 # log to ~/.local/state/tidalamp/tidalamp.log
 
 [keys]
@@ -430,8 +450,8 @@ quit = "ctrl+q"
 ```
 
 Precedence is **environment → file → default**. `TIDALAMP_QUALITY`, `TIDALAMP_ART`,
-`TIDALAMP_LANG`, `TIDALAMP_COLUMNS`, `TIDALAMP_THEME`, `TIDALAMP_PALETTE`, and
-`TIDALAMP_DEBUG` therefore override the file for one-off runs; the settings window
+`TIDALAMP_LANG`, `TIDALAMP_COLUMNS`, `TIDALAMP_THEME`, `TIDALAMP_PALETTE`,
+`TIDALAMP_VISUALIZER`, and `TIDALAMP_DEBUG` therefore override the file for one-off runs; the settings window
 labels a row whose value is being shadowed that way, rather than showing a value the
 app is not using. A syntax error in the file does not prevent startup; it is logged
 and the defaults take over.
@@ -520,6 +540,36 @@ One honest caveat: cava listens to the **sink**, not specifically to tidalamp's 
 process. It displays everything playing on the machine, which is usually just
 tidalamp.
 
+### Shapes
+
+The `visualizer` setting picks how that spectrum is drawn. All four read the same
+frame, so switching between them costs a redraw and nothing else — cava is never
+restarted, and neither is the music.
+
+| Shape    | What it draws                                                |
+| -------- | ------------------------------------------------------------ |
+| `bars`   | The default: upright bars with falling peaks                 |
+| `mirror` | Bars growing up and down from a centre line                  |
+| `curve`  | The contour of the spectrum as a line, one glyph per column  |
+| `fine`   | The same line on the Braille dot grid: twice the horizontal resolution, and joined up into a stroke |
+
+`fine` needs a font with Braille. Most have it — every Nerd Font, DejaVu, the Noto
+family — but a font without it draws boxes, and a terminal cannot be asked beforehand,
+so it is a shape you choose rather than one anything falls back to.
+
+All four are drawn where the analyzer has always been — beside the cover, under the
+track details — and all three run to the right edge of the window. Nothing moves and
+no row is taken from the queue.
+
+The bars are capped at 64 bands and made wider to cover the width, rather than growing
+thinner as the terminal grows: on a 4K display the uncapped version cost the app 55% of
+a core at ten frames a second, because every band is an escape sequence the terminal
+has to chew through. Capped and with runs of one colour merged, the same picture costs
+about 8%.
+
+Change it from the settings window (`o`, under _Appearance_), from `config.toml`, or
+with `TIDALAMP_VISUALIZER=curve tidalamp`. It applies immediately.
+
 ## Cover art
 
 Album art is drawn to the left of the display, in a box that grows with the terminal
@@ -570,8 +620,9 @@ only apply inside search and the library. It reads the bindings from the running
 so a key rebound in `config.toml` shows up there as the key you actually have to
 press.
 
-The same window carries the _About_ section — version, author, repository, licence —
-and a summary of what each released version brought.
+The window has two tabs. `→` moves to _About_ — version, author, repository, licence
+and a summary of what each released version brought — and `←` comes back to the keys,
+where you left them.
 
 `↑` `↓` scroll, `PgUp` `PgDn` a page, `Home` `End` jump to either end, and `?`, `h` or
 `Esc` close it.

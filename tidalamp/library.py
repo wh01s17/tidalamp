@@ -96,6 +96,11 @@ class Row:
     # Fetches the next page and gets appended to *this* level in place,
     # replacing the row itself.
     more: Callable[[], list[Row]] | None = None
+    # What number to draw at the head of the line, when it is not the row's
+    # own position on screen. The queue sets it: under a filter the rows shown
+    # are a handful out of hundreds, and renumbering them 1, 2, 3 would claim
+    # a playing order that is not the one the player follows.
+    number: int | None = None
 
     @property
     def is_playable(self) -> bool:

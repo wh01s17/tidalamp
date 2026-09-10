@@ -74,6 +74,7 @@ ENV_VARS: dict[str, str] = {
     "columns": "TIDALAMP_COLUMNS",
     "theme": "TIDALAMP_THEME",
     "palette": "TIDALAMP_PALETTE",
+    "visualizer": "TIDALAMP_VISUALIZER",
     "debug": "TIDALAMP_DEBUG",
     "transparency": "TIDALAMP_TRANSPARENCY",
 }
@@ -148,6 +149,11 @@ LANGUAGE = setting("language", "TIDALAMP_LANG", "auto")
 # an active Omarchy palette and falls back to the built-in classic colours.
 THEME = setting("theme", "TIDALAMP_THEME", "quattro")
 PALETTE = setting("palette", "TIDALAMP_PALETTE", "auto")
+
+# The shape of the spectrum analyser. `bars` is the small one that has always
+# lived in the readout column; the other four take a row of their own across
+# the whole window, and fall back to `bars` on a terminal with no room for it.
+VISUALIZER = setting("visualizer", "TIDALAMP_VISUALIZER", "bars")
 
 # Which metadata columns the queue draws, in the order they were chosen. A
 # comma-separated string rather than a TOML array so that it reads and writes
@@ -237,13 +243,14 @@ def reload() -> None:
     Those consumers read `config.DEFAULT_QUALITY` instead — see stream.py.
     """
     global FILE, DEFAULT_QUALITY, ARTWORK, LANGUAGE, THEME, PALETTE, COLUMNS
-    global DEBUG, TRANSPARENCY, KEYS
+    global DEBUG, TRANSPARENCY, KEYS, VISUALIZER
     FILE = read_file()
     DEFAULT_QUALITY = setting("quality", "TIDALAMP_QUALITY", "HI_RES_LOSSLESS")
     ARTWORK = setting("artwork", "TIDALAMP_ART", "auto")
     LANGUAGE = setting("language", "TIDALAMP_LANG", "auto")
     THEME = setting("theme", "TIDALAMP_THEME", "quattro")
     PALETTE = setting("palette", "TIDALAMP_PALETTE", "auto")
+    VISUALIZER = setting("visualizer", "TIDALAMP_VISUALIZER", "bars")
     COLUMNS = columns()
     DEBUG = flag("debug", "TIDALAMP_DEBUG")
     TRANSPARENCY = flag("transparency", "TIDALAMP_TRANSPARENCY")

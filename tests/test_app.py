@@ -1677,6 +1677,326 @@ def test_play_next_adds_only_that_track_after_the_current_one(monkeypatch):
     asyncio.run(scenario())
 
 
+def a_queue(application, *titles: str) -> None:
+    """Fill the queue with one entry per title and put it on screen."""
+    application.queue.replace(
+        [Entry(id=i, title=t, artist="TOOL", duration=60) for i, t in enumerate(titles)],
+        start=-1,
+    )
+    application._sync_queue()
+
+
+def queue_lines(application) -> list[str]:
+    """What the playlist widget is actually drawing, line by line."""
+    playlist = application.query_one("#playlist", RowList)
+    return [playlist.render_line(y).text.rstrip() for y in range(playlist.size.height)]
+
+
+def test_ctrl_f_narrows_the_queue_and_esc_gives_it_back(monkeypatch):
+    isolate_runtime(monkeypatch)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(100, 30)) as pilot:
+            await pilot.pause()
+            a_queue(application, "Schism", "Lateralus", "The Grudge")
+            await pilot.pause()
+            bar = application.query_one("#queue-filter-bar")
+            assert bar.display is False
+
+            await pilot.press("ctrl+f")
+            await pilot.pause()
+            assert bar.display is True
+            assert application.query_one("#queue-filter").has_focus
+
+            application.query_one("#queue-filter").value = "later"
+            await pilot.pause()
+            assert [
+                row.label for row in application.query_one("#playlist", RowList).rows
+            ] == ["TOOL - Lateralus"]
+            assert "1 de 3" in application.query_one("#queue-filter-count").render().plain
+
+            # The queue itself never changed: only what is being shown did.
+            assert len(application.queue) == 3
+
+            await pilot.press("escape")
+            await pilot.pause()
+            assert bar.display is False
+            assert len(application.query_one("#playlist", RowList).rows) == 3
+
+    asyncio.run(scenario())
+
+
+def test_a_filtered_queue_keeps_the_numbers_the_tracks_really_have(monkeypatch):
+    """Renumbering the matches 1, 2, 3 would claim a playing order that is
+    not the one the player follows."""
+    isolate_runtime(monkeypatch)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(100, 30)) as pilot:
+            await pilot.pause()
+            a_queue(application, "Schism", "Lateralus", "The Grudge")
+            await pilot.press("ctrl+f")
+            application.query_one("#queue-filter").value = "grudge"
+            await pilot.pause()
+
+            drawn = [line for line in queue_lines(application) if line.strip()]
+            assert len(drawn) == 1
+            assert drawn[0].strip().startswith("3. The Grudge")
+
+    asyncio.run(scenario())
+
+
+def test_enter_on_a_filtered_row_plays_that_track_and_not_its_place_on_screen(
+    monkeypatch,
+):
+    """The row is the first one shown but the third one queued: acting on the
+    cursor's number instead of the track's would start the wrong song."""
+    isolate_runtime(monkeypatch)
+    monkeypatch.setattr(TidalAmp, "_resolve_worker", lambda self, entry: None)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(100, 30)) as pilot:
+            await pilot.pause()
+            a_queue(application, "Schism", "Lateralus", "The Grudge")
+            await pilot.press("ctrl+f")
+            application.query_one("#queue-filter").value = "grudge"
+            await pilot.pause()
+            # ↵ inside the box only hands the keys back to the list.
+            await pilot.press("enter")
+            await pilot.pause()
+            assert not application.query_one("#queue-filter").has_focus
+
+            await pilot.press("enter")
+            await pilot.pause()
+
+            assert application.queue.playing == 2
+            assert application.queue.current.title == "The Grudge"
+
+    asyncio.run(scenario())
+
+
+def test_removing_under_a_filter_takes_out_the_track_that_was_selected(monkeypatch):
+    isolate_runtime(monkeypatch)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(100, 30)) as pilot:
+            await pilot.pause()
+            a_queue(application, "Schism", "Lateralus", "The Grudge")
+            await pilot.press("ctrl+f")
+            application.query_one("#queue-filter").value = "grudge"
+            await pilot.pause()
+            await pilot.press("enter")
+            await pilot.pause()
+
+            await pilot.press("d")
+            await pilot.pause()
+
+            assert [e.title for e in application.queue] == ["Schism", "Lateralus"]
+
+    asyncio.run(scenario())
+
+
+def test_clearing_the_filter_leaves_the_cursor_on_the_track_it_was_on(monkeypatch):
+    """Narrowing the queue is how you reach a track in it; landing back at the
+    top afterwards would undo the whole point."""
+    isolate_runtime(monkeypatch)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(100, 30)) as pilot:
+            await pilot.pause()
+            a_queue(application, "Schism", "Lateralus", "The Grudge")
+            await pilot.press("ctrl+f")
+            application.query_one("#queue-filter").value = "grudge"
+            await pilot.pause()
+            await pilot.press("escape")
+            await pilot.pause()
+
+            playlist = application.query_one("#playlist", RowList)
+            assert playlist.cursor == 2
+            assert playlist.current.entry.title == "The Grudge"
+
+    asyncio.run(scenario())
+
+
+def test_the_playing_row_stays_marked_only_while_the_filter_shows_it(monkeypatch):
+    isolate_runtime(monkeypatch)
+    monkeypatch.setattr(TidalAmp, "_resolve_worker", lambda self, entry: None)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(100, 30)) as pilot:
+            await pilot.pause()
+            a_queue(application, "Schism", "Lateralus", "The Grudge")
+            application._play_index(1)
+            await pilot.pause()
+            playlist = application.query_one("#playlist", RowList)
+            assert playlist.marked == 1
+
+            await pilot.press("ctrl+f")
+            application.query_one("#queue-filter").value = "grudge"
+            await pilot.pause()
+            # Hidden by the filter, so there is no row to mark — and the app
+            # has not stopped playing it.
+            assert playlist.marked == -1
+            assert application.queue.playing == 1
+
+            application.query_one("#queue-filter").value = "later"
+            await pilot.pause()
+            assert playlist.marked == 0
+
+    asyncio.run(scenario())
+
+
+def test_typing_in_the_queue_search_does_not_reach_the_transport(monkeypatch):
+    """`x` is play/pause, and a search box that let it through could not spell
+    «Lateralus»."""
+    isolate_runtime(monkeypatch)
+
+    async def scenario() -> None:
+        mpv = FakeMpv()
+        application = TidalAmp(object(), mpv)
+        async with application.run_test(size=(100, 30)) as pilot:
+            await pilot.pause()
+            a_queue(application, "Schism", "Lateralus", "The Grudge")
+            mpv.idle = False
+            await pilot.press("ctrl+f")
+            await pilot.pause()
+
+            await pilot.press("x")
+            await pilot.pause()
+
+            assert mpv.paused is False
+            assert application.query_one("#queue-filter").value == "x"
+
+    asyncio.run(scenario())
+
+
+def test_the_setting_changes_the_shape_without_moving_the_analyser(monkeypatch):
+    """Every shape is drawn in the same place — beside the cover, under the
+    track details — and all of them use the whole column."""
+    isolate_runtime(monkeypatch)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(120, 34)) as pilot:
+            await pilot.pause()
+            analyzer = application.query_one("#analyzer", Analyzer)
+            assert analyzer.mode == "bars"
+            where = analyzer.region
+
+            monkeypatch.setattr(app_module.config, "VISUALIZER", "curve")
+            application._setting_changed("visualizer")
+            await pilot.pause()
+
+            assert analyzer.mode == "curve"
+            assert analyzer.region == where, "no se mueve de sitio"
+
+    asyncio.run(scenario())
+
+
+def test_a_shape_reaches_the_right_edge_of_the_window(monkeypatch):
+    """The bars used to stop at nineteen, and then at a cap on the band count,
+    both of which left most of the column empty."""
+    isolate_runtime(monkeypatch)
+    monkeypatch.setattr(app_module.config, "VISUALIZER", "bars")
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(200, 34)) as pilot:
+            await pilot.pause()
+            analyzer = application.query_one("#analyzer", Analyzer)
+            analyzer.active = True
+            analyzer.spectrum = [0.9] * Analyzer.BANDS
+            for _ in range(20):
+                analyzer.tick()
+            await pilot.pause()
+
+            width = analyzer.size.width
+            bottom = analyzer.render_line(analyzer.size.height - 1).text
+            assert bottom.rstrip() != ""
+            # The last band is drawn within a band's width of the edge.
+            assert len(bottom.rstrip()) >= width - 2, len(bottom.rstrip())
+
+    asyncio.run(scenario())
+
+
+def test_the_analyser_starts_where_the_track_details_do(monkeypatch):
+    """Beside the cover and the clock, not under them: the wide shapes share
+    the readout column with the SRC and OUT lines above them."""
+    isolate_runtime(monkeypatch)
+    monkeypatch.setattr(app_module.config, "VISUALIZER", "mirror")
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(120, 34)) as pilot:
+            await pilot.pause()
+            analyzer = application.query_one("#analyzer", Analyzer)
+            badges = application.query_one("#badges", Static)
+            art = application.query_one(Artwork)
+
+            assert analyzer.region.x == badges.region.x
+            assert analyzer.region.x > art.region.right
+            # As far right as anything else inside the panel: the frame and
+            # the one cell of air the whole display band keeps.
+            assert analyzer.region.right == application.size.width - 3
+
+    asyncio.run(scenario())
+
+
+def test_a_shape_that_is_not_one_of_the_three_falls_back_to_bars(monkeypatch):
+    """The setting comes from a file the user edits by hand."""
+    isolate_runtime(monkeypatch)
+    monkeypatch.setattr(app_module.config, "VISUALIZER", "espiral")
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(100, 34)) as pilot:
+            await pilot.pause()
+            assert application.query_one("#analyzer", Analyzer).mode == "bars"
+
+    asyncio.run(scenario())
+
+
+def test_the_config_screen_offers_every_shape_and_writes_the_one_chosen(
+    monkeypatch, tmp_path
+):
+    isolate_runtime(monkeypatch)
+    path = tmp_path / "config.toml"
+    monkeypatch.setattr(app_module.config, "CONFIG_FILE", path)
+    changed: list[str] = []
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(100, 34)) as pilot:
+            await pilot.pause()
+
+            def applied(name: str) -> None:
+                changed.append(name)
+                application._setting_changed(name)
+
+            screen = ConfigScreen(applied)
+            application.push_screen(screen)
+            await pilot.pause()
+            row = next(o for o in screen._rows if o.key == "visualizer")
+            assert row.choices == Analyzer.MODES
+
+            # One step along the row, the way ↵ moves it.
+            screen._cycle(row, 1)
+            await pilot.pause()
+
+            assert app_module.config.VISUALIZER == "mirror"
+            assert 'visualizer = "mirror"' in path.read_text(encoding="utf-8")
+            assert changed == ["visualizer"]
+            assert application.query_one("#analyzer", Analyzer).mode == "mirror"
+
+    asyncio.run(scenario())
+
+
 def test_radio_replaces_the_queue_with_the_station_behind_its_seed(monkeypatch):
     isolate_runtime(monkeypatch)
     monkeypatch.setattr(TidalAmp, "_resolve_worker", lambda self, entry: None)
@@ -2491,6 +2811,7 @@ def test_the_help_lists_the_rebound_key_not_the_shipped_one(monkeypatch):
 
 
 def test_the_help_credits_the_author_the_repo_the_licence_and_the_changes(monkeypatch):
+    """The credits live on the «Acerca de» tab, one → away from the keys."""
     isolate_runtime(monkeypatch)
 
     async def scenario() -> None:
@@ -2499,6 +2820,9 @@ def test_the_help_credits_the_author_the_repo_the_licence_and_the_changes(monkey
             await pilot.pause()
             screen = HelpScreen(app_module.keys_for)
             application.push_screen(screen)
+            await pilot.pause()
+
+            await pilot.press("right")
             await pilot.pause()
             document = "\n".join(text for _kind, text in screen._lines)
 
@@ -2511,6 +2835,51 @@ def test_the_help_credits_the_author_the_repo_the_licence_and_the_changes(monkey
                 assert release.version in document
                 for change in release.changes:
                     assert change in document
+
+    asyncio.run(scenario())
+
+
+def test_the_help_moves_between_the_keys_and_the_about_tab(monkeypatch):
+    """→ opens «Acerca de», ← comes back, and neither runs off the ends."""
+    isolate_runtime(monkeypatch)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(100, 36)) as pilot:
+            await pilot.pause()
+            screen = HelpScreen(app_module.keys_for)
+            application.push_screen(screen)
+            await pilot.pause()
+            assert screen._tab == HelpScreen.SHORTCUTS
+
+            # ← on the first tab has nowhere to go and must not wrap round.
+            await pilot.press("left")
+            await pilot.pause()
+            assert screen._tab == HelpScreen.SHORTCUTS
+
+            # Leave the keys scrolled, so coming back can be checked.
+            await pilot.press("down", "down")
+            await pilot.pause()
+            assert screen._offset == 2
+
+            await pilot.press("right")
+            await pilot.pause()
+            assert screen._tab == HelpScreen.ABOUT
+            assert screen._offset == 0
+            drawn = "\n".join(
+                screen.query_one("#help-body").render_line(y).text
+                for y in range(screen.query_one("#help-body").size.height)
+            )
+            assert about.REPO_URL in drawn
+
+            await pilot.press("right")
+            await pilot.pause()
+            assert screen._tab == HelpScreen.ABOUT, "no hay una tercera pestaña"
+
+            await pilot.press("left")
+            await pilot.pause()
+            assert screen._tab == HelpScreen.SHORTCUTS
+            assert screen._offset == 2, "cada pestaña recuerda dónde se quedó"
 
     asyncio.run(scenario())
 

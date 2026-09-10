@@ -81,6 +81,10 @@ ENGLISH: dict[str, str] = {
     "Calidad": "Quality",
     "Carátula": "Cover art",
     "Idioma": "Language",
+    "Visualizador": "Visualizer",
+    "forma del analizador; fine necesita una fuente con Braille": (
+        "the analyser's shape; fine needs a font with Braille"
+    ),
     "Columnas de la cola": "Queue columns",
     "qué metadatos se ven en la lista": "which metadata the list shows",
     "{count} de {total}": "{count} of {total}",
@@ -120,6 +124,7 @@ ENGLISH: dict[str, str] = {
         "auto follows Omarchy; the others work on any Linux"
     ),
     "tema: {value}": "theme: {value}",
+    "visualizador: {value}": "visualizer: {value}",
     "paleta: {value}": "palette: {value}",
     "columnas: {count}": "columns: {count}",
     "lo pisa {variable} del entorno": "{variable} in the environment overrides it",
@@ -225,8 +230,13 @@ ENGLISH: dict[str, str] = {
         "filter the level: type and the list narrows"
     ),
     "añadir o quitar de favoritos": "add to or remove from favourites",
-    "▓ AYUDA ▓  {name} {version}": "▓ HELP ▓  {name} {version}",
-    " ↑↓ desplazar   ?/h/esc cerrar": " ↑↓ scroll   ?/h/esc close",
+    "AYUDA": "HELP",
+    "ACERCA DE": "ABOUT",
+    "acerca de": "about",
+    " ↑↓ desplazar   → acerca de   ?/h/esc cerrar": (
+        " ↑↓ scroll   → about   ?/h/esc close"
+    ),
+    " ↑↓ desplazar   ← ayuda   ?/h/esc cerrar": " ↑↓ scroll   ← help   ?/h/esc close",
     "Acerca de": "About",
     "Filtro en el navegador con /: estrecha el nivel donde estés.": (
         "Filter in the browser with /: it narrows the level you are on."
@@ -321,6 +331,10 @@ ENGLISH: dict[str, str] = {
     "nada coincide con «{query}»": "nothing matches “{query}”",
     "{shown} de {total}": "{shown} of {total}",
     "{total} en este nivel": "{total} in this level",
+    "buscar en la cola…": "search the queue…",
+    "buscar en la cola": "search the queue",
+    "buscar en la cola: escribe y se estrecha": "search the queue: type and it narrows",
+    "{total} en la cola": "{total} in the queue",
     "cargando {level}…": "loading {level}…",
     "abriendo {label}…": "opening {label}…",
     "cargando más…": "loading more…",
@@ -461,6 +475,7 @@ ENGLISH: dict[str, str] = {
     "Caduca en {minutes} minutos. Esperando…": ("Expires in {minutes} minutes. Waiting…"),
     "Sesión guardada para {user_id}.": "Session saved for {user_id}.",
     "Lanza la interfaz.": "Launch the interface.",
+    "Muestra la versión y sale.": "Show the version and exit.",
     "Registro de depuración en {path}": "Debug log at {path}",
     "Muestra la configuración efectiva y crea el fichero si no existe.": (
         "Show the effective configuration and create the file if it is missing."
@@ -497,6 +512,10 @@ ENGLISH: dict[str, str] = {
     "# Paleta: auto sigue Omarchy; también classic, tokyo-night, catppuccin,\n"
     "# nord, gruvbox, black o un TOML en ~/.config/tidalamp/palettes/.\n"
     'palette = "auto"\n\n'
+    "# Visualizador: bars (barras), mirror (espejo), curve (línea) o fine (línea\n"
+    "# en Braille, necesita una fuente que lo traiga). Los cuatro se dibujan al lado\n"
+    "# de la carátula y llegan al borde derecho de la ventana.\n"
+    'visualizer = "bars"\n\n'
     "# Registro en ~/.local/state/tidalamp/tidalamp.log.\n"
     "debug = false\n\n"
     "# Deja ver el reproductor a través de las ventanas superpuestas. Al activarla,\n"
@@ -526,6 +545,12 @@ ENGLISH: dict[str, str] = {
         "# Palette: auto follows Omarchy; also classic, tokyo-night, catppuccin,\n"
         "# nord, gruvbox, black, or a TOML file in ~/.config/tidalamp/palettes/.\n"
         'palette = "auto"\n\n'
+        "# Visualizer: bars, mirror, curve, or fine (a Braille line, which needs "
+        "a\n"
+        "# font that has it). All four are drawn beside the cover and run to the "
+        "right\n"
+        "# edge of the window.\n"
+        'visualizer = "bars"\n\n'
         "# Log to ~/.local/state/tidalamp/tidalamp.log.\n"
         "debug = false\n\n"
         "# Let the player show through the windows that open over it. Turning it "
@@ -637,6 +662,12 @@ def config_template() -> str:
         "# Paleta: auto sigue Omarchy; también classic, tokyo-night, catppuccin,\n"
         "# nord, gruvbox, black o un TOML en ~/.config/tidalamp/palettes/.\n"
         'palette = "auto"\n\n'
+        "# Visualizador: bars (barras), mirror (espejo), curve (línea) o fine "
+        "(línea\n"
+        "# en Braille, necesita una fuente que lo traiga). Los cuatro se dibujan al "
+        "lado\n"
+        "# de la carátula y llegan al borde derecho de la ventana.\n"
+        'visualizer = "bars"\n\n'
         "# Registro en ~/.local/state/tidalamp/tidalamp.log.\n"
         "debug = false\n\n"
         "# Deja ver el reproductor a través de las ventanas superpuestas. Al "

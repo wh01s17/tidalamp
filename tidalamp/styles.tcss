@@ -233,6 +233,30 @@ ModalScreen.transparent {
     background: $tidalamp-track-background;
 }
 
+/* The queue's search bar, between the list and the status line. Same shape as
+   the browser's, because it is the same gesture on a different list. */
+#queue-filter-bar {
+    height: 1;
+    background: $tidalamp-track-background;
+}
+
+#queue-filter {
+    background: $tidalamp-track-background;
+    color: $tidalamp-accent;
+    border: none;
+    height: 1;
+    width: 1fr;
+    padding: 0 1;
+}
+
+#queue-filter-count {
+    background: $tidalamp-track-background;
+    color: $tidalamp-transport-foreground;
+    height: 1;
+    width: auto;
+    padding: 0 1;
+}
+
 #busy {
     background: $tidalamp-track-background;
     width: auto;
@@ -627,7 +651,10 @@ ModalScreen.transparent {
 }
 
 #main.nova #status,
-#main.nova #statusbar {
+#main.nova #statusbar,
+#main.nova #queue-filter,
+#main.nova #queue-filter-count,
+#main.nova #queue-filter-bar {
     background: $tidalamp-panel;
 }
 
