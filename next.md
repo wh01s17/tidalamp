@@ -15,7 +15,61 @@ Lo de aquí no bloquea publicar. `plan.md` §5 y §6 mandan sobre el estado gene
 
 ---
 
-## 1. Volver a la pista que suena
+## 1. El reintentador no atrapa el 429
+
+`with_retries` se rinde al primer intento ante un límite de peticiones de TIDAL, que es
+justo el caso para el que se escribió.
+
+**Qué pasa.** `net.py` decide qué reintentar mirando si la excepción es un
+`requests.HTTPError` con un estado de `_RETRY_STATUS`, donde está el 429. Pero
+`Requests.request()` de tidalapi intercepta el `HTTPError` y en un 429 **lo convierte**
+en `tidalapi.exceptions.TooManyRequests`, que hereda de `TidalAPIError` y no de
+`requests.HTTPError`. Así que `_is_transient` devuelve `False` y se relanza sin esperar.
+Comprobado contra tidalapi 0.8.11:
+
+```text
+TooManyRequests es HTTPError?       False
+_is_transient(TooManyRequests):     False
+lleva Retry-After:                  30 segundos
+intentos que hizo with_retries:     1 (de 3)
+```
+
+El docstring de `net.py` dice que un límite de peticiones «normalmente funciona un
+segundo después». Hoy el código no hace eso.
+
+**Qué sigue bien, para no tocarlo de más.** Los 5xx se reintentan correctamente:
+`http_error_to_tidal_error` sólo convierte 404 y 429, y el resto relanza el `HTTPError`
+original. El 404 convertido a `ObjectNotFound` tampoco debe reintentarse. El agujero es
+sólo el 429.
+
+**Cómo se arregla.**
+
+- `_is_transient` reconoce `TooManyRequests`.
+- Cuando la excepción trae `retry_after`, se espera **eso** en vez del backoff propio:
+  es la única cifra real que TIDAL publica sobre sus límites, y llega por respuesta.
+- `retry_after` vale `-1` cuando la cabecera no viene. En ese caso, backoff de siempre.
+- Con un tope. Un `Retry-After` de diez minutos no se espera dentro de una TUI: se
+  reporta a la línea de estado y se abandona, porque la alternativa es una app colgada
+  sin explicación.
+
+**Trampa de la trampa.** Esto ata `net.py` a `tidalapi`, que hasta ahora sólo conocía
+`requests`. Es aceptable —tidalapi es dependencia obligatoria— pero conviene que el
+import sea explícito y que la prueba construya la excepción a mano, sin red.
+
+**Por qué antes que lo demás.** La entrada 3 manda hasta 700 pistas por lotes: es la
+operación con más probabilidades de comerse un 429 en toda la app, y hoy se rendiría a
+mitad de la creación por algo que se resolvía solo esperando.
+
+**Qué toca.** `net.py` y sus pruebas.
+
+**Cómo se comprueba.** Sin red, construyendo `TooManyRequests` directamente: que se
+reintente, que se espere el `retry_after` cuando viene, que caiga al backoff cuando vale
+`-1`, y que por encima del tope se abandone en vez de dormir. Cuando esté hecho, la
+trampa de la conversión de tipos baja a `plan.md` §7, que es donde alguien la buscará.
+
+---
+
+## 2. Volver a la pista que suena
 
 Una tecla que devuelve el cursor a lo que se está reproduciendo.
 
@@ -45,7 +99,7 @@ en ella; sin nada sonando no se mueve nada y la línea de estado lo explica.
 
 ---
 
-## 2. Guardar la cola como playlist de TIDAL
+## 3. Guardar la cola como playlist de TIDAL
 
 Una tecla que pregunta un nombre y crea la playlist en la cuenta con las pistas de la
 cola, en su orden.
@@ -68,7 +122,8 @@ trabajo se pierde en cuanto vacías la cola.
 
 - Es la **primera escritura de creación** contra TIDAL; hasta ahora sólo se favoritea.
   Va en un worker, detrás de `ensure_fresh` y envuelta en `with_retries`, como todo lo
-  demás que sale a la red.
+  demás que sale a la red. **Con la entrada 1 hecha antes**, o `with_retries` no la
+  protegerá del 429, que es el fallo más probable de esta función entera.
 - Una cola de 700 pistas no cabe en una sola llamada de `add`. Hay que trocearla, y
   decidir qué se hace si el lote tres falla: la playlist ya existe a medias. Lo honesto
   es dejarla y decir cuántas entraron, no borrarla por detrás.
@@ -90,7 +145,7 @@ llame a nada.
 
 ---
 
-## 3. Barra de posición y sliders clicables
+## 4. Barra de posición y sliders clicables
 
 Un clic en la barra de posición salta a ese punto de la pista. Un clic en volumen o
 balance fija ese valor.
