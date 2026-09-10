@@ -555,6 +555,23 @@ ModalScreen.transparent {
     padding: 0 1;
 }
 
+/* Both looks buy their breathing room with a row, and the compact layout has
+   none to sell: at that size the queue is what the window is for. */
+#main.compact.nova {
+    padding: 0 1;
+}
+
+#main.compact.quattro #titlebar {
+    margin: 0;
+}
+
+/* Nova's display band carries a row of its own padding, which its block sets
+   after the compact one and therefore wins. In compact that left it a row of
+   content short of the other three. */
+#main.compact.nova #display {
+    padding: 0 1;
+}
+
 #main.compact #art {
     display: none;
 }
@@ -595,6 +612,11 @@ ModalScreen.transparent {
     color: $tidalamp-accent;
     text-align: left;
     padding: 0 1;
+    /* Retro's title is a rule and reads as light; this one is a filled bar,
+       and with the cover butted straight against it the two became one solid
+       mass. The row goes outside the bar so the display band keeps its nine
+       and `_fit_artwork` keeps its arithmetic. */
+    margin: 0 0 1 0;
 }
 
 #main.quattro #pl-title {
@@ -662,7 +684,10 @@ ModalScreen.transparent {
    only separator, which is why every band here drops its own background. */
 #main.nova {
     border: none;
-    padding: 0 1;
+    /* A row of air on top. The other three get that separation from their
+       border; frameless meant the wordmark sat on row zero, against the edge
+       of the terminal. Here the space is the frame, so it has to be spent. */
+    padding: 1 1 0 1;
 }
 
 #main.nova #titlebar {

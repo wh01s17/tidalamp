@@ -2427,6 +2427,50 @@ def test_every_layout_fills_its_queue_heading_to_the_right_edge(theme, monkeypat
     asyncio.run(scenario())
 
 
+def test_the_frameless_layout_does_not_start_on_row_zero(monkeypatch):
+    """The other three get that separation from their border. Nova has none,
+    so it buys the row: without it the wordmark sat against the terminal."""
+    isolate_runtime(monkeypatch)
+    use_theme(monkeypatch, "nova")
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(150, 40)) as pilot:
+            await pilot.pause()
+            assert application.query_one("#titlebar", Static).region.y == 1
+
+            # And gives it back where there is nothing to spare.
+            await pilot.resize_terminal(82, 24)
+            await pilot.pause()
+            assert application.query_one("#titlebar", Static).region.y == 0
+
+    asyncio.run(scenario())
+
+
+def test_the_filled_title_bar_does_not_touch_the_cover(monkeypatch):
+    """Retro's title is a rule and reads as light. Quattro's is a filled bar,
+    and with the display butted against it the two read as one mass."""
+    isolate_runtime(monkeypatch)
+    use_theme(monkeypatch, "quattro")
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(150, 40)) as pilot:
+            await pilot.pause()
+            title = application.query_one("#titlebar", Static)
+            display = application.query_one("#display")
+            assert display.region.y - title.region.bottom == 1
+            # The band keeps its nine rows, so `_fit_artwork` keeps its sums.
+            assert display.size.height == 10
+
+            await pilot.resize_terminal(82, 24)
+            await pilot.pause()
+            title = application.query_one("#titlebar", Static)
+            assert application.query_one("#display").region.y == title.region.bottom
+
+    asyncio.run(scenario())
+
+
 def test_a_document_window_is_no_wider_than_what_it_holds(monkeypatch):
     """The browser is a table and spends every cell. Help and lyrics are
     documents, and an 85% box on a wide terminal left two thirds of itself
