@@ -237,6 +237,13 @@ protocol is painted by the terminal *over* the text, which would put the album a
 top of the window you are reading. The change applies immediately — the cover is redrawn
 with the new protocol without restarting tidalamp.
 
+<p align="center">
+  <img src="https://raw.githubusercontent.com/wh01s17/tidalamp/main/img/transparency.webp?v=0.4.0" alt="The settings window over a translucent scrim, with the player dimmed behind it: transparency is on and the cover has been moved to blocks" width="880">
+</p>
+
+The settings window over the scrim. `Transparencia` is on, and `Carátula` sitting on
+`blocks` underneath it is the move this made on your behalf.
+
 - `/` **filters the level you are on**, from a bar at the foot of the window that
   narrows the list underneath instead of covering it. What it filters is whatever the
   level holds: tracks in your favourites, playlists in `My playlists`, albums, artists,
