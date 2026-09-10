@@ -239,6 +239,20 @@ ENGLISH: dict[str, str] = {
     ),
     " ↑↓ desplazar   ← ayuda   ?/h/esc cerrar": " ↑↓ scroll   ← help   ?/h/esc close",
     "Acerca de": "About",
+    # --- notas de versión 0.4.0
+    "g vuelve a la pista que suena; p guarda la cola en TIDAL.": (
+        "g goes back to the playing track; p saves the queue to TIDAL."
+    ),
+    "La barra de posición y los sliders responden al clic.": (
+        "The seek bar and the sliders answer to a click."
+    ),
+    "La columna «Año» ya no sale vacía.": "The Year column is no longer empty.",
+    "Artista, álbum y año bajo el reloj; el título arriba, solo.": (
+        "Artist, album and year under the clock; the title alone above."
+    ),
+    "Las cuatro disposiciones cuadran sus bordes y sus anchos.": (
+        "The four layouts agree on their edges and their widths."
+    ),
     # --- notas de versión 0.3.0
     "El analizador llega al borde y tiene cuatro formas.": (
         "The analyzer reaches the edge and comes in four shapes."

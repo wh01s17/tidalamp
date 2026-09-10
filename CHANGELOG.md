@@ -5,6 +5,8 @@ versionado es [semántico](https://semver.org/lang/es/).
 
 ## [Sin publicar]
 
+## [0.4.0] - 2026-09-10
+
 ### Arreglado
 
 - **La fila del título de la cola se quedaba corta, y en `quattro` ni lo intentaba.**
