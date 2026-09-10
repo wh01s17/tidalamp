@@ -2478,6 +2478,28 @@ def test_the_centred_wordmark_gets_a_row_between_it_and_the_band(monkeypatch):
     asyncio.run(scenario())
 
 
+@pytest.mark.parametrize("theme", ["quattro", "retro", "nova", "ascii"])
+def test_the_cover_sits_against_the_frame(theme, monkeypatch):
+    """A cell between the artwork and the panel's edge reads as the picture
+    having come loose. Everything after it carries its own left padding, so
+    only the cover moves."""
+    isolate_runtime(monkeypatch)
+    use_theme(monkeypatch, theme)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(150, 40)) as pilot:
+            await pilot.pause()
+            application.query_one(Artwork).show(a_cover())
+            await pilot.pause()
+
+            panel = application.query_one("#main")
+            art = application.query_one(Artwork)
+            assert art.region.x == panel.content_region.x, theme
+
+    asyncio.run(scenario())
+
+
 def test_a_document_window_is_no_wider_than_what_it_holds(monkeypatch):
     """The browser is a table and spends every cell. Help and lyrics are
     documents, and an 85% box on a wide terminal left two thirds of itself
