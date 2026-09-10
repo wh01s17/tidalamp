@@ -648,3 +648,62 @@ def test_an_empty_station_is_treated_as_no_station():
 
     with pytest.raises(library.NoRadio):
         library.track_radio(object(), entry)
+
+
+# --------------------------------------------------------------- año del álbum
+
+
+class FakeAlbums:
+    """A session that counts how many albums it was asked about."""
+
+    def __init__(self, years: dict[str, int | None]) -> None:
+        self.years = years
+        self.asked: list[str] = []
+
+    def album(self, album_id: str):
+        self.asked.append(album_id)
+        if album_id not in self.years:
+            raise RuntimeError("no such album")
+        return type("Album", (), {"year": self.years[album_id]})()
+
+
+def test_the_year_costs_one_request_per_album_and_not_per_track():
+    """A hundred tracks off fifteen records cost fifteen requests. That ratio
+    is the whole reason this is asked for separately."""
+    library._YEARS.clear()
+    session = FakeAlbums({"10": 1997, "20": 2000})
+
+    assert library.album_year(session, 10) == 1997
+    assert library.album_year(session, 10) == 1997
+    assert library.album_year(session, 20) == 2000
+    assert session.asked == ["10", "20"], "la segunda pista del mismo disco no pregunta"
+
+
+def test_an_album_with_no_date_is_asked_about_once_and_left_empty():
+    """`0` is cached like any other answer: a record TIDAL has no date for
+    must not be asked about again on every redraw."""
+    library._YEARS.clear()
+    session = FakeAlbums({"30": None})
+
+    assert library.album_year(session, 30) == 0
+    assert library.album_year(session, 30) == 0
+    assert session.asked == ["30"]
+
+
+def test_a_failed_lookup_is_not_cached():
+    library._YEARS.clear()
+    session = FakeAlbums({})
+
+    assert library.album_year(session, 40) == 0
+    assert library.album_year(session, 40) == 0
+    assert session.asked == ["40", "40"], "un fallo puede reintentarse más tarde"
+
+
+def test_an_entry_with_no_album_id_asks_nothing():
+    """A queue saved before the field existed carries no id, so there is
+    nothing to ask about; it fills on the next reload."""
+    library._YEARS.clear()
+    session = FakeAlbums({"50": 1999})
+
+    assert library.album_year(session, 0) == 0
+    assert session.asked == []

@@ -780,9 +780,9 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
       abre la ventana de `o`. El catálogo vive en `columns.py`, un módulo que no importa
       nada interno porque lo necesitan los dos extremos y ninguno puede importar al
       otro: `config` valida los nombres que el usuario escribió en el fichero y
-      `screens` los dibuja. Son las once que la API rellena en un listado normal
-      —comprobado contra la cuenta real—, así que encender una nunca cuesta una
-      petición extra.
+      `screens` los dibuja. **Diez de las once** vienen rellenas en un listado normal
+      —comprobado contra la cuenta real— y encenderlas no cuesta ninguna petición. La
+      excepción es el año; ver abajo.
 - [x] El ajuste es una cadena separada por comas y no un array TOML, para que pase por
       las mismas `setting`/`_toml`/`set_option` que todo lo demás y para que
       `TIDALAMP_COLUMNS="artist,year"` funcione desde una shell sin comillar una lista.
@@ -794,10 +794,30 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
       no un umbral escrito a mano en el renderizador: añadir una columna no obliga a
       tocar ningún número. El artista sólo sale del título cuando tiene una columna
       propia adonde ir.
-- [x] `Entry.year` sale de `album.year` de tidalapi, que lo deduce de la fecha de
-      publicación que tenga. Un álbum sin fecha, o una pista sin álbum, da `0` y deja
-      la celda en blanco en vez de dibujar un «0». Una cola guardada antes de que la
-      columna existiera se carga igual.
+- [x] **El año es la única columna que sí cuesta peticiones, y hubo que descubrirlo.**
+      Durante meses la celda salió siempre vacía y la promesa de arriba parecía
+      cumplirse. El motivo: `Entry.year` sale de `album.year` de tidalapi, que lo deduce
+      de `releaseDate` o `streamStartDate` del JSON del álbum, pero el álbum que viene
+      **anidado dentro de una pista** en un listado es la versión corta —id, título y
+      portada— y no trae fecha. Medido sobre una cola real: 100 entradas, 15 álbumes
+      distintos, 0 años.
+- [x] Se pide aparte, con `library.album_year`, **una vez por álbum y no por pista**:
+      esas 100 pistas cuestan 15 peticiones. La caché `_YEARS` dura la sesión y guarda
+      también el `0` de un álbum sin fecha, para no volver a preguntar por él en cada
+      repintado. Un fallo no se cachea: la próxima cola puede reintentarlo.
+- [x] Se rellena **en segundo plano** (`_fill_years` y su worker), después de que la
+      cola esté en pantalla, no mientras carga el nivel. Si no, cada nivel esperaría una
+      petición por disco antes de dibujar una sola fila. Y sólo si la columna está
+      encendida: quien no mira el año no lo paga.
+- [x] Se descartó usar el `streamStartDate` de la propia pista, que sí viaja en el
+      listado y costaría cero peticiones. Es la fecha en que TIDAL empezó a emitirla, no
+      la de publicación: pintaría 2011 en un disco de 1997. Un dato equivocado con cara
+      de dato bueno es peor que una celda vacía, que es el mismo criterio de la insignia
+      `FFT`/`RMS`.
+- [x] `Entry.album_id` existe para esto: sin id no hay a qué preguntarle. Una cola
+      guardada antes de que ese campo existiera se carga igual, pero sus entradas no se
+      pueden rellenar y se quedan sin año hasta la siguiente recarga. Un álbum sin fecha
+      en TIDAL da `0` y deja la celda en blanco en vez de dibujar un «0».
 - [x] La columna de duración se mide **una vez para toda la lista**, no por fila, y va
       alineada a la derecha dentro de ella. Medida por fila, un `11:53` era una celda
       más ancho que un `5:07` y empujaba la columna de álbum: una columna que sólo

@@ -5,6 +5,17 @@ versionado es [semántico](https://semver.org/lang/es/).
 
 ## [Sin publicar]
 
+### Arreglado
+
+- **La columna «Año» salía siempre vacía.** No era que a esos discos les faltara la
+  fecha en TIDAL: el álbum que viene anidado dentro de una pista en un listado trae id,
+  título y portada, y ninguna fecha, así que no había año que dibujar. Ahora se pide
+  aparte, una vez por álbum y no por pista —una cola de 100 pistas de 15 discos cuesta
+  15 peticiones—, en segundo plano y después de que la cola esté en pantalla, y sólo si
+  la columna está encendida. Una cola guardada antes de este cambio no se puede
+  rellenar, porque no guardaba a qué álbum pertenecía cada pista; se arregla sola al
+  recargarla.
+
 ### Cambiado
 
 - **La identidad de la pista baja bajo el reloj.** La marquesina llevaba número, artista,

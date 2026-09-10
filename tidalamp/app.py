@@ -1001,6 +1001,47 @@ class TidalAmp(App):
         playlist.refresh()
         self._render_queue_filter()
         self.queue.save()
+        self._fill_years()
+
+    def _fill_years(self) -> None:
+        """Ask TIDAL for the years the queue is missing, out of the way.
+
+        The year is the one column a track listing does not carry, so it costs
+        a request per album. That happens here rather than while the level
+        loads: the rows go up straight away and the years arrive a moment
+        later, instead of every level taking a second per record it holds.
+
+        Nobody pays for a column they turned off.
+        """
+        if "year" not in config.COLUMNS:
+            return
+        wanted = {
+            entry.album_id
+            for entry in self.queue
+            if entry.year == 0 and entry.album_id > 0
+        }
+        if wanted:
+            self._years_worker(sorted(wanted))
+
+    @work(thread=True, exclusive=True, group="years")
+    def _years_worker(self, album_ids: list[int]) -> None:
+        found = {album: library.album_year(self.session, album) for album in album_ids}
+        if any(found.values()):
+            self.call_from_thread(self._years_ready, found)
+
+    def _years_ready(self, found: dict[int, int]) -> None:
+        """Write what came back onto the queue and redraw it.
+
+        Straight onto the entries rather than through a setter: the year is a
+        detail of the record, not a change to the queue, and nothing about the
+        order or the playing track has moved.
+        """
+        for entry in self.queue:
+            if entry.year == 0:
+                entry.year = found.get(entry.album_id, 0)
+        self.queue.save()
+        self.query_one("#playlist", RowList).refresh()
+        self._refresh_track_meta()
 
     # ---------------------------------------------------------- queue filter
 

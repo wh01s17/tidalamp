@@ -8,6 +8,7 @@ from a worker thread, never on the UI loop.
 
 from __future__ import annotations
 
+import logging
 import unicodedata
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
@@ -19,6 +20,8 @@ import tidalapi
 from .i18n import _
 from .net import with_retries
 from .queue import Entry
+
+log = logging.getLogger("tidalamp.library")
 
 # TIDAL paginates. We ask for one page at a time and hang a "más…" row off the
 # end when the page came back full, so a 500-track playlist is reachable
@@ -345,6 +348,41 @@ def matches(query: str, row: Row) -> bool:
 
 class NotFavouritable(RuntimeError):
     """Raised for a row that is not a thing TIDAL can favourite."""
+
+
+# One entry per album id, for the whole session. A `0` in here is an album
+# TIDAL has no date for, cached exactly like a real answer so that a record
+# without one is asked about once and not on every redraw.
+_YEARS: dict[int, int] = {}
+
+
+def album_year(session: tidalapi.Session, album_id: int) -> int:
+    """The release year of one album, asked for at most once per session.
+
+    The year is the one column the API does not hand over with a track: the
+    album nested inside a track listing carries an id, a title and a cover and
+    no release date. So it has to be asked for separately, and the cost is one
+    request per *album* rather than per track — a hundred tracks off fifteen
+    records cost fifteen.
+
+    Returns `0` when TIDAL has no date, which the column draws as an empty
+    cell. That is the honest answer: the alternative was the track's own
+    `streamStartDate`, which is when TIDAL began streaming it and would print
+    2011 on a record released in 1997.
+    """
+    if album_id <= 0:
+        return 0
+    if album_id in _YEARS:
+        return _YEARS[album_id]
+    try:
+        album = with_retries(lambda: session.album(str(album_id)))
+        year = int(getattr(album, "year", 0) or 0)
+    except Exception:
+        # A failure is not cached: the next queue may as well try again.
+        log.info("no se pudo obtener el año del álbum %s", album_id)
+        return 0
+    _YEARS[album_id] = year
+    return year
 
 
 class NoRadio(RuntimeError):

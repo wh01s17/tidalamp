@@ -2331,6 +2331,82 @@ def test_the_compact_layout_drops_the_block_and_keeps_the_clock(monkeypatch):
     asyncio.run(scenario())
 
 
+def test_the_queue_fills_its_missing_years_in_the_background(monkeypatch):
+    """The rows go up without the year and it arrives a moment later, rather
+    than every level load waiting a request per record it holds."""
+    isolate_runtime(monkeypatch)
+    asked: list[int] = []
+
+    def year_of(session, album_id: int) -> int:
+        asked.append(album_id)
+        return {7: 1997, 8: 2000}.get(album_id, 0)
+
+    monkeypatch.setattr(library, "album_year", year_of)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(120, 32)) as pilot:
+            await pilot.pause()
+            application.queue.replace(
+                [
+                    Entry(id=1, title="a", artist="Deftones", album="AtF", album_id=7),
+                    Entry(id=2, title="b", artist="Deftones", album="AtF", album_id=7),
+                    Entry(id=3, title="c", artist="Deftones", album="WP", album_id=8),
+                ],
+                start=-1,
+            )
+            application._sync_queue()
+            await settle(pilot, lambda: len(asked) >= 2)
+
+            assert sorted(asked) == [7, 8], "una petición por álbum, no por pista"
+            assert [entry.year for entry in application.queue] == [1997, 1997, 2000]
+
+    asyncio.run(scenario())
+
+
+def test_nobody_pays_for_the_year_column_they_turned_off(monkeypatch):
+    isolate_runtime(monkeypatch)
+    monkeypatch.setattr(app_module.config, "COLUMNS", ("artist", "duration"))
+    asked: list[int] = []
+    monkeypatch.setattr(library, "album_year", lambda s, a: asked.append(a) or 0)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(120, 32)) as pilot:
+            await pilot.pause()
+            application.queue.replace(
+                [Entry(id=1, title="a", artist="x", album="y", album_id=7)], start=-1
+            )
+            application._sync_queue()
+            await pilot.pause()
+
+            assert asked == []
+
+    asyncio.run(scenario())
+
+
+def test_a_queue_saved_before_the_album_id_existed_asks_nothing(monkeypatch):
+    """There is no id to ask about. Those entries fill on the next reload,
+    and until then the cell is honestly empty."""
+    isolate_runtime(monkeypatch)
+    asked: list[int] = []
+    monkeypatch.setattr(library, "album_year", lambda s, a: asked.append(a) or 0)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(120, 32)) as pilot:
+            await pilot.pause()
+            application.queue.replace(
+                [Entry(id=1, title="a", artist="x", album="y")], start=-1
+            )
+            application._sync_queue()
+            await pilot.pause()
+
+            assert asked == []
+
+    asyncio.run(scenario())
+
+
 def test_radio_replaces_the_queue_with_the_station_behind_its_seed(monkeypatch):
     isolate_runtime(monkeypatch)
     monkeypatch.setattr(TidalAmp, "_resolve_worker", lambda self, entry: None)

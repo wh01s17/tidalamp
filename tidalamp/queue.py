@@ -59,6 +59,10 @@ class Entry:
     artist: str
     album: str = ""
     year: int = 0
+    # The record this track belongs to. Kept because the year does not travel
+    # in a track listing and has to be asked for once per album; without the
+    # id there is nothing to ask about. See `library.album_year`.
+    album_id: int = 0
     duration: int = 0
     art_url: str = ""
     # Everything below is only ever drawn in an optional queue column. All of
@@ -94,6 +98,7 @@ class Entry:
             # tidalapi works the year out of whichever release date it has,
             # and returns None when the album carries neither.
             year=int(getattr(album, "year", 0) or 0),
+            album_id=int(getattr(album, "id", 0) or 0),
             duration=int(track.duration or 0),
             art_url=art,
             version=getattr(track, "version", "") or "",
@@ -130,6 +135,7 @@ class Entry:
             "artist": self.artist,
             "album": self.album,
             "year": self.year,
+            "album_id": self.album_id,
             "duration": self.duration,
             "art_url": self.art_url,
             "version": self.version,
@@ -151,6 +157,9 @@ class Entry:
             album=raw.get("album", ""),
             # A queue written before the column existed simply has no year.
             year=int(raw.get("year", 0) or 0),
+            # And one written before this field cannot be filled in later:
+            # there is no id to ask TIDAL about. It fills on the next reload.
+            album_id=int(raw.get("album_id", 0) or 0),
             duration=int(raw.get("duration", 0)),
             art_url=raw.get("art_url", ""),
             version=raw.get("version", "") or "",
