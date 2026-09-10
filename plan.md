@@ -4,7 +4,14 @@ Documento de traspaso. Describe qué existe, qué está verificado, qué falta y
 criterio se tomaron las decisiones, para que cualquiera (humano o modelo) pueda
 retomar el trabajo sin contexto previo.
 
-**Última actualización:** 2026-09-10 (`TooManyRequests` respeta `Retry-After` con un
+**Última actualización:** 2026-09-10 (la carátula en `blocks` pasa a los glifos de
+cuadrante: cuatro muestras por celda en vez de una, el doble de resolución horizontal;
+el alto de la banda del display se recalcula en cada pasada y no sólo al redimensionar
+la carátula, que era por qué al cambiar de tema —o al arrancar en `nova`— la imagen se
+montaba sobre la barra de posición; `space` reproduce y `m` abre el menú de la pista
+sobre la cola; `u` deshace un vaciado; ocho presets de ecualizador; se puede añadir a
+una playlist que ya existe; las cuatro disposiciones cuadran bordes y anchos y las
+capturas del README se rehicieron; antes: `TooManyRequests` respeta `Retry-After` con un
 tope de un minuto; `g` devuelve el cursor a la pista que suena incluso si estaba
 filtrada; `p` guarda una instantánea de la cola como playlist de TIDAL por lotes y
 reporta creaciones parciales; posición, volumen y balance responden al clic; antes: el
@@ -546,6 +553,20 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
       medios bloques se veía como una mancha, no como un espectrograma.
 - [x] Un nombre que no esté entre los cuatro cae a `bars`. El ajuste sale de un fichero
       que se edita a mano.
+
+### Dos teclas que unifican lo que ya había — `app.py`
+
+- [x] **`space` reproduce y pausa**, detrás de `x`. Va segunda a propósito: `_button_key`
+      dibuja en el botón del transporte la **primera** tecla enlazada, así que el botón
+      conserva su letra de Winamp y el espacio no la ensucia. Nada en la ventana
+      principal la usaba, y es lo que hace cualquier otro reproductor.
+- [x] **`m` (`track_menu`) abre sobre la fila de la cola el mismo menú** que la
+      biblioteca abre con ↵. Allí hay que preguntarlo porque ↵ encola el nivel entero;
+      aquí ↵ ya reproduce la fila, así que todo lo demás que el menú ofrece no tenía por
+      dónde entrar.
+- [x] La única respuesta que difiere es `play`: en el navegador manda el nivel a la cola
+      y arranca ahí, y en la cola el nivel **ya es** la cola, así que sólo arranca. El
+      resto reutiliza `_browser_result`, que ya sabía qué hacer con cada una.
 
 ### Cola: deshacer el vaciado — `app.py`
 

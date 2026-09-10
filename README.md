@@ -176,9 +176,11 @@ show the key that actually works.
 | Key             | Action                                             |
 | --------------- | -------------------------------------------------- |
 | `z` `x` `c` `v` | previous / play-pause / stop / next                |
+| `space`         | play / pause, the same as `x`                      |
 | `/`             | search TIDAL                                       |
 | `ctrl+f`        | search the queue                                   |
 | `g`             | go to the track that is playing                    |
+| `m`             | open the track menu on the queue row                |
 | `p`             | save the queue as a TIDAL playlist                 |
 | `↑` `↓` `Enter` | navigate; on a track, open the track menu          |
 | `l`             | open the library browser                           |
@@ -192,6 +194,7 @@ show the key that actually works.
 | `e`             | open the equalizer                                 |
 | `,` `.` `\`     | balance left / right / centre                      |
 | `C`             | clear the queue                                    |
+| `u`             | undo the last clear                                |
 | `←` `→`         | seek ±5 seconds                                    |
 | `+` `-`         | change volume                                      |
 | `t`             | toggle elapsed / remaining time                    |
@@ -263,6 +266,11 @@ is also readable without colour: `⇄○`/`⇄●` for shuffle, and `↻–`/`�
 three repeat modes — the `retro`, `nova` and `ascii` layouts spell the same states out
 as `SHUFFLE ○` and `REPEAT 1`.
 
+`p` **saves the queue as a new TIDAL playlist**: it asks for a name and creates it with
+the tracks in queue order, not in shuffle order, because what is saved is the list and
+not the listening session. To append to a playlist that already exists, use `≡` in the
+track menu instead.
+
 `ctrl+f` **searches the queue**, from a bar under the playlist, the same gesture the
 browser's `/` is: type and the queue narrows to what matches, without covering it. It
 matches the same way — case and accents ignored, every word has to appear somewhere,
@@ -320,7 +328,8 @@ of its own to go to.
 ## The track menu
 
 `↵` on a song — in search results or in the library — opens a small menu instead of
-assuming what you meant:
+assuming what you meant. `m` opens the same menu on the queue row under the cursor,
+where `↵` already plays it:
 
 |     | Action            | Key | What it does                                                                     |
 | --- | ----------------- | --- | -------------------------------------------------------------------------------- |
@@ -328,6 +337,7 @@ assuming what you meant:
 | `↳` | Play next         | `c` | Inserts just this track after the one playing. Under shuffle it really is next.  |
 | `≈` | Track radio       | `d` | Plays TIDAL's station for this track: the seed first, then the similar songs.    |
 | `♥` | Add to favourites | `v` | Adds it to your TIDAL favourites, leaving the queue alone.                       |
+| `≡` | Add to a playlist | `l` | Picks one of the playlists you created and appends the track to it.             |
 
 `↑` `↓` and `↵` pick, `Esc` backs out. `↵` on an album, artist or playlist still opens
 it: a level has one obvious thing to do.
@@ -534,6 +544,11 @@ case, the window displays an error and playback continues normally.
 Use `←→` to select a band, `↑↓` to adjust it, and `0` to flatten it. Changes are
 applied while you move them; an equalizer you cannot hear until pressing “OK” is not
 useful.
+
+`p` and `P` walk through eight presets — flat, rock, pop, jazz, classical, vocal, bass
+and treble — and the one you are on is named under the bands. Move a band afterwards and
+it stops being that preset and says `manual`, because the name is worked out from the
+gains rather than remembered.
 
 `,` and `.` move the balance, and `\` centres it, including from the main window.
 The position, volume and balance bars also accept a click; clicking position while no

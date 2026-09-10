@@ -13,10 +13,11 @@ calcula el checksum y, cuando vuelva a ser posible obtener una cuenta, se public
 paquete en el AUR.
 
 > [!IMPORTANT]
-> **Estado de preparación a 2026-09-09:** la versión `0.1.0` está cerrada y lista para
-> publicarse en PyPI y GitHub Releases. El environment `pypi` de GitHub y el *pending
-> publisher* de PyPI ya están configurados. La publicación en el AUR queda aplazada
-> por una causa externa:
+> **Estado a 2026-09-10:** hay cinco versiones publicadas en PyPI —hasta `0.4.0`— con
+> Trusted Publishing. El environment `pypi` de GitHub existe y el publisher de PyPI ya
+> no está pendiente: se convirtió en uno normal con la primera publicación, así que
+> §1.2 y §1.3 quedan como registro de cómo se configuró y no como pasos a repetir. La
+> publicación en el AUR sigue aplazada por una causa externa:
 > [el registro público de cuentas nuevas continúa cerrado](https://lists.archlinux.org/archives/list/aur-general%40lists.archlinux.org/message/2IJD5MFHSLXARQTOP4FH64CJLW2BIIGC/)
 > durante el endurecimiento de seguridad posterior a
 > [la oleada de paquetes maliciosos](https://lists.archlinux.org/archives/list/aur-general%40lists.archlinux.org/message/4JRS73YVTE7JUYHHE3ZDUIHXYHXZ3YQQ/).
@@ -24,8 +25,8 @@ paquete en el AUR.
 > anterior. Esto no bloquea PyPI ni GitHub Releases: el lanzamiento puede continuar
 > por esos dos canales y completar el AUR más adelante.
 
-Los ejemplos usan `0.1.0`. En versiones posteriores hay que sustituirlo por la versión
-correspondiente.
+Los ejemplos usan `0.1.0`, que fue la primera. En versiones posteriores hay que
+sustituirlo por la que toque.
 
 ```sh
 TIDALAMP_VERSION=0.1.0
