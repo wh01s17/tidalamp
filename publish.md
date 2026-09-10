@@ -182,9 +182,11 @@ pertenezcan a esa versión.
 
 ### 3.2. Actualizar los números de versión
 
-La versión vive en **cuatro** sitios. `release.yml` sólo compara el tag con el primero,
+La versión vive en **cinco** sitios. `release.yml` sólo compara el tag con el primero,
 y `tests/test_about.py::test_every_copy_of_the_version_agrees` ata los otros dos que
-son de Python: si alguno se queda atrás, la suite falla antes de llegar al tag.
+son de Python: si alguno se queda atrás, la suite falla antes de llegar al tag. Los dos
+últimos —el `?v=` del README y el `PKGBUILD`— no los comprueba nadie más que esta
+sección.
 
 1. En `pyproject.toml`:
 
@@ -222,7 +224,19 @@ son de Python: si alguno se queda atrás, la suite falla antes de llegar al tag.
    Va aquí y no leído de `CHANGELOG.md` a propósito: ese fichero no viaja dentro del
    wheel, así que la pantalla saldría vacía para todo el que instale el paquete.
 
-4. En `packaging/aur/PKGBUILD`:
+4. En `README.md`, el `?v=` de las URLs de `img/`:
+
+   ```sh
+   sed -i 's/\?v=[0-9.]*"/?v='"$TIDALAMP_VERSION"'"/g' README.md
+   ```
+
+   Las imágenes se enlazan por URL absoluta porque PyPI no resuelve rutas
+   relativas, y esa URL no cambia cuando el fichero sí: el proxy de imágenes de
+   GitHub sigue sirviendo la copia anterior durante horas. El token de versión es
+   lo que la invalida. Si en esta versión no cambió ninguna imagen, da igual
+   actualizarlo.
+
+5. En `packaging/aur/PKGBUILD`:
 
    ```sh
    pkgver=0.1.0
@@ -322,6 +336,7 @@ Añade los archivos de la versión, crea el commit y sube `main`:
 ```sh
 git add \
   CHANGELOG.md \
+  README.md \
   pyproject.toml \
   tidalamp/__init__.py \
   tidalamp/about.py \
@@ -331,7 +346,7 @@ git commit -m "chore(release): prepare ${TIDALAMP_TAG}"
 git push origin main
 ```
 
-Esos seis nombres cubren todas las copias de la versión, la fecha y las notas, además
+Esos siete nombres cubren todas las copias de la versión, la fecha y las notas, además
 del paquete del AUR. Si la versión también contiene otros archivos ya revisados, deben
 incluirse en el commit correspondiente antes de crear el tag.
 
