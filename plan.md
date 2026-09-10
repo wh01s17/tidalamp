@@ -991,8 +991,8 @@ funcionalidad: lo que hay abierto pide credenciales tuyas o un par de ojos.
 2. Publicar en el AUR cuando vuelva a abrir el registro de cuentas nuevas. El paquete
    está preparado y se puede probar localmente, pero el alta final depende del
    servicio externo y no tiene fecha anunciada.
-3. Mirar `retro` y `ascii` en un terminal de verdad (§9.5). Cuesta dos minutos y es la
-   única comprobación barata que sigue pendiente.
+3. ~~Mirar `retro` y `ascii` en un terminal de verdad~~ ✅ hecho el 2026-09-10; ver §9.5.
+   Queda el extremo pequeño: la disposición compacta no se ha visto nunca.
 4. Una letra real de TIDAL, lo último de §5 que sólo se ha probado con dobles.
 5. §9.4, que es una decisión y no una prueba.
 
@@ -1356,12 +1356,23 @@ cava escucha el **sink**, no nuestro mpv: si suena otra cosa a la vez, se cuela 
 analizador. Se arreglaría enrutando mpv a un sink propio de PipeWire, a cambio de un
 nodo por ejecución. Sigue sin parecer que compense; la decisión es tuya.
 
-### 9.5 Mirar `retro` y `ascii` — PENDIENTE
+### 9.5 Mirar `retro` y `ascii` — HECHO
+
+**Las cuatro vistas a la vista el 2026-09-10**, en capturas del terminal real del
+usuario a su tamaño habitual. La fila del transporte no se sale ni se parte en ninguna,
+las barras de título llenan su fila sin cortar el nombre, y la carátula queda dentro de
+su recuadro. La revisión encontró defectos reales y se arreglaron en la 0.4.0: la fila
+del título de la cola se quedaba corta por un número escrito a mano distinto en cada
+disposición, `nova` empezaba en la fila cero contra el borde del terminal, y en
+`quattro` el nombre de la app caía justo encima de la carátula.
+
+Lo que sigue sin verse es el extremo pequeño: las capturas son de un terminal ancho, y
+la disposición compacta —por debajo de 80x26— sólo está cubierta por pruebas, que miden
+celdas y no colores.
 
 Las cuatro estructuras están cubiertas por pruebas Textual, pero una prueba mide
 celdas, no colores. Ya mordió una vez: el `retro` de medios bloques pasaba sus
-pruebas y en pantalla era una losa gris de lado a lado (§7). `quattro` y `nova` los
-confirmaste a la vista; las otras dos no se han visto nunca en un terminal real.
+pruebas y en pantalla era una losa gris de lado a lado (§7).
 
 ```sh
 TIDALAMP_THEME=retro .venv/bin/tidalamp tui
