@@ -23,11 +23,6 @@ versionado es [semántico](https://semver.org/lang/es/).
   gasta una fila de aire, que en la disposición compacta devuelve. De paso, su banda del
   display tenía una fila de contenido menos que las otras tres en compacto.
 
-- **En `quattro` la barra de título tocaba la carátula.** La de `retro` es una regla y se
-  lee ligera; ésta es una barra llena de color, y con el display pegado las dos se leían
-  como una sola masa. La fila nueva va por fuera de la barra, así que la banda conserva
-  sus nueve y el cálculo de la carátula no cambia.
-
 - **La carátula y el reloj estaban a una celda.** Se leían como un solo bloque y los
   dígitos parecían pegados a la imagen. Ahora hay dos.
 

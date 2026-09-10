@@ -555,14 +555,10 @@ ModalScreen.transparent {
     padding: 0 1;
 }
 
-/* Both looks buy their breathing room with a row, and the compact layout has
-   none to sell: at that size the queue is what the window is for. */
+/* Nova buys its breathing room with a row, and the compact layout has none to
+   sell: at that size the queue is what the window is for. */
 #main.compact.nova {
     padding: 0 1;
-}
-
-#main.compact.quattro #titlebar {
-    margin: 0;
 }
 
 /* Nova's display band carries a row of its own padding, which its block sets
@@ -612,11 +608,6 @@ ModalScreen.transparent {
     color: $tidalamp-accent;
     text-align: left;
     padding: 0 1;
-    /* Retro's title is a rule and reads as light; this one is a filled bar,
-       and with the cover butted straight against it the two became one solid
-       mass. The row goes outside the bar so the display band keeps its nine
-       and `_fit_artwork` keeps its arithmetic. */
-    margin: 0 0 1 0;
 }
 
 #main.quattro #pl-title {

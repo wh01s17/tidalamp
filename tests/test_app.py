@@ -2447,30 +2447,6 @@ def test_the_frameless_layout_does_not_start_on_row_zero(monkeypatch):
     asyncio.run(scenario())
 
 
-def test_the_filled_title_bar_does_not_touch_the_cover(monkeypatch):
-    """Retro's title is a rule and reads as light. Quattro's is a filled bar,
-    and with the display butted against it the two read as one mass."""
-    isolate_runtime(monkeypatch)
-    use_theme(monkeypatch, "quattro")
-
-    async def scenario() -> None:
-        application = TidalAmp(object(), FakeMpv())
-        async with application.run_test(size=(150, 40)) as pilot:
-            await pilot.pause()
-            title = application.query_one("#titlebar", Static)
-            display = application.query_one("#display")
-            assert display.region.y - title.region.bottom == 1
-            # The band keeps its nine rows, so `_fit_artwork` keeps its sums.
-            assert display.size.height == 10
-
-            await pilot.resize_terminal(82, 24)
-            await pilot.pause()
-            title = application.query_one("#titlebar", Static)
-            assert application.query_one("#display").region.y == title.region.bottom
-
-    asyncio.run(scenario())
-
-
 def test_a_document_window_is_no_wider_than_what_it_holds(monkeypatch):
     """The browser is a table and spends every cell. Help and lyrics are
     documents, and an 85% box on a wide terminal left two thirds of itself
