@@ -59,10 +59,30 @@ ModalScreen.transparent {
 #help-box {
     width: 85%;
     min-width: 60;
-    max-width: 160;
     height: 85%;
     min-height: 16;
     max-height: 100%;
+}
+
+/* The browser is a table -- title, artist, album, year, quality, duration --
+   and spends every cell it is given. The other two are documents, and a
+   document does not get wider than its longest line: on a 4K terminal an 85%
+   box left two thirds of itself empty next to text hugging the left edge,
+   which reads as a broken window rather than a roomy one. The caps are the
+   widest line each one actually holds, plus air. */
+#browser-box {
+    max-width: 160;
+}
+
+#help-box {
+    /* The licence URL and the release notes; nothing here runs past 80. */
+    max-width: 96;
+}
+
+#lyrics-box {
+    /* A sung line is short, and a wide measure makes it harder to follow
+       down, which is the one thing this window is for. */
+    max-width: 80;
 }
 
 /* Sits above everything so a broken layout is never what the user sees. */
@@ -100,6 +120,9 @@ ModalScreen.transparent {
    the width the clock used to declare. */
 #clockbox {
     width: 24;
+    /* Two cells off the cover. At one they read as a single block and the
+       digits looked stuck to the artwork. */
+    padding: 0 0 0 1;
 }
 
 #clock {
@@ -411,7 +434,9 @@ ModalScreen.transparent {
 #config-box {
     width: 65%;
     min-width: 60;
-    max-width: 130;
+    /* A label, a value and a note under it. Past this the value column is
+       marooned in the middle of an empty box. */
+    max-width: 92;
     /* Its own text decides, with a floor. Eleven rows in the middle of a 4K
        terminal read as a business card; a share of the screen read as half an
        empty window, because a `1fr` list inside an `auto` box takes every row

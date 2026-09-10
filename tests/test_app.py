@@ -2407,6 +2407,49 @@ def test_a_queue_saved_before_the_album_id_existed_asks_nothing(monkeypatch):
     asyncio.run(scenario())
 
 
+@pytest.mark.parametrize("theme", ["quattro", "retro", "nova", "ascii"])
+def test_every_layout_fills_its_queue_heading_to_the_right_edge(theme, monkeypatch):
+    """Each look measured that row with a number written by hand, and each
+    stopped short of the edge by a different amount. Quattro did not measure
+    at all and left two thirds of the row empty."""
+    isolate_runtime(monkeypatch)
+    use_theme(monkeypatch, theme)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(150, 40)) as pilot:
+            await pilot.pause()
+            title = application.query_one("#pl-title", Static)
+            drawn = title.render_line(0).text.rstrip()
+
+            assert cell_len(drawn) == title.size.width, theme
+
+    asyncio.run(scenario())
+
+
+def test_a_document_window_is_no_wider_than_what_it_holds(monkeypatch):
+    """The browser is a table and spends every cell. Help and lyrics are
+    documents, and an 85% box on a wide terminal left two thirds of itself
+    empty beside text hugging the left edge."""
+    isolate_runtime(monkeypatch)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(200, 50)) as pilot:
+            await pilot.pause()
+            application.push_screen(HelpScreen(app_module.keys_for))
+            await pilot.pause()
+
+            box = application.screen.query_one("#help-box")
+            assert box.size.width <= 96
+            # And still the whole width when there is none to spare.
+            await pilot.resize_terminal(76, 20)
+            await pilot.pause()
+            assert application.screen.query_one("#help-box").size.width >= 50
+
+    asyncio.run(scenario())
+
+
 def test_radio_replaces_the_queue_with_the_station_behind_its_seed(monkeypatch):
     isolate_runtime(monkeypatch)
     monkeypatch.setattr(TidalAmp, "_resolve_worker", lambda self, entry: None)

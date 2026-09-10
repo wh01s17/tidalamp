@@ -962,15 +962,25 @@ class TidalAmp(App):
             # and the transport menu still leads with «? ayuda» in every look.
             widget.update(self._ruled(_("LISTA DE REPRODUCCIÓN"), widget.size.width, "═"))
             return
+        # The other three put the heading on the left and the hints against the
+        # right edge, with the row's own filler between them. Each used to
+        # measure that gap with a number written by hand — 14 here, 16 there,
+        # nothing at all in quattro — and every one of them stopped short of
+        # the edge by a different amount. One measurement, three fillers.
+        width = widget.size.width
         if config.THEME == "ascii":
-            room = widget.size.width - cell_len(hints) - 16
-            widget.update(f"--[ {_('COLA')} ]{'-' * max(1, room)}  {hints}")
+            widget.update(self._spread(f"--[ {_('COLA')} ]", hints, width, "-"))
             return
         if config.THEME == "nova":
-            room = widget.size.width - cell_len(hints) - 14
-            widget.update(f"▍ {_('cola')} {'─' * max(1, room)}  {hints}")
+            widget.update(self._spread(f"▍ {_('cola')} ", hints, width, "─"))
             return
-        widget.update(f"▓ PLAYLIST ▓   {hints}")
+        widget.update(self._spread("▓ PLAYLIST ▓", hints, width, " "))
+
+    @staticmethod
+    def _spread(heading: str, hints: str, width: int, fill: str) -> str:
+        """Heading left, hints hard against the right edge, `fill` between."""
+        room = width - cell_len(heading) - cell_len(hints) - 2
+        return f"{heading}{fill * max(1, room)}  {hints}"
 
     # ------------------------------------------------------------------ queue
 

@@ -7,6 +7,20 @@ versionado es [semántico](https://semver.org/lang/es/).
 
 ### Arreglado
 
+- **La fila del título de la cola se quedaba corta, y en `quattro` ni lo intentaba.**
+  Cada disposición medía ese hueco con un número escrito a mano —14 en una, 16 en otra,
+  ninguno en `quattro`— y cada una paraba a una distancia distinta del borde derecho.
+  Ahora las cuatro se miden igual y llegan al borde; sólo cambia el carácter de relleno.
+
+- **Las ventanas de documento eran mucho más anchas que su texto.** Ayuda, «Acerca de»,
+  la letra y la configuración tomaban el 85% de la pantalla, lo que en un terminal
+  grande dejaba dos tercios de la caja vacíos con el texto pegado a la izquierda. Cada
+  una se topa ahora en lo que de verdad ocupa su línea más larga. El navegador no: es
+  una tabla y gasta cada celda que se le dé. En un terminal estrecho nada cambia.
+
+- **La carátula y el reloj estaban a una celda.** Se leían como un solo bloque y los
+  dígitos parecían pegados a la imagen. Ahora hay dos.
+
 - **La columna «Año» salía siempre vacía.** No era que a esos discos les faltara la
   fecha en TIDAL: el álbum que viene anidado dentro de una pista en un listado trae id,
   título y portada, y ninguna fecha, así que no había año que dibujar. Ahora se pide
