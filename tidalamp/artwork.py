@@ -5,7 +5,8 @@ Three targets, in descending fidelity:
 * **kitty graphics**, which draws real pixels above the text grid;
 * **sixel**, DEC's older pixel format, still spoken by foot, mlterm, contour…;
 * **half blocks**, which need no protocol at all: one cell becomes two pixels
-  by painting ``▀`` in the top colour over the bottom colour as background.
+  by painting a quadrant glyph in one colour over another, four samples to
+  a cell.
 
 Pillow is an optional dependency. Without it there is no decoder, so
 :func:`decode` returns ``None``, the cover is simply not drawn, and nothing
@@ -204,17 +205,64 @@ def decode(data: bytes, cols: int, rows: int, *, cell: tuple[int, int] = CELL):
     return image.resize((width, height), Image.Resampling.LANCZOS)
 
 
-# ------------------------------------------------------------------ half blocks
+# -------------------------------------------------------------------- blocks
+
+# One glyph per way of splitting a cell's four quadrants between two colours,
+# indexed by a bitmask: 8 upper-left, 4 upper-right, 2 lower-left, 1 lower
+# right. All sixteen exist in Block Elements, the same ancient range `▀` and
+# `█` come from, so this asks nothing of a font that the old rendering did not.
+QUADRANTS = " ▗▖▄▝▐▞▟▘▚▌▙▀▜▛█"
 
 
-def half_blocks(image, cols: int, rows: int) -> Matrix:
-    """Sample the image into ``2 * rows`` rows of ``cols`` pixels.
+def quadrant_cell(quad: tuple[Pixel, Pixel, Pixel, Pixel]) -> tuple[str, Pixel, Pixel]:
+    """Turn four pixels into the glyph and two colours that best stand for them.
 
-    The widget paints each cell as ``▀``: the upper half takes the foreground
-    colour and the lower half the background, which doubles vertical
-    resolution for free.
+    A cell can hold two colours and four pixels, so the four are split into a
+    light group and a dark one and each group is averaged. The split is at the
+    midpoint of the *range* rather than at the mean: the mean follows the
+    majority and flattens an edge that three dark pixels share with one bright
+    one, which is exactly the detail this is here to keep.
+
+    A flat cell puts everything in the dark group, comes back as a space, and
+    paints as its own average — which is what a flat cell should look like.
     """
-    small = image.resize((max(1, cols), max(1, rows * 2)))
+    lums = [0.299 * r + 0.587 * g + 0.114 * b for r, g, b in quad]
+    middle = (min(lums) + max(lums)) / 2
+    mask = 0
+    light: list[Pixel] = []
+    dark: list[Pixel] = []
+    for index, (pixel, lum) in enumerate(zip(quad, lums, strict=True)):
+        if lum > middle:
+            mask |= 1 << (3 - index)
+            light.append(pixel)
+        else:
+            dark.append(pixel)
+    return QUADRANTS[mask], _mean(light or dark), _mean(dark or light)
+
+
+def _mean(pixels: list[Pixel]) -> Pixel:
+    count = len(pixels)
+    return (
+        sum(p[0] for p in pixels) // count,
+        sum(p[1] for p in pixels) // count,
+        sum(p[2] for p in pixels) // count,
+    )
+
+
+def blocks(image, cols: int, rows: int) -> Matrix:
+    """Sample the image into ``2 * rows`` rows of ``2 * cols`` pixels.
+
+    Four samples per cell, drawn with the quadrant glyphs: twice the detail
+    across that ``▀`` alone could carry, which spent a whole cell's width on
+    one pixel. The cost is that a cell still holds only two colours, so where
+    its four pixels disagree the two groups are averaged; on a photograph
+    neighbouring pixels rarely disagree by much, and the trade buys back the
+    horizontal resolution that made covers look stretched.
+
+    The grid's own aspect does not matter: `decode` already cropped the image
+    to the box, and whatever grid this samples is mapped back onto that box.
+    """
+    small = image.resize((max(1, cols * 2), max(1, rows * 2)))
     width, height = small.size
     # tobytes() rather than getdata(): three bytes per pixel in RGB, no
     # per-pixel Python objects, and no deprecation to inherit.
@@ -362,4 +410,4 @@ def render(
         return Cover(cols, rows, protocol, escape=escape)
     if protocol is Protocol.SIXEL:
         return Cover(cols, rows, protocol, escape=sixel_escape(image))
-    return Cover(cols, rows, protocol, pixels=half_blocks(image, cols, rows))
+    return Cover(cols, rows, protocol, pixels=blocks(image, cols, rows))

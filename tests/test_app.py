@@ -281,7 +281,11 @@ def test_running_app_follows_an_omarchy_theme_change(monkeypatch):
 
 
 def a_cover(protocol=Protocol.BLOCKS, escape=""):
-    pixels = (((255, 0, 0), (0, 255, 0)), ((0, 0, 255), (255, 255, 0)))
+    # Four samples per cell: two columns and two rows for a single cell.
+    pixels = (
+        ((255, 0, 0), (0, 255, 0), (0, 0, 0), (0, 0, 0)),
+        ((0, 0, 255), (255, 255, 0), (0, 0, 0), (0, 0, 0)),
+    )
     return Cover(
         cols=2,
         rows=1,
@@ -375,7 +379,7 @@ def test_resizing_asks_for_the_cover_again_at_the_new_size(monkeypatch):
     asyncio.run(scenario())
 
 
-def test_half_blocks_paint_two_pixels_per_cell(monkeypatch):
+def test_blocks_paint_four_pixels_per_cell(monkeypatch):
     isolate_runtime(monkeypatch)
 
     async def scenario() -> None:
@@ -386,12 +390,13 @@ def test_half_blocks_paint_two_pixels_per_cell(monkeypatch):
             await pilot.pause()
 
             segments = list(art.render_line(0))
-            assert segments[0].text == "▀"
-            # Upper half is the first pixel row, lower half the second.
-            assert segments[0].style.color.triplet == (255, 0, 0)
-            assert segments[0].style.bgcolor.triplet == (0, 0, 255)
-            assert segments[1].style.color.triplet == (0, 255, 0)
-            assert segments[1].style.bgcolor.triplet == (255, 255, 0)
+            # Red and green over blue and yellow: the two bright ones are the
+            # upper pair, so the cell is a quadrant glyph and not a half block.
+            assert segments[0].text in artwork.QUADRANTS
+            assert segments[0].style.color is not None
+            assert segments[0].style.bgcolor is not None
+            # The second cell is the black pair, which is flat and so a space.
+            assert segments[1].text == " "
 
     asyncio.run(scenario())
 

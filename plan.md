@@ -736,6 +736,27 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
 - [x] Los duplicados se permiten. Pedir que se añada la misma cola dos veces es algo que
       alguien puede querer, y deduplicar a sus espaldas no es una decisión de esto.
 
+### Carátula en `blocks` — `artwork.py`, `widgets.py`
+
+- [x] **Cuatro muestras por celda** con los glifos de cuadrante, no una con `▀`. El
+      medio bloque gastaba el ancho entero de la celda en un píxel: dos por celda a lo
+      alto y **uno** a lo ancho, que es exactamente por qué las portadas se veían
+      estiradas. Ahora `blocks()` muestrea a `cols*2 × rows*2`.
+- [x] Los dieciséis repartos posibles de cuatro cuadrantes entre dos colores existen en
+      Block Elements, el mismo rango de donde ya salían `▀` y `█`. No hay riesgo de
+      fuente nuevo, que es lo que descarta los sextantes (2x3, Unicode 13) pese a dar
+      más resolución.
+- [x] El corte entre el grupo claro y el oscuro va en **el punto medio del rango** y no
+      en la media. La media sigue a la mayoría y aplana el borde que tres píxeles
+      oscuros forman con uno brillante, que es justo el detalle que esto conserva.
+- [x] Una celda plana cae entera en el grupo oscuro, sale como espacio y se pinta de su
+      propio promedio, que es lo que una celda plana debe parecer.
+- [x] El aspecto no cambia con la densidad de la rejilla: `decode` ya recorta la imagen
+      al recuadro, y cualquier rejilla que se muestree se mapea de vuelta sobre ese
+      recuadro. Por eso no hubo que tocar `CELL`.
+- [x] La aritmética vive en `artwork.py`, que no importa Textual, y el widget sólo pide
+      glifo y dos colores por celda. Así el reparto se prueba sin levantar una app.
+
 ### Ayuda y acerca de — `about.py`, `screens.py`
 
 - [x] `?` o `h` abren `HelpScreen`: todos los atajos agrupados por lo que estás

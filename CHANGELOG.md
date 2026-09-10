@@ -5,6 +5,17 @@ versionado es [semántico](https://semver.org/lang/es/).
 
 ## [Sin publicar]
 
+### Cambiado
+
+- **La carátula en modo `blocks` tiene el doble de resolución horizontal.** Se dibujaba
+  con `▀`, que gasta el ancho entero de una celda en un solo píxel y por eso las
+  portadas se veían estiradas. Ahora usa los glifos de cuadrante (`▘▝▖▗▚▞…`), que meten
+  cuatro muestras por celda: dos a lo ancho y dos a lo alto. Una celda sigue admitiendo
+  sólo dos colores, así que cuando sus cuatro píxeles no coinciden se parten en un grupo
+  claro y uno oscuro y cada uno se promedia; en una foto los píxeles vecinos rara vez se
+  llevan mucho. Los glifos salen del mismo rango antiguo que `▀` y `█`, o sea que no le
+  pide nada nuevo a la fuente.
+
 ### Añadido
 
 - **La barra espaciadora reproduce y pausa**, que es lo que hace cualquier otro

@@ -14,7 +14,7 @@ from textual.reactive import reactive
 from textual.strip import Strip
 from textual.widget import Widget
 
-from .artwork import Cover, Protocol, kitty_delete
+from .artwork import Cover, Protocol, kitty_delete, quadrant_cell
 from .theme import palette_for
 
 # Classic seven-segment glyphs, three rows tall and three columns wide.
@@ -741,18 +741,22 @@ class Artwork(Widget):
             return Strip.blank(width, Style())
 
         if cover.pixels is not None:
+            # Two sample rows and two sample columns per cell: `artwork.blocks`
+            # gives four pixels where `▀` alone took one wide and two tall.
             top = cover.pixels[y * 2] if y * 2 < len(cover.pixels) else ()
             bottom = cover.pixels[y * 2 + 1] if y * 2 + 1 < len(cover.pixels) else ()
-            segments = [
-                Segment(
-                    "▀",
-                    Style(
-                        color=Color.from_rgb(*top[x]) if x < len(top) else None,
-                        bgcolor=Color.from_rgb(*bottom[x]) if x < len(bottom) else None,
-                    ),
+            cells = min(width, len(top) // 2, len(bottom) // 2)
+            segments = []
+            for x in range(cells):
+                glyph, fg, bg = quadrant_cell(
+                    (top[x * 2], top[x * 2 + 1], bottom[x * 2], bottom[x * 2 + 1])
                 )
-                for x in range(min(width, len(top)))
-            ]
+                segments.append(
+                    Segment(
+                        glyph,
+                        Style(color=Color.from_rgb(*fg), bgcolor=Color.from_rgb(*bg)),
+                    )
+                )
             return Strip(segments, len(segments)).adjust_cell_length(width, Style())
 
         # Pixel protocols draw the whole cover from one anchor, so the escape

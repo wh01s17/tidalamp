@@ -590,10 +590,20 @@ terminal's capabilities:
 | -------------- | --------------------------- | ----------------------------- |
 | kitty graphics | kitty, Ghostty, WezTerm     | real pixels                   |
 | sixel          | foot, mlterm, contour, yaft | real pixels                   |
-| half blocks    | any other terminal          | `▀` with two colours per cell |
+| blocks         | any other terminal          | four samples per cell, two colours |
 
 Detection reads `$TERM`, `$TERM_PROGRAM`, and `$KITTY_WINDOW_ID`, and falls back to
-half blocks, which work reasonably well everywhere. To force a renderer:
+blocks, which work everywhere.
+
+`blocks` draws with the quadrant glyphs (`▘▝▖▗▚▞…`), so each cell carries **four**
+samples: two across and two down. A cell still holds only two colours, so where its four
+pixels disagree they are split into a light group and a dark one and each is averaged —
+on a photograph neighbouring pixels rarely disagree by much. Before this the renderer
+used `▀` alone, which spent a whole cell's width on a single pixel and made covers look
+stretched. The glyphs come from the same Block Elements range as `▀` and `█`, so nothing
+is asked of a font that was not asked before.
+
+To force a renderer:
 
 ```sh
 TIDALAMP_ART=blocks tidalamp   # kitty | sixel | blocks | off

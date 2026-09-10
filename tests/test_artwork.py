@@ -136,15 +136,47 @@ def test_have_decoder_is_true_when_pillow_is_installed():
     assert artwork.have_decoder() is True
 
 
-# ------------------------------------------------------------------ half blocks
+# ---------------------------------------------------------------------- blocks
 
 
-def test_half_blocks_give_two_pixel_rows_per_cell():
+def test_blocks_give_four_samples_per_cell():
+    """Two rows and two columns, where `▀` alone took one column and two rows."""
     image = artwork.decode(solid((64, 64), (12, 34, 56)), 6, 3, cell=(10, 20))
-    matrix = artwork.half_blocks(image, 6, 3)
+    matrix = artwork.blocks(image, 6, 3)
     assert len(matrix) == 6
-    assert all(len(row) == 6 for row in matrix)
+    assert all(len(row) == 12 for row in matrix)
     assert matrix[0][0] == (12, 34, 56)
+
+
+def test_a_cell_splits_its_four_pixels_into_a_light_group_and_a_dark_one():
+    white, black = (255, 255, 255), (0, 0, 0)
+    assert artwork.quadrant_cell((white, black, black, black))[0] == "▘"
+    assert artwork.quadrant_cell((black, white, black, black))[0] == "▝"
+    assert artwork.quadrant_cell((white, white, black, black))[0] == "▀"
+    assert artwork.quadrant_cell((white, black, black, white))[0] == "▚"
+    assert artwork.quadrant_cell((white, white, white, white))[0] == " "
+
+
+def test_a_flat_cell_paints_as_its_own_colour():
+    grey = (10, 20, 30)
+    glyph, foreground, background = artwork.quadrant_cell((grey, grey, grey, grey))
+    assert glyph == " "
+    assert foreground == background == grey
+
+
+def test_the_split_follows_the_range_and_not_the_majority():
+    """A mean would follow the three dark pixels and flatten the edge the
+    bright one makes, which is the detail this exists to keep."""
+    dark, bright = (0, 0, 0), (255, 255, 255)
+    glyph, foreground, background = artwork.quadrant_cell((bright, dark, dark, dark))
+    assert glyph == "▘"
+    assert foreground == bright
+    assert background == dark
+
+
+def test_every_split_of_four_pixels_has_a_glyph():
+    assert len(artwork.QUADRANTS) == 16
+    assert len(set(artwork.QUADRANTS)) == 16
 
 
 # ------------------------------------------------------------------------ kitty
