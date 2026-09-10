@@ -38,6 +38,7 @@ ModalScreen.transparent {
 .transparent #browser-box,
 .transparent #lyrics-box,
 .transparent #actions-box,
+.transparent #picker-box,
 .transparent #config-box,
 .transparent #columns-box,
 .transparent #help-box,
@@ -398,6 +399,40 @@ ModalScreen.transparent {
     background: $tidalamp-transport-background;
     color: $tidalamp-transport-foreground;
     height: 1;
+}
+
+/* The playlist picker: a list to walk, so it takes a share like the browser,
+   but a short one -- a playlist name is a line, not a table row. */
+#picker-box {
+    width: 45%;
+    min-width: 46;
+    max-width: 76;
+    height: 60%;
+    min-height: 12;
+    max-height: 100%;
+    background: $tidalamp-panel;
+    border: outer $tidalamp-border;
+}
+
+#picker-title {
+    background: $tidalamp-title-background;
+    color: $tidalamp-title-foreground;
+    text-style: bold;
+    height: 1;
+    padding: 0 1;
+}
+
+#picker-list {
+    background: $tidalamp-display-background;
+    height: 1fr;
+    padding: 1 1;
+}
+
+#picker-hint {
+    background: $tidalamp-transport-background;
+    color: $tidalamp-transport-foreground;
+    height: 1;
+    dock: bottom;
 }
 
 #actions-box {

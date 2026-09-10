@@ -103,3 +103,44 @@ def test_saved_values_are_clamped_on_load(settings_file):
     s = Settings.load()
     assert s.balance == 1.0
     assert s.gains[0] == GAIN_LIMIT
+
+
+# ------------------------------------------------------------------- presets
+
+
+def test_a_preset_puts_its_curve_on_the_bands():
+    from tidalamp.settings import PRESETS, Settings
+
+    settings = Settings()
+    settings.apply_preset("rock")
+
+    assert settings.gains == [float(g) for g in dict(PRESETS)["rock"]]
+    assert settings.preset == "rock"
+
+
+def test_a_preset_written_past_the_limit_is_clamped_when_applied():
+    """The catalogue reads as what each curve meant, not as what survived."""
+    from tidalamp.settings import GAIN_LIMIT, Settings
+
+    settings = Settings()
+    for name, _gains in __import__("tidalamp.settings", fromlist=["x"]).PRESETS:
+        settings.apply_preset(name)
+        assert all(abs(gain) <= GAIN_LIMIT for gain in settings.gains), name
+
+
+def test_moving_a_band_stops_it_being_that_preset():
+    """Worked out from the gains, not remembered: a stored name would go on
+    lying until something reset it."""
+    from tidalamp.settings import MANUAL, Settings
+
+    settings = Settings()
+    settings.apply_preset("jazz")
+    settings.set_gain(0, settings.gains[0] + 1)
+
+    assert settings.preset == MANUAL
+
+
+def test_flat_bands_are_the_flat_preset_and_not_manual():
+    from tidalamp.settings import Settings
+
+    assert Settings().preset == "flat"

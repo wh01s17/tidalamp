@@ -707,3 +707,79 @@ def test_an_entry_with_no_album_id_asks_nothing():
 
     assert library.album_year(session, 0) == 0
     assert session.asked == []
+
+
+# ------------------------------------------- añadir a una playlist existente
+
+
+class FakeUserPlaylist:
+    def __init__(self, name="Mi playlist", fail_after=None):
+        self.name = name
+        self.batches: list[list[str]] = []
+        self._fail_after = fail_after
+
+    def add(self, items, allow_duplicates=False, position=-1, limit=100):
+        if self._fail_after is not None and len(self.batches) >= self._fail_after:
+            raise RuntimeError("TIDAL dijo que no")
+        self.batches.append(list(items))
+        return list(range(len(items)))
+
+
+class FakeReadOnlyPlaylist:
+    """What a playlist someone else owns parses into: no `add`."""
+
+    name = "De otra persona"
+
+
+class FakePlaylistSession:
+    def __init__(self, playlist):
+        self._playlist = playlist
+
+    def playlist(self, playlist_id):
+        return self._playlist
+
+
+def entries(count):
+    return [Entry(id=i, title=f"t{i}", artist="a") for i in range(count)]
+
+
+def test_adding_to_a_playlist_sends_every_track_in_batches():
+    playlist = FakeUserPlaylist()
+    added = library.add_to_playlist(
+        FakePlaylistSession(playlist), "7", entries(250), batch_size=100
+    )
+
+    assert added == 250
+    assert [len(b) for b in playlist.batches] == [100, 100, 50]
+    assert [b[0] for b in playlist.batches] == ["0", "100", "200"], "en orden"
+
+
+def test_a_batch_that_fails_keeps_what_already_went_in():
+    playlist = FakeUserPlaylist(fail_after=2)
+
+    with pytest.raises(library.PlaylistSaveFailed) as caught:
+        library.add_to_playlist(
+            FakePlaylistSession(playlist), "7", entries(250), batch_size=100
+        )
+
+    assert caught.value.added == 200
+    assert caught.value.total == 250
+    assert len(playlist.batches) == 2, "no se deshace lo que sí entró"
+
+
+def test_a_playlist_this_account_cannot_write_to_is_reported():
+    with pytest.raises(library.PlaylistNotWritable):
+        library.add_to_playlist(
+            FakePlaylistSession(FakeReadOnlyPlaylist()), "7", entries(1)
+        )
+
+
+def test_adding_forgets_the_listing_and_that_playlist_level():
+    """Otherwise opening it afterwards shows it as it was."""
+    library._LEVELS["playlists"] = ["viejo"]
+    library._LEVELS["playlist:7"] = ["viejo"]
+
+    library.add_to_playlist(FakePlaylistSession(FakeUserPlaylist()), "7", entries(1))
+
+    assert "playlists" not in library._LEVELS
+    assert "playlist:7" not in library._LEVELS

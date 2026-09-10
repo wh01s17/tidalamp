@@ -198,6 +198,7 @@ def shortcuts(keys) -> tuple[Section, ...]:
                 (key("move_up"), _("subir la pista en la cola")),
                 (key("move_down"), _("bajar la pista en la cola")),
                 (key("clear"), _("vaciar la cola")),
+                (key("undo_clear"), _("deshacer el último vaciado de la cola")),
                 (key("shuffle"), _("aleatorio (⇄)")),
                 (key("repeat"), _("repetición ↻: off, toda la cola, una pista")),
             ),

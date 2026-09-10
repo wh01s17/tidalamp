@@ -505,6 +505,74 @@ def save_queue_playlist(
     return added
 
 
+class PlaylistNotWritable(RuntimeError):
+    """TIDAL handed back a playlist this account cannot add to."""
+
+
+def add_to_playlist(
+    session: tidalapi.Session,
+    playlist_id: str,
+    entries: Iterable[Entry],
+    batch_size: int = PLAYLIST_BATCH,
+) -> int:
+    """Append tracks to a playlist that already exists, in the order given.
+
+    The same hundred-per-request batching as creating one, and the same rule
+    when a batch fails: what already went in stays, and the exception carries
+    how many made it. Duplicates are allowed on purpose — asking for a queue to
+    be added twice is a thing someone can mean, and deduplicating behind their
+    back is a decision this does not get to take.
+
+    Writing needs `factory()`, not the cheap `parse()` the listing uses: only a
+    `UserPlaylist` has `add`, and that is the one thing the listing deliberately
+    avoids building because it costs a request per row. One request here, at
+    the moment of writing, is the right place to spend it.
+    """
+    if batch_size < 1:
+        raise ValueError("batch_size must be positive")
+
+    media_ids = [str(entry.id) for entry in entries]
+    playlist = with_retries(lambda: session.playlist(playlist_id))
+    title = getattr(playlist, "name", "") or ""
+    if not hasattr(playlist, "add"):
+        # A playlist someone else owns parses fine and cannot be written to.
+        raise PlaylistNotWritable(title)
+
+    # The list of playlists changes (its track count) and so does that
+    # playlist's own level, which the browser caches separately.
+    forget("playlists")
+    forget(f"playlist:{playlist_id}")
+
+    added = 0
+    for offset in range(0, len(media_ids), batch_size):
+        batch = media_ids[offset : offset + batch_size]
+
+        def add_batch(items: list[str] = batch) -> list[int]:
+            return playlist.add(
+                items,
+                allow_duplicates=True,
+                position=-1,
+                limit=batch_size,
+            )
+
+        try:
+            result = with_retries(add_batch)
+        except Exception as exc:
+            raise PlaylistSaveFailed(title, added, len(media_ids), exc) from exc
+        added += len(result)
+    return added
+
+
+def playlist_rows(session: tidalapi.Session) -> list[Row]:
+    """Every playlist this account created, for the picker to draw.
+
+    `users/{id}/playlists` is the ones they made; the ones they follow live
+    under favourites and are not here, so nothing has to be filtered out to
+    keep the picker from offering a playlist it cannot write to.
+    """
+    return _playlists_level(session)()
+
+
 def _search_level(
     session: tidalapi.Session,
     query: str,

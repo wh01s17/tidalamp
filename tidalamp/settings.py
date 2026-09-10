@@ -20,6 +20,27 @@ BANDS = [60, 170, 310, 600, 1000, 3000, 6000, 12000, 14000, 16000]
 BAND_LABELS = ["60", "170", "310", "600", "1k", "3k", "6k", "12k", "14k", "16k"]
 GAIN_LIMIT = 12.0  # dB, like the original
 
+# The presets, as data, the way the release notes are: nothing here imports
+# Textual, so they are read and applied without standing an app up. Eight
+# rather than the original's thirty — eight fit on the window and cover what
+# anyone reaches for. Each is one gain per band of `BANDS`, in its order, and
+# `apply_preset` is what clamps them, so a curve written past the limit reads
+# here as what it meant rather than as what survived.
+PRESETS: tuple[tuple[str, tuple[float, ...]], ...] = (
+    ("flat", (0, 0, 0, 0, 0, 0, 0, 0, 0, 0)),
+    ("rock", (5, 4, 2, -1, -2, 1, 3, 5, 5, 4)),
+    ("pop", (-1, 2, 4, 5, 3, 0, -1, -1, -1, -2)),
+    ("jazz", (4, 3, 1, 2, -1, -1, 0, 2, 3, 4)),
+    ("classical", (5, 4, 3, 2, -1, -1, 0, 2, 3, 4)),
+    ("vocal", (-3, -2, 0, 3, 5, 5, 3, 1, 0, -1)),
+    ("bass", (8, 7, 5, 2, 0, -1, -2, -2, -2, -2)),
+    ("treble", (-3, -3, -2, -1, 0, 2, 4, 6, 7, 7)),
+)
+
+# What the window shows when the gains match no preset, which is the state
+# anyone who has moved a band is in.
+MANUAL = "manual"
+
 
 @dataclass
 class Settings:
@@ -53,6 +74,25 @@ class Settings:
 
     def reset_eq(self) -> None:
         self.gains = [0.0] * len(BANDS)
+
+    def apply_preset(self, name: str) -> None:
+        """Put a preset's curve on the bands, clamped to the limit."""
+        for band, gain in enumerate(dict(PRESETS)[name]):
+            self.set_gain(band, gain)
+
+    @property
+    def preset(self) -> str:
+        """Which preset the bands are currently sitting on, or `MANUAL`.
+
+        Worked out from the gains rather than remembered, so moving one band
+        after choosing a curve is enough to stop calling it that curve. A
+        stored name would have gone on lying until something reset it.
+        """
+        for name, gains in PRESETS:
+            wanted = [max(-GAIN_LIMIT, min(GAIN_LIMIT, float(g))) for g in gains]
+            if self.gains == wanted:
+                return name
+        return MANUAL
 
     def eq_graph(self) -> str | None:
         """One ffmpeg ``equalizer`` (peaking) filter per non-flat band.

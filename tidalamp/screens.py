@@ -31,7 +31,7 @@ from .auth import ensure_fresh
 from .i18n import _
 from .library import Row
 from .lyrics import LyricsDocument
-from .settings import BAND_LABELS, GAIN_LIMIT, Settings
+from .settings import BAND_LABELS, GAIN_LIMIT, MANUAL, PRESETS, Settings
 from .theme import LAYOUTS, available_palettes, palette_for
 from .widgets import Analyzer, EqualizerBars, Slider, Spinner
 
@@ -781,6 +781,19 @@ def column_label(name: str) -> str:
     }.get(name, name)
 
 
+PRESET_LABELS: dict[str, str] = {
+    "flat": _("plano"),
+    "rock": _("rock"),
+    "pop": _("pop"),
+    "jazz": _("jazz"),
+    "classical": _("clásica"),
+    "vocal": _("voz"),
+    "bass": _("graves"),
+    "treble": _("agudos"),
+    MANUAL: _("manual"),
+}
+
+
 class EqScreen(ModalScreen[None]):
     """The equaliser window: ten bands and a balance, applied live.
 
@@ -795,6 +808,8 @@ class EqScreen(ModalScreen[None]):
         Binding("up", "boost", _("subir"), show=False),
         Binding("down", "cut", _("bajar"), show=False),
         Binding("0", "reset", _("plano"), show=False),
+        Binding("p", "next_preset", _("preset siguiente"), show=False),
+        Binding("P", "prev_preset", _("preset anterior"), show=False),
         Binding("comma", "balance_left", _("balance izq"), show=False),
         Binding("full_stop", "balance_right", _("balance der"), show=False),
         Binding("backslash", "balance_centre", _("centrar"), show=False),
@@ -809,9 +824,12 @@ class EqScreen(ModalScreen[None]):
         with Vertical(id="eq-box"):
             yield Static(_("▓ ECUALIZADOR ▓"), id="eq-title")
             yield EqualizerBars(id="eq-bars")
+            # The curve's name, under the bands: without it, cycling presets
+            # is eight anonymous shapes.
+            yield Static("", id="eq-preset", markup=False)
             yield Slider(id="eq-balance")
             yield Static(
-                _(" ←→ banda  ↑↓ ±1 dB  0 plano  ,. balance  \\ centro  esc"),
+                _(" ←→ banda  ↑↓ ±1 dB  0 plano  p/P preset  ,. balance  esc"),
                 id="eq-hint",
             )
 
@@ -824,9 +842,34 @@ class EqScreen(ModalScreen[None]):
         balance.centred = True
         self._redraw()
 
+    def action_next_preset(self) -> None:
+        self._cycle_preset(1)
+
+    def action_prev_preset(self) -> None:
+        self._cycle_preset(-1)
+
+    def _cycle_preset(self, step: int) -> None:
+        """Move along the catalogue, applying as it goes.
+
+        From `manual` it starts at the first, because there is nowhere in the
+        list to step from: the bands are somewhere the catalogue does not
+        describe, and the nearest curve is nobody's idea of the next one.
+        """
+        names = [name for name, _gains in PRESETS]
+        current = self.settings.preset
+        index = names.index(current) + step if current in names else 0
+        self.settings.apply_preset(names[index % len(names)])
+        self._apply()
+        self._redraw()
+
     def _redraw(self) -> None:
         bars = self.query_one(EqualizerBars)
         bars.gains = list(self.settings.gains)
+        self.query_one("#eq-preset", Static).update(
+            _("  preset: {name}").format(
+                name=PRESET_LABELS.get(self.settings.preset, self.settings.preset)
+            )
+        )
         self.query_one("#eq-balance", Slider).value = int(self.settings.balance * 100)
         bars.refresh()
 
@@ -1233,7 +1276,79 @@ TRACK_ACTIONS: tuple[tuple[str, str, str, str], ...] = (
     ("next", "↳", "c", _("reproducir a continuación")),
     ("radio", "≈", "d", _("reproducir la radio de la pista")),
     ("favourite", "♥", "v", _("añadir a favoritos")),
+    ("playlist", "≡", "l", _("añadir a una playlist")),
 )
+
+
+class PlaylistPickerScreen(ModalScreen[str | None]):
+    """Which playlist to add to. Dismisses with its cache key, or None.
+
+    A pane of its own rather than the browser: the browser answers with what
+    to play or queue, and this question has a different answer.
+    """
+
+    BINDINGS = [
+        Binding("escape", "close", _("cerrar")),
+        Binding("up", "up", _("arriba"), show=False),
+        Binding("down", "down", _("abajo"), show=False),
+        Binding("pageup", "page_up", "", show=False),
+        Binding("pagedown", "page_down", "", show=False),
+        Binding("enter", "choose", _("elegir"), show=False),
+    ]
+
+    def __init__(self, session) -> None:
+        super().__init__()
+        self._session = session
+
+    def compose(self) -> ComposeResult:
+        with Vertical(id="picker-box"):
+            yield Static(_("▓ AÑADIR A UNA PLAYLIST ▓"), id="picker-title")
+            yield RowList(id="picker-list")
+            yield Static(_(" ↑↓ elegir   ↵ añadir   esc cancelar"), id="picker-hint")
+
+    def on_mount(self) -> None:
+        widget = self.query_one(RowList)
+        widget.empty_text = _("cargando…")
+        self._load()
+
+    @work(thread=True, exclusive=True, group="playlists")
+    def _load(self) -> None:
+        try:
+            rows = library.playlist_rows(self._session)
+        except Exception as exc:
+            self.app.call_from_thread(self._failed, exc)
+            return
+        self.app.call_from_thread(self._ready, rows)
+
+    def _failed(self, exc: Exception) -> None:
+        widget = self.query_one(RowList)
+        widget.empty_text = _("error: {error}").format(error=exc)
+        widget.refresh()
+
+    def _ready(self, rows: list[Row]) -> None:
+        widget = self.query_one(RowList)
+        # The «más…» row fetches another page and cannot be added to.
+        widget.empty_text = _("no tienes playlists")
+        widget.set_rows([row for row in rows if row.more is None])
+
+    def action_up(self) -> None:
+        self.query_one(RowList).move(-1)
+
+    def action_down(self) -> None:
+        self.query_one(RowList).move(1)
+
+    def action_page_up(self) -> None:
+        self.query_one(RowList).move(-10)
+
+    def action_page_down(self) -> None:
+        self.query_one(RowList).move(10)
+
+    def action_choose(self) -> None:
+        row = self.query_one(RowList).current
+        self.dismiss(row.key if row is not None and row.key else None)
+
+    def action_close(self) -> None:
+        self.dismiss(None)
 
 
 class TrackActionsScreen(ModalScreen[str | None]):
@@ -1317,6 +1432,9 @@ class TrackActionsScreen(ModalScreen[str | None]):
 
     def action_pick_favourite(self) -> None:
         self.dismiss("favourite")
+
+    def action_pick_playlist(self) -> None:
+        self.dismiss("playlist")
 
 
 def _crop(text: str, width: int) -> str:

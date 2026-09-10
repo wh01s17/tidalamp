@@ -547,6 +547,20 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
 - [x] Un nombre que no esté entre los cuatro cae a `bars`. El ajuste sale de un fichero
       que se edita a mano.
 
+### Cola: deshacer el vaciado — `app.py`
+
+- [x] `C` vacía sin preguntar, y `c` detiene: un resbalón con shift borraba la cola. `u`
+      la devuelve, con el cursor donde estaba.
+- [x] **Deshacer y no confirmar.** Una confirmación molesta las cien veces que sí
+      querías vaciar y sirve la que no; deshacer no cuesta nada cuando no hace falta.
+- [x] No reanuda la reproducción. Vaciar detuvo, y devolver la lista no es devolver el
+      sonido: una canción arrancando sola porque alguien deshizo un error sorprende más
+      que el error.
+- [x] Un solo nivel y en memoria. `_sync_queue` ya reescribió `queue.json` cuando se
+      pulsa la tecla, así que lo restaurado vive sólo en RAM; cerrar la app entre medias
+      lo pierde, y está bien: esto es para el resbalón de hace dos segundos.
+- [x] Un segundo `C` reemplaza lo guardado. No es una pila.
+
 ### Balance y ecualizador — `settings.py`, `player.py`, `app.py`
 
 - [x] `Mpv.set_filter(label, graph)`: `af remove @label` + `af add @label:lavfi=[…]`.
@@ -702,6 +716,25 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
       pistas, que son las que admiten más de una cosa razonable.
 - [x] El menú vale también en la biblioteca, no sólo en la búsqueda: es la misma
       `BrowserScreen`, y separarlas habría pedido una bandera para empeorar un lado.
+
+### Añadir a una playlist existente — `library.py`, `screens.py`
+
+- [x] Va en el menú de la pista, que desde la 0.4.0 se abre con ↵ en la biblioteca y con
+      `m` en la cola: es el sitio donde ya se pregunta qué hacer con una canción.
+- [x] El selector sólo ofrece **las playlists que creó el usuario**. No hace falta
+      filtrar por propietario: `users/{id}/playlists` son las suyas, y las que sigue
+      viven bajo favoritos y no entran en ese listado. Aun así, si TIDAL devolviera una
+      sin `add`, se reporta como `PlaylistNotWritable` en vez de reventar.
+- [x] Escribir necesita `factory()` y no el `parse()` barato del listado: sólo un
+      `UserPlaylist` tiene `add`, y construirlo cuesta una petición. El listado la evita
+      a propósito —110 playlists eran 111 peticiones—, y aquí se paga una sola vez, en
+      el momento de escribir, que es donde toca.
+- [x] Lotes de 100 y la misma regla que al crear: lo que entró se queda si falla un
+      lote, y la excepción lleva cuántas llegaron.
+- [x] Se olvida la caché **del listado y la de esa playlist**. Sólo la primera dejaría
+      que abrirla después la enseñara como estaba.
+- [x] Los duplicados se permiten. Pedir que se añada la misma cola dos veces es algo que
+      alguien puede querer, y deduplicar a sus espaldas no es una decisión de esto.
 
 ### Ayuda y acerca de — `about.py`, `screens.py`
 
@@ -1049,6 +1082,17 @@ dejará de importar y con él no arranca la aplicación entera.
       `Mpv.VOLUME_MAX` (100): mpv llega a 130, pero eso es ganancia digital sobre una
       señal ya normalizada y satura. El tope vale igual para el teclado y para MPRIS.
 - [x] Ventana de ecualizador de 10 bandas (`e`) sobre el filtro `equalizer`.
+- [x] **Ocho presets** (`p` y `P` dentro de la ventana), como datos en `settings.py`,
+      que no importa Textual y por tanto se prueban sin levantar una app. Ocho y no los
+      treinta del original: caben en la ventana y cubren lo que se busca.
+- [x] El preset activo **se deduce de las ganancias**, no se guarda. Uno guardado
+      seguiría diciendo «rock» después de mover una banda, hasta que algo lo reiniciara.
+      Cuando no coincide con ninguno el estado es `manual`.
+- [x] Recorrer desde `manual` empieza por el primero: las bandas están en un sitio que
+      el catálogo no describe, y la curva más parecida no es la idea que nadie tiene de
+      «el siguiente».
+- [x] Las ganancias se recortan al aplicarse y no al escribirse, para que el catálogo se
+      lea como lo que cada curva quiso decir y no como lo que sobrevivió al límite.
 - [x] Carátula en el terminal vía protocolo Kitty/sixel, con medios bloques como
       fallback universal. Ver §4. Verificada a la vista en kitty. El recuadro ya no es
       18×9 fijo: sigue al terminal entre 18×9 y 40×20.

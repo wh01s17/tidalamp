@@ -31,6 +31,7 @@ from .screens import (
     HelpScreen,
     LyricsScreen,
     PlaylistNameScreen,
+    PlaylistPickerScreen,
     RowList,
     SearchScreen,
     TrackActionsScreen,
@@ -103,6 +104,7 @@ DEFAULT_KEYS: dict[str, str] = {
     "move_up": "alt+up",
     "move_down": "alt+down",
     "clear": "C",
+    "undo_clear": "u",
     "seek_back": "left",
     "seek_fwd": "right",
     "vol_up": "plus,equals_sign",
@@ -199,6 +201,7 @@ class TidalAmp(App):
         _bind("move_up", _("subir")),
         _bind("move_down", _("bajar")),
         _bind("clear", _("vaciar")),
+        _bind("undo_clear", _("deshacer el vaciado")),
         _bind("seek_back", "-5s"),
         _bind("seek_fwd", "+5s"),
         _bind("vol_up", "vol+"),
@@ -246,6 +249,11 @@ class TidalAmp(App):
         # leaves on screen. Empty filter means every position, in order.
         self._queue_filter = ""
         self._shown: list[int] = []
+        # What `C` threw away, kept for one undo. In memory only: the file is
+        # already overwritten by the time anyone can press the key.
+        self._cleared: tuple[list[Entry], int] | None = None
+        # What is waiting for a destination while the picker is open.
+        self._pending_playlist: list[Entry] = []
 
     def get_theme_variable_defaults(self) -> dict[str, str]:
         """Expose the detected palette to the static TCSS stylesheet."""
@@ -1049,6 +1057,41 @@ class TidalAmp(App):
             return
         self._browser_result((action, [self.queue[index]], 0))
 
+    def _playlist_chosen(self, key: str | None) -> None:
+        entries, self._pending_playlist = self._pending_playlist, []
+        if key is None or not entries:
+            return
+        # The row's cache key is `playlist:<id>`; the write wants the id.
+        self.query_one("#busy", Spinner).start(_("añadiendo a la playlist…"))
+        self._add_to_playlist_worker(key.split(":", 1)[-1], entries)
+
+    @work(thread=True, exclusive=True, group="playlist-add")
+    def _add_to_playlist_worker(self, playlist_id: str, entries: list[Entry]) -> None:
+        try:
+            ensure_fresh(self.session)
+            added = library.add_to_playlist(self.session, playlist_id, entries)
+        except library.PlaylistSaveFailed as exc:
+            self.call_from_thread(
+                self._playlist_added,
+                _("«{title}»: entraron {added} de {total}").format(
+                    title=exc.title, added=exc.added, total=exc.total
+                ),
+            )
+            return
+        except Exception as exc:
+            self.call_from_thread(
+                self._playlist_added, _("error: {error}").format(error=exc)
+            )
+            return
+        self.call_from_thread(
+            self._playlist_added,
+            _("{count} pistas añadidas a la playlist").format(count=added),
+        )
+
+    def _playlist_added(self, message: str) -> None:
+        self.query_one("#busy", Spinner).stop()
+        self.status = message
+
     def _fill_years(self) -> None:
         """Ask TIDAL for the years the queue is missing, out of the way.
 
@@ -1260,6 +1303,9 @@ class TidalAmp(App):
             self.status = _("«{label}» sonará a continuación").format(
                 label=entries[0].label
             )
+        elif action == "playlist":
+            self._pending_playlist = list(entries)
+            self.push_screen(PlaylistPickerScreen(self.session), self._playlist_chosen)
         elif action == "radio":
             self.query_one("#busy", Spinner).start(
                 _("buscando la radio de «{label}»…").format(label=entries[0].label)
@@ -1396,6 +1442,11 @@ class TidalAmp(App):
         self._move_entry(1)
 
     def action_clear(self) -> None:
+        # One key away from `c`, which stops. A slipped shift used to be the
+        # end of a queue that took half an hour to build, and since a queue
+        # can be saved to TIDAL it is worth more than it was.
+        cursor = self._cursor_index()
+        self._cleared = (list(self.queue), max(0, cursor)) if len(self.queue) else None
         self.action_stop()
         self.queue.clear()
         self._sync_queue()
@@ -1405,6 +1456,27 @@ class TidalAmp(App):
         if widget is not None:
             widget.show(None)
         self.status = _("cola vaciada")
+
+    def action_undo_clear(self) -> None:
+        """Put back what `C` threw away, once.
+
+        It does not start playing again. Clearing stopped the music, and
+        undoing gives back the list, not the sound: a song starting on its own
+        because someone undid a mistake is a worse surprise than the mistake.
+        """
+        if self._cleared is None:
+            self.status = _("no hay ningún vaciado que deshacer")
+            return
+        entries, cursor = self._cleared
+        # One level. A second would be a history nobody asked for, and this
+        # exists for the slip of two seconds ago.
+        self._cleared = None
+        self.queue.replace(entries, start=-1)
+        self._sync_queue()
+        playlist = self.query_one("#playlist", RowList)
+        playlist.cursor = max(0, self._row_at(cursor))
+        playlist.refresh()
+        self.status = _("cola restaurada ({count} pistas)").format(count=len(entries))
 
     def action_shuffle(self) -> None:
         self.queue.shuffle = not self.queue.shuffle

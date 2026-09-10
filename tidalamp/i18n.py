@@ -364,6 +364,32 @@ ENGLISH: dict[str, str] = {
     "buscar en la cola…": "search the queue…",
     "buscar en la cola": "search the queue",
     "menú de la pista": "track menu",
+    # --- añadir a una playlist existente
+    "añadir a una playlist": "add to a playlist",
+    "▓ AÑADIR A UNA PLAYLIST ▓": "▓ ADD TO A PLAYLIST ▓",
+    " ↑↓ elegir   ↵ añadir   esc cancelar": " ↑↓ choose   ↵ add   esc cancel",
+    "no tienes playlists": "you have no playlists",
+    "añadiendo a la playlist…": "adding to the playlist…",
+    "{count} pistas añadidas a la playlist": ("{count} tracks added to the playlist"),
+    "«{title}»: entraron {added} de {total}": ("“{title}”: {added} of {total} made it"),
+    # --- ecualizador: presets
+    " ←→ banda  ↑↓ ±1 dB  0 plano  p/P preset  ,. balance  esc": (
+        " ←→ band  ↑↓ ±1 dB  0 flat  p/P preset  ,. balance  esc"
+    ),
+    "preset siguiente": "next preset",
+    "preset anterior": "previous preset",
+    "  preset: {name}": "  preset: {name}",
+    "rock": "rock",
+    "pop": "pop",
+    "jazz": "jazz",
+    "clásica": "classical",
+    "voz": "vocal",
+    "graves": "bass",
+    "agudos": "treble",
+    "manual": "manual",
+    "deshacer el vaciado": "undo the clear",
+    "no hay ningún vaciado que deshacer": "there is no clear to undo",
+    "deshacer el último vaciado de la cola": "undo the last queue clear",
     "menú de la pista del cursor": "menu for the track under the cursor",
     "Menú de la pista (↵ en la biblioteca, m en la cola)": (
         "Track menu (↵ in the library, m in the queue)"
@@ -424,9 +450,6 @@ ENGLISH: dict[str, str] = {
     "esta pista": "this track",
     # --- equalizer
     "▓ ECUALIZADOR ▓": "▓ EQUALIZER ▓",
-    " ←→ banda  ↑↓ ±1 dB  0 plano  ,. balance  \\ centro  esc": (
-        " ←→ band  ↑↓ ±1 dB  0 flat  ,. balance  \\ centre  esc"
-    ),
     # --- binding descriptions
     "cancelar": "cancel",
     "cerrar": "close",

@@ -11,6 +11,24 @@ versionado es [semántico](https://semver.org/lang/es/).
   reproductor y nada en la ventana principal estaba usando. `x` sigue siendo la primera,
   así que el botón del transporte conserva su letra de Winamp.
 
+- **Deshacer el vaciado de la cola.** `c` detiene y `C` vacía: un resbalón con shift
+  borraba una cola que puede haber costado media hora, y desde que se puede guardar en
+  TIDAL vale más que antes. `u` la devuelve, con el cursor donde estaba. No reanuda la
+  reproducción: vaciar detuvo, y deshacer devuelve la lista, no el sonido. Un solo
+  nivel, y vive en memoria: cerrar la app entre medias la pierde.
+
+- **Presets del ecualizador**: plano, rock, pop, jazz, clásica, voz, graves y agudos,
+  con `p` y `P` dentro de la ventana del ecualizador y el nombre del que está puesto a
+  la vista. Se aplican en vivo, como ya se aplicaba mover una banda. Tocar una banda
+  después deja de llamarse ese preset, porque el nombre se deduce de las ganancias y no
+  se guarda: uno guardado seguiría mintiendo hasta que algo lo reiniciara.
+
+- **Añadir la pista a una playlist que ya tienes**, desde el menú de la pista. Elige el
+  destino entre las playlists que creaste —las que sigues no salen, porque no se pueden
+  escribir— y manda en lotes de 100. Si un lote falla, lo que ya entró se queda y el
+  mensaje dice cuántas llegaron. Olvida la caché del listado y la de esa playlist, para
+  que abrirla después no la enseñe como estaba.
+
 - **`m` abre el menú de la pista sobre la fila de la cola**, el mismo que la biblioteca
   abre con ↵: reproducir ahora, a continuación, la radio de la pista y favoritos. En la
   biblioteca hay que preguntarlo porque ↵ encola el nivel entero; en la cola ↵ ya

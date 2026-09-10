@@ -2537,6 +2537,208 @@ def test_the_track_menu_says_so_when_the_queue_is_empty(monkeypatch):
     asyncio.run(scenario())
 
 
+def test_undo_puts_back_the_queue_that_c_threw_away(monkeypatch):
+    """`c` stops and `C` clears. A slipped shift used to be the end of it."""
+    isolate_runtime(monkeypatch)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(120, 32)) as pilot:
+            await pilot.pause()
+            a_queue(application, "Schism", "Lateralus", "The Grudge")
+            application.query_one("#playlist", RowList).cursor = 2
+            await pilot.pause()
+
+            await pilot.press("C")
+            await pilot.pause()
+            assert len(application.queue) == 0
+
+            await pilot.press("u")
+            await pilot.pause()
+            assert [e.title for e in application.queue] == [
+                "Schism",
+                "Lateralus",
+                "The Grudge",
+            ]
+            assert application.query_one("#playlist", RowList).cursor == 2
+
+    asyncio.run(scenario())
+
+
+def test_undoing_a_clear_does_not_start_the_music_again(monkeypatch):
+    """Clearing stopped it. A song starting on its own because someone undid a
+    mistake is a worse surprise than the mistake."""
+    isolate_runtime(monkeypatch)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(120, 32)) as pilot:
+            await pilot.pause()
+            a_queue(application, "Schism", "Lateralus")
+            await pilot.press("C")
+            await pilot.press("u")
+            await pilot.pause()
+
+            assert application.queue.playing == -1
+
+    asyncio.run(scenario())
+
+
+def test_undo_holds_one_level_and_says_when_it_holds_none(monkeypatch):
+    isolate_runtime(monkeypatch)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(120, 32)) as pilot:
+            await pilot.pause()
+            await pilot.press("u")
+            await pilot.pause()
+            assert "deshacer" in application.status
+
+            a_queue(application, "Schism")
+            await pilot.press("C")
+            await pilot.press("u")
+            await pilot.pause()
+            assert len(application.queue) == 1
+
+            # And it is spent: one level, not a stack.
+            await pilot.press("u")
+            await pilot.pause()
+            assert "deshacer" in application.status
+            assert len(application.queue) == 1
+
+    asyncio.run(scenario())
+
+
+def test_a_second_clear_replaces_what_undo_is_holding(monkeypatch):
+    isolate_runtime(monkeypatch)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(120, 32)) as pilot:
+            await pilot.pause()
+            a_queue(application, "Schism", "Lateralus")
+            await pilot.press("C")
+            await pilot.pause()
+            a_queue(application, "Rosemary")
+            await pilot.press("C")
+            await pilot.press("u")
+            await pilot.pause()
+
+            assert [e.title for e in application.queue] == ["Rosemary"]
+
+    asyncio.run(scenario())
+
+
+def test_the_equalizer_cycles_presets_and_names_the_one_it_is_on(monkeypatch):
+    isolate_runtime(monkeypatch)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(120, 32)) as pilot:
+            await pilot.pause()
+            await pilot.press("e")
+            await pilot.pause()
+
+            await pilot.press("p")
+            await pilot.pause()
+            assert application.settings.preset == "rock"
+            drawn = application.screen.query_one("#eq-preset").render().plain
+            assert "rock" in drawn
+
+            await pilot.press("P")
+            await pilot.pause()
+            assert application.settings.preset == "flat"
+
+            # Wraps rather than stopping at the end.
+            await pilot.press("P")
+            await pilot.pause()
+            assert application.settings.preset == "treble"
+
+    asyncio.run(scenario())
+
+
+def test_cycling_from_a_hand_made_curve_starts_at_the_first_preset(monkeypatch):
+    """There is nowhere in the list to step from: the bands are somewhere the
+    catalogue does not describe, and the nearest curve is nobody's idea of the
+    next one."""
+    isolate_runtime(monkeypatch)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(120, 32)) as pilot:
+            await pilot.pause()
+            application.settings.set_gain(3, 7.0)
+            assert application.settings.preset == "manual"
+
+            await pilot.press("e")
+            await pilot.pause()
+            await pilot.press("p")
+            await pilot.pause()
+
+            assert application.settings.preset == "flat"
+
+    asyncio.run(scenario())
+
+
+def test_the_track_menu_can_add_the_track_to_an_existing_playlist(monkeypatch):
+    isolate_runtime(monkeypatch)
+    monkeypatch.setattr("tidalamp.app.ensure_fresh", lambda session: False)
+    sent: list[tuple[str, int]] = []
+
+    def add(session, playlist_id, tracks, batch_size=100):
+        sent.append((playlist_id, len(list(tracks))))
+        return 1
+
+    monkeypatch.setattr(library, "add_to_playlist", add)
+    monkeypatch.setattr(
+        library,
+        "playlist_rows",
+        lambda session: [Row(label="Mis rolas", detail="12 pistas", key="playlist:42")],
+    )
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(120, 32)) as pilot:
+            await pilot.pause()
+            a_queue(application, "Schism")
+            await pilot.press("m")
+            await pilot.pause()
+            await pilot.press("l")
+            await settle(pilot, lambda: application.screen.query("#picker-list"))
+
+            await pilot.press("enter")
+            await settle(pilot, lambda: bool(sent))
+
+            assert sent == [("42", 1)], "el id sale de la clave de caché"
+
+    asyncio.run(scenario())
+
+
+def test_cancelling_the_playlist_picker_sends_nothing(monkeypatch):
+    isolate_runtime(monkeypatch)
+    sent: list[str] = []
+    monkeypatch.setattr(library, "add_to_playlist", lambda *a, **k: sent.append("x") or 0)
+    monkeypatch.setattr(library, "playlist_rows", lambda session: [])
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(120, 32)) as pilot:
+            await pilot.pause()
+            a_queue(application, "Schism")
+            await pilot.press("m")
+            await pilot.pause()
+            await pilot.press("l")
+            await settle(pilot, lambda: application.screen.query("#picker-list"))
+
+            await pilot.press("escape")
+            await pilot.pause()
+
+            assert sent == []
+
+    asyncio.run(scenario())
+
+
 def test_radio_replaces_the_queue_with_the_station_behind_its_seed(monkeypatch):
     isolate_runtime(monkeypatch)
     monkeypatch.setattr(TidalAmp, "_resolve_worker", lambda self, entry: None)
