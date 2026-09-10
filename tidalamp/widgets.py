@@ -526,6 +526,14 @@ class SeekBar(Widget):
     position = reactive(0.0)
     total = reactive(0.0)
 
+    def value_at(self, x: int) -> float | None:
+        """Translate a widget-relative click into an absolute track position."""
+        if self.total <= 0:
+            return None
+        width = max(4, self.size.width)
+        content_x = max(0, min(width - 1, x - self.content_offset.x))
+        return self.total * content_x / (width - 1)
+
     def render(self) -> Text:
         width = max(4, self.size.width)
         palette = palette_for(self)
@@ -555,10 +563,34 @@ class Slider(Widget):
     label = reactive("VOL")
     centred = reactive(False)
 
-    def render(self) -> Text:
+    def _track(self) -> tuple[int, int]:
+        """The first content cell and number of cells occupied by the track."""
         width = max(8, self.size.width)
+        start = len(self.label) + 1
+        track = max(1, width - len(self.label) - 6)
+        if self.centred:
+            # Rendering always includes a real centre cell. Keep clicks on the
+            # same odd-width track, even if the available width happened to be even.
+            track = (track // 2) * 2 + 1
+        return start, track
+
+    def value_at(self, x: int) -> int:
+        """Translate a widget-relative click into this slider's value."""
+        start, track = self._track()
+        content_x = x - self.content_offset.x
+        cell = max(0, min(track - 1, content_x - start))
+        if self.centred:
+            centre = track // 2
+            if centre == 0 or cell == centre:
+                return 0
+            return round((cell - centre) / centre * self.maximum)
+        if track == 1:
+            return 0
+        return round(cell / (track - 1) * self.maximum)
+
+    def render(self) -> Text:
         palette = palette_for(self)
-        track = width - len(self.label) - 6
+        _start, track = self._track()
         bar = Text(f"{self.label} ", style=palette["muted"])
         if self.centred:
             half = track // 2

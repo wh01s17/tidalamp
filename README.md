@@ -178,6 +178,8 @@ show the key that actually works.
 | `z` `x` `c` `v` | previous / play-pause / stop / next                |
 | `/`             | search TIDAL                                       |
 | `ctrl+f`        | search the queue                                   |
+| `g`             | go to the track that is playing                    |
+| `p`             | save the queue as a TIDAL playlist                 |
 | `↑` `↓` `Enter` | navigate; on a track, open the track menu          |
 | `l`             | open the library browser                           |
 | `f` `F`         | add to / remove from favourites                    |
@@ -207,6 +209,12 @@ in three category rows above; a category is fetched only when opened.
 
 Press `l` to open the library browser: playlists, favourite tracks, albums, and
 artists. Enter a level with `↵` and go back with `⌫`.
+
+`g` brings the queue cursor back to the track that is playing. If the queue search is
+hiding it, the search is cleared first. `p` asks for a name and saves a snapshot of the
+queue as a TIDAL playlist, in queue order rather than shuffle order. Large queues are
+sent in batches; if TIDAL stops accepting them part-way through, the partial playlist
+is kept and the status line says exactly how many tracks made it.
 
 - `↵` on a track plays it **and queues the entire level**, so the rest of the album or
   playlist follows it.
@@ -517,6 +525,8 @@ applied while you move them; an equalizer you cannot hear until pressing “OK�
 useful.
 
 `,` and `.` move the balance, and `\` centres it, including from the main window.
+The position, volume and balance bars also accept a click; clicking position while no
+track is loaded does nothing.
 
 Settings are stored in `~/.local/state/tidalamp/settings.json` and reapplied on
 startup.

@@ -34,6 +34,7 @@ ModalScreen.transparent {
    at 60% the queue's own text showed through the dialogs, which reads as a
    drawing bug rather than as glass. */
 .transparent #search-box,
+.transparent #playlist-name-box,
 .transparent #browser-box,
 .transparent #lyrics-box,
 .transparent #actions-box,
@@ -94,10 +95,26 @@ ModalScreen.transparent {
     padding: 0 1;
 }
 
-#clock {
+/* The clock and the track's identity share one column, to the right of the
+   cover. `_fit_artwork` measures this column as CLOCK_WIDTH, so the box keeps
+   the width the clock used to declare. */
+#clockbox {
     width: 24;
+}
+
+#clock {
+    width: 100%;
     height: 4;
     padding: 1 0 0 1;
+}
+
+#trackmeta {
+    color: $tidalamp-muted;
+    height: 1fr;
+    /* A row of air under the clock: pegged to it, the digits and the artist
+       read as one block and the eye cannot tell where the time ends. */
+    padding: 1 0 0 1;
+    text-wrap: nowrap;
 }
 
 #readout {
@@ -199,7 +216,8 @@ ModalScreen.transparent {
     width: 1fr;
 }
 
-#search-box {
+#search-box,
+#playlist-name-box {
     width: 45%;
     min-width: 50;
     max-width: 90;
@@ -210,13 +228,15 @@ ModalScreen.transparent {
     padding: 1 2;
 }
 
-#search-title {
+#search-title,
+#playlist-name-title {
     color: $tidalamp-accent;
     text-style: bold;
     height: 1;
 }
 
-#search-input {
+#search-input,
+#playlist-name-input {
     background: $tidalamp-display-background;
     color: $tidalamp-accent;
     border: tall $tidalamp-input-border;
@@ -511,6 +531,10 @@ ModalScreen.transparent {
 }
 
 #main.compact #art {
+    display: none;
+}
+
+#main.compact #trackmeta {
     display: none;
 }
 

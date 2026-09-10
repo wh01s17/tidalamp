@@ -5,9 +5,10 @@ from __future__ import annotations
 import asyncio
 import threading
 
+import pytest
 from rich.cells import cell_len
 from textual.screen import Screen
-from textual.widgets import Static
+from textual.widgets import Input, Static
 
 from tidalamp import about, artwork, library
 from tidalamp import app as app_module
@@ -22,11 +23,20 @@ from tidalamp.screens import (
     BROWSER_HINTS,
     TRACK_ACTIONS,
     ColumnsScreen,
+    PlaylistNameScreen,
     TrackActionsScreen,
 )
 from tidalamp.settings import Settings
 from tidalamp.theme import DEFAULT_COLORS, ThemePalette
-from tidalamp.widgets import Analyzer, Artwork, Slider, Spinner, TimeDisplay
+from tidalamp.widgets import (
+    Analyzer,
+    Artwork,
+    Marquee,
+    SeekBar,
+    Slider,
+    Spinner,
+    TimeDisplay,
+)
 
 
 async def settle(pilot, done, tries: int = 100) -> None:
@@ -52,6 +62,7 @@ class FakeMpv:
 
     def __init__(self) -> None:
         self.filter_calls: list[tuple[str, str | None]] = []
+        self.seek_calls: list[tuple[float, str]] = []
         self.loaded: str | None = None
         self._volume = 100
 
@@ -74,6 +85,9 @@ class FakeMpv:
         self.paused = False
         self.idle = True
         self.loaded = None
+
+    def seek(self, seconds: float, mode: str = "absolute") -> None:
+        self.seek_calls.append((seconds, mode))
 
     def set_filter(self, label: str, graph: str | None) -> None:
         self.filter_calls.append((label, graph))
@@ -1692,6 +1706,78 @@ def queue_lines(application) -> list[str]:
     return [playlist.render_line(y).text.rstrip() for y in range(playlist.size.height)]
 
 
+def test_g_returns_the_cursor_to_the_playing_track(monkeypatch):
+    isolate_runtime(monkeypatch)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(100, 30)) as pilot:
+            await pilot.pause()
+            a_queue(application, "Schism", "Lateralus", "The Grudge")
+            application.queue.playing = 1
+            application._sync_queue()
+            playlist = application.query_one("#playlist", RowList)
+            playlist.cursor = 2
+
+            await pilot.press("g")
+            await pilot.pause()
+
+            assert playlist.cursor == 1
+            assert playlist.current.entry.title == "Lateralus"
+
+    asyncio.run(scenario())
+
+
+def test_g_clears_a_filter_that_hides_the_playing_track(monkeypatch):
+    isolate_runtime(monkeypatch)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(100, 30)) as pilot:
+            await pilot.pause()
+            a_queue(application, "Schism", "Lateralus", "The Grudge")
+            application.queue.playing = 0
+            application._sync_queue()
+            await pilot.press("ctrl+f")
+            application.query_one("#queue-filter").value = "grudge"
+            await pilot.pause()
+            await pilot.press("enter")
+            await pilot.press("g")
+            await pilot.pause()
+
+            playlist = application.query_one("#playlist", RowList)
+            assert application.query_one("#queue-filter-bar").display is False
+            assert [row.entry.title for row in playlist.rows] == [
+                "Schism",
+                "Lateralus",
+                "The Grudge",
+            ]
+            assert playlist.cursor == 0
+            assert playlist.current.entry.title == "Schism"
+
+    asyncio.run(scenario())
+
+
+def test_g_without_a_playing_track_leaves_the_cursor_and_explains_why(monkeypatch):
+    isolate_runtime(monkeypatch)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(100, 30)) as pilot:
+            await pilot.pause()
+            a_queue(application, "Schism", "Lateralus", "The Grudge")
+            playlist = application.query_one("#playlist", RowList)
+            playlist.cursor = 2
+
+            await pilot.press("g")
+            await pilot.pause()
+
+            assert playlist.cursor == 2
+            assert application.status == "no hay una pista reproduciéndose"
+
+    asyncio.run(scenario())
+
+
 def test_ctrl_f_narrows_the_queue_and_esc_gives_it_back(monkeypatch):
     isolate_runtime(monkeypatch)
 
@@ -1876,6 +1962,144 @@ def test_typing_in_the_queue_search_does_not_reach_the_transport(monkeypatch):
     asyncio.run(scenario())
 
 
+def test_saving_the_queue_uses_the_written_name_and_a_queue_snapshot(monkeypatch):
+    isolate_runtime(monkeypatch)
+    calls: list[tuple[str, list[int]]] = []
+    steps: list[str] = []
+    busy_during_save: list[tuple[bool, str]] = []
+
+    def fresh(session):
+        steps.append("fresh")
+        return False
+
+    def save(session, title, entries):
+        steps.append("save")
+        calls.append((title, [entry.id for entry in entries]))
+        return len(entries)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(100, 30)) as pilot:
+            await pilot.pause()
+            monkeypatch.setattr(app_module, "ensure_fresh", fresh)
+            monkeypatch.setattr(library, "save_queue_playlist", save)
+            monkeypatch.setattr(
+                application,
+                "call_from_thread",
+                lambda callback, *args: callback(*args),
+            )
+
+            def run_now(title, entries):
+                spinner = application.query_one("#busy", Spinner)
+                busy_during_save.append((spinner.busy, spinner.label))
+                TidalAmp._save_playlist_worker.__wrapped__(application, title, entries)
+
+            monkeypatch.setattr(application, "_save_playlist_worker", run_now)
+            a_queue(application, "Schism", "Lateralus", "The Grudge")
+            application.queue.shuffle = True
+
+            await pilot.press("p")
+            await pilot.pause()
+            assert isinstance(application.screen, PlaylistNameScreen)
+            application.screen.query_one("#playlist-name-input", Input).value = "Viaje"
+            await pilot.press("enter")
+            await pilot.pause()
+            # Mutating the live queue cannot rewrite the snapshot handed to save.
+            application.queue.clear()
+
+            assert steps == ["fresh", "save"]
+            assert calls == [("Viaje", [0, 1, 2])]
+            assert busy_during_save == [(True, "guardando la cola como «Viaje»…")]
+            assert application.status == "playlist «Viaje» creada con 3 pistas"
+            assert not application.query_one("#busy", Spinner).busy
+
+    asyncio.run(scenario())
+
+
+def test_saving_an_empty_queue_opens_nothing_and_calls_nothing(monkeypatch):
+    isolate_runtime(monkeypatch)
+    calls = []
+    monkeypatch.setattr(library, "save_queue_playlist", lambda *args: calls.append(args))
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(100, 30)) as pilot:
+            await pilot.pause()
+            await pilot.press("p")
+            await pilot.pause()
+
+            assert len(application.screen_stack) == 1
+            assert calls == []
+            assert application.status == "la cola está vacía; no hay nada que guardar"
+
+    asyncio.run(scenario())
+
+
+def test_cancelling_the_playlist_name_does_not_write(monkeypatch):
+    isolate_runtime(monkeypatch)
+    calls = []
+    monkeypatch.setattr(library, "save_queue_playlist", lambda *args: calls.append(args))
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(100, 30)) as pilot:
+            await pilot.pause()
+            a_queue(application, "Schism")
+
+            await pilot.press("p")
+            await pilot.pause()
+            assert isinstance(application.screen, PlaylistNameScreen)
+            await pilot.press("escape")
+            await pilot.pause()
+
+            assert len(application.screen_stack) == 1
+            assert calls == []
+
+    asyncio.run(scenario())
+
+
+def test_a_partial_playlist_reaches_status_without_changing_the_queue(monkeypatch):
+    isolate_runtime(monkeypatch)
+
+    def partial(session, title, entries):
+        raise library.PlaylistSaveFailed(title, 2, len(entries), RuntimeError("sin red"))
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(100, 30)) as pilot:
+            await pilot.pause()
+            monkeypatch.setattr(app_module, "ensure_fresh", lambda session: False)
+            monkeypatch.setattr(library, "save_queue_playlist", partial)
+            monkeypatch.setattr(
+                application,
+                "call_from_thread",
+                lambda callback, *args: callback(*args),
+            )
+            monkeypatch.setattr(
+                application,
+                "_save_playlist_worker",
+                lambda title, entries: TidalAmp._save_playlist_worker.__wrapped__(
+                    application, title, entries
+                ),
+            )
+            a_queue(application, "Schism", "Lateralus", "The Grudge")
+            before = [entry.id for entry in application.queue]
+
+            await pilot.press("p")
+            await pilot.pause()
+            application.screen.query_one("#playlist-name-input", Input).value = "Viaje"
+            await pilot.press("enter")
+            await pilot.pause()
+
+            assert [entry.id for entry in application.queue] == before
+            assert application.status == (
+                "playlist «Viaje» creada con 2 de 3 pistas: sin red"
+            )
+            assert not application.query_one("#busy", Spinner).busy
+
+    asyncio.run(scenario())
+
+
 def test_the_setting_changes_the_shape_without_moving_the_analyser(monkeypatch):
     """Every shape is drawn in the same place — beside the cover, under the
     track details — and all of them use the whole column."""
@@ -1993,6 +2217,116 @@ def test_the_config_screen_offers_every_shape_and_writes_the_one_chosen(
             assert 'visualizer = "mirror"' in path.read_text(encoding="utf-8")
             assert changed == ["visualizer"]
             assert application.query_one("#analyzer", Analyzer).mode == "mirror"
+
+    asyncio.run(scenario())
+
+
+def test_the_marquee_carries_the_number_and_the_title_and_nothing_else(monkeypatch):
+    """The artist, the album and the length moved under the clock. One line is
+    all the marquee has, and it spends it on the title."""
+    isolate_runtime(monkeypatch)
+    monkeypatch.setattr(TidalAmp, "_resolve_worker", lambda self, entry: None)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(120, 32)) as pilot:
+            await pilot.pause()
+            application.queue.replace([a_deftones_track()], start=-1)
+            application._sync_queue()
+            application._play_index(0)
+            await pilot.pause()
+
+            text = application.query_one(Marquee).text
+            assert text == "1. Entombed"
+            assert "Deftones" not in text and "4:59" not in text
+
+    asyncio.run(scenario())
+
+
+def a_deftones_track() -> Entry:
+    return Entry(
+        id=1,
+        title="Entombed",
+        artist="Deftones",
+        album="Around the Fur",
+        year=1997,
+        duration=299,
+    )
+
+
+def test_the_block_under_the_clock_names_the_artist_album_and_year(monkeypatch):
+    isolate_runtime(monkeypatch)
+    monkeypatch.setattr(TidalAmp, "_resolve_worker", lambda self, entry: None)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(120, 32)) as pilot:
+            await pilot.pause()
+            meta = application.query_one("#trackmeta", Static)
+            assert meta.render().plain == "", "vacío mientras no suena nada"
+
+            application.queue.replace([a_deftones_track()], start=-1)
+            application._sync_queue()
+            application._play_index(0)
+            await pilot.pause()
+
+            lines = [line.rstrip() for line in meta.render().plain.split("\n")]
+            assert lines[:3] == ["Deftones", "Around the Fur", "1997 · 4:59"]
+            # Written when the track starts, not when the stream resolves: the
+            # readout waits for the network and this does not have to.
+            assert (
+                not application.query("#badges")[0].render().plain.startswith("SRC  AAC")
+            )
+
+    asyncio.run(scenario())
+
+
+def test_a_track_with_no_year_does_not_leave_a_stray_separator(monkeypatch):
+    """A restored queue from before the year column carries `year = 0`."""
+    isolate_runtime(monkeypatch)
+    monkeypatch.setattr(TidalAmp, "_resolve_worker", lambda self, entry: None)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(120, 32)) as pilot:
+            await pilot.pause()
+            application.queue.replace(
+                [
+                    Entry(
+                        id=1,
+                        title="Entombed",
+                        artist="Deftones",
+                        album="Around the Fur",
+                        duration=299,
+                    )
+                ],
+                start=-1,
+            )
+            application._sync_queue()
+            application._play_index(0)
+            await pilot.pause()
+
+            lines = [
+                line.rstrip()
+                for line in application.query_one("#trackmeta", Static)
+                .render()
+                .plain.split("\n")
+            ]
+            assert lines[:3] == ["Deftones", "Around the Fur", "4:59"]
+
+    asyncio.run(scenario())
+
+
+def test_the_compact_layout_drops_the_block_and_keeps_the_clock(monkeypatch):
+    """Five rows of display band is the clock and nothing else."""
+    isolate_runtime(monkeypatch)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(70, 20)) as pilot:
+            await pilot.pause()
+            assert not application.query_one("#trackmeta", Static).display
+            assert application.query_one("#clock").display
 
     asyncio.run(scenario())
 
@@ -2153,6 +2487,98 @@ def test_enter_on_a_level_still_opens_it_instead_of_the_menu(monkeypatch):
 
 
 # ------------------------------------------------------------------------ volume
+
+
+def test_clicking_the_middle_of_seek_jumps_to_the_middle(monkeypatch):
+    isolate_runtime(monkeypatch)
+
+    async def scenario() -> None:
+        mpv = FakeMpv()
+        mpv.duration = 200.0
+        mpv.idle = False
+        application = TidalAmp(object(), mpv)
+        async with application.run_test(size=(100, 36)) as pilot:
+            await pilot.pause()
+            seek = application.query_one("#seek", SeekBar)
+            seek.total = mpv.duration
+            middle = seek.content_offset.x + (seek.size.width - 1) // 2
+
+            assert await pilot.click("#seek", offset=(middle, 0))
+            await pilot.pause()
+
+            assert len(mpv.seek_calls) == 1
+            seconds, mode = mpv.seek_calls[0]
+            assert mode == "absolute"
+            assert seconds == pytest.approx(100.0, abs=200 / (seek.size.width - 1))
+
+    asyncio.run(scenario())
+
+
+def test_clicking_seek_without_a_loaded_track_does_nothing(monkeypatch):
+    isolate_runtime(monkeypatch)
+
+    async def scenario() -> None:
+        mpv = FakeMpv()
+        application = TidalAmp(object(), mpv)
+        async with application.run_test(size=(100, 36)) as pilot:
+            await pilot.pause()
+            seek = application.query_one("#seek", SeekBar)
+            middle = seek.content_offset.x + (seek.size.width - 1) // 2
+
+            assert await pilot.click("#seek", offset=(middle, 0))
+            await pilot.pause()
+
+            assert mpv.seek_calls == []
+
+    asyncio.run(scenario())
+
+
+def test_clicking_volume_sets_the_players_volume(monkeypatch):
+    isolate_runtime(monkeypatch)
+
+    async def scenario() -> None:
+        mpv = FakeMpv()
+        mpv.volume = 0
+        application = TidalAmp(object(), mpv)
+        async with application.run_test(size=(100, 36)) as pilot:
+            await pilot.pause()
+            slider = application.query_one("#volume", Slider)
+            start, track = slider._track()
+            right = slider.content_offset.x + start + track - 1
+
+            assert await pilot.click("#volume", offset=(right, 0))
+            await pilot.pause()
+
+            assert mpv.volume == Mpv.VOLUME_MAX
+            assert slider.value == Mpv.VOLUME_MAX
+
+    asyncio.run(scenario())
+
+
+def test_clicking_the_balance_centre_sets_exactly_zero(monkeypatch):
+    isolate_runtime(monkeypatch)
+    monkeypatch.setattr(Settings, "save", lambda self: None)
+
+    async def scenario() -> None:
+        mpv = FakeMpv()
+        application = TidalAmp(object(), mpv)
+        async with application.run_test(size=(100, 36)) as pilot:
+            await pilot.pause()
+            application.settings.set_balance(0.7)
+            slider = application.query_one("#balance", Slider)
+            slider.value = 70
+            start, track = slider._track()
+            centre = slider.content_offset.x + start + track // 2
+
+            assert await pilot.click("#balance", offset=(centre, 0))
+            await pilot.pause()
+
+            assert application.settings.balance == 0.0
+            assert slider.value == 0
+            assert mpv.filter_calls[-1] == ("eq", None)
+            assert application.status == "balance: centro"
+
+    asyncio.run(scenario())
 
 
 def test_the_volume_slider_scales_to_the_players_ceiling(monkeypatch):

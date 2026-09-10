@@ -24,6 +24,7 @@ from .queue import Entry
 # end when the page came back full, so a 500-track playlist is reachable
 # without pulling it whole on open.
 PAGE = 100
+PLAYLIST_BATCH = 100
 
 
 def _me(session: tidalapi.Session) -> tidalapi.user.LoggedInUser:
@@ -350,6 +351,16 @@ class NoRadio(RuntimeError):
     """Raised when TIDAL has no radio station for a track."""
 
 
+class PlaylistSaveFailed(RuntimeError):
+    """A playlist exists, but only part of its queue could be added."""
+
+    def __init__(self, title: str, added: int, total: int, cause: Exception) -> None:
+        super().__init__(str(cause))
+        self.title = title
+        self.added = added
+        self.total = total
+
+
 def track_radio(session: tidalapi.Session, entry: Entry, limit: int = 100) -> list[Entry]:
     """TIDAL's radio station for one track: the songs it considers similar.
 
@@ -412,6 +423,48 @@ def favourite(session: tidalapi.Session, row: Row, add: bool = True) -> str:
     call = calls[kind][0 if add else 1]
     with_retries(lambda: call(ident))
     return row.label
+
+
+def save_queue_playlist(
+    session: tidalapi.Session,
+    title: str,
+    entries: Iterable[Entry],
+    batch_size: int = PLAYLIST_BATCH,
+) -> int:
+    """Create a TIDAL playlist from a snapshot of the queue, in queue order.
+
+    TIDAL accepts at most 100 items per add request. Once creation succeeds the
+    playlist is deliberately kept even if a later batch fails: silently deleting
+    the batches that did make it would lose more user work. The raised exception
+    carries the exact completed count so the UI can say what remains in TIDAL.
+    """
+    if batch_size < 1:
+        raise ValueError("batch_size must be positive")
+
+    media_ids = [str(entry.id) for entry in entries]
+    playlist = with_retries(lambda: _me(session).create_playlist(title, ""))
+    # A partially filled playlist is still a new playlist and must appear the
+    # next time the user opens this level.
+    forget("playlists")
+
+    added = 0
+    for offset in range(0, len(media_ids), batch_size):
+        batch = media_ids[offset : offset + batch_size]
+
+        def add_batch(items: list[str] = batch) -> list[int]:
+            return playlist.add(
+                items,
+                allow_duplicates=True,
+                position=-1,
+                limit=batch_size,
+            )
+
+        try:
+            result = with_retries(add_batch)
+        except Exception as exc:
+            raise PlaylistSaveFailed(title, added, len(media_ids), exc) from exc
+        added += len(result)
+    return added
 
 
 def _search_level(

@@ -6,7 +6,7 @@ import contextlib
 from typing import cast
 
 import tidalapi
-from rich.cells import cell_len
+from rich.cells import cell_len, set_cell_size
 from rich.text import Text
 from textual import events, on, work
 from textual.app import App, ComposeResult
@@ -30,6 +30,7 @@ from .screens import (
     EqScreen,
     HelpScreen,
     LyricsScreen,
+    PlaylistNameScreen,
     RowList,
     SearchScreen,
     favourite_message,
@@ -84,6 +85,8 @@ DEFAULT_KEYS: dict[str, str] = {
     "next": "v",
     "search": "slash",
     "filter_queue": "ctrl+f",
+    "to_playing": "g",
+    "save_playlist": "p",
     "library": "l",
     "lyrics": "y",
     "equalizer": "e",
@@ -173,6 +176,8 @@ class TidalAmp(App):
         _bind("next", _("siguiente"), show=True),
         _bind("search", _("buscar"), show=True),
         _bind("filter_queue", _("buscar en la cola")),
+        _bind("to_playing", _("volver a la pista que suena")),
+        _bind("save_playlist", _("guardar la cola como playlist")),
         _bind("library", _("biblioteca"), show=True),
         _bind("lyrics", _("letra"), show=True),
         _bind("equalizer", _("ecualizador"), show=True),
@@ -250,7 +255,12 @@ class TidalAmp(App):
             yield Static(self._title_text(), id="titlebar", markup=False)
             with Horizontal(id="display"):
                 yield Artwork(id="art")
-                yield TimeDisplay(id="clock")
+                with Vertical(id="clockbox"):
+                    yield TimeDisplay(id="clock")
+                    # The rest of the track's identity, under the time: the
+                    # marquee above only has room for one line and it spends
+                    # it on the title.
+                    yield Static("", id="trackmeta", markup=False)
                 with Vertical(id="readout"):
                     yield Marquee(id="marquee")
                     yield Static("", id="badges")
@@ -918,6 +928,27 @@ class TidalAmp(App):
                 event.stop()
                 return
 
+    @on(events.Click, "#seek")
+    def _seek_clicked(self, event: events.Click) -> None:
+        position = self.query_one("#seek", SeekBar).value_at(event.x)
+        if position is not None:
+            self.mpv.seek(position)
+        event.stop()
+
+    @on(events.Click, "#volume")
+    def _volume_clicked(self, event: events.Click) -> None:
+        slider = self.query_one("#volume", Slider)
+        self.mpv.volume = slider.value_at(event.x)
+        slider.value = self.mpv.volume
+        self.status = _("volumen: {value}").format(value=self.mpv.volume)
+        event.stop()
+
+    @on(events.Click, "#balance")
+    def _balance_clicked(self, event: events.Click) -> None:
+        slider = self.query_one("#balance", Slider)
+        self._set_balance(slider.value_at(event.x) / 100)
+        event.stop()
+
     def _refresh_playlist_title(self) -> None:
         widget = self.query_one("#pl-title", Static)
         hints = (
@@ -1026,6 +1057,22 @@ class TidalAmp(App):
         if self.query_one("#queue-filter-bar", Horizontal).display:
             self._clear_queue_filter()
 
+    def action_to_playing(self) -> None:
+        """Put the queue cursor back on the track that is playing."""
+        if self.queue.playing < 0:
+            self.status = _("no hay una pista reproduciéndose")
+            return
+        row = self._row_at(self.queue.playing)
+        if row < 0:
+            self._clear_queue_filter()
+            row = self._row_at(self.queue.playing)
+        if row < 0:
+            return
+        playlist = self.query_one("#playlist", RowList)
+        playlist.cursor = row
+        playlist.marked = row
+        playlist.refresh()
+
     @on(Input.Changed, "#queue-filter")
     def _queue_filter_changed(self, event: Input.Changed) -> None:
         value = event.value.strip()
@@ -1055,6 +1102,53 @@ class TidalAmp(App):
             ),
             self._browser_result,
         )
+
+    def action_save_playlist(self) -> None:
+        if not len(self.queue):
+            self.status = _("la cola está vacía; no hay nada que guardar")
+            return
+        self.push_screen(PlaylistNameScreen(), self._save_playlist_named)
+
+    def _save_playlist_named(self, result: str | None) -> None:
+        title = (result or "").strip()
+        if not title:
+            return
+        # The queue may keep changing while the network worker runs. Save the
+        # exact list that was named, not whichever list happens to exist later.
+        entries = list(self.queue)
+        if not entries:
+            self.status = _("la cola está vacía; no hay nada que guardar")
+            return
+        self.query_one("#busy", Spinner).start(
+            _("guardando la cola como «{title}»…").format(title=title)
+        )
+        self._save_playlist_worker(title, entries)
+
+    @work(thread=True, exclusive=True, group="save-playlist")
+    def _save_playlist_worker(self, title: str, entries: list[Entry]) -> None:
+        try:
+            ensure_fresh(self.session)
+            added = library.save_queue_playlist(self.session, title, entries)
+        except library.PlaylistSaveFailed as exc:
+            message = _(
+                "playlist «{title}» creada con {added} de {total} pistas: {error}"
+            ).format(
+                title=exc.title,
+                added=exc.added,
+                total=exc.total,
+                error=exc,
+            )
+        except Exception as exc:
+            message = _("no se pudo guardar la cola: {error}").format(error=exc)
+        else:
+            message = _("playlist «{title}» creada con {count} pistas").format(
+                title=title, count=added
+            )
+        self.call_from_thread(self._save_playlist_done, message)
+
+    def _save_playlist_done(self, message: str) -> None:
+        self.query_one("#busy", Spinner).stop()
+        self.status = message
 
     def action_library(self) -> None:
         self.push_screen(
@@ -1258,7 +1352,8 @@ class TidalAmp(App):
             playlist.cursor = row
         playlist.marked = row
         playlist.refresh()
-        self.query_one(Marquee).text = f"{index + 1}. {entry.label} ({entry.length})"
+        self.query_one(Marquee).text = f"{index + 1}. {entry.title}"
+        self._refresh_track_meta()
         # The spinner carries the message while we wait; repeating it in the
         # status text next to it would just say the same thing twice.
         self.status = ""
@@ -1460,10 +1555,34 @@ class TidalAmp(App):
             return _("reproduciendo").upper()
         return _("detenido").upper()
 
+    def _track_meta(self) -> str:
+        """Artist, album and year of what is playing, one per line.
+
+        Cropped rather than wrapped: the column is 24 cells wide and a wrapped
+        album title would push the year out of the band.
+        """
+        entry = self.queue.current
+        if entry is None:
+            return ""
+        width = max(1, self.query_one("#trackmeta", Static).size.width)
+        tail = " · ".join(
+            part for part in (str(entry.year) if entry.year else "", entry.length) if part
+        )
+        lines = [entry.artist, entry.album, tail]
+        return "\n".join(set_cell_size(line, width) for line in lines if line)
+
+    def _refresh_track_meta(self) -> None:
+        """Write the block under the clock. Separate from the readout because
+        it is known the moment a track starts, while the codec line waits for
+        the stream to resolve."""
+        if self.query("#trackmeta"):
+            self.query_one("#trackmeta", Static).update(self._track_meta())
+
     def _refresh_readout(self) -> None:
         """Redraw source, analyser and playback state from cached values."""
         if not self.query("#badges"):
             return
+        self._refresh_track_meta()
         analyzer = self._analyzer()
         playable = self._playable
         if playable is None:
@@ -1603,7 +1722,10 @@ class TidalAmp(App):
         )
 
     def _nudge_balance(self, delta: float) -> None:
-        value = self.settings.set_balance(self.settings.balance + delta)
+        self._set_balance(self.settings.balance + delta)
+
+    def _set_balance(self, requested: float) -> None:
+        value = self.settings.set_balance(requested)
         self._apply_audio()
         self.settings.save()
         side = (
@@ -1623,10 +1745,7 @@ class TidalAmp(App):
         self._nudge_balance(0.1)
 
     def action_balance_centre(self) -> None:
-        self.settings.set_balance(0.0)
-        self._apply_audio()
-        self.settings.save()
-        self.status = _("balance: {value}").format(value=_("centro"))
+        self._set_balance(0.0)
 
     def action_favourite(self) -> None:
         self._favourite_selected(True)

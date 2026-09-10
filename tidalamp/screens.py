@@ -218,6 +218,26 @@ class SearchScreen(ModalScreen[str]):
         self.dismiss("")
 
 
+class PlaylistNameScreen(ModalScreen[str | None]):
+    """Ask for the name of a playlist that will receive the queue."""
+
+    BINDINGS = [Binding("escape", "dismiss_playlist", _("cancelar"))]
+
+    def compose(self) -> ComposeResult:
+        with Vertical(id="playlist-name-box"):
+            yield Static(_("GUARDAR COLA COMO PLAYLIST"), id="playlist-name-title")
+            yield Input(placeholder=_("nombre de la playlist…"), id="playlist-name-input")
+
+    def on_mount(self) -> None:
+        self.query_one(Input).focus()
+
+    def on_input_submitted(self, event: Input.Submitted) -> None:
+        self.dismiss(event.value)
+
+    def action_dismiss_playlist(self) -> None:
+        self.dismiss(None)
+
+
 # The browser's footer: key, what it does, and how early it goes when the
 # window is too narrow to hold the whole line — higher leaves first. Every one
 # of these is in the help window too, so the line keeps what nobody would

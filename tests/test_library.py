@@ -341,6 +341,73 @@ def test_every_playlist_row_carries_a_cache_key(monkeypatch):
     assert [r.key for r in rows] == ["playlist:p0", "playlist:p1", "playlist:p2"]
 
 
+# ------------------------------------------------------- playlist creation
+
+
+class WritablePlaylist:
+    def __init__(self, fail_on: int | None = None) -> None:
+        self.fail_on = fail_on
+        self.calls: list[tuple[list[str], bool, int, int]] = []
+
+    def add(self, media_ids, allow_duplicates=False, position=-1, limit=100):
+        batch = list(media_ids)
+        self.calls.append((batch, allow_duplicates, position, limit))
+        if self.fail_on == len(self.calls):
+            raise RuntimeError("sin red")
+        return batch
+
+
+class PlaylistOwner:
+    def __init__(self, playlist: WritablePlaylist) -> None:
+        self.playlist = playlist
+        self.calls: list[tuple[str, str]] = []
+
+    def create_playlist(self, title: str, description: str):
+        self.calls.append((title, description))
+        return self.playlist
+
+
+def queue_entries(count: int) -> list[Entry]:
+    return [Entry(id=i, title=f"pista {i}", artist="artista") for i in range(count)]
+
+
+def test_saving_a_queue_creates_and_fills_the_playlist_in_order_and_batches():
+    playlist = WritablePlaylist()
+    owner = PlaylistOwner(playlist)
+    session = SimpleNamespace(user=owner)
+    entries = queue_entries(700)
+    library.cached("playlists", lambda: [Row(label="vieja")])()
+
+    added = library.save_queue_playlist(session, "Viaje", entries)
+
+    assert owner.calls == [("Viaje", "")]
+    assert [len(call[0]) for call in playlist.calls] == [100] * 7
+    assert [ident for batch, *_ in playlist.calls for ident in batch] == [
+        str(entry.id) for entry in entries
+    ]
+    assert all(call[1:] == (True, -1, library.PLAYLIST_BATCH) for call in playlist.calls)
+    assert added == 700
+    assert "playlists" not in library._LEVELS
+
+
+def test_a_failed_batch_reports_the_completed_count_and_keeps_the_source_queue():
+    playlist = WritablePlaylist(fail_on=3)
+    owner = PlaylistOwner(playlist)
+    session = SimpleNamespace(user=owner)
+    entries = queue_entries(205)
+    before = [entry.id for entry in entries]
+
+    with pytest.raises(library.PlaylistSaveFailed) as raised:
+        library.save_queue_playlist(session, "Viaje", entries)
+
+    assert raised.value.title == "Viaje"
+    assert raised.value.added == 200
+    assert raised.value.total == 205
+    assert str(raised.value) == "sin red"
+    assert [entry.id for entry in entries] == before
+    assert len(playlist.calls) == 3
+
+
 # ------------------------------------------------------------------- caching
 
 

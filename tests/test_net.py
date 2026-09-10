@@ -1,7 +1,8 @@
 import pytest
 import requests
+from tidalapi.exceptions import TooManyRequests
 
-from tidalamp.net import with_retries
+from tidalamp.net import BACKOFF, MAX_RETRY_AFTER, with_retries
 
 
 def _http_error(status: int) -> requests.HTTPError:
@@ -71,3 +72,49 @@ def test_a_503_is_retried(monkeypatch):
     with pytest.raises(requests.HTTPError):
         with_retries(unavailable)
     assert len(calls) == 3
+
+
+def test_tidalapis_429_is_retried_after_the_server_delay(monkeypatch):
+    sleeps = []
+    monkeypatch.setattr("tidalamp.net.time.sleep", sleeps.append)
+    calls = []
+
+    def limited():
+        calls.append(1)
+        if len(calls) == 1:
+            raise TooManyRequests(retry_after=30)
+        return "ok"
+
+    assert with_retries(limited) == "ok"
+    assert len(calls) == 2
+    assert sleeps == [30]
+
+
+def test_a_429_without_retry_after_uses_the_normal_backoff(monkeypatch):
+    sleeps = []
+    monkeypatch.setattr("tidalamp.net.time.sleep", sleeps.append)
+    calls = []
+
+    def limited():
+        calls.append(1)
+        if len(calls) == 1:
+            raise TooManyRequests(retry_after=-1)
+        return "ok"
+
+    assert with_retries(limited) == "ok"
+    assert sleeps == [BACKOFF]
+
+
+def test_an_excessive_retry_after_is_reported_without_sleeping(monkeypatch):
+    sleeps = []
+    monkeypatch.setattr("tidalamp.net.time.sleep", sleeps.append)
+    calls = []
+
+    def limited():
+        calls.append(1)
+        raise TooManyRequests(retry_after=MAX_RETRY_AFTER + 1)
+
+    with pytest.raises(TooManyRequests):
+        with_retries(limited)
+    assert len(calls) == 1
+    assert sleeps == []

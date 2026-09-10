@@ -57,6 +57,7 @@ ENGLISH: dict[str, str] = {
     "ecualizador activo": "equalizer active",
     "ecualizador plano": "equalizer flat",
     "balance: {value}": "balance: {value}",
+    "volumen: {value}": "volume: {value}",
     "centro": "centre",
     "izquierda": "left",
     "derecha": "right",
@@ -350,6 +351,8 @@ ENGLISH: dict[str, str] = {
     "buscar en la cola…": "search the queue…",
     "buscar en la cola": "search the queue",
     "buscar en la cola: escribe y se estrecha": "search the queue: type and it narrows",
+    "volver a la pista que suena": "go to the playing track",
+    "guardar la cola como playlist": "save the queue as a playlist",
     "{total} en la cola": "{total} in the queue",
     "cargando {level}…": "loading {level}…",
     "abriendo {label}…": "opening {label}…",
@@ -367,6 +370,19 @@ ENGLISH: dict[str, str] = {
     "BUSCAR: {query}": "SEARCH: {query}",
     "BUSCAR EN TIDAL": "SEARCH TIDAL",
     "artista, canción o álbum…": "artist, song or album…",
+    "GUARDAR COLA COMO PLAYLIST": "SAVE QUEUE AS PLAYLIST",
+    "nombre de la playlist…": "playlist name…",
+    "la cola está vacía; no hay nada que guardar": (
+        "the queue is empty; there is nothing to save"
+    ),
+    "guardando la cola como «{title}»…": "saving the queue as “{title}”…",
+    "playlist «{title}» creada con {count} pistas": (
+        "playlist “{title}” created with {count} tracks"
+    ),
+    "playlist «{title}» creada con {added} de {total} pistas: {error}": (
+        "playlist “{title}” created with {added} of {total} tracks: {error}"
+    ),
+    "no se pudo guardar la cola: {error}": "could not save the queue: {error}",
     "Mis playlists": "My playlists",
     "Pistas favoritas": "Favourite tracks",
     "Álbumes favoritos": "Favourite albums",

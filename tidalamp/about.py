@@ -180,6 +180,8 @@ def shortcuts(keys) -> tuple[Section, ...]:
                 ("pgup / pgdn", _("una página")),
                 ("↵", _("reproducir la pista del cursor")),
                 (key("filter_queue"), _("buscar en la cola: escribe y se estrecha")),
+                (key("to_playing"), _("volver a la pista que suena")),
+                (key("save_playlist"), _("guardar la cola como playlist")),
                 (key("remove"), _("quitar la pista del cursor")),
                 (key("move_up"), _("subir la pista en la cola")),
                 (key("move_down"), _("bajar la pista en la cola")),

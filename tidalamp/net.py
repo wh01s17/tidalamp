@@ -14,17 +14,23 @@ from collections.abc import Callable
 from typing import TypeVar
 
 import requests
+from tidalapi.exceptions import TooManyRequests
 
 T = TypeVar("T")
 
 ATTEMPTS = 3
 BACKOFF = 0.6  # seconds, doubled on each retry
+MAX_RETRY_AFTER = 60  # a TUI should report a longer rate limit, not look frozen
 
 # 429 and 5xx are worth another go; a 4xx that is not 429 will not change.
 _RETRY_STATUS = {408, 429, 500, 502, 503, 504}
 
 
 def _is_transient(exc: Exception) -> bool:
+    # tidalapi translates an HTTP 429 into its own exception before callers
+    # see it, so the HTTPError branch below can never recognize that response.
+    if isinstance(exc, TooManyRequests):
+        return True
     if isinstance(exc, (requests.ConnectionError, requests.Timeout)):
         return True
     if isinstance(exc, requests.HTTPError):
@@ -42,6 +48,11 @@ def with_retries(call: Callable[[], T], attempts: int = ATTEMPTS) -> T:
         except Exception as exc:
             if attempt == attempts or not _is_transient(exc):
                 raise
-            time.sleep(delay)
+            wait = delay
+            if isinstance(exc, TooManyRequests) and exc.retry_after >= 0:
+                if exc.retry_after > MAX_RETRY_AFTER:
+                    raise
+                wait = exc.retry_after
+            time.sleep(wait)
             delay *= 2
     raise AssertionError("unreachable")

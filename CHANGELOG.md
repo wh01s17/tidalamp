@@ -5,6 +5,34 @@ versionado es [semántico](https://semver.org/lang/es/).
 
 ## [Sin publicar]
 
+### Cambiado
+
+- **La identidad de la pista baja bajo el reloj.** La marquesina llevaba número, artista,
+  título y duración en una sola línea, y debajo del reloj había cinco filas vacías. Ahora
+  la marquesina es sólo el número y el título, y el artista, el álbum, el año y la
+  duración van en la columna del reloj, cada uno en su línea. El año se calla cuando el
+  catálogo no lo da. En la disposición compacta el bloque desaparece y el reloj se queda
+  con la banda entera, como antes.
+
+### Añadido
+
+- **`g` vuelve a la pista que suena**. Si el buscador de la cola la está escondiendo,
+  quita primero el filtro; si no suena nada, deja el cursor donde está y lo explica en
+  la línea de estado.
+- **`p` guarda la cola como playlist de TIDAL**. Pide el nombre, toma una instantánea
+  en el orden real de la cola, envía las pistas en lotes de 100 e invalida «Mis
+  playlists». Si un lote falla, conserva la playlist parcial y dice cuántas pistas
+  llegaron en vez de borrar trabajo a espaldas del usuario.
+- **Barras clicables**: la de posición salta al punto pulsado, y volumen y balance
+  fijan su valor; la celda central del balance queda en cero exacto.
+
+### Corregido
+
+- **Los límites 429 de TIDAL vuelven a intentarse.** `tidalapi` convierte el error HTTP
+  en `TooManyRequests`, un tipo que el reintentador no reconocía. Ahora respeta
+  `Retry-After`, usa el backoff normal cuando la cabecera falta y abandona sin congelar
+  la interfaz cuando la espera indicada supera un minuto.
+
 ## [0.3.0] - 2026-09-10
 
 ### Añadido

@@ -4,7 +4,11 @@ Documento de traspaso. Describe qué existe, qué está verificado, qué falta y
 criterio se tomaron las decisiones, para que cualquiera (humano o modelo) pueda
 retomar el trabajo sin contexto previo.
 
-**Última actualización:** 2026-09-10 (el analizador con cuatro formas —`bars`,
+**Última actualización:** 2026-09-10 (`TooManyRequests` respeta `Retry-After` con un
+tope de un minuto; `g` devuelve el cursor a la pista que suena incluso si estaba
+filtrada; `p` guarda una instantánea de la cola como playlist de TIDAL por lotes y
+reporta creaciones parciales; posición, volumen y balance responden al clic; antes: el
+analizador con cuatro formas —`bars`,
 `mirror`, `curve` y `fine`, esta última un trazo continuo sobre la rejilla Braille— elegibles desde la ventana de ajustes, todas dibujadas donde ha estado
 siempre pero llegando al borde derecho, y **mucho más baratas en 4K**: 55% de un núcleo
 antes, 8% ahora, topando las bandas y mandando los tramos de un color de una vez;
@@ -173,12 +177,29 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
 ### Interfaz — `app.py`, `widgets.py`, `styles.tcss`
 
 - [x] Reloj de siete segmentos, con alternancia transcurrido/restante (`t`).
-- [x] Marquee del título con scroll.
+- [x] Marquee del título con scroll. Lleva **el número y el título y nada más**: es una
+      línea, y el artista, el álbum, el año y la duración caben mejor bajo el reloj, que
+      tenía cinco filas vacías debajo. `#clockbox` agrupa los dos y conserva las 24
+      celdas que el reloj declaraba, porque `_fit_artwork` mide esa columna con
+      `CLOCK_WIDTH` para calcular el recuadro de la carátula.
+- [x] El bloque bajo el reloj recorta en vez de envolver: veintitrés celdas de ancho, y
+      un álbum largo envuelto empujaría el año fuera de la banda. El año desaparece
+      cuando vale `0`, que es lo que trae una cola guardada antes de que existiera esa
+      columna, en vez de dejar un separador suelto.
+- [x] Se escribe al arrancar la pista (`_refresh_track_meta`) y no sólo desde
+      `_refresh_readout`: la línea del códec espera a que resuelva el stream y esto no
+      tiene por qué. En la disposición compacta desaparece; cinco filas de banda son el
+      reloj y nada más.
 - [x] Analizador de 19 bandas con balística ataque rápido / caída lenta y marcas de pico.
 - [x] Barra de posición y slider de volumen, este último con tope en
       `Mpv.VOLUME_MAX` (100). El slider lee esa constante en vez de heredar su propio
       máximo: cuando los dos rangos se separaron, la barra se dibujaba más ancha que su
       pista y se llevaba por delante el número.
+- [x] **Posición, volumen y balance responden al clic.** Los widgets traducen la
+      coordenada relativa a su región de contenido —descontando el `padding: 0 1`— y
+      la app decide el efecto: seek absoluto, volumen de mpv o filtro de balance. La
+      celda central del balance devuelve `0` exacto; posición con duración cero no
+      llama a mpv. Arrastrar queda deliberadamente fuera de alcance.
 - [x] Playlist con cursor, marcador de pista en curso y scroll centrado.
 - [x] Búsqueda en TIDAL en modal, ejecutada en hilo para no bloquear la UI.
 - [x] Avance automático al terminar la pista (se detecta por `idle-active` de mpv).
@@ -293,6 +314,12 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
       **No es un interruptor**: la API no permite preguntar si algo ya es favorito, así
       que alternar exigiría descargar la lista entera o adivinar, y adivinar mal borra.
       Al escribir se invalidan los niveles de favoritos en caché.
+- [x] **Guardar la cola como playlist de TIDAL con `p`.** `save_queue_playlist()` crea
+      la playlist y manda los ids de una instantánea en orden de cola, no de shuffle,
+      en lotes de 100 y con duplicados permitidos. Cada escritura pasa por
+      `with_retries`; al crear se invalida la clave `playlists` de `_LEVELS`. Si falla
+      un lote, la playlist ya creada se conserva y `PlaylistSaveFailed` lleva nombre,
+      cantidad terminada y total para que la UI informe la creación parcial.
 - [x] **«Mis playlists» costaba 20 s con 110 playlists.** `session.user.playlists()`
       parece una llamada y no lo es: al parsear cada elemento lo pasa por
       `Playlist.factory()`, que para una playlist propia construye un `UserPlaylist`,
@@ -417,6 +444,10 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
       (conexión, timeout, 408/429/5xx) y propaga de inmediato lo que no va a cambiar
       (401, 404). Envuelve `track.get_stream()`, `entry.resolve()` y los niveles de la
       biblioteca.
+- [x] **El 429 convertido por tidalapi también es transitorio.** tidalapi 0.8.11
+      transforma el `requests.HTTPError` en `TooManyRequests`, así que se reconoce ese
+      tipo explícitamente y se respeta su `retry_after`. `-1` cae al backoff anterior;
+      más de 60 s se relanza para que la TUI lo explique en vez de parecer congelada.
 - [x] `Mpv.alive` / `Mpv.restart()`: si el proceso muere, el tick lo detecta, lo
       relanza con el volumen guardado y recarga la pista en curso. Antes la UI se
       quedaba congelada contra un socket muerto.
@@ -708,7 +739,7 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
 
 ### Tests — `tests/`
 
-- [x] `pytest`, 375 pruebas, sin red y sin TIDAL. `pip install -e ".[dev]"`.
+- [x] `pytest`, 472 pruebas, sin red y sin TIDAL. `pip install -e ".[dev]"`.
 - [x] `tests/fake_mpv.py`: un mpv falso que habla el IPC JSON real y **emite eventos
       asíncronos antes de cada respuesta**, que es justo la trampa del §7. Lleva la
       cuenta de los filtros con etiqueta y rechaza la sintaxis con la etiqueta detrás.
@@ -728,7 +759,9 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
       política de reintentos, `player` contra el mpv falso incluida la muerte y el
       reinicio del proceso y los filtros con etiqueta, `spectrum` contra el cava falso,
       `settings` (recortes, grafos y persistencia), letras LRC/texto, indicadores de
-      shuffle/repeat y la garantía de que el tick lento no reinstala filtros.
+      shuffle/repeat, 429 de tidalapi con `Retry-After`, volver a la pista que suena,
+      creación por lotes y parcial de playlists, controles clicables y la garantía de
+      que el tick lento no reinstala filtros.
 
 ### Navegador y cola en la UI — `app.py`
 
@@ -787,6 +820,14 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
       respuesta: la pista que suena puede no ser una de las que se están buscando. La
       marca `▶` desaparece, el cursor no salta a una fila ajena, y la reproducción
       sigue exactamente igual.
+- [x] **`g` (`to_playing`) vuelve a lo que suena.** Usa `_row_at(queue.playing)`; si da
+      `-1`, limpia el filtro con `_clear_queue_filter()` y traduce de nuevo antes de
+      mover cursor y marca. Con `playing < 0` no inventa la primera fila: no mueve nada
+      y deja la explicación en estado.
+- [x] **`p` (`save_playlist`) abre `PlaylistNameScreen`** sólo con una cola no vacía.
+      El modal devuelve el nombre o `None`; la cola se copia antes de lanzar el worker,
+      que llama `ensure_fresh` y la escritura de biblioteca. El spinner incluye el
+      nombre y el resultado, también parcial, termina en la línea de estado.
 - [x] Mover una pista con el filtro puesto sí funciona, aunque la lista no parezca
       reordenarse —la pista con la que se intercambia puede estar escondida—: lo que
       cambia a la vista es el número de la cabecera de la línea, que es la posición.
@@ -870,6 +911,9 @@ Distinguir esto importa: parte del código nunca se ha ejecutado contra TIDAL re
 | Formas del analizador              | **Verificado**                    | Dieciséis unitarias: las cuatro usan todas las columnas que se les dan a 80, 200 y 380, `mirror` es simétrica sobre su línea central y cae a `bars` cuando no caben tres filas, `curve` dibuja un glifo por columna y nada debajo, `fine` dibuja sólo Braille o espacios, pasa por todas las columnas con un espectro en rampa —que es donde se vería si no uniera las muestras—, no rellena hasta el suelo con la señal al máximo y pone dos bandas por columna; el remuestreo promedia al bajar e interpola al subir, y las cuatro leen el mismo frame de 128 bandas. En la app real: cambiar el ajuste cambia la forma sin mover el widget, la forma llega al borde, el analizador empieza en la misma columna que los datos de la pista y a la derecha de la carátula, un valor inventado cae a `bars`, y la ventana de ajustes escribe el fichero y lo aplica al instante. Render de las cuatro a 120x32 en retro + nord. Falta verlo con audio real y cava, y `fine` en la fuente del usuario. |
 | Coste del analizador en 4K         | **Medido**                        | 380x50 a 10 fps con la app real headless: `bars` **54,5% de un núcleo → 7,3%**, `mirror` 57,9% → 8,2%, `curve` 12,2% → 7,7%. `fine` llegó después y va a 9,5%, la más cara de las cuatro y aun así lejos del problema. Los tramos de estilo por frame pasan de 950 a 76 en `bars`, de 950 a 49 en `mirror` y de 379 a 28 en `curve`; el render del widget, de 4,56 ms a 0,45 ms. Dos pruebas fijan el techo. |
 | Buscador de la cola (`ctrl+f`)      | **Verificado**                    | Siete unitarias en la app real headless: `ctrl+f` abre la barra y enfoca la caja, «later» deja 1 de 3, `esc` la cierra y devuelve las 3 filas dejando el cursor en la pista a la que se había llegado, la fila filtrada conserva el número 3, `↵` sobre ella reproduce la tercera de la cola y `d` quita esa, la marca `▶` desaparece mientras el filtro esconde lo que suena y vuelve cuando lo enseña, y escribir `x` en la caja no pausa el reproductor. Render a 96x28 con la barra abierta. Falta verlo contra una cola larga real. |
+| Volver a lo que suena (`g`)         | **Verificado**                    | Tres pruebas en la app headless: mueve desde otra fila, limpia un filtro que escondía la pista y, sin reproducción, conserva el cursor y explica por qué. |
+| Guardar cola como playlist (`p`)    | **Verificado con dobles**         | Crea con el nombre del modal tras `ensure_fresh`, usa una instantánea en orden, divide 700 pistas en siete lotes de 100, permite duplicados, invalida la caché, deja una creación parcial con recuento visible y no abre nada con la cola vacía. Falta probar la escritura contra una cuenta real. |
+| Barras clicables                    | **Verificado**                    | Cuatro pruebas con `pilot.click`: seek a mitad, seek parado sin llamada a mpv, volumen al extremo y balance en cero exacto pese al padding. |
 | Ayuda en dos pestañas              | **Verificado**                    | Dos unitarias en la app headless: `→` lleva a «Acerca de» y dibuja el repositorio, `←` vuelve a los atajos con el desplazamiento donde se dejó, y ninguna de las dos flechas se sale por los extremos. Render a 100x30 de las dos pestañas, con la activa marcada en la barra de título. |
 | Barra de ayuda del navegador       | **Verificado**                    | Medida en la app real: a 82 columnas entraba `… ⌫ atrás   R` y el resto lo comía el borde. Ahora `fit_hints()` suelta entradas enteras por prioridad y la línea termina siempre en `esc cerrar`. |
 | Paginación de la biblioteca        | **Verificado**                    | Unitarias sobre `_paged`, y la app real headless: nivel de 103 pistas → 101 filas con `más…`, `↵` sobre ella → 103 filas sin `más…`.                                            |
@@ -881,7 +925,7 @@ Distinguir esto importa: parte del código nunca se ha ejecutado contra TIDAL re
 | Reinicio de mpv                    | **Verificado**                    | SIGKILL a mpv con la app corriendo: el tick lo relanza con otro PID y la pista vuelve a sonar.                                                                                  |
 | Espectro con cava                  | **VERIFICADO CON AUDIO REAL**     | El usuario instaló cava 0.10.7 y reprodujo Thriller: la insignia dice `FFT` y las bandas dibujan un espectro con forma, graves y agudos por separado. `pgrep` confirma `cava -p ~/.cache/tidalamp/cava.conf` vivo junto al mpv de la app. |
 | Balance y ecualizador              | **Verificado**                    | Grafos validados con `ffmpeg -af` de verdad; en la app real los filtros llegan a mpv, se guardan, y se reaplican tras reiniciar mpv.                                            |
-| Reintentos de red                  | **Verificado**                    | Unitarias: reintenta conexión/timeout/503, no reintenta 404, se rinde al tercer intento.                                                                                        |
+| Reintentos de red                  | **Verificado**                    | Unitarias: reintenta conexión/timeout/503 y `TooManyRequests`; el 429 respeta `retry_after`, cae al backoff con `-1` y abandona sin dormir por encima del tope. No reintenta 404 y se rinde al tercer intento. |
 | Letras sincronizadas               | **Verificado con dobles**         | 9 pruebas de LRC, texto plano, ventanas, carga y fallos transitorios; el trabajo de red queda fuera del loop. Falta probar una letra real de TIDAL.                             |
 | Paletas: Omarchy, integradas y propias | **Verificado**                 | Unitarias con paletas temporales, las seis integradas (`classic`, `tokyo-night`, `catppuccin`, `nord`, `gruvbox`, `black`), un TOML propio leído de su directorio y un nombre con `../` rechazado sin tocar el disco; más montaje Textual y cambio en vivo. La máquina cambió de Wh01s17 a Tokyo Night y el lector tomó el nuevo acento. |
 | Estructuras (`theme`): las cuatro | **VERIFICADO A LA VISTA, A MEDIAS** | Pruebas Textual por estructura: los botones cuadrados de `retro` y sus dos barras regladas, el subrayado del acento en `nova`, los corchetes de `ascii`, que ninguna se sale a 60×18 y que ninguna deja la carátula sobre la barra de posición. **A la vista en kitty el usuario confirmó `quattro` y `nova`.** De `retro` sólo llegó a verse la versión de medios bloques, que se descartó por eso mismo (§7); la de teclas cuadradas y `ascii` no se han visto nunca en un terminal real, sólo bajo prueba. |
@@ -910,8 +954,9 @@ una pista en cada calidad y leer `~/.local/state/tidalamp/tidalamp.log`.
 
 > [!NOTE]
 > La funcionalidad comprometida para la próxima versión vive en
-> [next.md](./next.md), con sus trampas y su forma de comprobarse. Esta sección
-> es el estado general del proyecto; aquella es la cola de trabajo.
+> [next.md](./next.md), con sus trampas y su forma de comprobarse. Ahora mismo no
+> queda allí ninguna entrada comprometida; esta sección sigue siendo el estado general
+> y aquella, la cola de trabajo.
 
 P1–P4 están cerradas: lo que queda no es funcionalidad que falte para que el
 reproductor sirva, sino acabado, distribución y confirmar contra TIDAL real cosas hoy
@@ -1026,6 +1071,11 @@ dejará de importar y con él no arranca la aplicación entera.
 
 Cosas que ya costaron tiempo una vez:
 
+- **tidalapi convierte el 429 antes de que llegue a la app.** En 0.8.11 un límite de
+  peticiones deja de ser `requests.HTTPError` y pasa a
+  `tidalapi.exceptions.TooManyRequests`; buscar sólo el código 429 en la respuesta no
+  sirve porque esa rama ya no la ve. La excepción lleva `retry_after` (`-1` cuando no
+  hubo cabecera). `net.with_retries()` reconoce ambos tipos y no duerme más de 60 s.
 - **Sintaxis de la etiqueta de filtro en mpv**: es `--af=@etiqueta:lavfi=[...]`, con la
   etiqueta **delante**. Ponerla detrás (`lavfi=[...]@etiqueta`) hace que mpv aborte al
   arrancar y el socket IPC nunca aparece.
