@@ -2453,6 +2453,31 @@ def test_the_frameless_layout_does_not_start_on_row_zero(monkeypatch):
     asyncio.run(scenario())
 
 
+def test_the_centred_wordmark_gets_a_row_between_it_and_the_band(monkeypatch):
+    """Tried once while it was left-aligned and taken back, because there the
+    row isolated a bar that already sat on the cover. Centred it separates."""
+    isolate_runtime(monkeypatch)
+    use_theme(monkeypatch, "quattro")
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(150, 40)) as pilot:
+            await pilot.pause()
+            title = application.query_one("#titlebar", Static)
+            display = application.query_one("#display")
+            assert display.region.y - title.region.bottom == 1
+            # Outside the bar, so the band keeps its rows and `_fit_artwork`
+            # keeps its arithmetic.
+            assert display.size.height == 10
+
+            await pilot.resize_terminal(82, 24)
+            await pilot.pause()
+            title = application.query_one("#titlebar", Static)
+            assert application.query_one("#display").region.y == title.region.bottom
+
+    asyncio.run(scenario())
+
+
 def test_a_document_window_is_no_wider_than_what_it_holds(monkeypatch):
     """The browser is a table and spends every cell. Help and lyrics are
     documents, and an 85% box on a wide terminal left two thirds of itself

@@ -603,6 +603,11 @@ ModalScreen.transparent {
     padding: 0 1;
 }
 
+/* Quattro's row of separation, given back where there is none to spend. */
+#main.compact.quattro #titlebar {
+    margin: 0;
+}
+
 #main.compact #art {
     display: none;
 }
@@ -649,6 +654,11 @@ ModalScreen.transparent {
        has nothing underneath to collide with. */
     text-align: center;
     padding: 0 1;
+    /* A row between the bar and the band. Tried once while the wordmark was
+       still left-aligned and taken back: there it gave a bar that already sat
+       on top of the cover a neighbourhood of its own. Centred, the same row
+       reads as separation instead of isolation. */
+    margin: 0 0 1 0;
 }
 
 #main.quattro #pl-title {
