@@ -606,7 +606,13 @@ ModalScreen.transparent {
 #main.quattro #titlebar {
     background: $tidalamp-panel;
     color: $tidalamp-accent;
-    text-align: left;
+    /* Centred, against this look's own preference for left-aligned headings.
+       Left, the wordmark lands directly over the cover and the two read as
+       stacked on each other; retro reads clean at the same distance because
+       its name sits in the middle and only the rule passes over the artwork.
+       The heading below it stays left, so the look keeps its habit where it
+       has nothing underneath to collide with. */
+    text-align: center;
     padding: 0 1;
 }
 

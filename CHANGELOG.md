@@ -23,6 +23,12 @@ versionado es [semántico](https://semver.org/lang/es/).
   gasta una fila de aire, que en la disposición compacta devuelve. De paso, su banda del
   display tenía una fila de contenido menos que las otras tres en compacto.
 
+- **En `quattro` el nombre de la app queda centrado.** A la izquierda caía justo encima
+  de la carátula y las dos se leían apiladas; `retro` se ve limpio a la misma distancia
+  porque su nombre va en medio y sobre la carátula sólo pasa la regla. El título de la
+  cola sigue a la izquierda, que es donde esta disposición no tiene nada debajo con lo
+  que chocar.
+
 - **La carátula y el reloj estaban a una celda.** Se leían como un solo bloque y los
   dígitos parecían pegados a la imagen. Ahora hay dos.
 
