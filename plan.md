@@ -738,7 +738,8 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
       marcas registradas y tidalamp se publica a nombre propio. Cada uno es una
       `Layout`, una paleta en `_BUILTIN_SOURCES` y su nombre en `PAIRED`.
 - [x] **`bosque`**, el décimo (2026-09-11): temática ecológica, verde hoja sobre musgo.
-      No evoca ninguna obra: el árbol de su emblema está dibujado desde cero, así que
+      No evoca ninguna obra: su emblema (un árbol y brotes sobre medio globo) está
+      dibujado desde cero, así que
       no depende del aviso de `tidalamp/emblems/NOTICE`.
 - [x] El transporte de `ascii` pasó a `_transport_keycaps`, con las tapas de cada tecla
       en `Layout.keycaps`: `ascii` las deja en `[ ]` y en glifos ASCII, y cinco temas

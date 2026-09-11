@@ -229,7 +229,7 @@ LAYOUT_TABLE: dict[str, Layout] = {
             emblem="death-metal.png",
             tagline=lambda: _("hasta el once"),
         ),
-        # Leaf green on moss, earth underfoot and one tree in the corner.
+        # Leaf green on moss, and a tree growing on half a globe.
         Layout(
             "bosque",
             title=lambda width: ruled("❦  tidal amp  ❦", width, "─"),

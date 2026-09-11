@@ -430,7 +430,7 @@ palettes can be picked on their own too, under any layout.
 | `comodin`       | The wild card: a purple suit, green hair, a dashed card edge and the suits.  |
 | `gotico`        | Crimson and violet under a pointed arch, square keys and centred headings.   |
 | `death-metal`   | Bone on black, blood red, a tall frame and noise at the edges.               |
-| `bosque`        | Leaf green on moss, a plain frame and a tree growing behind the queue.       |
+| `bosque`        | Leaf green on moss, a plain frame, and a tree and sprouts on half a globe.   |
 
 ### Two columns
 

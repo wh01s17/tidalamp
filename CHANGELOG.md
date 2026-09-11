@@ -8,7 +8,7 @@ versioning is [semantic](https://semver.org/).
 ### Added
 
 - A tenth themed look, `bosque`: leaf green on moss, a plain frame and an original
-  pixel tree behind the queue. Its palette works under any layout, and its picture can
+  picture behind the queue: a tree and sprouts on half a globe, with gulls. Its palette works under any layout, and its picture can
   be borrowed with `backdrop = "bosque"`.
 - `tidalamp/emblems/NOTICE`: the themed looks' pictures are fan tributes, their
   characters belong to their owners and the GPL does not cover them. The README's
