@@ -30,58 +30,16 @@ por dar por buena una disposición vista solo en un test:
 
 ---
 
-## 2. Disposición en dos columnas: reproductor a la izquierda, cola a la derecha
+## 2. Dos columnas: verlo con audio de verdad
 
-Hoy `compose()` es una pila vertical de once hijos dentro de `MainPanel`: título,
-banda de display, seek, los dos sliders, transporte, y debajo el rótulo de la cola, la
-lista, la barra de búsqueda y la barra de estado. Todo apilado, todo a lo ancho.
+Implementado el 2026-09-10 (`arrangement = "split"`, ver `plan.md` «Dos columnas»).
+Queda la comprobación a mano:
 
-Se quiere poder pasar esa mitad de arriba a una **columna izquierda** y dejar la cola
-en una **columna derecha**, y cambiar entre las dos formas **en caliente**, sin
-reiniciar la reproducción.
-
-### Lo que hay que hacer
-
-1. **Agrupar las dos mitades en `compose()` desde el principio**, en dos contenedores
-   (`#player-half` y `#queue-half`), aunque la disposición apilada siga viéndose
-   idéntica. Este paso no cambia nada visible y es el que hace barato todo lo demás.
-2. **Cambiar de forma con una clase en `#main`**, no reconstruyendo el árbol. La CSS
-   decide si `#main` apila los dos contenedores o los pone en paralelo.
-3. **Colgarlo de `_apply_appearance()`**, que ya existe justo para esto: aplica
-   estructura y paleta sin tocar mpv.
-
-### Trampas conocidas
-
-- **No reparentar widgets.** Mover hijos de un contenedor a otro en Textual es
-  `remove()` más `mount()`, y eso destruye el estado: la fila donde estaba el cursor
-  del `RowList`, la imagen ya decodificada del `Artwork`, la fase del `Marquee`.
-  Cambiar de forma dejaría la cola saltando al principio y la carátula parpadeando,
-  que es exactamente lo contrario de «en tiempo real». Componer las dos mitades una
-  vez y que la CSS las coloque evita el problema entero, y es la razón del paso 1.
-- **La banda de display está calculada a ancho completo.** `_fit_display_band()`
-  dimensiona la carátula por alto y por ancho, `_spread()` mide el encabezado de la
-  cola contra el ancho total, y hay constantes duras: `CLOCK_WIDTH = 24`,
-  `READOUT_WIDTH = 30`, `MAX_BARS = 64`. Solo el reloj y el readout ya son 54 columnas,
-  así que a media pantalla la banda no entra y hay que decidir qué cede. Esto es el
-  grueso del trabajo, no el colocar las dos columnas.
-- **El umbral de `compact` no sirve.** `_check_size()` pasa a compacto por debajo de
-  80x26, y el mínimo de la aplicación es 76x20. Dos columnas necesitan del orden del
-  doble de ancho. Hace falta un umbral propio y **volver solo** a la forma apilada
-  cuando no quepa, o quien la active en un terminal normal se encuentra la interfaz
-  rota sin saber por qué.
-- **Multiplica contra el otro eje.** Cuatro disposiciones por dos formas, y con los
-  nueve temas de la entrada 1 son veintiséis combinaciones. El prerrequisito que
-  compartía con esa entrada, pasar las comparaciones `if config.THEME ==` a una tabla
-  de datos, ya está hecho (`layouts.py`).
-
-### Cómo se comprueba
-
-- La suite monta la aplicación en las dos formas y comprueba que ningún widget se
-  desmonta al cambiar: el mismo objeto `RowList` antes y después, con el cursor donde
-  estaba.
-- A un ancho por debajo del umbral, pedir dos columnas deja la forma apilada.
-- A mano, en un terminal real y ancho, con la cola llena y una pista sonando: cambiar
-  de forma no corta el audio ni mueve el cursor.
+- En un terminal real de al menos 180 columnas, con la cola llena y una pista sonando:
+  cambiar de forma desde ajustes no corta el audio, no mueve el cursor y no hace
+  parpadear la carátula kitty.
+- Achicar la ventana por debajo de 180 con split puesto: vuelve a apilada sin dejar
+  restos de la carátula pintados encima de la cola.
 
 ## Descartado por ahora
 

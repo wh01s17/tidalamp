@@ -127,6 +127,14 @@ ENGLISH: dict[str, str] = {
     "tema: {value}": "theme: {value}",
     "visualizador: {value}": "visualizer: {value}",
     "paleta: {value}": "palette: {value}",
+    "disposición: {value}": "arrangement: {value}",
+    "split necesita al menos {width}×{height}; la cola sigue debajo": (
+        "split needs at least {width}×{height}; the queue stays below"
+    ),
+    "Disposición": "Arrangement",
+    "split pone la cola a la derecha si el terminal es ancho": (
+        "split puts the queue on the right on a wide terminal"
+    ),
     "columnas: {count}": "columns: {count}",
     "lo pisa {variable} del entorno": "{variable} in the environment overrides it",
     "  Salida: desconocida": "  Output: unknown",
@@ -611,6 +619,10 @@ ENGLISH: dict[str, str] = {
     "# nord, gruvbox, black, la de cualquier tema o un TOML en\n"
     "# ~/.config/tidalamp/palettes/.\n"
     'palette = "auto"\n\n'
+    "# Disposición: stacked pone la cola debajo del reproductor; split la pone\n"
+    "# en una columna a la derecha (necesita un terminal ancho, y si no cabe\n"
+    "# vuelve sola a stacked).\n"
+    'arrangement = "stacked"\n\n'
     "# Visualizador: bars (barras), mirror (espejo), curve (línea) o fine (línea\n"
     "# en Braille, necesita una fuente que lo traiga). Los cuatro se dibujan al lado\n"
     "# de la carátula y llegan al borde derecho de la ventana.\n"
@@ -647,6 +659,10 @@ ENGLISH: dict[str, str] = {
         "# nord, gruvbox, black, any theme's own, or a TOML file in\n"
         "# ~/.config/tidalamp/palettes/.\n"
         'palette = "auto"\n\n'
+        "# Arrangement: stacked puts the queue under the player; split puts it in a\n"
+        "# column to the right (it needs a wide terminal, and falls back to stacked\n"
+        "# on its own where it does not fit).\n"
+        'arrangement = "stacked"\n\n'
         "# Visualizer: bars, mirror, curve, or fine (a Braille line, which needs "
         "a\n"
         "# font that has it). All four are drawn beside the cover and run to the "
@@ -767,6 +783,10 @@ def config_template() -> str:
         "# nord, gruvbox, black, la de cualquier tema o un TOML en\n"
         "# ~/.config/tidalamp/palettes/.\n"
         'palette = "auto"\n\n'
+        "# Disposición: stacked pone la cola debajo del reproductor; split la pone\n"
+        "# en una columna a la derecha (necesita un terminal ancho, y si no cabe\n"
+        "# vuelve sola a stacked).\n"
+        'arrangement = "stacked"\n\n'
         "# Visualizador: bars (barras), mirror (espejo), curve (línea) o fine "
         "(línea\n"
         "# en Braille, necesita una fuente que lo traiga). Los cuatro se dibujan al "

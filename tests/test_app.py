@@ -4462,3 +4462,121 @@ def test_the_output_rate_is_followed_until_pipewire_settles(monkeypatch):
     # It published the stale rate first, then corrected itself, and it did not
     # repeat a rate that had not moved.
     assert seen == [44100, 96000]
+
+
+# ------------------------------------------------------------------ split
+
+
+def test_switching_to_split_moves_the_halves_without_remounting_them(
+    monkeypatch, tmp_path
+):
+    """Two columns are a class on the panel, not a new widget tree.
+
+    Reparenting would be remove() and mount(): the queue would jump back to
+    its first row and the cover would be decoded again. The same objects have
+    to be there before and after, with the cursor where it was.
+    """
+    isolate_runtime(monkeypatch)
+    isolate_config(monkeypatch, tmp_path)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(200, 40)) as pilot:
+            await pilot.pause()
+            application.queue.replace(
+                [Entry(id=n, title=f"t{n}", artist="a", duration=9) for n in range(30)],
+                start=0,
+            )
+            application._sync_queue()
+            playlist = application.query_one("#playlist", RowList)
+            art = application.query_one(Artwork)
+            playlist.cursor = 17
+            await pilot.pause()
+
+            player = application.query_one("#player-half")
+            queue = application.query_one("#queue-half")
+            assert queue.region.y > player.region.y, "apilada: la cola va debajo"
+
+            app_module.config.set_option("arrangement", "split")
+            application._setting_changed("arrangement")
+            await pilot.pause()
+            await pilot.pause()
+
+            assert application.split
+            assert application.query_one("#playlist", RowList) is playlist
+            assert application.query_one(Artwork) is art
+            assert playlist.cursor == 17
+            assert queue.region.x >= player.region.right, "split: la cola a la derecha"
+            assert queue.region.y == player.region.y
+
+            # The width-dependent chrome was redrawn for the half it is in.
+            heading = application.query_one("#pl-title", Static)
+            assert cell_len(heading.render_line(0).text) == heading.size.width
+            assert heading.size.width < 100
+
+            app_module.config.set_option("arrangement", "stacked")
+            application._setting_changed("arrangement")
+            await pilot.pause()
+            assert not application.split
+            assert application.query_one("#playlist", RowList) is playlist
+            assert playlist.cursor == 17
+
+    asyncio.run(scenario())
+
+
+def test_split_falls_back_to_stacked_where_it_does_not_fit(monkeypatch, tmp_path):
+    """Asked for on an ordinary terminal, two columns would be two broken
+    halves. It stays stacked, says why, and splits once there is room."""
+    isolate_runtime(monkeypatch)
+    isolate_config(monkeypatch, tmp_path)
+    app_module.config.set_option("arrangement", "split")
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(120, 34)) as pilot:
+            await pilot.pause()
+            assert not application.split
+            application._setting_changed("arrangement")
+            assert "180" in application.status
+
+            await pilot.resize_terminal(190, 34)
+            await pilot.pause()
+            assert application.split
+
+            await pilot.resize_terminal(190, 20)
+            await pilot.pause()
+            assert not application.split, "demasiado bajo para dos columnas"
+
+    asyncio.run(scenario())
+
+
+def test_every_look_fits_both_halves_of_the_narrowest_split(monkeypatch, tmp_path):
+    """At the threshold each half is under 90 columns: the transport has to
+    fit the player's, and the cover must not spill onto the seek bar."""
+    isolate_runtime(monkeypatch)
+    isolate_config(monkeypatch, tmp_path)
+    app_module.config.set_option("arrangement", "split")
+
+    async def scenario() -> None:
+        for name in app_module.LAYOUTS:
+            app_module.config.THEME = name
+            application = TidalAmp(object(), FakeMpv())
+            size = (TidalAmp.SPLIT_MIN_WIDTH, TidalAmp.SPLIT_MIN_HEIGHT)
+            async with application.run_test(size=size) as pilot:
+                await pilot.pause()
+                await pilot.pause()
+                assert application.split, name
+                half = application.query_one("#player-half")
+                play = application.query_one("#transport-play")
+                menu = application.query_one("#transport-menu")
+                assert play.region.right <= menu.region.x, name
+                assert menu.region.right <= half.region.right, name
+                for y in range(3):
+                    assert cell_len(play.render_line(y).text) <= play.size.width, name
+
+                display = application.query_one("#display")
+                seek = application.query_one("#seek")
+                assert display.region.bottom <= seek.region.y, name
+                assert application.query_one(Artwork).rows >= app_module.DISPLAY_HEIGHT
+
+    asyncio.run(scenario())

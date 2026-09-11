@@ -29,6 +29,7 @@ _CONFIG_GLOBALS = (
     "LANGUAGE",
     "THEME",
     "PALETTE",
+    "ARRANGEMENT",
     "DEBUG",
     "KEYS",
 )

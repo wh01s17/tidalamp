@@ -430,6 +430,14 @@ palettes can be picked on their own too, under any layout.
 | `gotico`        | Crimson and violet under a pointed arch, square keys and centred headings.   |
 | `death-metal`   | Bone on black, blood red, a tall frame and noise at the edges.               |
 
+### Two columns
+
+`arrangement = "split"` puts the queue in a column to the right of the player instead of
+under it. It needs a terminal at least 180×26; on a smaller one it stays stacked on its
+own, and the settings window says so. Switching (from the settings window, `o`) moves
+nothing but the two halves: the track keeps playing and the queue's cursor stays where
+it was. It works with every layout and palette.
+
 ### Palettes
 
 `palette` accepts `auto` (follow Omarchy), `classic` (green-on-black, the player's own),
@@ -490,6 +498,7 @@ language = "auto"             # auto follows the locale; es or en pin it
 columns = "artist,album,year,duration"   # queue columns, comma separated
 theme = "quattro"             # layout: quattro, retro, nova, ascii, or a themed look
 palette = "auto"              # colours: auto, classic, a built-in, or your own
+arrangement = "stacked"       # stacked, or split: the queue in a column on the right
 visualizer = "bars"           # analyzer shape: bars, mirror, curve, or fine
 debug = false                 # log to ~/.local/state/tidalamp/tidalamp.log
 

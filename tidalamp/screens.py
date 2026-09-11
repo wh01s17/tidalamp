@@ -1499,6 +1499,7 @@ class ConfigScreen(ModalScreen[None]):
     ARTWORKS_OVER_PLAYER = ("blocks", "off")
     LANGUAGES = ("auto", "es", "en")
     SWITCH = ("false", "true")
+    ARRANGEMENTS = ("stacked", "split")
 
     def __init__(self, on_change=None) -> None:
         super().__init__()
@@ -1548,6 +1549,13 @@ class ConfigScreen(ModalScreen[None]):
                 key="palette",
                 choices=available_palettes(),
                 note=_("auto sigue Omarchy; las demás funcionan en cualquier Linux"),
+                group=looks,
+            ),
+            Option(
+                _("Disposición"),
+                key="arrangement",
+                choices=self.ARRANGEMENTS,
+                note=_("split pone la cola a la derecha si el terminal es ancho"),
                 group=looks,
             ),
             Option(
@@ -1922,6 +1930,7 @@ _ATTRIBUTES = {
     "language": "LANGUAGE",
     "theme": "THEME",
     "palette": "PALETTE",
+    "arrangement": "ARRANGEMENT",
     "visualizer": "VISUALIZER",
     "debug": "DEBUG",
     "transparency": "TRANSPARENCY",

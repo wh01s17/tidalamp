@@ -74,6 +74,7 @@ ENV_VARS: dict[str, str] = {
     "columns": "TIDALAMP_COLUMNS",
     "theme": "TIDALAMP_THEME",
     "palette": "TIDALAMP_PALETTE",
+    "arrangement": "TIDALAMP_ARRANGEMENT",
     "visualizer": "TIDALAMP_VISUALIZER",
     "debug": "TIDALAMP_DEBUG",
     "transparency": "TIDALAMP_TRANSPARENCY",
@@ -149,6 +150,12 @@ LANGUAGE = setting("language", "TIDALAMP_LANG", "auto")
 # an active Omarchy palette and falls back to the built-in classic colours.
 THEME = setting("theme", "TIDALAMP_THEME", "quattro")
 PALETTE = setting("palette", "TIDALAMP_PALETTE", "auto")
+
+# How the two halves sit: `stacked` puts the queue under the player, `split`
+# puts it in a column to the right. A third axis beside layout and colour,
+# and like them it applies without touching playback. `split` needs a wide
+# terminal and falls back to stacked on its own where it does not fit.
+ARRANGEMENT = setting("arrangement", "TIDALAMP_ARRANGEMENT", "stacked")
 
 # The shape of the spectrum analyser. `bars` is the small one that has always
 # lived in the readout column; the other four take a row of their own across
@@ -243,13 +250,14 @@ def reload() -> None:
     Those consumers read `config.DEFAULT_QUALITY` instead — see stream.py.
     """
     global FILE, DEFAULT_QUALITY, ARTWORK, LANGUAGE, THEME, PALETTE, COLUMNS
-    global DEBUG, TRANSPARENCY, KEYS, VISUALIZER
+    global DEBUG, TRANSPARENCY, KEYS, VISUALIZER, ARRANGEMENT
     FILE = read_file()
     DEFAULT_QUALITY = setting("quality", "TIDALAMP_QUALITY", "HI_RES_LOSSLESS")
     ARTWORK = setting("artwork", "TIDALAMP_ART", "auto")
     LANGUAGE = setting("language", "TIDALAMP_LANG", "auto")
     THEME = setting("theme", "TIDALAMP_THEME", "quattro")
     PALETTE = setting("palette", "TIDALAMP_PALETTE", "auto")
+    ARRANGEMENT = setting("arrangement", "TIDALAMP_ARRANGEMENT", "stacked")
     VISUALIZER = setting("visualizer", "TIDALAMP_VISUALIZER", "bars")
     COLUMNS = columns()
     DEBUG = flag("debug", "TIDALAMP_DEBUG")

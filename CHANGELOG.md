@@ -11,6 +11,10 @@ versioning is [semantic](https://semver.org/).
   `pirata`, `cuaderno`, `neon-noir`, `runas`, `reggae`, `comodin`, `gotico` and
   `death-metal`. Choosing one in the settings window sets its palette once; the palette
   stays free afterwards, and each of the nine palettes can be used under any layout.
+- `arrangement = "split"`: the queue in a column to the right of the player, switchable
+  live from the settings window without interrupting playback or moving the queue's
+  cursor. It needs at least 180×26 and falls back to the stacked arrangement on its
+  own where it does not fit.
 
 ## [0.5.1] - 2026-09-10
 

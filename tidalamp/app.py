@@ -183,6 +183,15 @@ class TidalAmp(App):
     MIN_WIDTH = 60
     MIN_HEIGHT = 18
 
+    # Where `split` is allowed to put the queue beside the player. The clock
+    # and the readout alone are 54 columns, and the widest transport (the
+    # capped keys, spelled out) is 77 before the menu gets a cell, so each
+    # half needs a little more than the 80 columns the stacked panel needs
+    # whole. The height is the compact threshold, because a player half
+    # without its cover is not worth a column of its own.
+    SPLIT_MIN_WIDTH = 180
+    SPLIT_MIN_HEIGHT = 26
+
     # Winamp's own transport keys, kept as muscle memory. Rebindable ones come
     # from DEFAULT_KEYS through the config file; navigation stays fixed.
     BINDINGS = [
@@ -276,41 +285,54 @@ class TidalAmp(App):
             # «[ TIDAL AMP ]» hands Static a string that Rich would read as a
             # tag, and the brackets and everything between them disappeared.
             yield Static(self._title_text(), id="titlebar", markup=False)
-            with Horizontal(id="display"):
-                yield Artwork(id="art")
-                with Vertical(id="clockbox"):
-                    yield TimeDisplay(id="clock")
-                    # The rest of the track's identity, under the time: the
-                    # marquee above only has room for one line and it spends
-                    # it on the title.
-                    yield Static("", id="trackmeta", markup=False)
-                with Vertical(id="readout"):
-                    yield Marquee(id="marquee")
-                    yield Static("", id="badges")
-                    yield Static("OUT  —", id="output")
-                    yield Analyzer(id="analyzer")
-            yield SeekBar(id="seek")
-            yield Slider(id="volume")
-            yield Slider(id="balance")
-            # Two halves, not one string: the transport keys belong with the
-            # sliders above them, and the windows read as a menu, which they
-            # only do once there is air between the two. Shuffle and repeat
-            # sit on the left with the transport: they are buttons that hold
-            # a state, not places to go. Both halves are filled in by
-            # `_refresh_modes`, which dims the separators and lights the state.
-            with Horizontal(id="transport"):
-                yield Static("", id="transport-play")
-                yield Static("", id="transport-menu")
-            yield Static("", id="pl-title", markup=False)
-            yield RowList(id="playlist")
-            # The queue's own search bar, the same shape as the browser's: it
-            # opens under the list without covering it, so the queue narrows
-            # under the eyes of whoever is typing. Hidden until ctrl+f.
-            with Horizontal(id="queue-filter-bar"):
-                yield Input(placeholder=_("buscar en la cola…"), id="queue-filter")
-                # markup=False: it counts rows for text the user typed, and a
-                # «[» in it would be read as a tag.
-                yield Static("", id="queue-filter-count", markup=False)
+            # The player and the queue, each in a container of its own even
+            # while they are stacked, so that `split` can put them side by
+            # side with a class and the stylesheet. Moving widgets between
+            # containers would be remove() and mount(), which throws away the
+            # queue's cursor, the decoded cover and the marquee's phase.
+            with Vertical(id="halves"):
+                with Vertical(id="player-half"):
+                    with Horizontal(id="display"):
+                        yield Artwork(id="art")
+                        with Vertical(id="clockbox"):
+                            yield TimeDisplay(id="clock")
+                            # The rest of the track's identity, under the
+                            # time: the marquee above only has room for one
+                            # line and it spends it on the title.
+                            yield Static("", id="trackmeta", markup=False)
+                        with Vertical(id="readout"):
+                            yield Marquee(id="marquee")
+                            yield Static("", id="badges")
+                            yield Static("OUT  —", id="output")
+                            yield Analyzer(id="analyzer")
+                    yield SeekBar(id="seek")
+                    yield Slider(id="volume")
+                    yield Slider(id="balance")
+                    # Two halves, not one string: the transport keys belong
+                    # with the sliders above them, and the windows read as a
+                    # menu, which they only do once there is air between the
+                    # two. Shuffle and repeat sit on the left with the
+                    # transport: they are buttons that hold a state, not
+                    # places to go. Both halves are filled in by
+                    # `_refresh_modes`, which dims the separators and lights
+                    # the state.
+                    with Horizontal(id="transport"):
+                        yield Static("", id="transport-play")
+                        yield Static("", id="transport-menu")
+                with Vertical(id="queue-half"):
+                    yield Static("", id="pl-title", markup=False)
+                    yield RowList(id="playlist")
+                    # The queue's own search bar, the same shape as the
+                    # browser's: it opens under the list without covering it,
+                    # so the queue narrows under the eyes of whoever is
+                    # typing. Hidden until ctrl+f.
+                    with Horizontal(id="queue-filter-bar"):
+                        yield Input(
+                            placeholder=_("buscar en la cola…"), id="queue-filter"
+                        )
+                        # markup=False: it counts rows for text the user
+                        # typed, and a «[» in it would be read as a tag.
+                        yield Static("", id="queue-filter-count", markup=False)
             with Horizontal(id="statusbar"):
                 yield Spinner(id="busy")
                 yield Static("", id="status", markup=False)
@@ -325,19 +347,21 @@ class TidalAmp(App):
         main = self.query_one("#main")
         if main.has_class("compact") != compact:
             main.set_class(compact, "compact")
+        split = self._split_fits(width, height)
+        split_changed = main.has_class("split") != split
+        if split_changed:
+            main.set_class(split, "split")
         self._layout_classes(main)
-        self._fit_artwork(compact_changed)
+        self._fit_artwork(compact_changed or split_changed)
         # These are all cropped or ruled to their own widget's width, which
         # only exists after layout. `_check_size` also runs from the resize
         # that precedes compose, hence the guard.
         if self.query("#transport-menu"):
-            # A resize is the other moment the buttons change width, so it
-            # re-measures too. Both are rare; the ticks are the hot path.
-            self._apply_visualizer()
-            self._refresh_modes(relayout=True)
-            self._refresh_playlist_title()
-            titlebar = self.query_one("#titlebar", Static)
-            titlebar.update(self._title_text(titlebar.size.width))
+            self._refresh_widths()
+            if split_changed:
+                # The panel kept its size, so no resize is coming to report
+                # the halves' new widths: wait for the layout pass instead.
+                self.call_after_refresh(self._refresh_widths)
         too_small = width < self.MIN_WIDTH or height < self.MIN_HEIGHT
         notice = self.query_one("#too-small", Static)
         notice.display = too_small
@@ -358,6 +382,36 @@ class TidalAmp(App):
                 )
             )
 
+    def _split_fits(self, width: int, height: int) -> bool:
+        """Whether the queue goes beside the player: asked for, and room for it.
+
+        Falling back on its own is the point. Asked for on an ordinary
+        terminal, two columns would be two broken halves, and nothing on
+        screen would say why.
+        """
+        return (
+            config.ARRANGEMENT == "split"
+            and width >= self.SPLIT_MIN_WIDTH
+            and height >= self.SPLIT_MIN_HEIGHT
+        )
+
+    @property
+    def split(self) -> bool:
+        """Whether the halves are side by side right now."""
+        return self.query_one("#main").has_class("split")
+
+    def _refresh_widths(self) -> None:
+        """Redraw everything that is cropped or ruled to its widget's width.
+
+        A resize is one moment those widths change and switching the
+        arrangement is the other. Both are rare; the ticks are the hot path.
+        """
+        self._apply_visualizer()
+        self._refresh_modes(relayout=True)
+        self._refresh_playlist_title()
+        titlebar = self.query_one("#titlebar", Static)
+        titlebar.update(self._title_text(titlebar.size.width))
+
     def _fit_artwork(self, compact_changed: bool = False) -> None:
         """Grow the cover box with the terminal, then draw the cover again.
 
@@ -376,8 +430,15 @@ class TidalAmp(App):
             if compact_changed:
                 display.styles.height = 5
             return
-        by_height = self.size.height // 4
-        by_width = (self.size.width - CLOCK_WIDTH - READOUT_WIDTH - 4) // 2
+        if self.split:
+            # The player has a column to itself: half the width, and the
+            # whole height but for the rows under the band and the frame.
+            by_height = self.size.height - 12
+            half = self.size.width // 2 - 2
+            by_width = (half - CLOCK_WIDTH - READOUT_WIDTH - 4) // 2
+        else:
+            by_height = self.size.height // 4
+            by_width = (self.size.width - CLOCK_WIDTH - READOUT_WIDTH - 4) // 2
         resized = widget.resize(min(by_height, by_width))
         # Unconditionally, not only when the cover changed size. The padding
         # is the other half of the sum and it settles on its own schedule: at
@@ -411,6 +472,14 @@ class TidalAmp(App):
         if widget is None:
             return
         display = self.query_one("#display")
+        if self.split:
+            # A column to itself, so the band takes whatever the column does
+            # not spend on the sliders and the transport, instead of leaving
+            # half of it empty under the keys. The cover was sized to fit
+            # inside that (`_fit_artwork`), and the analyser draws to any
+            # height it is given.
+            display.styles.height = "1fr"
+            return
         padding = display.styles.padding
         display.styles.height = (
             max(DISPLAY_HEIGHT, widget.rows) + padding.top + padding.bottom
@@ -1857,6 +1926,14 @@ class TidalAmp(App):
             self.refresh_css(animate=False)
             self._apply_appearance()
             self.status = _("paleta: {value}").format(value=config.PALETTE)
+        elif name == "arrangement":
+            self._check_size()
+            if config.ARRANGEMENT == "split" and not self.split:
+                self.status = _(
+                    "split necesita al menos {width}×{height}; la cola sigue debajo"
+                ).format(width=self.SPLIT_MIN_WIDTH, height=self.SPLIT_MIN_HEIGHT)
+            else:
+                self.status = _("disposición: {value}").format(value=config.ARRANGEMENT)
         elif name == "visualizer":
             self._apply_visualizer()
             self.status = _("visualizador: {value}").format(value=config.VISUALIZER)

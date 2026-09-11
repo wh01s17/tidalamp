@@ -102,6 +102,38 @@ ModalScreen.transparent {
     height: 100%;
 }
 
+/* The two halves. Stacked, the player takes what it needs and the queue the
+   rest, which is how the panel always looked. `split` (below) lays the same
+   two containers side by side without mounting anything again. */
+#halves {
+    height: 1fr;
+}
+
+#player-half {
+    height: auto;
+}
+
+#queue-half {
+    height: 1fr;
+}
+
+#main.split #halves {
+    layout: horizontal;
+}
+
+#main.split #player-half {
+    width: 1fr;
+    height: 100%;
+}
+
+/* A column rule between the two, in the frame's own colour, so the queue
+   reads as the window next door rather than a continuation of the band. */
+#main.split #queue-half {
+    width: 1fr;
+    height: 100%;
+    border-left: solid $tidalamp-border;
+}
+
 #titlebar {
     background: $tidalamp-title-background;
     color: $tidalamp-title-foreground;
