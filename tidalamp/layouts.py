@@ -294,6 +294,28 @@ def backdrop_for(setting: str, layout: Layout) -> Layout | None:
     return chosen if chosen is not None and chosen.emblem else None
 
 
+# What a theme is called on screen, in the language in use. The name in
+# `config.toml` never changes, so a file written in one language still works
+# in the other; only the label does. A palette of the same name shares it.
+# Functions, so a change of language is read when the label is drawn.
+# Names that read the same in both languages are not here.
+_LABELS: dict[str, Callable[[], str]] = {
+    "unidad-morada": lambda: _("unidad-morada"),
+    "pirata": lambda: _("pirata"),
+    "cuaderno": lambda: _("cuaderno"),
+    "runas": lambda: _("runas"),
+    "comodin": lambda: _("comodin"),
+    "gotico": lambda: _("gotico"),
+    "bosque": lambda: _("bosque"),
+}
+
+
+def label(name: str) -> str:
+    """A theme's or palette's name as the screen shows it."""
+    found = _LABELS.get(name)
+    return found() if found else name
+
+
 def layout_for(name: str) -> Layout:
     """The layout called `name`, or the default for a name nobody knows."""
     return LAYOUT_TABLE.get(name, DEFAULT_LAYOUT)

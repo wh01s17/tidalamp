@@ -17,7 +17,7 @@ from textual.widgets import Static
 
 from .. import artwork, audio, columns, config
 from ..i18n import _
-from ..layouts import BACKDROPS
+from ..layouts import BACKDROPS, label
 from ..theme import LAYOUTS, available_palettes, paired_palette, palette_for
 from ..widgets import Analyzer
 from .column_picker import ColumnsScreen, _crop
@@ -243,7 +243,13 @@ class ConfigScreen(ModalScreen[None]):
         if option.key:
             current = getattr(config, _ATTRIBUTES[option.key])
             # `debug` is a bool in the file and "true"/"false" in the choices.
-            return str(current).lower() if isinstance(current, bool) else str(current)
+            if isinstance(current, bool):
+                return str(current).lower()
+            # Themes, palettes and pictures go by their names in the
+            # language in use; the file keeps the one it always had.
+            if option.key in ("theme", "palette", "backdrop"):
+                return label(str(current))
+            return str(current)
         if option.action == "rates":
             if audio.rates_configured():
                 return _("configurado")

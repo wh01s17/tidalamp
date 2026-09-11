@@ -21,6 +21,7 @@ from . import about, artwork, audio, columns, config, i18n, library
 from .auth import NotLoggedIn, ensure_fresh
 from .i18n import _
 from .layouts import Layout, backdrop_for, layout_for
+from .layouts import label as theme_label
 from .library import Row
 from .lyrics import LyricsDocument, load_lyrics
 from .mpris import MprisService
@@ -2115,15 +2116,17 @@ class TidalAmp(App):
             )
         elif name == "theme":
             self._apply_appearance()
-            self.status = _("tema: {value}").format(value=config.THEME)
+            self.status = _("tema: {value}").format(value=theme_label(config.THEME))
         elif name == "palette":
             self.tidalamp_palette = load_palette(name=config.PALETTE)
             self.refresh_css(animate=False)
             self._apply_appearance()
-            self.status = _("paleta: {value}").format(value=config.PALETTE)
+            self.status = _("paleta: {value}").format(value=theme_label(config.PALETTE))
         elif name == "backdrop":
             self._apply_emblem()
-            self.status = _("fondo de la cola: {value}").format(value=config.BACKDROP)
+            self.status = _("fondo de la cola: {value}").format(
+                value=theme_label(config.BACKDROP)
+            )
         elif name == "arrangement":
             self._check_size()
             if config.ARRANGEMENT == "split" and not self.split:

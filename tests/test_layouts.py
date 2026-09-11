@@ -66,3 +66,24 @@ def test_every_themed_look_has_an_emblem_the_package_ships():
             assert max(image.size) <= 192, layout.name
             assert image.mode in ("RGBA", "RGB", "P"), layout.name
         assert layout.tagline and layout.tagline(), layout.name
+
+
+def test_theme_names_are_shown_in_the_language_in_use():
+    """The file keeps the name it always had; only the label follows the
+    language, so a config written under one works under the other."""
+    from tidalamp import i18n
+    from tidalamp.layouts import label
+
+    try:
+        i18n.use("en")
+        assert label("bosque") == "forest"
+        assert label("unidad-morada") == "purple-unit"
+        assert label("reggae") == "reggae"
+        assert label("quattro") == "quattro"
+        assert label("auto") == "auto"
+        i18n.use("es")
+        assert label("bosque") == "bosque"
+        assert label("comodin") == "comodin"
+    finally:
+        i18n.refresh()
+    assert LAYOUT_TABLE["bosque"].name == "bosque"

@@ -15,6 +15,10 @@ versioning is [semantic](https://semver.org/).
 - A Cover shape setting (`cover_shape`): `square`, or `round` to draw the cover as a
   disc under any theme. The corners take the band's colour, so it looks the same in
   kitty, sixel and blocks, and it changes on screen at once.
+- Theme and palette names follow the language: in English `bosque` reads as
+  forest, `pirata` as pirate, `unidad-morada` as purple-unit, and so on, in the
+  settings window and the status line. `config.toml` keeps the same names in both
+  languages, so a file written under one still works under the other.
 - `tidalamp/emblems/NOTICE`: the themed looks' pictures are fan tributes, their
   characters belong to their owners and the GPL does not cover them. The README's
   licence section says so too.
