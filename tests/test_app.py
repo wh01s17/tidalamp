@@ -14,7 +14,6 @@ from tidalamp import about, artwork, library
 from tidalamp import app as app_module
 from tidalamp import audio as audio_module
 from tidalamp import columns as columns_module
-from tidalamp import screens as screens_module
 from tidalamp.app import BrowserScreen, ConfigScreen, HelpScreen, RowList, TidalAmp
 from tidalamp.artwork import Cover, Protocol
 from tidalamp.layouts import LAYOUT_TABLE
@@ -28,6 +27,7 @@ from tidalamp.screens import (
     PlaylistNameScreen,
     TrackActionsScreen,
 )
+from tidalamp.screens import config_window as screens_module
 from tidalamp.settings import Settings
 from tidalamp.theme import DEFAULT_COLORS, ThemePalette
 from tidalamp.widgets import (
@@ -2976,7 +2976,7 @@ def test_a_track_with_no_radio_says_so_and_leaves_the_queue_alone(monkeypatch):
 
 def test_favourite_from_the_menu_touches_tidal_and_not_the_queue(monkeypatch):
     isolate_runtime(monkeypatch)
-    monkeypatch.setattr("tidalamp.screens.ensure_fresh", lambda session: False)
+    monkeypatch.setattr("tidalamp.screens.browser.ensure_fresh", lambda session: False)
     added: list[tuple[str, bool]] = []
 
     def favourite(session, row, add=True):
@@ -4373,7 +4373,7 @@ def test_f_favourites_the_selected_track_and_says_so(monkeypatch):
         return row.entry.label
 
     monkeypatch.setattr("tidalamp.library.favourite", fake_favourite)
-    monkeypatch.setattr("tidalamp.screens.ensure_fresh", lambda session: False)
+    monkeypatch.setattr("tidalamp.screens.browser.ensure_fresh", lambda session: False)
 
     async def scenario() -> None:
         application = TidalAmp(object(), FakeMpv())
@@ -4415,7 +4415,7 @@ def test_a_favourite_that_fails_reaches_the_status_line(monkeypatch):
         raise RuntimeError("sin red")
 
     monkeypatch.setattr("tidalamp.library.favourite", boom)
-    monkeypatch.setattr("tidalamp.screens.ensure_fresh", lambda session: False)
+    monkeypatch.setattr("tidalamp.screens.browser.ensure_fresh", lambda session: False)
 
     async def scenario() -> None:
         application = TidalAmp(object(), FakeMpv())
@@ -4439,7 +4439,7 @@ def test_favouriting_drops_the_cached_favourites_levels(monkeypatch):
     monkeypatch.setattr(
         "tidalamp.library.favourite", lambda s, r, add=True: r.entry.label
     )
-    monkeypatch.setattr("tidalamp.screens.ensure_fresh", lambda session: False)
+    monkeypatch.setattr("tidalamp.screens.browser.ensure_fresh", lambda session: False)
 
     async def scenario() -> None:
         application = TidalAmp(object(), FakeMpv())

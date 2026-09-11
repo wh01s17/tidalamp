@@ -14,7 +14,7 @@ def _translated_literals() -> set[str]:
     package = Path(i18n.__file__).parent
     strings: set[str] = set()
     dynamic: list[str] = []
-    for path in package.glob("*.py"):
+    for path in package.rglob("*.py"):
         tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
         for node in ast.walk(tree):
             if not (
@@ -73,7 +73,7 @@ def test_every_translated_literal_has_exactly_one_catalogue_entry():
 def test_modules_that_translate_do_not_shadow_the_translation_function():
     package = Path(i18n.__file__).parent
     shadowed: list[str] = []
-    for path in package.glob("*.py"):
+    for path in package.rglob("*.py"):
         tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
         imports_translation = any(
             isinstance(node, ast.ImportFrom)
