@@ -734,7 +734,8 @@ def test_restarting_pipewire_stops_playback_first(monkeypatch, tmp_path):
 
             screen.cursor = config_row(screen, "Reiniciar PipeWire")
             await pilot.pause()
-            await pilot.press("enter")
+            # The list opens on «cancelar»; one up is «reiniciar ahora».
+            await pilot.press("enter", "up", "enter")
             await settle(pilot, lambda: application.status == "hecho")
 
             assert mpv.idle is True

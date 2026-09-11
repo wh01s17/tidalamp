@@ -20,6 +20,7 @@ from ..i18n import _
 from ..layouts import BACKDROPS, label
 from ..theme import LAYOUTS, available_palettes, paired_palette, palette_for
 from ..widgets import Analyzer
+from .choice import ChoiceScreen
 from .column_picker import ColumnsScreen, _crop
 
 if TYPE_CHECKING:  # The screens report back to the app; the app owns them.
@@ -59,7 +60,8 @@ class ConfigScreen(ModalScreen[None]):
         Binding("escape,o", "close", _("cerrar")),
         Binding("up", "up", _("arriba"), show=False),
         Binding("down", "down", _("abajo"), show=False),
-        Binding("enter,right,space", "advance", _("cambiar"), show=False),
+        Binding("enter,space", "activate", _("cambiar"), show=False),
+        Binding("right", "advance", "", show=False),
         Binding("left", "back", "", show=False),
     ]
 
@@ -402,23 +404,83 @@ class ConfigScreen(ModalScreen[None]):
     def action_down(self) -> None:
         self.cursor = (self.cursor + 1) % len(self._rows)
 
+    @staticmethod
+    def _picked(option: Option) -> bool:
+        """The rows chosen from a list instead of stepped with the arrows.
+
+        The three where a stray arrow cost the most: the quality changed
+        under the next track, PipeWire's rates were written or removed, or
+        PipeWire was restarted and the audio cut. Only ↵ opens them now.
+        """
+        return option.key == "quality" or option.action in ("rates", "restart")
+
+    def action_activate(self) -> None:
+        option = self._rows[self.cursor]
+        if self._picked(option):
+            self._pick(option)
+        else:
+            self._change(1)
+
     def action_advance(self) -> None:
-        self._change(1)
+        if not self._picked(self._rows[self.cursor]):
+            self._change(1)
 
     def action_back(self) -> None:
-        self._change(-1)
+        if not self._picked(self._rows[self.cursor]):
+            self._change(-1)
+
+    def _pick(self, option: Option) -> None:
+        """Open the list for one of the three picked rows."""
+        if option.key == "quality":
+            labels = {"LOSSLESS": _("LOSSLESS  (con device flow llega como HIGH)")}
+            self.app.push_screen(
+                ChoiceScreen(
+                    _("CALIDAD"),
+                    [(value, labels.get(value, value)) for value in self.QUALITIES],
+                    config.DEFAULT_QUALITY,
+                ),
+                lambda value: self._set(option, value),
+            )
+        elif option.action == "rates":
+            configured = audio.rates_configured()
+            self.app.push_screen(
+                ChoiceScreen(
+                    _("RITMOS HI-RES EN PIPEWIRE"),
+                    [
+                        ("write", _("configurar: PipeWire ofrece los ritmos del DAC")),
+                        ("remove", _("quitar: PipeWire vuelve a un solo ritmo")),
+                    ],
+                    "write" if configured else "remove",
+                ),
+                lambda value: self._rates_chosen(value, configured),
+            )
+        elif option.action == "restart":
+            # The cursor starts on «cancel»: ↵ twice by reflex must not cut
+            # the audio.
+            self.app.push_screen(
+                ChoiceScreen(
+                    _("REINICIAR PIPEWIRE"),
+                    [
+                        ("restart", _("reiniciar ahora; corta el audio un momento")),
+                        ("cancel", _("cancelar")),
+                    ],
+                    cursor=1,
+                ),
+                lambda value: self._restart() if value == "restart" else None,
+            )
+
+    def _rates_chosen(self, value: object, configured: bool) -> None:
+        if value is None or (value == "write") == configured:
+            return
+        self._toggle_rates()
 
     def _change(self, step: int) -> None:
         option = self._rows[self.cursor]
         if option.key:
             self._cycle(option, step)
             return
-        if option.action == "rates":
-            self._toggle_rates()
-        elif option.action == "columns":
+        if option.action == "columns":
             self.app.push_screen(ColumnsScreen(self._on_change), self._columns_closed)
-        elif option.action == "restart":
-            self._restart()
 
     def _columns_closed(self, _result) -> None:
         self._render_list()
@@ -433,6 +495,12 @@ class ConfigScreen(ModalScreen[None]):
         value: object = option.choices[(index + step) % len(option.choices)]
         if option.key in _FLAGS:
             value = value == "true"
+        self._set(option, value)
+
+    def _set(self, option: Option, value: object) -> None:
+        """Write one row's new value, and everything that follows from it."""
+        if value is None or value == getattr(config, _ATTRIBUTES[option.key]):
+            return
         config.set_option(option.key, value)
         if self._on_change is not None:
             self._on_change(option.key)

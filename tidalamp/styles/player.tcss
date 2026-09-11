@@ -565,15 +565,17 @@
     height: 1;
 }
 
-/* The speed window: eight rows and a hint, no wider than it reads. */
-#speed-box {
-    width: 30;
+/* A window that offers a short list and takes one answer: the speed, the
+   quality, PipeWire's rates and its restart. It sizes its own width. */
+#choice-box {
+    min-width: 30;
+    max-width: 90%;
     height: auto;
     background: $tidalamp-panel;
     border: outer $tidalamp-border;
 }
 
-#speed-title {
+#choice-title {
     background: $tidalamp-title-background;
     color: $tidalamp-title-foreground;
     text-style: bold;
@@ -582,19 +584,19 @@
     margin-bottom: 1;
 }
 
-.speed-row {
+.choice-row {
     color: $tidalamp-body;
     height: 1;
     padding: 0 1;
 }
 
-.speed-row.-cursor {
+.choice-row.-cursor {
     background: $tidalamp-accent;
     color: $tidalamp-active-foreground;
     text-style: bold;
 }
 
-#speed-hint {
+#choice-hint {
     background: $tidalamp-transport-background;
     color: $tidalamp-transport-foreground;
     height: 1;

@@ -133,14 +133,26 @@ ENGLISH: dict[str, str] = {
     ),
     "Disposición": "Arrangement",
     "Fondo de la cola": "Queue backdrop",
+    "CALIDAD": "QUALITY",
+    "LOSSLESS  (con device flow llega como HIGH)": (
+        "LOSSLESS  (through device flow it arrives as HIGH)"
+    ),
+    "RITMOS HI-RES EN PIPEWIRE": "HI-RES RATES IN PIPEWIRE",
+    "configurar: PipeWire ofrece los ritmos del DAC": (
+        "configure: PipeWire offers the DAC's rates"
+    ),
+    "quitar: PipeWire vuelve a un solo ritmo": (
+        "remove: PipeWire goes back to a single rate"
+    ),
+    "REINICIAR PIPEWIRE": "RESTART PIPEWIRE",
+    "reiniciar ahora; corta el audio un momento": (
+        "restart now; the audio drops for a moment"
+    ),
     "velocidad": "speed",
     "velocidad: {value}": "speed: {value}",
     "velocidad de reproducción, de 0.25× a 2×": "playback speed, from 0.25× to 2×",
     "▓ VELOCIDAD ▓": "▓ SPEED ▓",
     " ↑↓ elegir  ↵ aplicar  esc cerrar": " ↑↓ choose  ↵ apply  esc close",
-    "más lento": "slower",
-    "más rápido": "faster",
-    "aplicar": "apply",
     "normal": "normal",
     "unidad-morada": "purple-unit",
     "pirata": "pirate",

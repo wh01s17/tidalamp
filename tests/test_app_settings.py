@@ -22,6 +22,7 @@ from tidalamp import library
 from tidalamp.app import ConfigScreen, RowList, TidalAmp
 from tidalamp.queue import Entry
 from tidalamp.screens import (
+    ChoiceScreen,
     ColumnsScreen,
 )
 from tidalamp.widgets import (
@@ -156,7 +157,10 @@ def test_changing_a_setting_writes_the_file_and_takes_effect(monkeypatch, tmp_pa
             await pilot.pause()
 
             assert app_module.config.DEFAULT_QUALITY == "HI_RES_LOSSLESS"
-            await pilot.press("enter")  # cursor starts on Quality
+            await pilot.press("enter")  # cursor starts on Quality: opens its list
+            await pilot.pause()
+            assert isinstance(application.screen, ChoiceScreen)
+            await pilot.press("up", "up", "up", "enter")
             await pilot.pause()
 
             assert app_module.config.DEFAULT_QUALITY == "LOW"
@@ -174,16 +178,21 @@ def test_the_settings_cycle_both_ways(monkeypatch, tmp_path):
         application = TidalAmp(object(), FakeMpv())
         async with application.run_test(size=(100, 34)) as pilot:
             await pilot.pause()
-            application.push_screen(ConfigScreen())
+            screen = ConfigScreen()
+            application.push_screen(screen)
+            await pilot.pause()
+            screen.cursor = next(
+                i for i, option in enumerate(screen._rows) if option.key == "visualizer"
+            )
             await pilot.pause()
 
             await pilot.press("left")
             await pilot.pause()
-            assert app_module.config.DEFAULT_QUALITY == "LOSSLESS"
+            assert app_module.config.VISUALIZER == "fine"
 
             await pilot.press("right")
             await pilot.pause()
-            assert app_module.config.DEFAULT_QUALITY == "HI_RES_LOSSLESS"
+            assert app_module.config.VISUALIZER == "bars"
 
     asyncio.run(scenario())
 
@@ -380,11 +389,12 @@ def test_the_rates_row_writes_and_removes_the_drop_in(monkeypatch, tmp_path):
 
             screen.cursor = config_row(screen, "Ritmos hi-res en PipeWire")
             await pilot.pause()
-            await pilot.press("enter")
+            # The list opens on what is true now («quitar»); one up is «configurar».
+            await pilot.press("enter", "up", "enter")
             await pilot.pause()
             assert dropin.is_file()
 
-            await pilot.press("enter")
+            await pilot.press("enter", "down", "enter")
             await pilot.pause()
             assert not dropin.exists()
 
@@ -487,3 +497,41 @@ def test_a_translated_theme_name_still_cycles_through_every_theme(monkeypatch, t
         asyncio.run(scenario())
     finally:
         i18n.refresh()
+
+
+def test_the_arrows_leave_quality_rates_and_restart_alone(monkeypatch, tmp_path):
+    """The three rows where a stray arrow cost the most: the quality changed
+    under the next track, PipeWire's rates were rewritten, or PipeWire was
+    restarted and the audio cut. Only ↵ opens them, as a list; and ↵ twice by
+    reflex on the restart lands on «cancel»."""
+    isolate_runtime(monkeypatch)
+    isolate_config(monkeypatch, tmp_path)
+    dropin = tmp_path / "pipewire.conf.d" / "rates.conf"
+    monkeypatch.setattr(audio_module, "CONF_DIR", dropin.parent)
+    monkeypatch.setattr(audio_module, "RATES_FILE", dropin)
+    restarts: list[str] = []
+    monkeypatch.setattr(audio_module, "restart", lambda: restarts.append("x") or "hecho")
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(100, 34)) as pilot:
+            await pilot.pause()
+            screen = ConfigScreen()
+            application.push_screen(screen)
+            await pilot.pause()
+            for label in ("Calidad", "Ritmos hi-res en PipeWire", "Reiniciar PipeWire"):
+                screen.cursor = config_row(screen, label)
+                await pilot.pause()
+                await pilot.press("left", "right", "right", "left")
+                await pilot.pause()
+                assert application.screen is screen, label
+            assert app_module.config.DEFAULT_QUALITY == "HI_RES_LOSSLESS"
+            assert not dropin.exists()
+
+            screen.cursor = config_row(screen, "Reiniciar PipeWire")
+            await pilot.press("enter", "enter")
+            await pilot.pause()
+            assert application.screen is screen
+            assert restarts == []
+
+    asyncio.run(scenario())

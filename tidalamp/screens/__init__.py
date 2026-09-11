@@ -10,6 +10,7 @@ TIDAL into the one module that is deliberately ignorant of it.
 """
 
 from .browser import BROWSER_HINTS, HINT_GAP, BrowserScreen, favourite_message, fit_hints
+from .choice import ChoiceScreen
 from .column_picker import ColumnsScreen, _crop, column_label
 from .config_window import _ATTRIBUTES, _FLAGS, ConfigScreen, Option
 from .equalizer import PRESET_LABELS, EqScreen
@@ -28,6 +29,7 @@ __all__ = [
     "_ATTRIBUTES",
     "_FLAGS",
     "BrowserScreen",
+    "ChoiceScreen",
     "ColumnsScreen",
     "ConfigScreen",
     "EqScreen",
