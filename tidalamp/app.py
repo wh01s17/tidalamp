@@ -282,6 +282,7 @@ class TidalAmp(App):
         # The outline and ground the cover on screen was cut with, so a look
         # that changes either draws it again.
         self._art_look: tuple[str, tuple[int, int, int]] | None = None
+        self._flourish: tuple[str, int] | None = None
         self._art_hidden = False
         self._pending_art: artwork.Cover | None = None
         self._compact = False
@@ -555,17 +556,30 @@ class TidalAmp(App):
             wanted = name == config.THEME
             if main.has_class(name) != wanted:
                 main.set_class(wanted, name)
-        subtitle = layout_for(config.THEME).frame_subtitle
-        if main.border_subtitle != subtitle:
-            main.border_subtitle = subtitle
 
     @property
     def layout(self) -> Layout:
         """The layout in force, read fresh: the settings screen swaps it live."""
         return layout_for(config.THEME)
 
-    def _title_text(self, width: int = 0) -> str:
-        return self.layout.title(width)
+    def _title_text(self, width: int = 0) -> str | Text:
+        return self._tinted(self.layout.title(width))
+
+    def _tinted(self, line: str, roles: tuple[str, ...] = ()) -> str | Text:
+        """The line with the look's tinted glyphs in their colours, in turn;
+        the rest keeps whatever colour its widget gives it."""
+        layout = self.layout
+        roles = roles or layout.tint_colors
+        if not layout.tint or not roles:
+            return line
+        colours = [self.tidalamp_palette[role] for role in roles]
+        text = Text(line)
+        found = 0
+        for index, glyph in enumerate(line):
+            if glyph in layout.tint:
+                text.stylize(colours[found % len(colours)], index, index + 1)
+                found += 1
+        return text
 
     def _cover_look(self) -> tuple[str, tuple[int, int, int]]:
         """The outline the look cuts the cover to, and the ground its corners
@@ -594,6 +608,14 @@ class TidalAmp(App):
         if not self.query("#playlist"):
             return
         layout = self.layout
+        # The flourish in the frame's foot. Set only when it changes: this
+        # runs on every resize, and each assignment repaints the frame.
+        flourish = (layout.name, id(self.tidalamp_palette))
+        if self._flourish != flourish:
+            self._flourish = flourish
+            self.query_one("#main").border_subtitle = self._tinted(
+                layout.frame_subtitle, layout.flourish_colors
+            )
         tagline = layout.tagline() if layout.tagline else ""
         # The picture is its own setting: the theme's by default, any other
         # look's when the user mixes them, and it keeps the place and size

@@ -62,6 +62,14 @@ class Layout:
     # A line set into the bottom of the frame, centred, for the looks that
     # finish theirs with a flourish.
     frame_subtitle: str = ""
+    # Glyphs in the title and the flourish that take colours of their own,
+    # palette roles taken in turn: reggae's notes in green and red, between
+    # waves that are already gold.
+    tint: str = ""
+    tint_colors: tuple[str, ...] = ()
+    # The flourish's own turn of colours, when it wants one; the title's
+    # otherwise.
+    flourish_colors: tuple[str, ...] = ()
     # The themed looks' emblem: a small PNG in `tidalamp/emblems`, drawn behind
     # the queue the way a cover is drawn in its box (`artwork.emblem_cells`).
     # Traced from the maintainer's reference pictures (the neon city is drawn
@@ -200,6 +208,9 @@ LAYOUT_TABLE: dict[str, Layout] = {
             ),
             transport="quattro",
             frame_subtitle="♪ ♫ ♪",
+            tint="♪♫",
+            tint_colors=("playable", "danger"),
+            flourish_colors=("danger", "warning", "playable"),
             emblem="reggae.png",
             tagline=lambda: _("un solo amor, un solo corazón"),
         ),

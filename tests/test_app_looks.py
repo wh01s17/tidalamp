@@ -16,6 +16,7 @@ from app_helpers import (
     use_theme,
 )
 from rich.cells import cell_len
+from rich.text import Text
 from textual.widgets import Static
 
 from tidalamp import app as app_module
@@ -722,5 +723,45 @@ def test_the_cover_shape_is_a_setting_of_its_own(monkeypatch, tmp_path):
             band = application.query_one("#display").styles.background
             assert ground == (band.r, band.g, band.b)
             assert fetched == ["http://cover"]
+
+    asyncio.run(scenario())
+
+
+def test_reggae_notes_take_green_and_red_in_turn(monkeypatch):
+    """Green and red along the title, between waves that are already gold;
+    red, gold and green in the frame's foot. Every other glyph keeps the
+    colour its widget gives it."""
+    isolate_runtime(monkeypatch)
+    use_theme(monkeypatch, "reggae")
+    monkeypatch.setattr(app_module.config, "PALETTE", "reggae")
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(120, 30)) as pilot:
+            await pilot.pause()
+            palette = application.tidalamp_palette
+            wanted = [palette["playable"], palette["danger"]]
+            title = application._title_text(80)
+            assert isinstance(title, Text)
+            notes = [
+                str(span.style) for span in title.spans if title.plain[span.start] in "♪♫"
+            ]
+            assert notes[:4] == wanted * 2
+            assert all(title.plain[span.start] in "♪♫" for span in title.spans)
+            # The foot keeps all three.
+            foot = application._tinted(
+                application.layout.frame_subtitle, application.layout.flourish_colors
+            )
+            assert [str(span.style) for span in foot.spans] == [
+                palette["danger"],
+                palette["warning"],
+                palette["playable"],
+            ]
+            assert "♪" in application.query_one("#main").border_subtitle
+
+            use_theme(monkeypatch, "quattro")
+            application._apply_appearance()
+            await pilot.pause()
+            assert isinstance(application._title_text(80), str)
 
     asyncio.run(scenario())

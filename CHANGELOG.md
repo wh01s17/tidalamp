@@ -25,7 +25,8 @@ versioning is [semantic](https://semver.org/).
   one repeated glyph (hazard stripes, waves, a notebook's dotted rule, a flickering
   neon tube, a double border with diamonds, waves with notes, the four suits, an iron
   railing, noise), and each frame but the notebook's carries a small flourish centred
-  in its foot.
+  in its foot. Reggae's notes are green and red along its gold waves, and red,
+  gold and green in its foot.
 
 ## [0.6.0] - 2026-09-11
 
