@@ -174,6 +174,60 @@ def test_the_split_follows_the_range_and_not_the_majority():
     assert background == dark
 
 
+def _brightness_split(quad):
+    """The old rule, kept here to measure the new one against: split at the
+    midpoint of the brightness range and average each side."""
+    lums = [0.299 * r + 0.587 * g + 0.114 * b for r, g, b in quad]
+    middle = (min(lums) + max(lums)) / 2
+    light = [p for p, lum in zip(quad, lums, strict=True) if lum > middle]
+    dark = [p for p, lum in zip(quad, lums, strict=True) if lum <= middle]
+    return artwork._mean(light or dark), artwork._mean(dark or light), light, dark
+
+
+def test_the_chosen_split_is_never_worse_than_splitting_by_brightness():
+    """Every one of the eight splits is tried, so the one kept is at least as
+    close to the four pixels as the brightness split was, and closer where two
+    colours of about the same brightness meet."""
+    import random
+
+    generator = random.Random(7)
+    closer = 0
+    for _cell in range(2000):
+        quad = tuple(
+            tuple(generator.randrange(256) for _channel in range(3))
+            for _pixel in range(4)
+        )
+        glyph, front, back = artwork.quadrant_cell(quad)
+        mask = artwork.QUADRANTS.index(glyph)
+        drawn = [front if mask & (1 << (3 - i)) else back for i in range(4)]
+        new = sum(
+            artwork._error([pixel], colour)
+            for pixel, colour in zip(quad, drawn, strict=True)
+        )
+        light_mean, dark_mean, light, dark = _brightness_split(quad)
+        old = artwork._error(light, light_mean) + artwork._error(dark, dark_mean)
+        assert new <= old, quad
+        closer += new < old
+    assert closer > 0
+
+
+def test_a_blocks_cover_carries_its_cells_worked_out():
+    """The worker that renders the cover works out every cell, so the widget
+    only assembles lines; they are the same cells `quadrant_cell` gives."""
+    pil_image = pytest.importorskip("PIL.Image")
+    buffer = io.BytesIO()
+    image = pil_image.new("RGB", (64, 64), (250, 250, 250))
+    image.paste((20, 120, 30), (0, 0, 32, 64))
+    image.save(buffer, "PNG")
+    cover = artwork.render(buffer.getvalue(), 8, 4, Protocol.BLOCKS)
+    assert cover is not None and cover.pixels is not None and cover.cells is not None
+    assert len(cover.cells) == 4
+    assert all(len(row) == 8 for row in cover.cells)
+    top, bottom = cover.pixels[0], cover.pixels[1]
+    quad = (top[6], top[7], bottom[6], bottom[7])
+    assert cover.cells[0][3] == artwork.quadrant_cell(quad)
+
+
 def test_every_split_of_four_pixels_has_a_glyph():
     assert len(artwork.QUADRANTS) == 16
     assert len(set(artwork.QUADRANTS)) == 16
@@ -379,7 +433,8 @@ def test_render_cuts_the_cover_before_any_protocol_sees_it():
         buffer.getvalue(), 8, 4, Protocol.BLOCKS, outline="round", ground=(0, 0, 0)
     )
     assert cover is not None and cover.pixels is not None
-    assert cover.pixels[0][0] == (0, 0, 0)
+    # The ground, give or take what LANCZOS smooths into the corner.
+    assert max(cover.pixels[0][0]) < 16
     middle = cover.pixels[len(cover.pixels) // 2][len(cover.pixels[0]) // 2]
     assert middle == (250, 250, 250)
 

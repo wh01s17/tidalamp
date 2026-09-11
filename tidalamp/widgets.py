@@ -261,6 +261,11 @@ class Artwork(Widget):
         # kitty addresses images by id; keeping one means a new cover replaces
         # the old one instead of stacking up in the terminal's memory.
         self.image_id = 1
+        # Half-block lines already worked out, by (row, width). Choosing each
+        # cell's two colours is not free, and a large cover in a 4K terminal
+        # is tens of thousands of cells; the cover does not change between
+        # repaints, so neither do its lines.
+        self._lines: dict[tuple[int, int], Strip] = {}
 
     def resize(self, rows: int) -> bool:
         """Set the box to ``rows`` tall, twice that wide. True if it changed.
@@ -275,6 +280,7 @@ class Artwork(Widget):
         self.rows, self.cols = rows, rows * 2
         self.styles.width = self.cols
         self.styles.height = self.rows
+        self._lines.clear()
         if self.cover is not None:
             self.show(None)
         return True
@@ -284,6 +290,7 @@ class Artwork(Widget):
         if cover is None and self.cover is not None:
             self._erase()
         self.cover = cover
+        self._lines.clear()
         self.styles.display = "none" if cover is None else "block"
         self.refresh()
 
@@ -308,23 +315,35 @@ class Artwork(Widget):
             return Strip.blank(width, Style())
 
         if cover.pixels is not None:
-            # Two sample rows and two sample columns per cell: `artwork.blocks`
-            # gives four pixels where `▀` alone took one wide and two tall.
-            top = cover.pixels[y * 2] if y * 2 < len(cover.pixels) else ()
-            bottom = cover.pixels[y * 2 + 1] if y * 2 + 1 < len(cover.pixels) else ()
-            cells = min(width, len(top) // 2, len(bottom) // 2)
-            segments = []
-            for x in range(cells):
-                glyph, fg, bg = quadrant_cell(
-                    (top[x * 2], top[x * 2 + 1], bottom[x * 2], bottom[x * 2 + 1])
+            cached = self._lines.get((y, width))
+            if cached is not None:
+                return cached
+            # The cells were worked out where the cover was rendered; a cover
+            # built without them (as some tests do) has them worked out here.
+            if cover.cells is not None:
+                row = cover.cells[y] if y < len(cover.cells) else ()
+            else:
+                # Two sample rows and two sample columns per cell:
+                # `artwork.blocks` gives four pixels where `▀` took one.
+                top = cover.pixels[y * 2] if y * 2 < len(cover.pixels) else ()
+                bottom = cover.pixels[y * 2 + 1] if y * 2 + 1 < len(cover.pixels) else ()
+                row = tuple(
+                    quadrant_cell(
+                        (top[x * 2], top[x * 2 + 1], bottom[x * 2], bottom[x * 2 + 1])
+                    )
+                    for x in range(min(len(top), len(bottom)) // 2)
                 )
+            segments = []
+            for glyph, fg, bg in row[:width]:
                 segments.append(
                     Segment(
                         glyph,
                         Style(color=Color.from_rgb(*fg), bgcolor=Color.from_rgb(*bg)),
                     )
                 )
-            return Strip(segments, len(segments)).adjust_cell_length(width, Style())
+            strip = Strip(segments, len(segments)).adjust_cell_length(width, Style())
+            self._lines[(y, width)] = strip
+            return strip
 
         # Pixel protocols draw the whole cover from one anchor, so the escape
         # belongs on the first line only; the rest of the box stays blank and

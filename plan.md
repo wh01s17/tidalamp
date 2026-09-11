@@ -1061,6 +1061,20 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
 
 ### Carátula en `blocks` — `artwork.py`, `widgets.py`
 
+- [x] **Cada celda elige sus dos colores entre todos los repartos** (2026-09-11):
+      `quadrant_cell` prueba las ocho formas de partir los cuatro píxeles en dos
+      grupos (una es no partir) y se queda con la de menor error, con pesos por canal
+      (3, 4, 2). Antes partía por brillo en la mitad del rango, que acierta con un
+      borde claro-oscuro y pierde uno entre dos colores de brillo parecido. El grupo
+      claro sigue siendo el glifo, así que lo que ya salía bien no cambia; un test
+      compara contra el reparto por brillo en 2000 celdas al azar. `blocks()` reduce
+      con LANCZOS.
+- [x] Cuesta más, así que no corre en el hilo de la interfaz: `block_cells` trabaja
+      las celdas en el worker que baja la carátula (`Cover.cells`) y el widget solo
+      arma las líneas, que además guarda (`Artwork._lines`). Medido en una carátula
+      de pantalla completa en 4K (31 250 celdas): 0,73 s en el peor caso (ruido) y
+      19 ms en una imagen suave, fuera del bucle de eventos.
+
 - [x] **Cuatro muestras por celda** con los glifos de cuadrante, no una con `▀`. El
       medio bloque gastaba el ancho entero de la celda en un píxel: dos por celda a lo
       alto y **uno** a lo ancho, que es exactamente por qué las portadas se veían

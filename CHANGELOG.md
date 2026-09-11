@@ -37,6 +37,13 @@ versioning is [semantic](https://semver.org/).
 
 ### Changed
 
+- Covers drawn with half blocks are sharper, in the player and above all in full
+  screen. Each cell's two colours are chosen from every way of splitting its four
+  pixels, not by brightness alone, so an edge between two colours of about the same
+  brightness no longer comes out as one muddy average; and the picture is sampled
+  down with LANCZOS. The cells are worked out in the thread that fetches the cover,
+  so a large cover never holds up the interface.
+
 - Quality, Hi-res rates in PipeWire and Restart PipeWire are chosen from a list in
   the settings window. The arrows no longer touch those three rows: a stray one used
   to change the quality, rewrite PipeWire's rates or restart PipeWire and cut the

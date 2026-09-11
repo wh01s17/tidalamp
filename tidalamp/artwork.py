@@ -109,6 +109,10 @@ class Cover:
     protocol: Protocol
     pixels: Matrix | None = None
     escape: str = ""
+    # With half blocks, each cell's glyph and two colours, worked out in the
+    # worker that rendered the cover (`block_cells`). None where a cover was
+    # built without them; the widget works them out from ``pixels`` then.
+    cells: tuple[tuple[tuple[str, Pixel, Pixel], ...], ...] | None = None
 
 
 # --------------------------------------------------------------------- fetching
@@ -245,30 +249,118 @@ def shape(image, outline: str, ground: Pixel):
 QUADRANTS = " ▗▖▄▝▐▞▟▘▚▌▙▀▜▛█"
 
 
+# How much each channel counts when two colours are compared: the eye is most
+# sensitive to green and least to blue. A cheap stand-in for a perceptual
+# distance, and enough to choose between eight ways of splitting a cell.
+_WEIGHTS = (3, 4, 2)
+
+
+def _error(pixels: list[Pixel], colour: Pixel) -> int:
+    """How far ``pixels`` are from being drawn all in ``colour``."""
+    wr, wg, wb = _WEIGHTS
+    return sum(
+        wr * (r - colour[0]) ** 2 + wg * (g - colour[1]) ** 2 + wb * (b - colour[2]) ** 2
+        for r, g, b in pixels
+    )
+
+
+def _luma(pixel: Pixel) -> float:
+    return 0.299 * pixel[0] + 0.587 * pixel[1] + 0.114 * pixel[2]
+
+
+# The eight ways of splitting a cell's four pixels in two, as (glyph mask,
+# the pixels on the glyph side, the rest). The upper-left pixel always stays on
+# the ground side: a split and its mirror image are the same split. Mask 0 is
+# no split at all, the cell drawn flat.
+_SPLITS = tuple(
+    (
+        mask,
+        tuple(i for i in range(4) if mask & (1 << (3 - i))),
+        tuple(i for i in range(4) if not mask & (1 << (3 - i))),
+    )
+    for mask in range(8)
+)
+
+
 def quadrant_cell(quad: tuple[Pixel, Pixel, Pixel, Pixel]) -> tuple[str, Pixel, Pixel]:
     """Turn four pixels into the glyph and two colours that best stand for them.
 
-    A cell can hold two colours and four pixels, so the four are split into a
-    light group and a dark one and each group is averaged. The split is at the
-    midpoint of the *range* rather than at the mean: the mean follows the
-    majority and flattens an edge that three dark pixels share with one bright
-    one, which is exactly the detail this is here to keep.
+    A cell can hold two colours and four pixels. Every way of splitting the
+    four into two groups is tried (there are eight, one of them no split at
+    all) and the one whose two averages sit closest to the pixels wins. It
+    used to split by brightness at the midpoint of the range, which is right
+    for an edge between light and dark and loses one between two colours of
+    about the same brightness, a red against a green.
 
-    A flat cell puts everything in the dark group, comes back as a space, and
-    paints as its own average — which is what a flat cell should look like.
+    The lighter group is the glyph, the darker one its ground, as before, so
+    a cell that split well by brightness comes out the same. A flat cell, or
+    one that no split draws better, is a space in its own average.
+
+    Each group's error comes from its sums and sums of squares, not from a
+    pass over its pixels against its mean: this runs once a cell, and a large
+    cover on a 4K terminal is tens of thousands of cells.
     """
-    lums = [0.299 * r + 0.587 * g + 0.114 * b for r, g, b in quad]
-    middle = (min(lums) + max(lums)) / 2
-    mask = 0
-    light: list[Pixel] = []
-    dark: list[Pixel] = []
-    for index, (pixel, lum) in enumerate(zip(quad, lums, strict=True)):
-        if lum > middle:
-            mask |= 1 << (3 - index)
-            light.append(pixel)
+    p0, p1, p2, p3 = quad
+    if p0 == p1 == p2 == p3:
+        return QUADRANTS[0], p0, p0
+    wr, wg, wb = _WEIGHTS
+    best_error = -1.0
+    best: tuple[str, Pixel, Pixel] = (QUADRANTS[0], p0, p0)
+    for mask, front_side, back_side in _SPLITS:
+        means: list[Pixel] = []
+        error = 0.0
+        for side in (front_side, back_side):
+            if not side:
+                means.append((0, 0, 0))
+                continue
+            n = len(side)
+            sr = sg = sb = qr = qg = qb = 0
+            for i in side:
+                r, g, b = quad[i]
+                sr += r
+                sg += g
+                sb += b
+                qr += r * r
+                qg += g * g
+                qb += b * b
+            error += (
+                wr * (qr - sr * sr / n)
+                + wg * (qg - sg * sg / n)
+                + wb * (qb - sb * sb / n)
+            )
+            means.append((sr // n, sg // n, sb // n))
+        if best_error >= 0 and error >= best_error:
+            continue
+        best_error = error
+        front, back = means
+        if not front_side:
+            best = (QUADRANTS[0], back, back)
+        elif _luma(front) >= _luma(back):
+            best = (QUADRANTS[mask], front, back)
         else:
-            dark.append(pixel)
-    return QUADRANTS[mask], _mean(light or dark), _mean(dark or light)
+            best = (QUADRANTS[15 ^ mask], back, front)
+    return best
+
+
+def block_cells(matrix: Matrix) -> tuple[tuple[tuple[str, Pixel, Pixel], ...], ...]:
+    """Every cell of a half-block cover, worked out once.
+
+    Done where the cover is rendered, in a worker thread, so the UI only
+    assembles lines: choosing the colours of a full-screen cover on a 4K
+    terminal is a second of work the event loop should never wait on.
+    """
+    rows = []
+    for y in range(len(matrix) // 2):
+        top, bottom = matrix[y * 2], matrix[y * 2 + 1]
+        rows.append(
+            tuple(
+                quadrant_cell(
+                    (top[x * 2], top[x * 2 + 1], bottom[x * 2], bottom[x * 2 + 1])
+                )
+                for x in range(min(len(top), len(bottom)) // 2)
+            )
+        )
+    return tuple(rows)
 
 
 def _mean(pixels: list[Pixel]) -> Pixel:
@@ -293,7 +385,11 @@ def blocks(image, cols: int, rows: int) -> Matrix:
     The grid's own aspect does not matter: `decode` already cropped the image
     to the box, and whatever grid this samples is mapped back onto that box.
     """
-    small = image.resize((max(1, cols * 2), max(1, rows * 2)))
+    from PIL import Image
+
+    # LANCZOS rather than the default filter: it is the one downsample from
+    # the decoded box to four samples a cell, and the sharpest there is.
+    small = image.resize((max(1, cols * 2), max(1, rows * 2)), Image.Resampling.LANCZOS)
     width, height = small.size
     # tobytes() rather than getdata(): three bytes per pixel in RGB, no
     # per-pixel Python objects, and no deprecation to inherit.
@@ -561,4 +657,5 @@ def render(
         return Cover(cols, rows, protocol, escape=escape)
     if protocol is Protocol.SIXEL:
         return Cover(cols, rows, protocol, escape=sixel_escape(image))
-    return Cover(cols, rows, protocol, pixels=blocks(image, cols, rows))
+    matrix = blocks(image, cols, rows)
+    return Cover(cols, rows, protocol, pixels=matrix, cells=block_cells(matrix))
