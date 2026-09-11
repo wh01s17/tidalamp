@@ -469,3 +469,88 @@ def test_rounded_corners_survive_the_blocks_protocol():
     assert max(cover.pixels[0][0]) < 64
     middle_of_top = cover.pixels[0][len(cover.pixels[0]) // 2]
     assert middle_of_top == (250, 250, 250)
+
+
+def _slow_sixel(image, colors: int = 255) -> str:
+    """The pixel-at-a-time encoder the fast one replaced, kept to hold it to
+    the same output byte for byte."""
+    quantized = image.convert("RGB").quantize(colors=max(2, min(colors, 255)))
+    width, height = quantized.size
+    palette = quantized.getpalette() or []
+    data = quantized.tobytes()
+    out = [f'\033Pq"1;1;{width};{height}']
+    for index in sorted(set(data)):
+        red, green, blue = palette[index * 3 : index * 3 + 3]
+        out.append(
+            f"#{index};2;{round(red * 100 / 255)};"
+            f"{round(green * 100 / 255)};{round(blue * 100 / 255)}"
+        )
+    for top in range(0, height, 6):
+        band = data[top * width : min(top + 6, height) * width]
+        depth = len(band) // width
+        for position, index in enumerate(sorted(set(band))):
+            if position:
+                out.append("$")
+            out.append(f"#{index}")
+            pieces: list[str] = []
+            run_char, run_length = "", 0
+            for column in range(width):
+                bits = 0
+                for row in range(depth):
+                    if band[row * width + column] == index:
+                        bits |= 1 << row
+                char = chr(0x3F + bits)
+                if char == run_char:
+                    run_length += 1
+                    continue
+                if run_char:
+                    pieces.append(
+                        run_char * run_length
+                        if run_length < 4
+                        else f"!{run_length}{run_char}"
+                    )
+                run_char, run_length = char, 1
+            if run_char:
+                pieces.append(
+                    run_char * run_length
+                    if run_length < 4
+                    else f"!{run_length}{run_char}"
+                )
+            while pieces and pieces[-1].endswith("?"):
+                pieces.pop()
+            out.append("".join(pieces))
+        out.append("-")
+    out.append("\033\\")
+    return "".join(out)
+
+
+@pytest.mark.parametrize("size", [(7, 5), (40, 13), (64, 64)])
+def test_the_fast_sixel_encoder_writes_what_the_slow_one_did(size):
+    pil_image = pytest.importorskip("PIL.Image")
+    noise = pil_image.effect_noise(size, 70).convert("RGB")
+    flat = pil_image.new("RGB", size, (30, 60, 90))
+    for image in (noise, flat):
+        assert artwork.sixel_escape(image) == _slow_sixel(image)
+        assert artwork.sixel_escape(image, colors=8) == _slow_sixel(image, colors=8)
+
+
+def test_a_cover_url_is_asked_for_at_the_size_the_box_wants():
+    base = "https://resources.tidal.com/images/ab/cd/ef/320x320.jpg"
+    assert artwork.sized(base, 1280).endswith("/ab/cd/ef/1280x1280.jpg")
+    assert artwork.sized("https://example.test/cover.png", 1280) == (
+        "https://example.test/cover.png"
+    )
+
+
+def test_kitty_gets_the_picture_at_its_own_size_not_stretched():
+    """kitty fills the cells it is told to; stretching the picture first only
+    multiplied the escape. The other protocols still get the box's pixels."""
+    pil_image = pytest.importorskip("PIL.Image")
+    buffer = io.BytesIO()
+    pil_image.new("RGB", (64, 64), (200, 20, 20)).save(buffer, "PNG")
+    image = artwork.decode(buffer.getvalue(), 40, 20, upscale=False)
+    assert image is not None and image.size == (64, 64)
+    stretched = artwork.decode(buffer.getvalue(), 40, 20)
+    assert stretched is not None and stretched.size == (400, 400)
+    cover = artwork.render(buffer.getvalue(), 40, 20, Protocol.KITTY)
+    assert cover is not None and "c=40,r=20" in cover.escape

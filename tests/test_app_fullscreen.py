@@ -286,3 +286,31 @@ def test_question_mark_shows_the_full_screen_keys_alone(monkeypatch):
             assert application.screen is view
 
     asyncio.run(scenario())
+
+
+def test_sixel_is_not_drawn_past_the_size_tidal_serves(monkeypatch):
+    """sixel has no scaling: a 4K-sized cover was stretched 1280 px at 6 MB
+    of escape. It stops at 1280 px; kitty and blocks still fill the stage."""
+    from tidalamp.screens.fullscreen import SIXEL_ROWS
+
+    isolate_runtime(monkeypatch)
+
+    async def scenario() -> None:
+        for protocol, capped in (
+            (artwork.Protocol.SIXEL, True),
+            (artwork.Protocol.KITTY, False),
+        ):
+            application = TidalAmp(object(), FakeMpv())
+            async with application.run_test(size=(480, 130)) as pilot:
+                await pilot.pause()
+                application.art_protocol = protocol
+                a_queue_playing(application)
+                await pilot.press("w")
+                await pilot.pause()
+                art = application.screen.query_one(FullArtwork)
+                if capped:
+                    assert art.rows == SIXEL_ROWS == 64
+                else:
+                    assert art.rows > SIXEL_ROWS
+
+    asyncio.run(scenario())

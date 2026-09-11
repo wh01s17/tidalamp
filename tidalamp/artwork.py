@@ -23,6 +23,7 @@ import functools
 import hashlib
 import logging
 import os
+import re
 from collections.abc import Mapping
 from dataclasses import dataclass
 from enum import StrEnum
@@ -118,6 +119,16 @@ class Cover:
 # --------------------------------------------------------------------- fetching
 
 
+# TIDAL serves each cover at a handful of square sizes, all at the same path.
+_SIZED = re.compile(r"/(80|160|320|640|1280)x\1\.jpg$")
+
+
+def sized(url: str, px: int) -> str:
+    """The same TIDAL cover at ``px`` square, for a box that wants more than
+    the 320 the queue asks for. Any other URL comes back as it was."""
+    return _SIZED.sub(f"/{px}x{px}.jpg", url)
+
+
 def cache_path(url: str, *, root: Path | None = None) -> Path:
     """Where a cover URL is cached. The digest keeps the name filesystem-safe."""
     digest = hashlib.sha256(url.encode("utf-8")).hexdigest()[:32]
@@ -169,7 +180,14 @@ def have_decoder() -> bool:
     return True
 
 
-def decode(data: bytes, cols: int, rows: int, *, cell: tuple[int, int] = CELL):
+def decode(
+    data: bytes,
+    cols: int,
+    rows: int,
+    *,
+    cell: tuple[int, int] = CELL,
+    upscale: bool = True,
+):
     """Decode and fit the cover to ``cols`` × ``rows`` cells.
 
     Returns a Pillow image, or ``None`` when Pillow is not installed. The
@@ -207,6 +225,12 @@ def decode(data: bytes, cols: int, rows: int, *, cell: tuple[int, int] = CELL):
         new_h = max(1, int(src_w / want))
         top = (src_h - new_h) // 2
         image = image.crop((0, top, src_w, top + new_h))
+    # kitty scales the image to the cells it is told to fill, so for it the
+    # picture is never stretched past its own size: that only multiplies what
+    # travels to the terminal (a 320 px cover stretched for a 4K full screen
+    # was 8 MB of escape) without adding any detail.
+    if not upscale and image.width < width:
+        return image
     return image.resize((width, height), Image.Resampling.LANCZOS)
 
 
@@ -561,6 +585,26 @@ def to_png(image) -> bytes:
 # ----------------------------------------------------------------------- sixel
 
 
+# For bit ``row`` of a sixel and palette index ``index``, a table that turns a
+# row of indices into that bit where the index matches and 0 elsewhere. Built
+# once: 256 indices times six rows of 256 bytes.
+_BIT_TABLES = tuple(
+    tuple(
+        bytes((1 << row) if value == index else 0 for value in range(256))
+        for row in range(6)
+    )
+    for index in range(256)
+)
+# From a sixel's six bits to its character, which is the bits plus 0x3F.
+_TO_SIXEL = bytes((value + 0x3F) & 0xFF for value in range(256))
+# `!n` costs three characters, so it only pays from four repeats up.
+_RUNS = re.compile(rb"(.)\1{3,}", re.DOTALL)
+
+
+def _run_length(line: bytes) -> bytes:
+    return _RUNS.sub(lambda m: b"!%d%c" % (len(m.group(0)), m.group(1)[0]), line)
+
+
 def sixel_escape(image, colors: int = 255) -> str:
     """Encode an image as sixel.
 
@@ -569,6 +613,13 @@ def sixel_escape(image, colors: int = 255) -> str:
     it, separated by ``$`` (return to the start of the band), and end it with
     ``-``. Runs are collapsed with ``!n``, which is what keeps a flat album
     cover from producing hundreds of kilobytes.
+
+    Worked a band and a colour at a time rather than a pixel at a time: each
+    row of the band is turned into its bit with ``bytes.translate``, the six
+    are joined with one OR of big integers, and the runs are found by a
+    regular expression, all of it in C. The pixel-by-pixel version took 29 s
+    for a full-screen cover on a 4K terminal, holding the interpreter the
+    whole time; the output is the same, byte for byte.
     """
 
     quantized = image.convert("RGB").quantize(colors=max(2, min(colors, 255)))
@@ -589,47 +640,25 @@ def sixel_escape(image, colors: int = 255) -> str:
         )
 
     for top in range(0, height, 6):
-        band = data[top * width : min(top + 6, height) * width]
-        depth = len(band) // width
-        present = sorted(set(band))
+        depth = min(6, height - top)
+        rows = [
+            data[(top + row) * width : (top + row + 1) * width] for row in range(depth)
+        ]
+        present = sorted(set(data[top * width : (top + depth) * width]))
         for position, index in enumerate(present):
             if position:
                 out.append("$")
             out.append(f"#{index}")
-            out.append(_sixel_row(band, width, depth, index))
+            tables = _BIT_TABLES[index]
+            bits = 0
+            for row, line in enumerate(rows):
+                bits |= int.from_bytes(line.translate(tables[row]), "big")
+            sixels = bits.to_bytes(width, "big").translate(_TO_SIXEL)
+            # Trailing empties carry no ink; dropping them shrinks the payload.
+            out.append(_run_length(sixels.rstrip(b"?")).decode("ascii"))
         out.append("-")
     out.append("\033\\")
     return "".join(out)
-
-
-def _sixel_row(band: bytes, width: int, depth: int, index: int) -> str:
-    """One colour's contribution to one six-pixel-tall band, run-length coded."""
-    pieces: list[str] = []
-    run_char = ""
-    run_length = 0
-    for column in range(width):
-        bits = 0
-        for row in range(depth):
-            if band[row * width + column] == index:
-                bits |= 1 << row
-        char = chr(0x3F + bits)
-        if char == run_char:
-            run_length += 1
-            continue
-        if run_char:
-            pieces.append(_run(run_char, run_length))
-        run_char, run_length = char, 1
-    if run_char:
-        pieces.append(_run(run_char, run_length))
-    # Trailing empties carry no ink; dropping them shrinks the payload.
-    while pieces and pieces[-1].endswith("?"):
-        pieces.pop()
-    return "".join(pieces)
-
-
-def _run(char: str, length: int) -> str:
-    # `!n` costs three characters, so it only pays from four repeats up.
-    return char * length if length < 4 else f"!{length}{char}"
 
 
 # ------------------------------------------------------------------ the façade
@@ -648,7 +677,7 @@ def render(
     """Turn raw cover bytes into whatever ``protocol`` needs. ``None`` on failure."""
     if protocol is Protocol.NONE:
         return None
-    image = decode(data, cols, rows)
+    image = decode(data, cols, rows, upscale=protocol is not Protocol.KITTY)
     if image is None:
         return None
     image = shape(image, outline, ground)

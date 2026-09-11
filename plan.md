@@ -1389,6 +1389,18 @@ fichero en sí.
       encuentra nunca esta. La del reproductor se esconde al entrar, como bajo
       cualquier pantalla; la de aquí se esconde con `ScreenSuspend` cuando se abre
       una ventana encima (ayuda, velocidad) y vuelve con `ScreenResume`.
+- [x] **kitty y sixel en 4K** (2026-09-11). En pantalla completa bajaba el
+      rendimiento: la cola pide las carátulas a 320 px (`album.image(320)`) y la vista
+      las estiraba a unos 2500 px, 8 MB de escape de kitty para una imagen borrosa, y
+      el codificador de sixel, píxel a píxel en Python, tardaba 29 s y retenía el
+      intérprete. Tres cambios: la vista pide 1280 px (`artwork.sized`, cambiando el
+      tamaño en la URL de TIDAL); kitty recibe la imagen a su tamaño y la escala él
+      (`decode(upscale=False)`), 0,9 MB en 0,43 s; y sixel se codifica por bandas y
+      colores con `bytes.translate` y enteros grandes, los mismos bytes que antes (un
+      test lo compara con el codificador viejo), unas nueve veces más rápido. Como
+      sixel se dibuja a su tamaño en píxeles, la vista no lo pasa de 1280 px
+      (`SIXEL_ROWS`, 64 filas): 2,7 MB en 0,9 s. Una medición en 2 s de vista con
+      carátula kitty mostró que la barra de abajo no provoca reenvíos de la imagen.
 - [x] El tick lento le pasa posición y duración mientras está delante (`follow`),
       y ahí se redibujan la barra, los controles y, si está abierta, la cola, solo
       cuando cambió. La barra de posición se llama `#fs-seek`: con `#seek`, el clic

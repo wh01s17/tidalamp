@@ -44,6 +44,12 @@ class FullArtwork(Artwork):
         self.image_id = 2
 
 
+# sixel is drawn at its own size in pixels, and TIDAL serves 1280 at most:
+# past this many rows (at the 20 px a cell is taken to be) the cover would
+# only be stretched, and a 4K-sized one was 6 MB and seconds of encoding.
+SIXEL_ROWS = 1280 // artwork.CELL[1]
+
+
 class FullscreenScreen(Screen[None]):
     """The cover centred and large, a bar at the foot, the queue on demand.
 
@@ -117,8 +123,11 @@ class FullscreenScreen(Screen[None]):
     # ---------------------------------------------------------------- cover
 
     def _current_url(self) -> str:
+        """The playing track's cover at 1280 px: the queue keeps the 320 that
+        suits the player, and stretched to fill a 4K screen it is a blur."""
         entry = self.player.queue.current
-        return (entry.art_url or "") if entry is not None else ""
+        url = (entry.art_url or "") if entry is not None else ""
+        return artwork.sized(url, 1280) if url else ""
 
     def _fit(self) -> None:
         """As large as the stage, square on screen, with a row of air."""
@@ -128,6 +137,8 @@ class FullscreenScreen(Screen[None]):
             return
         art = self.query_one(FullArtwork)
         rows = max(Artwork.MIN_ROWS, min(height - 2, (width - 4) // 2))
+        if self.player.art_protocol is artwork.Protocol.SIXEL:
+            rows = min(rows, SIXEL_ROWS)
         resized = art.resize(rows)
         if resized or art.cover is None or self._url != self._current_url():
             self._request()

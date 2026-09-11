@@ -38,6 +38,13 @@ versioning is [semantic](https://semver.org/).
 
 ### Changed
 
+- Pixel covers cost far less, in the player and above all in full screen. The sixel
+  encoder works a band and a colour at a time in C and writes the same bytes about nine
+  times faster (a 4K full-screen cover took 29 s); full screen stops a sixel cover at
+  the 1280 px TIDAL serves, past which it was only stretched (now 2.7 MB in 0.9 s). kitty
+  gets the picture at its own size and scales it itself, instead of a copy stretched
+  first, and full screen asks TIDAL for the 1280 px cover rather than the queue's 320.
+
 - Covers drawn with half blocks are sharper, in the player and above all in full
   screen. Each cell's two colours are chosen from every way of splitting its four
   pixels, not by brightness alone, so an edge between two colours of about the same
