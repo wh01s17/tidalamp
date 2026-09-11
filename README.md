@@ -440,6 +440,11 @@ smaller one it stays stacked on its own, and the settings window says so. Switch
 (from the settings window, `o`) moves nothing but the layout: the track keeps playing
 and the queue's cursor stays where it was. It works with every layout and palette.
 
+Each of the nine also has an 8-bit emblem and a line of its own: the emblem sits where
+the cover goes while there is none (and large above the player in split while there
+are no lyrics), and the line stands in for the title while nothing is playing. They
+are drawn with the palette's roles, so they recolour with it.
+
 ### Palettes
 
 `palette` accepts `auto` (follow Omarchy), `classic` (green-on-black, the player's own),

@@ -47,6 +47,7 @@ from .theme import LAYOUTS, ThemePalette, load_palette
 from .widgets import (
     Analyzer,
     Artwork,
+    Emblem,
     Glide,
     LyricsPane,
     Marquee,
@@ -320,6 +321,9 @@ class TidalAmp(App):
                 yield LyricsPane(id="lyrics-pane")
                 with Horizontal(id="display"):
                     yield Artwork(id="art")
+                    # A themed look's 8-bit emblem, in the cover's place while
+                    # there is none (`_apply_emblem`).
+                    yield Emblem(id="emblem")
                     with Vertical(id="clockbox"):
                         yield TimeDisplay(id="clock")
                         # The rest of the track's identity, under the time:
@@ -376,6 +380,7 @@ class TidalAmp(App):
             self._place_transport(main, split)
         self._layout_classes(main)
         self._fit_artwork(compact_changed or split_changed)
+        self._apply_emblem()
         # These are all cropped or ruled to their own widget's width, which
         # only exists after layout. `_check_size` also runs from the resize
         # that precedes compose, hence the guard.
@@ -532,9 +537,43 @@ class TidalAmp(App):
     def _title_text(self, width: int = 0) -> str:
         return self.layout.title(width)
 
+    def _apply_emblem(self) -> None:
+        """Put the look's emblem where the cover is not, and its line where
+        the words are not.
+
+        Sized like the cover box, so the clock does not move when a cover
+        arrives; hidden in compact, where the cover is too.
+        """
+        if not self.query("#emblem"):
+            return
+        layout = self.layout
+        tagline = layout.tagline() if layout.tagline else ""
+        emblem = self.query_one(Emblem)
+        art = self.query_one(Artwork)
+        if emblem.rows != layout.emblem:
+            emblem.rows = layout.emblem
+            emblem.refresh()
+        emblem.styles.width, emblem.styles.height = art.cols, art.rows
+        wanted = bool(layout.emblem) and not self._compact and art.cover is None
+        if emblem.display != wanted:
+            emblem.display = wanted
+        pane = self.query_one(LyricsPane)
+        if (pane.emblem, pane.tagline) != (layout.emblem, tagline):
+            pane.emblem, pane.tagline = layout.emblem, tagline
+            pane.refresh()
+        marquee = self.query_one(Marquee)
+        idle = tagline or "TIDAL AMP"
+        if marquee.idle_text != idle:
+            marquee.idle_text = idle
+            marquee.refresh()
+
+    def on_artwork_changed(self, message: Artwork.Changed) -> None:
+        self._apply_emblem()
+
     def _apply_appearance(self) -> None:
         """Apply structure and palette without restarting playback."""
         self._layout_classes(self.query_one("#main"))
+        self._apply_emblem()
         # Each layout pads the display band differently, so the height worked
         # out under the last one is wrong under this one.
         if not self._compact:

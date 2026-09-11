@@ -528,6 +528,16 @@ ENGLISH: dict[str, str] = {
     "páginas": "pages",
     "CRÓNICA": "CHRONICLE",
     "baraja": "deck",
+    # --- guiños de los temas temáticos
+    "sincronía al 400 %": "synchronisation at 400 %",
+    "rumbo a la gran ruta": "bound for the grand line",
+    "trae manzanas": "bring apples",
+    "despierta: la ciudad no duerme": "wake up: the city never sleeps",
+    "un anillo para oírlas a todas": "one ring to hear them all",
+    "un solo amor, un solo corazón": "one love, one heart",
+    "¿por qué tan serio?": "why so serious?",
+    "nunca más, dijo el cuervo": "quoth the raven, nevermore",
+    "hasta el once": "all the way up to eleven",
     " ↑↓ desplazar   y/esc cerrar": " ↑↓ scroll   y/esc close",
     "? ayuda · / buscar · l lib · y letra · e eq · o config · f/F favorito · q salir": (
         "? help · / search · l lib · y lyrics · e eq · o config · f/F favourite · q quit"

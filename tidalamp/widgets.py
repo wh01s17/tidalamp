@@ -10,6 +10,7 @@ from rich.color import Color
 from rich.segment import Segment
 from rich.style import Style
 from rich.text import Text
+from textual.message import Message
 from textual.reactive import reactive
 from textual.strip import Strip
 from textual.widget import Widget
@@ -127,7 +128,8 @@ class Glide(Widget):
 
     def _overflow(self) -> int:
         width = self.size.width
-        return max((cell_len(line) - width for line in self._lines), default=0)
+        lines = self._lines_to_draw()
+        return max((cell_len(line) - width for line in lines), default=0)
 
     def _timed(self) -> None:
         # Nothing behind a modal is worth animating: the player under a scrim
@@ -183,6 +185,12 @@ class Marquee(Glide):
 
     text = reactive("")
 
+    def __init__(self, **kwargs) -> None:
+        super().__init__(**kwargs)
+        # What it says while nothing is playing: the player's name, or a
+        # themed look's line.
+        self.idle_text = "TIDAL AMP"
+
     def on_mount(self) -> None:
         # The app's fast tick drives it, as it always has; no timer of its own.
         pass
@@ -191,7 +199,7 @@ class Marquee(Glide):
         self.update(text)
 
     def _lines_to_draw(self) -> list[str]:
-        return self._lines or ["TIDAL AMP"]
+        return self._lines or [self.idle_text]
 
     def _style(self) -> str:
         return f"bold {palette_for(self)['accent']}"
@@ -717,6 +725,121 @@ class Slider(Widget):
         return bar
 
 
+# What each letter of an emblem paints with. Roles rather than colours, so a
+# themed look's drawing follows the palette the user picks after it.
+EMBLEM_ROLES = {
+    "A": "accent",
+    "B": "body",
+    "C": "container",
+    "G": "playable",
+    "K": "screen",
+    "M": "muted",
+    "R": "danger",
+    "Y": "warning",
+}
+
+
+def shrink(rows, width: int, height: int) -> list[str]:
+    """`rows` reduced to fit `width` x `height` pixels, keeping its shape.
+
+    Each new pixel takes the role most of its source block has, except that
+    the roles that carry detail (anything but the see-through and the
+    drawing's own main fill) count for more: an eye or a thin limb is a
+    minority in any block it falls in, and a plain vote erased them. Four
+    to one: at double, the unit lost its eye in the smallest box.
+    """
+    source_h, source_w = len(rows), len(rows[0])
+    factor = max(source_w / max(1, width), source_h / max(1, height), 1.0)
+    if factor == 1.0:
+        return list(rows)
+    counts: dict[str, int] = {}
+    for char in "".join(rows):
+        if char != ".":
+            counts[char] = counts.get(char, 0) + 1
+    fill = max(counts, key=counts.get) if counts else "."
+    target_w, target_h = int(source_w / factor), int(source_h / factor)
+    out = []
+    for y in range(target_h):
+        top, bottom = int(y * factor), max(int((y + 1) * factor), int(y * factor) + 1)
+        line = ""
+        for x in range(target_w):
+            left, right = int(x * factor), max(int((x + 1) * factor), int(x * factor) + 1)
+            votes: dict[str, int] = {}
+            for row in rows[top:bottom]:
+                for char in row[left:right]:
+                    votes[char] = votes.get(char, 0) + (1 if char in (".", fill) else 4)
+            line += max(votes, key=votes.get)
+        out.append(line)
+    return out
+
+
+def emblem_lines(
+    rows, palette, scale: int = 1, fit: tuple[int, int] | None = None
+) -> list[Text]:
+    """An 8-bit drawing as lines of half blocks, two pixel rows per line.
+
+    `▀` in the top pixel's colour on the bottom pixel's, so one cell carries
+    two pixels and a square pixel is one cell wide and half a cell tall,
+    which is the shape a cell has. `.` is see-through: the widget's ground
+    shows. `scale` doubles every pixel both ways, for the lyrics pane; `fit`
+    is the room in cells, and a drawing larger than it is shrunk to it.
+    """
+    if fit is not None:
+        rows = shrink(rows, fit[0], fit[1] * 2)
+    grid = [
+        "".join(char * scale for char in row) for row in rows for _copy in range(scale)
+    ]
+    if len(grid) % 2:
+        grid.append("." * len(grid[0]))
+
+    def colour(char: str) -> str | None:
+        role = EMBLEM_ROLES.get(char)
+        return palette[role] if role else None
+
+    lines = []
+    for top_row, bottom_row in zip(grid[::2], grid[1::2], strict=True):
+        line = Text(no_wrap=True)
+        for top, bottom in zip(top_row, bottom_row, strict=True):
+            up, down = colour(top), colour(bottom)
+            if up and down:
+                line.append("▀", style=f"{up} on {down}")
+            elif up:
+                line.append("▀", style=up)
+            elif down:
+                line.append("▄", style=down)
+            else:
+                line.append(" ")
+        lines.append(line)
+    return lines
+
+
+class Emblem(Widget):
+    """A themed look's 8-bit emblem, in the cover's place while there is none.
+
+    The app sizes it like the cover box and shows it only while the cover is
+    hidden, so the clock and the readout do not move when a cover arrives.
+    """
+
+    DEFAULT_CSS = "Emblem { width: 18; height: 9; display: none; }"
+
+    def __init__(self, **kwargs) -> None:
+        super().__init__(**kwargs)
+        self.rows: tuple[str, ...] = ()
+
+    def render(self) -> Text:
+        width, height = self.size.width, self.size.height
+        palette = palette_for(self)
+        lines = emblem_lines(self.rows, palette, fit=(width, height)) if self.rows else []
+        top = max(0, (height - len(lines)) // 2)
+        out = Text("\n" * top, no_wrap=True)
+        for index, line in enumerate(lines[:height]):
+            if index:
+                out.append("\n")
+            out.append(" " * max(0, (width - line.cell_len) // 2))
+            out.append_text(line)
+        return out
+
+
 class LyricsPane(Widget):
     """The playing track's lyrics, in the column `split` frees above the player.
 
@@ -736,6 +859,10 @@ class LyricsPane(Widget):
         self.message = ""
         self._position = 0.0
         self._active: int | None = None
+        # A themed look's emblem and its line, for the time there are no
+        # words to show: nothing playing, or a track without lyrics.
+        self.emblem: tuple[str, ...] = ()
+        self.tagline = ""
 
     def show(self, document: LyricsDocument | None, message: str = "") -> None:
         """Swap the words, or put a line saying why there are none."""
@@ -763,6 +890,8 @@ class LyricsPane(Widget):
         width, height = self.size.width, self.size.height
         document = self.document
         if document is None:
+            if self.emblem:
+                return self._idle(palette, width, height)
             return Text(f"  {self.message}", style=palette["muted"])
         start, lines, active = document.window(self._position, height)
         out = Text()
@@ -781,6 +910,31 @@ class LyricsPane(Widget):
             if offset:
                 out.append("\n")
             out.append_text(row)
+        return out
+
+    def _idle(self, palette, width: int, height: int) -> Text:
+        """The emblem, as large as fits, with the look's line and the reason
+        there are no words under it, all centred in the pane."""
+        words = [(self.tagline, f"bold {palette['accent']}")] if self.tagline else []
+        if self.message:
+            words.append((self.message, palette["muted"]))
+        room = height - len(words) - (1 if words else 0)
+        art = emblem_lines(self.emblem, palette, 2)
+        if len(art) > room or (art and art[0].cell_len > width):
+            art = emblem_lines(self.emblem, palette, fit=(width, room))
+        if room < 4:
+            art = []
+        block: list[Text] = [*art]
+        if art and words:
+            block.append(Text(""))
+        block += [Text(text, style=style, no_wrap=True) for text, style in words]
+        out = Text("\n" * max(0, (height - len(block)) // 2), no_wrap=True)
+        for index, line in enumerate(block):
+            if index:
+                out.append("\n")
+            line.truncate(width, overflow="ellipsis")
+            out.append(" " * max(0, (width - line.cell_len) // 2))
+            out.append_text(line)
         return out
 
 
@@ -882,13 +1036,19 @@ class Artwork(Widget):
             self.show(None)
         return True
 
+    class Changed(Message):
+        """The cover came or went, for whatever stands in its place."""
+
     def show(self, cover: Cover | None) -> None:
         """Swap the cover. ``None`` hides the widget and reclaims its columns."""
         if cover is None and self.cover is not None:
             self._erase()
+        was = self.cover is not None
         self.cover = cover
         self.styles.display = "none" if cover is None else "block"
         self.refresh()
+        if was != (cover is not None):
+            self.post_message(self.Changed())
 
     def _erase(self) -> None:
         """Ask the terminal to drop the image we transmitted, if any."""

@@ -4773,3 +4773,60 @@ def test_every_look_keeps_its_title_and_parts_the_cover_from_the_frame(
                     assert display.styles.padding.left >= 2, where
 
     asyncio.run(scenario())
+
+
+def test_a_themed_look_shows_its_emblem_where_the_cover_is_not(monkeypatch, tmp_path):
+    """Nothing playing: the 8-bit emblem in the cover's box and the look's
+    line in the title's place. A cover arriving takes the box over without
+    moving the clock; the emblem comes back when it goes."""
+    from tidalamp.widgets import Emblem
+
+    isolate_runtime(monkeypatch)
+    isolate_config(monkeypatch, tmp_path)
+    use_theme(monkeypatch, "comodin")
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(120, 34)) as pilot:
+            await pilot.pause()
+            emblem = application.query_one(Emblem)
+            art = application.query_one(Artwork)
+            assert emblem.display and not art.display
+            drawn = "".join(emblem.render_line(y).text for y in range(emblem.size.height))
+            assert "▀" in drawn or "▄" in drawn
+            marquee = application.query_one(Marquee).render().plain
+            assert "serio" in marquee
+            clock = application.query_one("#clockbox").region.x
+
+            art.show(a_cover())
+            await pilot.pause()
+            assert art.display and not emblem.display
+            assert application.query_one("#clockbox").region.x == clock
+
+            art.show(None)
+            await pilot.pause()
+            assert emblem.display
+
+    asyncio.run(scenario())
+
+
+def test_split_shows_the_emblem_large_while_there_are_no_lyrics(monkeypatch, tmp_path):
+    from tidalamp.widgets import LyricsPane
+
+    isolate_runtime(monkeypatch)
+    isolate_config(monkeypatch, tmp_path)
+    app_module.config.set_option("arrangement", "split")
+    use_theme(monkeypatch, "runas")
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(200, 60)) as pilot:
+            await pilot.pause(0.5)
+            pane = application.query_one(LyricsPane)
+            rows = [pane.render_line(y).text for y in range(pane.size.height)]
+            art = [row for row in rows if "▀" in row or "▄" in row]
+            # Doubled: eighteen pixels become thirty-six cells across.
+            assert art and max(len(row.strip()) for row in art) > 20
+            assert any("anillo" in row for row in rows)
+
+    asyncio.run(scenario())

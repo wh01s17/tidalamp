@@ -741,6 +741,23 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
       mirarlas: `rsvg-convert` tira de fuentes de reserva más anchas para `▰`, `☠` o
       `◢` y parece que desbordan; `render_line` confirma que ocupan exactamente el
       ancho del widget. Falta verlos en un terminal real (`plan.md` §5).
+- [x] **Emblemas 8-bit y guiños** (2026-09-11). `Layout.emblem` es un dibujo de hasta
+      40x40 en letras de papel (`widgets.EMBLEM_ROLES`: acento, cuerpo, peligro,
+      aviso...) y `.` transparente, así que se recolorea con la paleta. `emblem_lines`
+      lo pinta en medios bloques (dos píxeles por celda, píxel cuadrado) y `shrink` lo
+      reduce al hueco con los detalles pesando 4 a 1, o el ojo de Eva desaparecía.
+      `Emblem` ocupa el hueco de la carátula mientras no hay portada (mismo tamaño, el
+      reloj no se mueve; `Artwork.Changed` avisa), y `LyricsPane` lo pinta a doble
+      tamaño en split sin letra. `Layout.tagline` va bajo el emblema grande y en el
+      marquee cuando no suena nada.
+- [x] Los dibujos siguen las referencias del mantenedor, que decidió que los emblemas
+      sí evoquen a los personajes (los nombres siguen sin citar marcas). Eva-01 y Ryuk
+      salen de trazar la referencia con Pillow (recortar, reducir por área, clasificar
+      por color) y retocar a mano; Luffy con sombrero, la carta del comodín y el resto,
+      a mano. Se probó la skill `png-to-pixel-art` (`.claude/skills`) sobre todas las
+      referencias: gana en fondos lisos y siluetas (el anillo salió muy bien), pierde
+      en fotogramas con mucho trazo (Luffy, el Joker, el casco de Sauron sobre negro).
+      Para `runas` se quedó el Ojo, a elección del mantenedor.
 
 ### Dos columnas - `app.py`, `styles.tcss`, `config.py`, `widgets.py`
 

@@ -56,6 +56,20 @@ class Layout:
     ascii_only: bool = False
     # What `_transport_keycaps` draws either side of each key's face.
     keycaps: tuple[str, str] = ("[", "]")
+    # The themed looks' 8-bit emblem, one string per pixel row. Each letter is
+    # a palette role rather than a colour (see `widgets.EMBLEM_ROLES`), so the
+    # drawing follows whatever palette the user moves to; `.` is see-through.
+    # Up to 40 pixels a side: `emblem_lines` shrinks it to the room it gets.
+    # Most were drawn by hand from reference pictures; the unit's and the
+    # notebook's were traced from theirs with Pillow (cropped, reduced by
+    # area, mapped to roles by colour) and cleaned up by hand, which beat the
+    # straight conversion wherever the picture had fine line work.
+    # Shown where the cover would be while there is none, and large in the
+    # split view's lyrics pane while there are no lyrics.
+    emblem: tuple[str, ...] = ()
+    # And the line that goes with it: under the large emblem, and in the
+    # title's place while nothing is playing.
+    tagline: Callable[[], str] | None = None
 
 
 # Each heading is a function rather than a string so the words go through
@@ -118,6 +132,48 @@ LAYOUT_TABLE: dict[str, Layout] = {
             ),
             transport="keycaps",
             keycaps=("⟦", "⟧"),
+            emblem=(
+                "MM...............................",
+                "MM...............................",
+                ".MM..............................",
+                "..MM.............................",
+                "..MM.............................",
+                "...MM............................",
+                "...MMM...........................",
+                "....MM...........................",
+                ".....MM..........................",
+                ".....MMM.........................",
+                "......MM.........................",
+                "......MMM........................",
+                ".......MMM.......................",
+                "........MM........MMMMMMMMM......",
+                "........MMM......MMMMMMMMMM.MMMMM",
+                ".........MMM...MMMMMMMMMMMMMMM.MM",
+                ".........MMMM.MMMMMMMMMMMMMMMMMMM",
+                "..........MMMMMMMMMMMMMMMMMMMMMMM",
+                "...........MMMMMMMMMMMMMMMMMMMMM.",
+                "...........MMMMM.MMMMMMMMMMMMMMMM",
+                "...........MMMAAMMMMMMMMMMMMMMMMM",
+                "...........MMMMMMMMMMMMMMMMMMMMMM",
+                "..........MMMMMMMMMMMMMMMMM..MMMM",
+                "...........MMMMMMMMMMMMMM....MMMM",
+                "...........MMMMMMMMMMMM........MM",
+                "................MMMMM.M..MMM.M...",
+                "................MMMMMMM..MMM.MMM.",
+                "...............MMMMMMMM.MMMMMMMMM",
+                "..............MMMMMMMMMMMMMMMMMMM",
+                "..............MMMMMMM.MMMMMM.MMMM",
+                "..............MMMM.M.....MMM.MMMM",
+                "..............MMMM........MMMMMMM",
+                "..............MMM..........MMMMMM",
+                "..............MMM...........MMMM.",
+                "..............MM...........MMMM.M",
+                "..............MM...........MMM..M",
+                ".............MMM...........MMM...",
+                "...........................MMM...",
+                "...........................MMMM..",
+            ),
+            tagline=lambda: _("sincronía al 400 %"),
         ),
         # Straw-yellow on open sea, a flag at the masthead.
         Layout(
@@ -128,6 +184,31 @@ LAYOUT_TABLE: dict[str, Layout] = {
             ),
             transport="keycaps",
             keycaps=("(", ")"),
+            emblem=(
+                "..........YYYYYY..........",
+                "........YYYYYYYYYY........",
+                ".......YYYYYYYYYYYY.......",
+                ".......YYYYYYYYYYYY.......",
+                "......RRRRRRRRRRRRRR......",
+                "......RRRRRRRRRRRRRR......",
+                "..YYYYYYYYYYYYYYYYYYYYYY..",
+                "YYYYYYYYYYYYYYYYYYYYYYYYYY",
+                ".YYYYYYYYYYYYYYYYYYYYYYYY.",
+                "....KKKKKKKKKKKKKKKKKK....",
+                "....KKKBBBBBBBBBBBBKKK....",
+                "....KKBBBBBBBBBBBBBBKK....",
+                ".....KBBRBBBBBBBBBBBK.....",
+                ".....KBRRRBBBBBBBBBBK.....",
+                "......BBBBBBBBBBBBBB......",
+                "......BBBBBBBBKKKBBB......",
+                ".......BBBBBKKKBBBB.......",
+                "........BBBBBBBBBB........",
+                "......MMMBBBBBBBBMMM......",
+                "....MMMMMBBBBBBBBMMMMM....",
+                "..RRMMMMMMBBBBBBMMMMMMRR..",
+                ".RRRRMMMMMMRRRRMMMMMMRRRR.",
+            ),
+            tagline=lambda: _("rumbo a la gran ruta"),
         ),
         # A black notebook, ruled lines, one red that matters.
         Layout(
@@ -137,6 +218,49 @@ LAYOUT_TABLE: dict[str, Layout] = {
                 f"✎ {_('páginas')} ", hints, width, "_"
             ),
             transport="nova",
+            emblem=(
+                "RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR",
+                "RRRRRRRRRRRRRRRRBBBBBBBBRRRRRRRRRRRRRRRR",
+                "RRRRRRRRRRRRRBBBBBBBBBBBBBBRRRRRRRRRRRRR",
+                "RRRRRRRRRRRBBBBBBBBBBBBBBBBBBRRRRRRRRRRR",
+                "RRRRRRRRRBBBBBBBBBBBBBBBBBBBBBBRRRRRRRRR",
+                "RRRRRRRRBBBBBBBBBBBBBBBBBBBBBBBBRRRRRRRR",
+                "RRRRRRRBBBBBBBBBBBBBBBBBBBBBBBBBBRRRRRRR",
+                "RRRRRRBBBBBBBBBBBBBBBBBBBBBBBBBBBBRRRRRR",
+                "RRRRRKKKKKBBBBBBBBBKKKBBBBBBBBKKKKKRRRRR",
+                "RRRRKKKKKKKKKKBBBBKKKKKBBBBKKKKKKKKBRRRR",
+                "RRRRBKKKKKKKKKKKKKKKKKKKKKKKKKKKKKBBRRRR",
+                "RRRBBBBKKKKKKKKKKKKKKKKKKKKKKKKKKKBBBRRR",
+                "RRRBBBBBKKKKKKKKKKKKKKKKKKKKKKKKKBBBBRRR",
+                "RRBBBBBBBBKKKKKBBKKKKKKKKKBKKKBBBBBBBBRR",
+                "RRBBBBBBBBBBBBKKKKKKKKKKBBBBBBBBBBBBBBRR",
+                "RRBBBBBBBBBBBBBKKKKKKKKKKBBBBBBBBBBBBBRR",
+                "RBBBBBBBBBBBBBBKKKKKKKKKKBBBBBBBBBBBBBBR",
+                "RBBBBBBBBBBBBBKKKKKKKKKBKKKBBBBBBBBBBBBR",
+                "RBBBBBBBBBBBBBKKBKKKKKKKBKKBBBBBBBBBBBBR",
+                "RBBBBBBBBBBBBKKBBBKKKKKKBKKKBBBBBBBBBBBR",
+                "RBBBBBBBBBBBBKBBBBKKKKKBBBBKBBBBBBBBBBBR",
+                "RBBBBBBBBBBBBKBBBBKKKKKBKBBKBBBBBBBBBBBR",
+                "RBBBBBBBBBBBBKBBBKKKKKKBBBBKBBBBBBBBBBBR",
+                "RBBBBBBBBBBBKKBBBKKKKKKKBBBKKBBBBBBBBBBR",
+                "RRBBBBBBBBBBKBBBBKKBBBKKBBBBKBBBBBBBBBRR",
+                "RRBBBBBBBBKKKKBBKKBBBBKKBBBKKKBBBBBBBBRR",
+                "RRBBBBBBBBKKKKBBKKBBBBBKBBBKKKBBBBBBBBRR",
+                "RRRBBBBBBBKKBKKBKKBBBBBKKBBKBKBBBBBBBRRR",
+                "RRRBBBBBBBBBBBKBKKBBBBBKKBBBBBBBBBBBBRRR",
+                "RRRRBBBBBBBBBKBBBKBBBBBKKBBBBBBBBBBBRRRR",
+                "RRRRBBBBBBBBBBKKKKBBBBKKKBBBBBBBBBBBRRRR",
+                "RRRRRBBBBBBBBBBKKKBBBBKKKBBBBBBBBBBRRRRR",
+                "RRRRRRBBBBBBBBKBBBKBBBKBBKKBBBBBBBRRRRRR",
+                "RRRRRRRBBBBBBBBBBBKBBBKBBBBBBBBBBRRRRRRR",
+                "RRRRRRRRBBBBBBBBBBBBBBKBBBBBBBBBRRRRRRRR",
+                "RRRRRRRRRBBBBBBBBKBBBBKBBBBBBBBRRRRRRRRR",
+                "RRRRRRRRRRRBBBBBBBBBBBBBBBBBBRRRRRRRRRRR",
+                "RRRRRRRRRRRRRBBBBBBBBBBBBBBRRRRRRRRRRRRR",
+                "RRRRRRRRRRRRRRRRBBBBBBBBRRRRRRRRRRRRRRRR",
+                "RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR",
+            ),
+            tagline=lambda: _("trae manzanas"),
         ),
         # Night city: yellow and cyan neon, hard edges.
         Layout(
@@ -147,6 +271,21 @@ LAYOUT_TABLE: dict[str, Layout] = {
             ),
             transport="keycaps",
             keycaps=("▐", "▌"),
+            emblem=(
+                "..........CC....",
+                "..........CC....",
+                "...MM.....CC....",
+                "...MM..M..CC.MM.",
+                ".M.MY..MM.CC.MM.",
+                ".M.MM..MY.CY.MY.",
+                ".MMMM.MMM.CC.MM.",
+                ".MYMM.MMMMCCMMM.",
+                "MMMMMMYMMMCYMMMM",
+                "MMYMMMMMMMCCMYMM",
+                "AAAAAAAAAAAAAAAA",
+                ".C.C.C.C.C.C.C.C",
+            ),
+            tagline=lambda: _("despierta: la ciudad no duerme"),
         ),
         # Old gold on a dark forest, a chronicle rather than a list.
         Layout(
@@ -154,6 +293,25 @@ LAYOUT_TABLE: dict[str, Layout] = {
             title=lambda width: ruled("◆  T I D A L   A M P  ◆", width, "·"),
             queue_heading=lambda width, hints: ruled(_("CRÓNICA"), width, "·"),
             transport="retro",
+            emblem=(
+                "........RR........",
+                ".....RRRYYRRR.....",
+                "...RRYYYYYYYYRR...",
+                ".RRYYYYYKKYYYYYRR.",
+                "RYYYYYYYKKYYYYYYYR",
+                "RYYYYYYYKKYYYYYYYR",
+                ".RRYYYYYKKYYYYYRR.",
+                "...RRYYYYYYYYRR...",
+                ".....RRRYYRRR.....",
+                "........RR........",
+                "......M....M......",
+                ".....MM....MM.....",
+                ".....MMM..MMM.....",
+                "......MMMMMM......",
+                "......MMMMMM......",
+                ".....MMMMMMMM.....",
+            ),
+            tagline=lambda: _("un anillo para oírlas a todas"),
         ),
         # Red, gold and green on black.
         Layout(
@@ -163,6 +321,23 @@ LAYOUT_TABLE: dict[str, Layout] = {
                 f"♫ {_('cola')} ", hints, width, "≈"
             ),
             transport="quattro",
+            emblem=(
+                ".....MMMMMM.....",
+                "...MMMMMMMMMM...",
+                "..MMMMMMMMMMMM..",
+                ".MMMMRRRRRRMMMM.",
+                ".MMMRRRRRRRRMMM.",
+                "MMMMYYYYYYYYMMMM",
+                "MMMMYYYKKYYYMMMM",
+                "MMMMYYYKKYYYMMMM",
+                "MMMMGGGGGGGGMMMM",
+                ".MMMGGGGGGGGMMM.",
+                ".MMMMGGGGGGMMMM.",
+                "..MMMMMMMMMMMM..",
+                "...MMMMMMMMMM...",
+                ".....MMMMMM.....",
+            ),
+            tagline=lambda: _("un solo amor, un solo corazón"),
         ),
         # The wild card: a purple suit, green hair, the four suits.
         Layout(
@@ -173,6 +348,24 @@ LAYOUT_TABLE: dict[str, Layout] = {
             ),
             transport="keycaps",
             keycaps=("{", "}"),
+            emblem=(
+                "...GG.GGG.GG.G....",
+                "..GGGGGGGGGGGGG...",
+                ".GGGBBBBBBBBBGGG..",
+                ".GGBBBBBBBBBBBGG..",
+                ".GBBKKKBBBBKKKBG..",
+                "..BKKKKBBBBKKKKB..",
+                "..BBKKBBBBBBKKBB..",
+                "..BBBBBBKKBBBBBB..",
+                "..RBBBBBBBBBBBBR..",
+                "..BRRBBBBBBBBRRB..",
+                "...BRRRRRRRRRRB...",
+                "....BBBBBBBBBB....",
+                ".....BBBBBBBB.....",
+                "..AAAA.BBBB.AAAA..",
+                ".AAAAAA.GG.AAAAAA.",
+            ),
+            tagline=lambda: _("¿por qué tan serio?"),
         ),
         # Crimson and violet under a pointed arch.
         Layout(
@@ -182,6 +375,19 @@ LAYOUT_TABLE: dict[str, Layout] = {
                 _("LISTA DE REPRODUCCIÓN"), width, "━"
             ),
             transport="retro",
+            emblem=(
+                "A..............A",
+                "AA............AA",
+                "AAA...A..A...AAA",
+                "AAAA..AAAA..AAAA",
+                "AAAAAAAAAAAAAAAA",
+                "AAAAAAYAAYAAAAAA",
+                ".AAAAAAAAAAAAAA.",
+                "..AA.AAAAAA.AA..",
+                "......AAAA......",
+                ".......AA.......",
+            ),
+            tagline=lambda: _("nunca más, dijo el cuervo"),
         ),
         # Bone on black, blood red, and noise at the edges.
         Layout(
@@ -192,6 +398,21 @@ LAYOUT_TABLE: dict[str, Layout] = {
             ),
             transport="keycaps",
             keycaps=("╣", "╠"),
+            emblem=(
+                "M..............M",
+                "MM............MM",
+                ".MM..BBBBBB..MM.",
+                "..MBBBBBBBBBBM..",
+                "...BBBBBBBBBB...",
+                "..BBRRBBBBRRBB..",
+                "..BRRRBBBBRRRB..",
+                "..BBRRBBBBRRBB..",
+                "...BBBBKKBBBB...",
+                "....BBBBBBBB....",
+                "....BKBKBKBB....",
+                ".....BBBBBB.....",
+            ),
+            tagline=lambda: _("hasta el once"),
         ),
     )
 }
