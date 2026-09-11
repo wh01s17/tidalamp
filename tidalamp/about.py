@@ -215,9 +215,8 @@ def shortcuts(keys) -> tuple[Section, ...]:
                 (key("speed"), _("velocidad de reproducción, de 0.25× a 2×")),
                 (
                     key("fullscreen"),
-                    _("pantalla completa: la carátula en grande; esc vuelve"),
+                    _("pantalla completa: la carátula en grande; w o esc vuelve"),
                 ),
-                ("tab", _("en pantalla completa, mostrar u ocultar la cola")),
             ),
         ),
         Section(
@@ -268,6 +267,27 @@ def shortcuts(keys) -> tuple[Section, ...]:
                 (key("favourite"), _("añadir a favoritos de TIDAL")),
                 (key("unfavourite"), _("quitar de favoritos")),
             ),
+        ),
+        Section(
+            _("Pantalla completa"),
+            (
+                (f"{key('fullscreen')} / esc", _("volver al reproductor")),
+                ("tab", _("mostrar u ocultar la cola, al lado de la carátula")),
+                ("↑ / ↓   ↵", _("en la cola: moverse y reproducir")),
+                (key("to_playing"), _("ir a la pista que suena; abre la cola")),
+                (key("remove"), _("quitar la pista del cursor")),
+                (
+                    f"{key('move_up')} / {key('move_down')}",
+                    _("mover la pista en la cola"),
+                ),
+                (key("track_menu"), _("menú de la pista")),
+                (
+                    f"{key('prev')} {key('play')} {key('stop')} {key('next')}",
+                    _("anterior, reproducir o pausar, detener, siguiente"),
+                ),
+                ("?", _("esta ayuda")),
+            ),
+            name="fullscreen",
         ),
         Section(
             _("Dentro de la búsqueda y la biblioteca"),

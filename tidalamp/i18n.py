@@ -199,11 +199,23 @@ ENGLISH: dict[str, str] = {
     "la pantalla completa necesita al menos {width}×{height}": (
         "full screen needs at least {width}×{height}"
     ),
-    "pantalla completa: la carátula en grande; esc vuelve": (
-        "full screen: the cover large; esc comes back"
+    "pantalla completa: la carátula en grande; w o esc vuelve": (
+        "full screen: the cover large; w or esc comes back"
     ),
-    "en pantalla completa, mostrar u ocultar la cola": (
-        "in full screen, show or hide the queue"
+    "abre la cola con tab para eso": "open the queue with tab for that",
+    "la búsqueda de la cola está en el reproductor": (
+        "the queue's search is in the player"
+    ),
+    "Pantalla completa": "Full screen",
+    "volver al reproductor": "back to the player",
+    "mostrar u ocultar la cola, al lado de la carátula": (
+        "show or hide the queue, beside the cover"
+    ),
+    "en la cola: moverse y reproducir": "in the queue: move and play",
+    "ir a la pista que suena; abre la cola": "go to the playing track; opens the queue",
+    "mover la pista en la cola": "move the track in the queue",
+    "anterior, reproducir o pausar, detener, siguiente": (
+        "previous, play or pause, stop, next"
     ),
     "velocidad": "speed",
     "velocidad: {value}": "speed: {value}",

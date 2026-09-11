@@ -1393,6 +1393,15 @@ fichero en sí.
       y ahí se redibujan la barra, los controles y, si está abierta, la cola, solo
       cuando cambió. La barra de posición se llama `#fs-seek`: con `#seek`, el clic
       llegaría al manejador de la app, que mide la barra del reproductor.
+- [x] **La cola del panel es la del reproductor**, no una copia con su propio
+      cursor: muestra `main.rows`, su marca y su cursor, así que una fila de aquí es
+      la misma de allí y `g`, `d`, `alt+↑↓`, `m` y `f` actúan donde apuntan. Un
+      `watch` sobre el cursor del reproductor lo sigue al instante y `_sync_queue`
+      avisa cuando cambian las filas. Con el panel cerrado, las que editan una fila
+      piden abrirlo (`_queue_hidden`) en vez de actuar a ciegas; `g` lo abre, y
+      `ctrl+f` avisa de que la búsqueda está en el reproductor. `w` otra vez cierra la
+      vista, como `esc`. `?` abre la ayuda con la sección `fullscreen` sola, como la
+      biblioteca con la suya.
 - [x] Colores de la paleta; el marco se copia del `#main` del reproductor, así que
       cada tema viste también esta vista.
 

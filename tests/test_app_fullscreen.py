@@ -169,3 +169,120 @@ def test_every_look_fits_the_full_screen_view_at_the_minimum(monkeypatch):
                 assert art.region.bottom <= bar.region.y, name
 
     asyncio.run(scenario())
+
+
+def test_w_again_closes_the_view_as_esc_does(monkeypatch):
+    isolate_runtime(monkeypatch)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(120, 40)) as pilot:
+            await pilot.pause()
+            a_queue_playing(application)
+            await pilot.press("w")
+            await pilot.pause()
+            assert isinstance(application.screen, FullscreenScreen)
+            await pilot.press("w")
+            await pilot.pause()
+            assert len(application.screen_stack) == 1
+
+    asyncio.run(scenario())
+
+
+def test_the_queue_keys_work_in_the_open_panel(monkeypatch):
+    """The panel is the player's queue: `g` finds the playing track in it,
+    `d` removes the row under its cursor and `alt+↑` moves it."""
+    isolate_runtime(monkeypatch)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(120, 40)) as pilot:
+            await pilot.pause()
+            a_queue_playing(application, 2)
+            await pilot.press("w", "tab")
+            await pilot.pause()
+            listing = application.screen.query_one("#fs-queue-list", RowList)
+
+            await pilot.press("up", "up", "up")
+            await pilot.pause()
+            assert listing.cursor == 0
+            await pilot.press("g")
+            await pilot.pause()
+            assert listing.cursor == 2
+
+            await pilot.press("alt+up")
+            await pilot.pause()
+            assert [e.title for e in application.queue] == [
+                "Schism",
+                "Lateralus",
+                "Parabola",
+            ]
+            assert listing.rows[1].entry.title == "Lateralus"
+
+            await pilot.press("up", "d")
+            await pilot.pause()
+            assert [e.title for e in application.queue] == ["Lateralus", "Parabola"]
+            assert [row.entry.title for row in listing.rows] == ["Lateralus", "Parabola"]
+
+    asyncio.run(scenario())
+
+
+def test_with_the_panel_closed_the_queue_keys_ask_for_it(monkeypatch):
+    """`d` on a row nobody can see would remove it blind; `g` opens the panel
+    instead, and ctrl+f says where the queue's search is."""
+    isolate_runtime(monkeypatch)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(120, 40)) as pilot:
+            await pilot.pause()
+            a_queue_playing(application, 1)
+            await pilot.press("w")
+            await pilot.pause()
+            screen = application.screen
+
+            await pilot.press("d")
+            await pilot.pause()
+            assert len(application.queue) == 3
+            assert "tab" in application.status
+
+            await pilot.press("ctrl+f")
+            await pilot.pause()
+            assert "reproductor" in application.status
+            assert application.screen is screen
+
+            await pilot.press("g")
+            await pilot.pause()
+            assert screen.queue_open
+            assert screen.query_one("#fs-queue-list", RowList).cursor == 1
+
+    asyncio.run(scenario())
+
+
+def test_question_mark_shows_the_full_screen_keys_alone(monkeypatch):
+    isolate_runtime(monkeypatch)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(120, 40)) as pilot:
+            await pilot.pause()
+            a_queue_playing(application)
+            await pilot.press("w")
+            await pilot.pause()
+            view = application.screen
+            await pilot.press("question_mark")
+            await pilot.pause()
+            assert isinstance(application.screen, HelpScreen)
+            body = application.screen.query_one("#help-body")
+            text = "\n".join(body.render_line(y).text for y in range(body.size.height))
+            assert "volver al reproductor" in text
+            assert "subir volumen" not in text
+            assert (
+                "ACERCA DE"
+                not in application.screen.query_one("#help-title").render_line(0).text
+            )
+            await pilot.press("escape")
+            await pilot.pause()
+            assert application.screen is view
+
+    asyncio.run(scenario())

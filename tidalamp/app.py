@@ -1258,6 +1258,9 @@ class TidalAmp(App):
         self._render_queue_filter()
         self.queue.save()
         self._fill_years()
+        fullscreen = self._fullscreen()
+        if fullscreen is not None:
+            fullscreen.mirror_queue()
 
     def action_track_menu(self) -> None:
         """Open the track menu on the queue row under the cursor.
@@ -1266,6 +1269,8 @@ class TidalAmp(App):
         because ↵ already queued the whole level; here ↵ plays the row, and
         the menu is what carries everything else it can do.
         """
+        if self._queue_hidden():
+            return
         row = self.query_one("#playlist", RowList).current
         if row is None or row.entry is None:
             self.status = _("no hay ninguna pista seleccionada")
@@ -1401,6 +1406,10 @@ class TidalAmp(App):
 
     def action_filter_queue(self) -> None:
         """Open the search bar under the queue and start typing into it."""
+        if isinstance(self.screen, FullscreenScreen):
+            # The bar lives under the player's queue, behind this view.
+            self.status = _("la búsqueda de la cola está en el reproductor")
+            return
         self.query_one("#queue-filter-bar", Horizontal).display = True
         self._render_queue_filter()
         self.query_one("#queue-filter", Input).focus()
@@ -1421,6 +1430,9 @@ class TidalAmp(App):
 
     def action_to_playing(self) -> None:
         """Put the queue cursor back on the track that is playing."""
+        if isinstance(self.screen, FullscreenScreen):
+            # In the full-screen view, `g` is a way to the queue: it opens.
+            self.screen.open_queue()
         if self.queue.playing < 0:
             self.status = _("no hay una pista reproduciéndose")
             return
@@ -1699,6 +1711,8 @@ class TidalAmp(App):
             self._play_index(index)
 
     def action_remove(self) -> None:
+        if self._queue_hidden():
+            return
         index = self._cursor_index()
         if index >= 0:
             self.queue.remove(index)
@@ -1712,6 +1726,8 @@ class TidalAmp(App):
         it swapped with can be one the filter is hiding — but the number at
         the head of the line is the queue position, and that does change.
         """
+        if self._queue_hidden():
+            return
         index = self._cursor_index()
         if index < 0:
             return
@@ -2174,7 +2190,11 @@ class TidalAmp(App):
 
     def action_fullscreen(self) -> None:
         """The cover as large as the terminal allows, a bar under it, and the
-        queue beside it on demand. Only from the player itself."""
+        queue beside it on demand. Only from the player itself; pressed again
+        in the view, it closes it, as esc does."""
+        if isinstance(self.screen, FullscreenScreen):
+            self.screen.action_close()
+            return
         if len(self.screen_stack) > 1:
             return
         if self.size.width < self.MIN_WIDTH or self.size.height < self.MIN_HEIGHT:
@@ -2183,6 +2203,30 @@ class TidalAmp(App):
             ).format(width=self.MIN_WIDTH, height=self.MIN_HEIGHT)
             return
         self.push_screen(FullscreenScreen())
+
+    def _fullscreen(self) -> FullscreenScreen | None:
+        """The full-screen view, if it is anywhere on the stack."""
+        return next(
+            (
+                screen
+                for screen in self.screen_stack
+                if isinstance(screen, FullscreenScreen)
+            ),
+            None,
+        )
+
+    def _queue_hidden(self) -> bool:
+        """True while the full-screen view is in front with its queue closed.
+
+        The queue keys act on the player's cursor, which that view shows in
+        its panel. With the panel closed they would act on a row nobody can
+        see, so they ask for it instead.
+        """
+        screen = self.screen
+        if isinstance(screen, FullscreenScreen) and not screen.queue_open:
+            self.status = _("abre la cola con tab para eso")
+            return True
+        return False
 
     def action_speed(self) -> None:
         self.push_screen(SpeedScreen(self.mpv.speed), self._speed_chosen)
@@ -2314,6 +2358,8 @@ class TidalAmp(App):
 
     def _favourite_selected(self, add: bool) -> None:
         """Favourite the track under the playlist cursor."""
+        if self._queue_hidden():
+            return
         row = self.query_one("#playlist", RowList).current
         if row is None or row.entry is None:
             self.status = _("no hay ninguna pista seleccionada")

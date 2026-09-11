@@ -16,7 +16,6 @@ from textual.widgets import Static
 from .. import artwork, config
 from ..columns import QUALITY_LABELS
 from ..i18n import _
-from ..library import Row
 from ..queue import Repeat
 from ..theme import palette_for
 from ..widgets import Artwork, SeekBar
@@ -59,6 +58,7 @@ class FullscreenScreen(Screen[None]):
         Binding("up", "queue_up", "", show=False),
         Binding("down", "queue_down", "", show=False),
         Binding("enter", "queue_play", "", show=False),
+        Binding("question_mark", "help", _("ayuda"), show=False),
     ]
 
     def __init__(self) -> None:
@@ -71,7 +71,7 @@ class FullscreenScreen(Screen[None]):
         self._panel = False
         # The clickable glyphs on the controls line, as (start, end, action).
         self._hits: list[tuple[int, int, str]] = []
-        # What the queue panel last drew, to redraw it only when it changed.
+        # What the queue panel last mirrored, to redraw it only when it changed.
         self._queue_shape: tuple = ()
 
     @property
@@ -98,6 +98,10 @@ class FullscreenScreen(Screen[None]):
         # view wears too, so a theme changes both.
         self.styles.border = self.player.query_one("#main").styles.border
         self.query_one("#fs-queue").display = False
+        # The panel is the player's queue, not a copy with a cursor of its own:
+        # every queue key (`g`, `d`, `alt+↑↓`, `m`, `f`) acts on the player's
+        # cursor, so the panel follows that cursor the moment it moves.
+        self.watch(self._main_list(), "cursor", self._cursor_moved, init=False)
         self.follow(self.player.mpv.position, self.player.mpv.duration)
         self.call_after_refresh(self._laid_out)
 
@@ -203,7 +207,7 @@ class FullscreenScreen(Screen[None]):
         self._render_controls()
         self._render_side()
         if self._panel:
-            self._render_queue()
+            self.mirror_queue()
         if self._current_url() != self._url:
             self._request()
 
@@ -272,7 +276,10 @@ class FullscreenScreen(Screen[None]):
             "\n≡ " + _("cola"),
             style=f"bold {palette['accent']}" if self._panel else palette["body"],
         )
-        text.append(f"\ntab {_('cola')}   esc {_('volver')}", style=palette["muted"])
+        text.append(
+            f"\n? {_('ayuda')}   tab {_('cola')}   w/esc {_('volver')}",
+            style=palette["muted"],
+        )
         self.query_one("#fs-side", Static).update(text)
 
     @on(events.Click, "#fs-controls")
@@ -302,46 +309,69 @@ class FullscreenScreen(Screen[None]):
 
     # ------------------------------------------------------------ the queue
 
-    def _render_queue(self, force: bool = False) -> None:
-        queue = self.player.queue
-        shape = (queue.playing, tuple(entry.id for entry in queue))
+    @property
+    def queue_open(self) -> bool:
+        return self._panel
+
+    def _main_list(self) -> RowList:
+        return self.player.query_one("#playlist", RowList)
+
+    def mirror_queue(self, force: bool = False) -> None:
+        """Show the player's queue as it is: its rows, its mark, its cursor.
+
+        The same rows as the player's list, filter and all, so a row here is
+        the same row there and every queue action lands where it is aimed.
+        """
+        if not self.is_mounted:
+            return
+        main = self._main_list()
+        shape = (id(main.rows), len(main.rows), main.marked, main.cursor)
         if shape == self._queue_shape and not force:
             return
         self._queue_shape = shape
         listing = self.query_one("#fs-queue-list", RowList)
-        listing.rows = [
-            Row(label=entry.label, detail=entry.length, entry=entry, number=position + 1)
-            for position, entry in enumerate(queue)
-        ]
-        listing.marked = queue.playing
-        if force:
-            listing.cursor = max(0, queue.playing)
+        listing.rows = main.rows
+        listing.marked = main.marked
+        listing.cursor = main.cursor
         listing.refresh()
+
+    def _cursor_moved(self) -> None:
+        if self._panel:
+            self.mirror_queue()
+
+    def open_queue(self) -> None:
+        if not self._panel:
+            self.action_toggle_queue()
 
     def action_toggle_queue(self) -> None:
         """Show or hide the queue beside the cover, which shrinks to make room."""
         self._panel = not self._panel
         self.query_one("#fs-queue").display = self._panel
         if self._panel:
-            self._render_queue(force=True)
+            self.mirror_queue(force=True)
         self._render_side()
         self.call_after_refresh(self._fit)
 
     def action_queue_up(self) -> None:
         if self._panel:
-            self.query_one("#fs-queue-list", RowList).move(-1)
+            self._main_list().move(-1)
 
     def action_queue_down(self) -> None:
         if self._panel:
-            self.query_one("#fs-queue-list", RowList).move(1)
+            self._main_list().move(1)
 
     def action_queue_play(self) -> None:
-        if not self._panel:
-            return
-        listing = self.query_one("#fs-queue-list", RowList)
-        if listing.rows:
-            self.player._play_index(listing.cursor)
-            self._render_queue(force=True)
+        if self._panel:
+            self.player.action_play_selected()
+            self.mirror_queue(force=True)
+
+    def action_help(self) -> None:
+        """The help window, with this view's keys and nothing else."""
+        # Here and not at the top: `app` imports this module.
+        from ..app import keys_for
+        from .help import HelpScreen
+
+        self.app.push_screen(HelpScreen(keys_for, only="fullscreen"))
 
     def action_close(self) -> None:
         # Down first: a kitty image outlives the cells it was drawn over.

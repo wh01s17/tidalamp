@@ -216,8 +216,12 @@ could make the browser unusable.
 the terminal allows, centred, and a bar at the foot with the track on the left, the
 controls, the seek bar and the times in the middle, and the quality and a button for
 the queue on the right. `tab` (or a click on that button) opens the queue beside the
-cover, which shrinks to make room; `↑` `↓` walk it and `Enter` plays. `esc` comes back
-to the player. The view takes its colours from the palette and its frame from the
+cover, which shrinks to make room; `↑` `↓` walk it and `Enter` plays, and the queue's own keys work in
+it as they do in the player's: `g` goes to the playing track (and opens the panel if
+it is closed), `d` removes, `alt+↑` `alt+↓` move, `m` opens the track menu, `f` `F`
+favourite. With the panel closed those keys ask for it rather than act on a row you
+cannot see. `?` lists this view's keys alone. `w` again, or `esc`, comes back to the
+player. The view takes its colours from the palette and its frame from the
 theme in use, and the transport keys work in it as they do everywhere.
 
 ## Queue and library
