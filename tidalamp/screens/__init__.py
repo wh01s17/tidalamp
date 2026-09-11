@@ -14,6 +14,7 @@ from .choice import ChoiceScreen
 from .column_picker import ColumnsScreen, _crop, column_label
 from .config_window import _ATTRIBUTES, _FLAGS, ConfigScreen, Option
 from .equalizer import PRESET_LABELS, EqScreen
+from .fullscreen import FullscreenScreen
 from .help import HelpScreen
 from .lyrics_window import LyricsScreen
 from .prompts import PlaylistNameScreen, SearchScreen
@@ -33,6 +34,7 @@ __all__ = [
     "ColumnsScreen",
     "ConfigScreen",
     "EqScreen",
+    "FullscreenScreen",
     "HelpScreen",
     "LyricsScreen",
     "Option",

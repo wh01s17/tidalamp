@@ -201,6 +201,7 @@ show the key that actually works.
 | `←` `→`         | seek ±5 seconds                                    |
 | `+` `-`         | change volume                                      |
 | `t`             | toggle elapsed / remaining time                    |
+| `w`             | full screen: the cover large; `esc` comes back     |
 | `b`             | playback speed, from 0.25× to 2×                   |
 | `o`             | open the settings window                           |
 | `?` `h`         | open the help window                               |
@@ -208,6 +209,16 @@ show the key that actually works.
 
 Navigation keys are fixed — arrows, Page Up/Down, Enter and Esc — because a typo there
 could make the browser unusable.
+
+### Full screen
+
+`w` opens a full-screen view, the way TIDAL's own client has one: the cover as large as
+the terminal allows, centred, and a bar at the foot with the track on the left, the
+controls, the seek bar and the times in the middle, and the quality and a button for
+the queue on the right. `tab` (or a click on that button) opens the queue beside the
+cover, which shrinks to make room; `↑` `↓` walk it and `Enter` plays. `esc` comes back
+to the player. The view takes its colours from the palette and its frame from the
+theme in use, and the transport keys work in it as they do everywhere.
 
 ## Queue and library
 

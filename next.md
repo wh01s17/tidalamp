@@ -15,52 +15,7 @@ Lo de aquí no bloquea publicar. `plan.md` §5 y §6 mandan sobre el estado gene
 
 ---
 
-## 1. Modo pantalla completa, como el de TIDAL
-
-Pedido el 2026-09-11, con una captura del cliente de TIDAL como referencia. Una vista
-que solo se abre con una tecla (sin fila en ajustes ni botón que la abra): la
-carátula grande y centrada sobre un fondo liso, y abajo una barra de una fila con la
-pista a la izquierda (título, artista, álbum), el transporte y la barra de posición
-con sus tiempos en el centro, y a la derecha un botón que abre la cola en un panel
-lateral, como en la captura. `esc` vuelve al reproductor normal.
-
-Adaptada a la paleta y al tema en uso: el fondo, la barra y el panel salen de los
-roles de la paleta (no del color de la carátula, como hace TIDAL), y el marco y los
-glifos de las teclas, del `Layout` activo.
-
-Qué hacer:
-
-- La tecla: por decidir. Hoy están libres `a`, `i`, `j`, `k`, `n` y `w`; F11 no
-  sirve, porque casi todos los emuladores la usan para su propia pantalla completa.
-  Va en `DEFAULT_KEYS`, en la ayuda y en el README, y se puede cambiar en `[keys]`.
-- Una `Screen` propia (no modal) con la carátula, la barra de abajo y el panel de la
-  cola, que se abre y se cierra con su botón y con una tecla; `esc` la cierra.
-- La carátula ocupa el alto que deja la barra, centrada; con el panel abierto se
-  encoge para dejarle sitio en vez de quedar tapada.
-
-Trampas:
-
-- **La carátula kitty/sixel y las ventanas:** hoy toda pantalla por encima de la
-  principal cuenta como ventana, y `_art_ready`, `_hide_art` y `push_screen`
-  esconden la carátula de píxeles mientras hay una encima (`len(screen_stack) > 1`).
-  Esta pantalla tiene que ser la excepción: la carátula se dibuja en ella, y las
-  ventanas que se abran encima (ayuda, velocidad) sí la esconden.
-- **El tamaño:** `Artwork.MAX_ROWS` limita hoy la carátula a 20 filas. Aquí quiere
-  todo el alto, y en 4K eso son muchas celdas: medir el coste en `blocks` como se
-  midió el fondo de la cola, y volver a pedirla a TIDAL al tamaño nuevo.
-- **El tick:** hoy actualiza los widgets del reproductor por su id. La barra de
-  abajo y el panel de la cola de esta pantalla necesitan los mismos datos (posición,
-  estado, cola) sin que el tick sepa qué pantalla está delante.
-- **La cola lateral:** reutilizar `RowList` con el fondo de su tema, y que sus
-  teclas (cursor, ↵, `d`) sean las de la cola de siempre.
-- Terminales pequeñas: por debajo de un tamaño mínimo la vista no se abre, y lo dice.
-- Transparencia y `cover_shape` se respetan igual que en el reproductor.
-
-Cómo se comprueba: tests de que la tecla abre la vista y `esc` vuelve con la cola y
-la reproducción intactas, de que el botón y su tecla abren y cierran el panel, de que
-la carátula no se esconde en esta pantalla pero sí bajo una ventana abierta encima, y
-de que en todas las disposiciones y paletas cabe en el mínimo. Capturas en varios
-temas, y a la vista en kitty.
+Nada comprometido por ahora.
 
 ## Descartado por ahora
 

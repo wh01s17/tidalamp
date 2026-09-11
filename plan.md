@@ -1361,6 +1361,27 @@ fichero en sí.
       reposo y otro «siguiente» no pide más. Radio vacía o sin nada nuevo, o fallida:
       se detiene como antes y lo dice.
 
+### Pantalla completa — `screens/fullscreen.py`, `app.py`
+
+- [x] `w` (solo por tecla) abre `FullscreenScreen`, una `Screen` que no es modal: la
+      carátula centrada y tan grande como deja la pantalla, una barra de tres filas
+      (pista; controles, barra de posición y tiempos; calidad y el botón de la cola)
+      y la cola al lado con `tab` o con ese botón. `esc` vuelve. Solo se abre desde
+      el reproductor y con el tamaño mínimo de siempre.
+- [x] **La carátula es suya:** `FullArtwork` es un `Artwork` sin el tope de
+      `MAX_ROWS` y con su propio `image_id` de kitty, y la vista la pide a su tamaño,
+      con la forma y el fondo de siempre. `App.query_one` solo busca en la pantalla
+      principal (comprobado), así que el camino de la carátula del reproductor no
+      encuentra nunca esta. La del reproductor se esconde al entrar, como bajo
+      cualquier pantalla; la de aquí se esconde con `ScreenSuspend` cuando se abre
+      una ventana encima (ayuda, velocidad) y vuelve con `ScreenResume`.
+- [x] El tick lento le pasa posición y duración mientras está delante (`follow`),
+      y ahí se redibujan la barra, los controles y, si está abierta, la cola, solo
+      cuando cambió. La barra de posición se llama `#fs-seek`: con `#seek`, el clic
+      llegaría al manejador de la app, que mide la barra del reproductor.
+- [x] Colores de la paleta; el marco se copia del `#main` del reproductor, así que
+      cada tema viste también esta vista.
+
 ## 5. Estado de verificación
 
 Distinguir esto importa: parte del código nunca se ha ejecutado contra TIDAL real.
@@ -1396,6 +1417,7 @@ Distinguir esto importa: parte del código nunca se ha ejecutado contra TIDAL re
 | Ordenar la biblioteca, filas de ajustes con lista | **CUBIERTO POR TESTS** | Tests: favoritos pide a TIDAL el orden con los enums de tidalapi; cada sección ofrece solo sus órdenes; «Mis playlists» manda `order` y `orderDirection`; el orden local deja «más…» al final y no toca la caché; en la app, `s` ordena, el título lo dice y volver al nivel lo conserva. Las flechas no tocan las tres filas y dos Enter en reiniciar no reinician. Falta verlo contra TIDAL real, sobre todo «Mis playlists». |
 | Quitar de favoritos o de una playlist | **CUBIERTO POR TESTS** | Tests: la pista se encuentra más allá de la primera página y se quita por índice; una playlist ajena no se toca; una pista que ya no está lo dice sin quitar nada; quitar un favorito tira su nivel en todos los órdenes; en la app, `d` pregunta en «cancelar», confirmado la fila sale, y en la raíz avisa. Falta contra TIDAL real. |
 | Reproducción automática | **CUBIERTO POR TESTS** | Tests: encendida, la radio de la última pista va al final sin la semilla ni repetidas y suena la primera nueva, y un segundo «siguiente» mientras llega no pide otra; apagada, el final de la cola se detiene sin pedir nada; una radio sin nada nuevo se detiene y lo dice. Falta oírla contra TIDAL real. |
+| Pantalla completa | **CUBIERTO POR TESTS** | Tests: `w` abre y `esc` vuelve con la cola y la reproducción intactas; `tab` abre y cierra la cola y ↵ reproduce desde ella; los controles responden al clic; la carátula kitty se queda en la vista, pasa del tope de 20 filas y se esconde bajo una ventana abierta encima; todas las disposiciones caben en el mínimo. Falta verla en un terminal de verdad, sobre todo en kitty y en 4K. |
 | Dos columnas (`split`)              | **Verificado en headless y a mano** | Cuatro tests: mismos objetos (cola, carátula, transporte) y cursor al cambiar de forma, vuelta sola a apilada por ancho y por alto, las trece disposiciones caben en el umbral con el transporte bajo las dos columnas, y la letra se carga una vez por pista y sigue la línea. Capturas SVG de las trece. El mantenedor lo usó en su terminal con audio real y letra. |
 | Barras clicables                    | **Verificado**                    | Cuatro pruebas con `pilot.click`: seek a mitad, seek parado sin llamada a mpv, volumen al extremo y balance en cero exacto pese al padding. |
 | Ayuda en dos pestañas              | **Verificado**                    | Dos unitarias en la app headless: `→` lleva a «Acerca de» y dibuja el repositorio, `←` vuelve a los atajos con el desplazamiento donde se dejó, y ninguna de las dos flechas se sale por los extremos. Render a 100x30 de las dos pestañas, con la activa marcada en la barra de título. |

@@ -615,3 +615,74 @@
     background: $tidalamp-panel;
     border: outer $tidalamp-border;
 }
+
+/* The full-screen view (`w`): the cover centred on the display's ground, a
+   bar of three rows at the foot on the panel, and the queue beside the cover
+   when it is asked for. Colour is the palette's; the frame is copied from the
+   player's by the screen itself, so the look carries over. */
+FullscreenScreen {
+    background: $tidalamp-display-background;
+    layout: vertical;
+}
+
+#fs-body {
+    height: 1fr;
+}
+
+#fs-stage {
+    width: 1fr;
+    align: center middle;
+    background: $tidalamp-display-background;
+}
+
+#fs-queue {
+    width: 44;
+    max-width: 45%;
+    background: $tidalamp-panel;
+    border-left: solid $tidalamp-border;
+}
+
+#fs-queue-title {
+    color: $tidalamp-accent;
+    text-style: bold;
+    height: 1;
+    padding: 0 1;
+}
+
+#fs-queue-list {
+    height: 1fr;
+    padding: 0 1;
+}
+
+#fs-bar {
+    height: 3;
+    background: $tidalamp-panel;
+}
+
+#fs-track {
+    width: 30%;
+    padding: 0 2;
+}
+
+#fs-centre {
+    width: 1fr;
+}
+
+#fs-controls,
+#fs-seek,
+#fs-times {
+    height: 1;
+}
+
+#fs-times {
+    color: $tidalamp-muted;
+    text-align: center;
+}
+
+#fs-side {
+    width: 30%;
+    padding: 0 2;
+    /* Against the right edge, the way the queue's button sits in TIDAL's own
+       bar: `Text(justify=...)` alone does not beat Static's own alignment. */
+    text-align: right;
+}

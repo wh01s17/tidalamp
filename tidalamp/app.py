@@ -32,6 +32,7 @@ from .screens import (
     BrowserScreen,
     ConfigScreen,
     EqScreen,
+    FullscreenScreen,
     HelpScreen,
     LyricsScreen,
     PlaylistNameScreen,
@@ -123,6 +124,8 @@ DEFAULT_KEYS: dict[str, str] = {
     "toggle_time": "t",
     # After z x c v, where Winamp kept its fifth key.
     "speed": "b",
+    # Only a key opens it: no row in the settings, no button on the player.
+    "fullscreen": "w",
     "config": "o",
     "help": "question_mark,h",
     "quit": "q,ctrl+c",
@@ -259,6 +262,7 @@ class TidalAmp(App):
         _bind("balance_centre", _("centrar balance")),
         _bind("toggle_time", _("tiempo")),
         _bind("speed", _("velocidad")),
+        _bind("fullscreen", _("pantalla completa")),
         _bind("favourite", _("favorito")),
         _bind("unfavourite", _("quitar favorito")),
         _bind("config", _("config"), show=True),
@@ -829,6 +833,10 @@ class TidalAmp(App):
             seek = self.query_one(SeekBar)
             seek.position, seek.total = position, duration
             self.query_one("#volume", Slider).value = self.mpv.volume
+        elif isinstance(self.screen, FullscreenScreen):
+            # The full-screen view draws the same clock and bar in its own
+            # widgets; the player behind it is not looked at.
+            self.screen.follow(position, duration)
         # The status line is the exception. A favourite added from the browser
         # reports there, and through the scrim it is legible, so it is written
         # even behind a modal — and it costs nothing when the words are the
@@ -2163,6 +2171,18 @@ class TidalAmp(App):
 
     def action_equalizer(self) -> None:
         self.push_screen(EqScreen(self.settings, self._apply_audio), self._eq_closed)
+
+    def action_fullscreen(self) -> None:
+        """The cover as large as the terminal allows, a bar under it, and the
+        queue beside it on demand. Only from the player itself."""
+        if len(self.screen_stack) > 1:
+            return
+        if self.size.width < self.MIN_WIDTH or self.size.height < self.MIN_HEIGHT:
+            self.status = _(
+                "la pantalla completa necesita al menos {width}×{height}"
+            ).format(width=self.MIN_WIDTH, height=self.MIN_HEIGHT)
+            return
+        self.push_screen(FullscreenScreen())
 
     def action_speed(self) -> None:
         self.push_screen(SpeedScreen(self.mpv.speed), self._speed_chosen)

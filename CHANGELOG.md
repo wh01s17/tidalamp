@@ -7,6 +7,10 @@ versioning is [semantic](https://semver.org/).
 
 ### Added
 
+- A full-screen view, on `w` only: the cover centred and as large as the terminal
+  allows, and a bar with the track, the controls, the seek bar and the queue's button.
+  `tab` puts the queue beside the cover; `esc` comes back. It follows the palette and
+  the theme's frame, and a pixel cover in it hides under any window opened over it.
 - Autoplay (`autoplay`, Autoplay in the settings window, off by default): when the
   queue runs out, TIDAL's radio for the last track goes on the end of it and plays,
   instead of stopping. The queue is kept, and the station leaves out the seed and

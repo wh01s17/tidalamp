@@ -213,6 +213,11 @@ def shortcuts(keys) -> tuple[Section, ...]:
                 (key("seek_fwd"), _("avanzar 5 s")),
                 (key("toggle_time"), _("tiempo transcurrido o restante")),
                 (key("speed"), _("velocidad de reproducción, de 0.25× a 2×")),
+                (
+                    key("fullscreen"),
+                    _("pantalla completa: la carátula en grande; esc vuelve"),
+                ),
+                ("tab", _("en pantalla completa, mostrar u ocultar la cola")),
             ),
         ),
         Section(

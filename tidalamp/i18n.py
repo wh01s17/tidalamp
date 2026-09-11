@@ -194,6 +194,17 @@ ENGLISH: dict[str, str] = {
     "reproducción automática: {error}": "autoplay: {error}",
     "reproducción automática activada": "autoplay on",
     "reproducción automática desactivada": "autoplay off",
+    "volver": "back",
+    "pantalla completa": "full screen",
+    "la pantalla completa necesita al menos {width}×{height}": (
+        "full screen needs at least {width}×{height}"
+    ),
+    "pantalla completa: la carátula en grande; esc vuelve": (
+        "full screen: the cover large; esc comes back"
+    ),
+    "en pantalla completa, mostrar u ocultar la cola": (
+        "in full screen, show or hide the queue"
+    ),
     "velocidad": "speed",
     "velocidad: {value}": "speed: {value}",
     "velocidad de reproducción, de 0.25× a 2×": "playback speed, from 0.25× to 2×",
