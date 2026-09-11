@@ -47,6 +47,7 @@ from .theme import LAYOUTS, ThemePalette, load_palette
 from .widgets import (
     Analyzer,
     Artwork,
+    LyricsPane,
     Marquee,
     SeekBar,
     Slider,
@@ -184,12 +185,12 @@ class TidalAmp(App):
     MIN_HEIGHT = 18
 
     # Where `split` is allowed to put the queue beside the player. The clock
-    # and the readout alone are 54 columns, and the widest transport (the
-    # capped keys, spelled out) is 77 before the menu gets a cell, so each
-    # half needs a little more than the 80 columns the stacked panel needs
-    # whole. The height is the compact threshold, because a player half
-    # without its cover is not worth a column of its own.
-    SPLIT_MIN_WIDTH = 180
+    # and the readout alone are 54 columns, so the player's half needs close
+    # to the 80 the stacked panel needs whole. The transport is not in the
+    # sum: split runs it under both columns. The height is the compact
+    # threshold, because a player half without its cover is not worth a
+    # column of its own.
+    SPLIT_MIN_WIDTH = 160
     SPLIT_MIN_HEIGHT = 26
 
     # Winamp's own transport keys, kept as muscle memory. Rebindable ones come
@@ -245,6 +246,9 @@ class TidalAmp(App):
         self.queue = Queue()
         self.settings = Settings.load()
         self._lyrics_cache: dict[int, LyricsDocument] = {}
+        # Which track the split view's lyrics pane was last asked to show, so
+        # the tick fetches once per track rather than four times a second.
+        self._pane_entry: int | None = None
         self._was_idle = True
         self.mpris = MprisService(self)
         self._mpris_ready = False
@@ -286,53 +290,54 @@ class TidalAmp(App):
             # tag, and the brackets and everything between them disappeared.
             yield Static(self._title_text(), id="titlebar", markup=False)
             # The player and the queue, each in a container of its own even
-            # while they are stacked, so that `split` can put them side by
-            # side with a class and the stylesheet. Moving widgets between
-            # containers would be remove() and mount(), which throws away the
-            # queue's cursor, the decoded cover and the marquee's phase.
-            with Vertical(id="halves"):
-                with Vertical(id="player-half"):
-                    with Horizontal(id="display"):
-                        yield Artwork(id="art")
-                        with Vertical(id="clockbox"):
-                            yield TimeDisplay(id="clock")
-                            # The rest of the track's identity, under the
-                            # time: the marquee above only has room for one
-                            # line and it spends it on the title.
-                            yield Static("", id="trackmeta", markup=False)
-                        with Vertical(id="readout"):
-                            yield Marquee(id="marquee")
-                            yield Static("", id="badges")
-                            yield Static("OUT  —", id="output")
-                            yield Analyzer(id="analyzer")
-                    yield SeekBar(id="seek")
-                    yield Slider(id="volume")
-                    yield Slider(id="balance")
-                    # Two halves, not one string: the transport keys belong
-                    # with the sliders above them, and the windows read as a
-                    # menu, which they only do once there is air between the
-                    # two. Shuffle and repeat sit on the left with the
-                    # transport: they are buttons that hold a state, not
-                    # places to go. Both halves are filled in by
-                    # `_refresh_modes`, which dims the separators and lights
-                    # the state.
-                    with Horizontal(id="transport"):
-                        yield Static("", id="transport-play")
-                        yield Static("", id="transport-menu")
-                with Vertical(id="queue-half"):
-                    yield Static("", id="pl-title", markup=False)
-                    yield RowList(id="playlist")
-                    # The queue's own search bar, the same shape as the
-                    # browser's: it opens under the list without covering it,
-                    # so the queue narrows under the eyes of whoever is
-                    # typing. Hidden until ctrl+f.
-                    with Horizontal(id="queue-filter-bar"):
-                        yield Input(
-                            placeholder=_("buscar en la cola…"), id="queue-filter"
-                        )
-                        # markup=False: it counts rows for text the user
-                        # typed, and a «[» in it would be read as a tag.
-                        yield Static("", id="queue-filter-count", markup=False)
+            # while they are stacked, and the transport between them as a
+            # sibling of both. `split` lays the three out on a grid with a
+            # class and the stylesheet, and moves the transport under both
+            # columns with `move_child`, which reorders without remounting.
+            # Moving widgets between containers would be remove() and
+            # mount(), which throws away the queue's cursor, the decoded
+            # cover and the marquee's phase.
+            with Vertical(id="player-half"):
+                # Hidden while stacked; `split` gives it the rows of the
+                # column the band does not use.
+                yield LyricsPane(id="lyrics-pane")
+                with Horizontal(id="display"):
+                    yield Artwork(id="art")
+                    with Vertical(id="clockbox"):
+                        yield TimeDisplay(id="clock")
+                        # The rest of the track's identity, under the time:
+                        # the marquee above only has room for one line and it
+                        # spends it on the title.
+                        yield Static("", id="trackmeta", markup=False)
+                    with Vertical(id="readout"):
+                        yield Marquee(id="marquee")
+                        yield Static("", id="badges")
+                        yield Static("OUT  —", id="output")
+                        yield Analyzer(id="analyzer")
+                yield SeekBar(id="seek")
+                yield Slider(id="volume")
+                yield Slider(id="balance")
+            # Two halves, not one string: the transport keys belong with the
+            # sliders above them, and the windows read as a menu, which they
+            # only do once there is air between the two. Shuffle and repeat
+            # sit on the left with the transport: they are buttons that hold
+            # a state, not places to go. Both halves are filled in by
+            # `_refresh_modes`, which dims the separators and lights the state.
+            with Horizontal(id="transport"):
+                yield Static("", id="transport-play")
+                yield Static("", id="transport-menu")
+            with Vertical(id="queue-half"):
+                yield Static("", id="pl-title", markup=False)
+                yield RowList(id="playlist")
+                # The queue's own search bar, the same shape as the browser's:
+                # it opens under the list without covering it, so the queue
+                # narrows under the eyes of whoever is typing. Hidden until
+                # ctrl+f.
+                with Horizontal(id="queue-filter-bar"):
+                    yield Input(placeholder=_("buscar en la cola…"), id="queue-filter")
+                    # markup=False: it counts rows for text the user typed,
+                    # and a «[» in it would be read as a tag.
+                    yield Static("", id="queue-filter-count", markup=False)
             with Horizontal(id="statusbar"):
                 yield Spinner(id="busy")
                 yield Static("", id="status", markup=False)
@@ -351,6 +356,7 @@ class TidalAmp(App):
         split_changed = main.has_class("split") != split
         if split_changed:
             main.set_class(split, "split")
+            self._place_transport(main, split)
         self._layout_classes(main)
         self._fit_artwork(compact_changed or split_changed)
         # These are all cropped or ruled to their own widget's width, which
@@ -395,6 +401,21 @@ class TidalAmp(App):
             and height >= self.SPLIT_MIN_HEIGHT
         )
 
+    def _place_transport(self, main, split: bool) -> None:
+        """Under both columns in split, between the halves when stacked.
+
+        The grid places its cells in the order of the children, so the row
+        that spans the two columns has to come after the second one.
+        """
+        if not self.query("#transport"):
+            return
+        transport = self.query_one("#transport")
+        queue = self.query_one("#queue-half")
+        if split:
+            main.move_child(transport, after=queue)
+        else:
+            main.move_child(transport, before=queue)
+
     @property
     def split(self) -> bool:
         """Whether the halves are side by side right now."""
@@ -430,15 +451,12 @@ class TidalAmp(App):
             if compact_changed:
                 display.styles.height = 5
             return
-        if self.split:
-            # The player has a column to itself: half the width, and the
-            # whole height but for the rows under the band and the frame.
-            by_height = self.size.height - 12
-            half = self.size.width // 2 - 2
-            by_width = (half - CLOCK_WIDTH - READOUT_WIDTH - 4) // 2
-        else:
-            by_height = self.size.height // 4
-            by_width = (self.size.width - CLOCK_WIDTH - READOUT_WIDTH - 4) // 2
+        by_height = self.size.height // 4
+        # Split, the band shares the player's column with the lyrics above
+        # it, and the column is half the panel.
+        room = self.size.width // 2 - 2 if self.split else self.size.width
+        # Six: the band's two cells of left padding and the four of slack.
+        by_width = (room - CLOCK_WIDTH - READOUT_WIDTH - 6) // 2
         resized = widget.resize(min(by_height, by_width))
         # Unconditionally, not only when the cover changed size. The padding
         # is the other half of the sum and it settles on its own schedule: at
@@ -472,14 +490,6 @@ class TidalAmp(App):
         if widget is None:
             return
         display = self.query_one("#display")
-        if self.split:
-            # A column to itself, so the band takes whatever the column does
-            # not spend on the sliders and the transport, instead of leaving
-            # half of it empty under the keys. The cover was sized to fit
-            # inside that (`_fit_artwork`), and the analyser draws to any
-            # height it is given.
-            display.styles.height = "1fr"
-            return
         padding = display.styles.padding
         display.styles.height = (
             max(DISPLAY_HEIGHT, widget.rows) + padding.top + padding.bottom
@@ -695,6 +705,9 @@ class TidalAmp(App):
 
         if self._art_hidden and len(self.screen_stack) == 1:
             self._restore_art()
+
+        if self.split and len(self.screen_stack) == 1:
+            self._follow_lyrics(position)
 
         if self._mpris_ready:
             self.mpris.publish()
@@ -1882,6 +1895,41 @@ class TidalAmp(App):
         document = load_lyrics(track)
         self._lyrics_cache[entry.id] = document
         return document
+
+    def _follow_lyrics(self, position: float) -> None:
+        """Keep the split view's lyrics on the playing track and line.
+
+        The fetch happens once per track, in a worker, through the same cache
+        `y` uses; everything else is the pane comparing line numbers.
+        """
+        pane = self.query_one(LyricsPane)
+        entry = self.queue.current
+        wanted = entry.id if entry is not None else None
+        if wanted != self._pane_entry:
+            self._pane_entry = wanted
+            if entry is None:
+                pane.show(None, _("no hay una pista reproduciéndose"))
+            else:
+                pane.show(None, _("buscando la letra…"))
+                self._pane_worker(entry)
+        pane.follow(position)
+
+    @work(thread=True, exclusive=True, group="pane-lyrics")
+    def _pane_worker(self, entry: Entry) -> None:
+        try:
+            document = self._lyrics_for(entry)
+        except Exception as exc:
+            self.call_from_thread(self._pane_loaded, entry.id, None, str(exc))
+            return
+        self.call_from_thread(self._pane_loaded, entry.id, document, "")
+
+    def _pane_loaded(
+        self, entry_id: int, document: LyricsDocument | None, message: str
+    ) -> None:
+        # The track moved on while its lyrics were in flight.
+        if entry_id != self._pane_entry:
+            return
+        self.query_one(LyricsPane).show(document, message)
 
     def action_lyrics(self) -> None:
         entry = self.queue.current

@@ -30,16 +30,16 @@ por dar por buena una disposición vista solo en un test:
 
 ---
 
-## 2. Dos columnas: verlo con audio de verdad
+## 2. Dos columnas: lo que queda por mirar
 
-Implementado el 2026-09-10 (`arrangement = "split"`, ver `plan.md` «Dos columnas»).
-Queda la comprobación a mano:
+Implementado el 2026-09-10 (`arrangement = "split"`, ver `plan.md` «Dos columnas»), y
+ya usado en un terminal real con audio y letra. Queda:
 
-- En un terminal real de al menos 180 columnas, con la cola llena y una pista sonando:
-  cambiar de forma desde ajustes no corta el audio, no mueve el cursor y no hace
-  parpadear la carátula kitty.
-- Achicar la ventana por debajo de 180 con split puesto: vuelve a apilada sin dejar
-  restos de la carátula pintados encima de la cola.
+- Achicar la ventana por debajo de 160 con split puesto y una carátula kitty: vuelve a
+  apilada sin dejar restos de la imagen pintados encima de la cola.
+- La letra sin sincronizar se enseña desde arriba y no se puede desplazar en el panel
+  (en la ventana de `y` sí). Si molesta, el panel necesita su propio desplazamiento, y
+  decidir qué teclas lo mueven sin pisar las de la cola.
 
 ## Descartado por ahora
 

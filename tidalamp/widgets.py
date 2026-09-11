@@ -15,6 +15,7 @@ from textual.strip import Strip
 from textual.widget import Widget
 
 from .artwork import Cover, Protocol, kitty_delete, quadrant_cell
+from .lyrics import LyricsDocument
 from .theme import palette_for
 
 # Classic seven-segment glyphs, three rows tall and three columns wide.
@@ -539,12 +540,14 @@ class SeekBar(Widget):
         palette = palette_for(self)
         ratio = (self.position / self.total) if self.total else 0.0
         thumb = int(ratio * (width - 1))
+        # A dot on a line, the played part a heavier line in the accent. The
+        # thumb was a full `▓` cell, which on a one-row bar looked like a block
+        # stuck through it rather than a handle riding on it.
         bar = Text()
-        for i in range(width):
-            if i == thumb:
-                bar.append("▓", style=f"bold {palette['accent']}")
-            else:
-                bar.append("─", style=palette["input_border"])
+        if thumb:
+            bar.append("━" * thumb, style=palette["accent"])
+        bar.append("●", style=f"bold {palette['accent']}")
+        bar.append("─" * (width - thumb - 1), style=palette["input_border"])
         return bar
 
 
@@ -612,6 +615,73 @@ class Slider(Widget):
             bar.append("░" * (track - filled), style=palette["bar_empty"])
         bar.append(f" {self.value:>3}", style=palette["muted"])
         return bar
+
+
+class LyricsPane(Widget):
+    """The playing track's lyrics, in the column `split` frees above the player.
+
+    Stacked, the player is a band and the queue has the rest, so there is no
+    room for words and `y` opens them in a window. Split, the player has a
+    column of its own and a band nine rows tall left most of it empty; the
+    lyrics are what fills it. The document is the one `y` loads and caches.
+
+    Synced lyrics keep the sung line centred, lit in the accent, with what has
+    been sung dimmed above it. Plain lyrics are shown from the top: with no
+    timestamps there is nothing to follow.
+    """
+
+    def __init__(self, *, id: str | None = None) -> None:
+        super().__init__(id=id)
+        self.document: LyricsDocument | None = None
+        self.message = ""
+        self._position = 0.0
+        self._active: int | None = None
+
+    def show(self, document: LyricsDocument | None, message: str = "") -> None:
+        """Swap the words, or put a line saying why there are none."""
+        self.document, self.message = document, message
+        self._active = None
+        self.refresh()
+
+    def follow(self, position: float) -> None:
+        """Move with the track, repainting only when the sung line changes.
+
+        Called four times a second; a line lasts seconds, so almost every call
+        is a comparison and nothing else.
+        """
+        self._position = position
+        document = self.document
+        if document is None or not document.synced:
+            return
+        active = document.active_index(position)
+        if active != self._active:
+            self._active = active
+            self.refresh()
+
+    def render(self) -> Text:
+        palette = palette_for(self)
+        width, height = self.size.width, self.size.height
+        document = self.document
+        if document is None:
+            return Text(f"  {self.message}", style=palette["muted"])
+        start, lines, active = document.window(self._position, height)
+        out = Text()
+        for offset, line in enumerate(lines):
+            index = start + offset
+            if index == active:
+                style = f"bold {palette['accent']}"
+            elif active is not None and index < active:
+                style = palette["muted"]
+            else:
+                style = palette["body"]
+            # Cropped rather than wrapped: a wrapped line would take two rows
+            # and push the sung one off the centre it is supposed to hold.
+            row = Text(f"  {line.text}", style=style, no_wrap=True)
+            row.truncate(width, overflow="ellipsis")
+            if offset:
+                out.append("\n")
+            out.append_text(row)
+        return out
 
 
 class Spinner(Widget):

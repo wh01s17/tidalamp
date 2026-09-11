@@ -2509,11 +2509,11 @@ def test_the_centred_wordmark_gets_a_row_between_it_and_the_band(monkeypatch):
     asyncio.run(scenario())
 
 
-@pytest.mark.parametrize("theme", ["quattro", "retro", "nova", "ascii"])
-def test_the_cover_sits_against_the_frame(theme, monkeypatch):
-    """A cell between the artwork and the panel's edge reads as the picture
-    having come loose. Everything after it carries its own left padding, so
-    only the cover moves."""
+@pytest.mark.parametrize("theme", app_module.LAYOUTS)
+def test_the_cover_has_air_inside_its_band(theme, monkeypatch):
+    """Two cells off the frame and a row off the top of the dark band. It
+    used to sit flush against both, on the idea that a gap reads as the
+    picture having come loose; in use it read as glued to the border."""
     isolate_runtime(monkeypatch)
     use_theme(monkeypatch, theme)
 
@@ -2524,9 +2524,13 @@ def test_the_cover_sits_against_the_frame(theme, monkeypatch):
             application.query_one(Artwork).show(a_cover())
             await pilot.pause()
 
-            panel = application.query_one("#main")
+            display = application.query_one("#display")
             art = application.query_one(Artwork)
-            assert art.region.x == panel.content_region.x, theme
+            assert art.region.x - display.region.x >= 2, theme
+            assert art.region.y - display.region.y >= 1, theme
+            assert art.region.bottom <= display.region.bottom, theme
+            seek = application.query_one("#seek")
+            assert display.region.bottom <= seek.region.y, theme
 
     asyncio.run(scenario())
 
@@ -2572,9 +2576,10 @@ def test_the_band_follows_the_padding_even_when_nothing_resized(monkeypatch):
 
             display = application.query_one("#display")
             before = int(display.styles.height.value)
-            # A layout that pads where the last one did not, with a cover that
-            # is already the right size, so `resize()` reports nothing.
-            display.styles.padding = (2, 1, 0, 0)
+            top, bottom = display.styles.padding.top, display.styles.padding.bottom
+            # A layout that pads more than the last one, with a cover that is
+            # already the right size, so `resize()` reports nothing.
+            display.styles.padding = (top + 2, 1, bottom, 2)
             application._fit_artwork()
 
             # The declared height, not the laid-out one: this is what the band
@@ -4490,6 +4495,7 @@ def test_switching_to_split_moves_the_halves_without_remounting_them(
             application._sync_queue()
             playlist = application.query_one("#playlist", RowList)
             art = application.query_one(Artwork)
+            transport = application.query_one("#transport")
             playlist.cursor = 17
             await pilot.pause()
 
@@ -4505,6 +4511,7 @@ def test_switching_to_split_moves_the_halves_without_remounting_them(
             assert application.split
             assert application.query_one("#playlist", RowList) is playlist
             assert application.query_one(Artwork) is art
+            assert application.query_one("#transport") is transport
             assert playlist.cursor == 17
             assert queue.region.x >= player.region.right, "split: la cola a la derecha"
             assert queue.region.y == player.region.y
@@ -4537,13 +4544,13 @@ def test_split_falls_back_to_stacked_where_it_does_not_fit(monkeypatch, tmp_path
             await pilot.pause()
             assert not application.split
             application._setting_changed("arrangement")
-            assert "180" in application.status
+            assert "160" in application.status
 
-            await pilot.resize_terminal(190, 34)
+            await pilot.resize_terminal(170, 34)
             await pilot.pause()
             assert application.split
 
-            await pilot.resize_terminal(190, 20)
+            await pilot.resize_terminal(170, 20)
             await pilot.pause()
             assert not application.split, "demasiado bajo para dos columnas"
 
@@ -4551,8 +4558,8 @@ def test_split_falls_back_to_stacked_where_it_does_not_fit(monkeypatch, tmp_path
 
 
 def test_every_look_fits_both_halves_of_the_narrowest_split(monkeypatch, tmp_path):
-    """At the threshold each half is under 90 columns: the transport has to
-    fit the player's, and the cover must not spill onto the seek bar."""
+    """At the threshold each half is about 80 columns: the transport runs
+    under both, and the cover must not spill onto the seek bar."""
     isolate_runtime(monkeypatch)
     isolate_config(monkeypatch, tmp_path)
     app_module.config.set_option("arrangement", "split")
@@ -4566,11 +4573,15 @@ def test_every_look_fits_both_halves_of_the_narrowest_split(monkeypatch, tmp_pat
                 await pilot.pause()
                 await pilot.pause()
                 assert application.split, name
-                half = application.query_one("#player-half")
+                queue = application.query_one("#queue-half")
+                transport = application.query_one("#transport")
                 play = application.query_one("#transport-play")
                 menu = application.query_one("#transport-menu")
+                # Under both columns, not squeezed into the player's.
+                assert transport.region.y >= queue.region.bottom, name
+                assert transport.region.right >= queue.region.right, name
                 assert play.region.right <= menu.region.x, name
-                assert menu.region.right <= half.region.right, name
+                assert menu.region.right <= transport.region.right, name
                 for y in range(3):
                     assert cell_len(play.render_line(y).text) <= play.size.width, name
 
@@ -4644,5 +4655,114 @@ def test_the_help_can_be_searched_and_says_how_at_the_bottom(monkeypatch):
             await pilot.press("escape")
             await pilot.pause()
             assert not isinstance(application.screen, HelpScreen)
+
+    asyncio.run(scenario())
+
+
+def test_split_shows_the_lyrics_above_the_player_and_follows_the_song(
+    monkeypatch, tmp_path
+):
+    """Split gives the player a column of its own, and the rows the band and
+    the keys do not use go to the words: fetched once per track through the
+    same cache `y` uses, with the sung line lit. Stacked, there is no room
+    and the pane is not drawn at all."""
+    from tidalamp.lyrics import parse_lyrics
+    from tidalamp.widgets import LyricsPane
+
+    isolate_runtime(monkeypatch)
+    isolate_config(monkeypatch, tmp_path)
+    app_module.config.set_option("arrangement", "split")
+    fetched: list[int] = []
+
+    def lyrics_for(self, entry):
+        fetched.append(entry.id)
+        return parse_lyrics(
+            subtitles=(
+                "[00:01.00]primera línea\n[00:05.00]segunda línea\n[00:09.00]tercera"
+            )
+        )
+
+    monkeypatch.setattr(TidalAmp, "_lyrics_for", lyrics_for)
+
+    async def scenario() -> None:
+        mpv = FakeMpv()
+        application = TidalAmp(object(), mpv)
+        async with application.run_test(size=(200, 44)) as pilot:
+            application.queue.replace(
+                [Entry(id=7, title="t", artist="a", duration=60)], start=0
+            )
+            mpv.position = 6.0
+            await pilot.pause(0.6)
+            await pilot.pause(0.3)
+
+            pane = application.query_one(LyricsPane)
+            assert pane.display and pane.size.height > 10
+            drawn = [pane.render_line(y).text for y in range(pane.size.height)]
+            assert any("segunda línea" in row for row in drawn)
+            accent = application.tidalamp_palette["accent"].lower()
+            lit = [
+                segment.text
+                for y in range(pane.size.height)
+                for segment in pane.render_line(y)
+                if segment.style
+                and segment.style.color
+                and segment.style.color.name.lower() == accent
+            ]
+            assert "segunda línea" in "".join(lit), "la línea que suena, en el acento"
+            # The band and the keys sit under the lyrics, at their stacked height.
+            display = application.query_one("#display")
+            assert display.region.y >= pane.region.bottom
+            assert display.region.height < 20
+
+            mpv.position = 10.0
+            await pilot.pause(0.6)
+            lit = [
+                segment.text
+                for y in range(pane.size.height)
+                for segment in pane.render_line(y)
+                if segment.style
+                and segment.style.color
+                and segment.style.color.name.lower() == accent
+            ]
+            assert "tercera" in "".join(lit)
+            assert fetched == [7], "una sola carga por pista"
+
+            app_module.config.set_option("arrangement", "stacked")
+            application._setting_changed("arrangement")
+            await pilot.pause()
+            assert not pane.display or pane.size.height == 0
+
+    asyncio.run(scenario())
+
+
+def test_every_look_keeps_its_title_and_parts_the_cover_from_the_frame(
+    monkeypatch, tmp_path
+):
+    """Both arrangements, every layout. Split once swallowed quattro's title
+    (a grid row does not count margins), and the cover used to sit flush on
+    the frame, which read as glued to it."""
+    isolate_runtime(monkeypatch)
+    isolate_config(monkeypatch, tmp_path)
+
+    async def scenario() -> None:
+        for arrangement, size in (("stacked", (120, 34)), ("split", (170, 40))):
+            app_module.config.ARRANGEMENT = arrangement
+            for name in app_module.LAYOUTS:
+                app_module.config.THEME = name
+                application = TidalAmp(object(), FakeMpv())
+                async with application.run_test(size=size) as pilot:
+                    await pilot.pause()
+                    await pilot.pause()
+                    where = f"{name}/{arrangement}"
+                    title = application.query_one("#titlebar", Static)
+                    assert title.size.height >= 1, where
+                    drawn = "".join(
+                        title.render_line(y).text for y in range(title.size.height)
+                    )
+                    assert any(c.isalpha() for c in drawn), where
+                    # The cover is hidden until one arrives, so the band's own
+                    # left padding is what says where it will sit.
+                    display = application.query_one("#display")
+                    assert display.styles.padding.left >= 2, where
 
     asyncio.run(scenario())

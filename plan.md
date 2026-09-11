@@ -742,28 +742,51 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
       `◢` y parece que desbordan; `render_line` confirma que ocupan exactamente el
       ancho del widget. Falta verlos en un terminal real (`plan.md` §5).
 
-### Dos columnas - `app.py`, `styles.tcss`, `config.py`
+### Dos columnas - `app.py`, `styles.tcss`, `config.py`, `widgets.py`
 
-- [x] `compose()` agrupa el reproductor en `#player-half` y la cola en `#queue-half`,
-      dentro de `#halves`, también en la forma apilada. Cambiar de forma es la clase
-      `split` en `#main` y la CSS pone las dos mitades en paralelo: **no se reparenta
+- [x] `compose()` pone el reproductor en `#player-half`, la cola en `#queue-half` y el
+      transporte entre los dos como hermano de ambos, también en la forma apilada.
+      Cambiar de forma es la clase `split` en `#main`: la CSS convierte `#main` en una
+      rejilla de dos columnas con el título, el transporte y la barra de estado
+      ocupando las dos (`column-span: 2`), y `_place_transport()` pasa el transporte
+      detrás de la cola con `move_child`, porque la rejilla coloca las celdas en el
+      orden de los hijos. `move_child` solo reordena: **no se reparenta ni se remonta
       nada**, así que el `RowList` conserva el cursor, la carátula no se vuelve a
       decodificar y el marquee no pierde la fase. Un test comprueba que son los mismos
       objetos antes y después.
+- [x] El transporte fue primero dentro de la mitad izquierda. Con las teclas deletreadas
+      (77 columnas en las disposiciones con tapas) el menú se amontonaba y llegaba a
+      envolverse en una segunda fila; a lo ancho de las dos columnas cabe entero, y el
+      umbral dejó de depender de él.
 - [x] Ajuste `arrangement` (`stacked` o `split`, `TIDALAMP_ARRANGEMENT`), en la
       pantalla de ajustes bajo Apariencia. Se aplica desde `_setting_changed` llamando
       a `_check_size()`, que es quien decide la clase: no toca mpv.
-- [x] Umbral propio: `SPLIT_MIN_WIDTH = 180` y `SPLIT_MIN_HEIGHT = 26`. Se midió el
-      transporte de las trece disposiciones sin compactar: el más ancho (teclas con
-      tapa y palabras deletreadas) ocupa 77 columnas, así que con 160 el menú quedaba
-      fuera de la mitad izquierda. Por debajo del umbral **vuelve sola** a apilada y la
-      línea de estado dice cuánto hace falta.
-- [x] En split la carátula se mide contra media anchura y casi todo el alto, y la banda
-      del display pasa a `1fr`: sin eso quedaba media columna vacía bajo el transporte.
-      El resto de lo que se dibuja por ancho (título, encabezado de la cola, menú del
+- [x] Umbral propio: `SPLIT_MIN_WIDTH = 160` y `SPLIT_MIN_HEIGHT = 26`. La mitad del
+      reproductor necesita reloj y readout (54 columnas) más la carátula, casi las 80
+      de la forma apilada entera. Por debajo **vuelve sola** a apilada y la línea de
+      estado dice cuánto hace falta.
+- [x] **La letra arriba** (`LyricsPane`). En split la columna del reproductor sobraba:
+      la primera versión estiraba la banda del display a `1fr` y quedaba un analizador
+      enorme sobre media pantalla vacía. Ahora la banda conserva su alto apilado, abajo
+      con los sliders, y el panel de letra ocupa el resto, separado por una regla en
+      el color del marco. Carga en un worker una vez por pista, con la misma caché que
+      `y`, y el tick lento lo sincroniza: la línea que suena en el acento, centrada, y
+      lo ya cantado atenuado. `follow()` solo repinta cuando cambia la línea.
+- [x] El resto de lo que se dibuja por ancho (título, encabezado de la cola, menú del
       transporte) ya se medía contra su propio widget; como el panel no cambia de
       tamaño al cambiar de forma y no llega ningún resize, `_refresh_widths()` se vuelve
       a llamar con `call_after_refresh`.
+- [x] Aire alrededor de la carátula (2026-09-10, a petición del mantenedor tras verlo en
+      su terminal): la banda lleva una fila arriba y otra abajo y dos celdas a la
+      izquierda. Antes iba pegada al marco a propósito, con la idea de que un hueco la
+      hacía parecer suelta; en uso se leía como pegada al borde. `_fit_artwork` resta
+      las dos columnas y `_fit_display_band` ya sumaba el padding vertical.
+- [x] El seek es una línea con un punto (`●`), lo reproducido en `━` del acento, y una
+      fila de margen hasta el volumen (no en compacto). El `▓` de antes, de celda
+      entera, parecía un bloque clavado en la barra.
+- [x] En split, quattro perdía el título: la fila de la rejilla mide el widget y no
+      cuenta márgenes, y su margen inferior se comía la única fila. Ahí ese aire va como
+      alto (`height: 2`). Un test recorre las trece disposiciones en las dos formas.
 
 ### Configuración — `config.py`, `audio.py`, `screens.py`
 
@@ -1118,7 +1141,7 @@ Distinguir esto importa: parte del código nunca se ha ejecutado contra TIDAL re
 | Volver a lo que suena (`g`)         | **Verificado**                    | Tres pruebas en la app headless: mueve desde otra fila, limpia un filtro que escondía la pista y, sin reproducción, conserva el cursor y explica por qué. |
 | Guardar cola como playlist (`p`)    | **Verificado con dobles**         | Crea con el nombre del modal tras `ensure_fresh`, usa una instantánea en orden, divide 700 pistas en siete lotes de 100, permite duplicados, invalida la caché, deja una creación parcial con recuento visible y no abre nada con la cola vacía. Falta probar la escritura contra una cuenta real. |
 | Temas temáticos                     | **Verificado en headless**        | Tests: cada `Layout` nombra un transporte que existe, `ascii_only` pinta su cromo en ASCII, sin glifos anchos en títulos, nombres compartidos solo los de `PAIRED`, contraste mínimo en todas las paletas, y elegir un tema escribe su paleta una vez. Las trece disposiciones pasan los tests de 60x18 y de la carátula. Capturas SVG de los nueve a 120x34 y 80x26. **Falta verlos en un terminal real.** |
-| Dos columnas (`split`)              | **Verificado en headless**        | Tres tests: mismos objetos y cursor al cambiar de forma, vuelta sola a apilada por ancho y por alto, y las trece disposiciones caben en el umbral sin que la carátula pise el seek. Capturas SVG a 200x50. **Falta verlo en un terminal real con audio sonando.** |
+| Dos columnas (`split`)              | **Verificado en headless y a mano** | Cuatro tests: mismos objetos (cola, carátula, transporte) y cursor al cambiar de forma, vuelta sola a apilada por ancho y por alto, las trece disposiciones caben en el umbral con el transporte bajo las dos columnas, y la letra se carga una vez por pista y sigue la línea. Capturas SVG de las trece. El mantenedor lo usó en su terminal con audio real y letra. |
 | Barras clicables                    | **Verificado**                    | Cuatro pruebas con `pilot.click`: seek a mitad, seek parado sin llamada a mpv, volumen al extremo y balance en cero exacto pese al padding. |
 | Ayuda en dos pestañas              | **Verificado**                    | Dos unitarias en la app headless: `→` lleva a «Acerca de» y dibuja el repositorio, `←` vuelve a los atajos con el desplazamiento donde se dejó, y ninguna de las dos flechas se sale por los extremos. Render a 100x30 de las dos pestañas, con la activa marcada en la barra de título. |
 | Barra de ayuda del navegador       | **Verificado**                    | Medida en la app real: a 82 columnas entraba `… ⌫ atrás   R` y el resto lo comía el borde. Ahora `fit_hints()` suelta entradas enteras por prioridad y la línea termina siempre en `esc cerrar`. |

@@ -11,13 +11,21 @@ versioning is [semantic](https://semver.org/).
   `pirata`, `cuaderno`, `neon-noir`, `runas`, `reggae`, `comodin`, `gotico` and
   `death-metal`. Choosing one in the settings window sets its palette once; the palette
   stays free afterwards, and each of the nine palettes can be used under any layout.
-- `arrangement = "split"`: the queue in a column to the right of the player, switchable
-  live from the settings window without interrupting playback or moving the queue's
-  cursor. It needs at least 180×26 and falls back to the stacked arrangement on its
-  own where it does not fit.
+- `arrangement = "split"`: the queue in a column to the right of the player, with the
+  playing track's lyrics above the cover (following the sung line when they are timed)
+  and the transport across both columns. Switchable live from the settings window
+  without interrupting playback or moving the queue's cursor. It needs at least 160×26
+  and falls back to the stacked arrangement on its own where it does not fit.
 - Search in the help window: `/` opens a box under the page and narrows the tab you are
   on as you type, keeping each match under its section's heading. The footer shows the
   key.
+
+### Changed
+
+- The cover has air inside its band: a row above and below it and two cells off the
+  frame, where it used to sit flush against the border.
+- The seek bar is a line with a dot riding on it, the played part drawn heavier in the
+  accent, with a row of space on each side; the thumb used to be a full block.
 
 ## [0.5.1] - 2026-09-10
 

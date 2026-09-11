@@ -433,10 +433,12 @@ palettes can be picked on their own too, under any layout.
 ### Two columns
 
 `arrangement = "split"` puts the queue in a column to the right of the player instead of
-under it. It needs a terminal at least 180×26; on a smaller one it stays stacked on its
-own, and the settings window says so. Switching (from the settings window, `o`) moves
-nothing but the two halves: the track keeps playing and the queue's cursor stays where
-it was. It works with every layout and palette.
+under it. The player's column shows the lyrics of the playing track above the cover,
+following the sung line when TIDAL has timed lyrics, and the transport keys and the
+menu run across both columns at the bottom. It needs a terminal at least 160×26; on a
+smaller one it stays stacked on its own, and the settings window says so. Switching
+(from the settings window, `o`) moves nothing but the layout: the track keeps playing
+and the queue's cursor stays where it was. It works with every layout and palette.
 
 ### Palettes
 

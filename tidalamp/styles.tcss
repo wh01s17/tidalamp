@@ -102,13 +102,11 @@ ModalScreen.transparent {
     height: 100%;
 }
 
-/* The two halves. Stacked, the player takes what it needs and the queue the
-   rest, which is how the panel always looked. `split` (below) lays the same
-   two containers side by side without mounting anything again. */
-#halves {
-    height: 1fr;
-}
-
+/* The two halves and the transport between them. Stacked, the player takes
+   what it needs and the queue the rest, which is how the panel always looked.
+   `split` lays the same widgets on a grid: the player and the queue side by
+   side, and the title, the transport and the status line across both, so the
+   keys and the menu get the whole width instead of crowding half of it. */
 #player-half {
     height: auto;
 }
@@ -117,13 +115,46 @@ ModalScreen.transparent {
     height: 1fr;
 }
 
-#main.split #halves {
-    layout: horizontal;
+#main.split {
+    layout: grid;
+    grid-size: 2;
+    grid-columns: 1fr 1fr;
+    grid-rows: auto 1fr auto auto;
 }
 
-#main.split #player-half {
-    width: 1fr;
+#main.split #titlebar,
+#main.split #transport,
+#main.split #statusbar {
+    column-span: 2;
+}
+
+#main.split #player-half,
+#main.split #queue-half {
     height: 100%;
+}
+
+/* A column rule between the two, in the frame's own colour, so the queue
+   reads as the window next door rather than a continuation of the band. */
+#main.split #queue-half {
+    border-left: solid $tidalamp-border;
+}
+
+#lyrics-pane {
+    display: none;
+}
+
+/* Split only: the lyrics take the top of the player's column, and the band,
+   the sliders and the keys sit together at its foot, at the height they have
+   when stacked. */
+#main.split #lyrics-pane {
+    display: block;
+    height: 1fr;
+    background: $tidalamp-display-background;
+    padding: 1 1 0 1;
+    /* A rule under the words, in the frame's colour like the one between the
+       columns: without it the last sung line ran straight into the cover and
+       the two read as one block. */
+    border-bottom: solid $tidalamp-border;
 }
 
 /* A column rule between the two, in the frame's own colour, so the queue
@@ -145,11 +176,13 @@ ModalScreen.transparent {
 #display {
     background: $tidalamp-display-background;
     height: 9;
-    /* No padding on the left: the cover is the first thing in the band and a
-       cell between it and the frame reads as the picture having come loose.
-       Everything after it carries its own left padding, so only the artwork
-       moves. The right keeps its cell, where the analyser ends. */
-    padding: 0 1 0 0;
+    /* Air round the cover inside the dark band: a row above and below it and
+       two cells on the left, the same two that part it from the clock. Flush against
+       both, as it was, the picture read as glued to the border.
+       `_fit_display_band` adds the row to the band's height and `_fit_artwork`
+       takes the two columns out of the cover's budget. The right keeps its
+       cell, where the analyser ends. */
+    padding: 1 1 1 2;
 }
 
 /* The clock and the track's identity share one column, to the right of the
@@ -205,6 +238,14 @@ ModalScreen.transparent {
     background: $tidalamp-track-background;
     padding: 0 1;
     height: 1;
+    /* A row before the volume; the band's bottom padding gives the one
+       above. Pressed between the cover and the volume slider, the seek bar
+       read as the edge of one of them rather than a control of its own. */
+    margin: 0 0 1 0;
+}
+
+#main.compact #seek {
+    margin: 0;
 }
 
 #volume {
@@ -661,6 +702,14 @@ ModalScreen.transparent {
     padding: 0 1 0 0;
 }
 
+/* In split the title is a grid row sized to the widget, and the grid does
+   not count margins: quattro's row of separation took the only row the title
+   had and the wordmark vanished. The same row, as height instead. */
+#main.split.quattro #titlebar {
+    margin: 0;
+    height: 2;
+}
+
 /* Quattro's row of separation, given back where there is none to spend. */
 #main.compact.quattro #titlebar {
     margin: 0;
@@ -800,7 +849,7 @@ ModalScreen.transparent {
 
 #main.nova #display {
     background: $tidalamp-panel;
-    padding: 1 1 0 0;
+    padding: 1 1 1 2;
 }
 
 #main.nova #seek,
