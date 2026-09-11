@@ -445,6 +445,11 @@ the queue the way the cover is drawn, darkened so the rows on top still read; th
 stands in for the title while nothing is playing. The picture needs Pillow (the `art`
 extra), like the cover.
 
+The picture is a setting of its own, `backdrop` (Queue backdrop in the settings window):
+`auto` is the theme's, `none` removes it, and any themed look's name borrows its
+picture. Choosing a themed look sets its palette and its picture once; after that both
+are yours to change, so any theme, palette and picture can be mixed.
+
 ### Palettes
 
 `palette` accepts `auto` (follow Omarchy), `classic` (green-on-black, the player's own),
@@ -506,6 +511,7 @@ columns = "artist,album,year,duration"   # queue columns, comma separated
 theme = "quattro"             # layout: quattro, retro, nova, ascii, or a themed look
 palette = "auto"              # colours: auto, classic, a built-in, or your own
 arrangement = "stacked"       # stacked, or split: the queue in a column on the right
+backdrop = "auto"             # the picture behind the queue: auto, none, or a themed look
 visualizer = "bars"           # analyzer shape: bars, mirror, curve, or fine
 debug = false                 # log to ~/.local/state/tidalamp/tidalamp.log
 

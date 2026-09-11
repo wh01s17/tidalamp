@@ -20,7 +20,7 @@ from textual.worker import get_current_worker
 from . import about, artwork, audio, columns, config, i18n, library
 from .auth import NotLoggedIn, ensure_fresh
 from .i18n import _
-from .layouts import Layout, layout_for
+from .layouts import Layout, backdrop_for, layout_for
 from .library import Row
 from .lyrics import LyricsDocument, load_lyrics
 from .mpris import MprisService
@@ -545,9 +545,19 @@ class TidalAmp(App):
             return
         layout = self.layout
         tagline = layout.tagline() if layout.tagline else ""
-        self.query_one("#playlist", RowList).set_backdrop(
-            artwork.emblem_path(layout.emblem), layout.emblem_anchor, layout.emblem_scale
-        )
+        # The picture is its own setting: the theme's by default, any other
+        # look's when the user mixes them, and it keeps the place and size
+        # that look gives it.
+        source = backdrop_for(config.BACKDROP, layout)
+        playlist = self.query_one("#playlist", RowList)
+        if source is None:
+            playlist.set_backdrop(None)
+        else:
+            playlist.set_backdrop(
+                artwork.emblem_path(source.emblem),
+                source.emblem_anchor,
+                source.emblem_scale,
+            )
         pane = self.query_one(LyricsPane)
         if pane.tagline != tagline:
             pane.tagline = tagline
@@ -2018,6 +2028,9 @@ class TidalAmp(App):
             self.refresh_css(animate=False)
             self._apply_appearance()
             self.status = _("paleta: {value}").format(value=config.PALETTE)
+        elif name == "backdrop":
+            self._apply_emblem()
+            self.status = _("fondo de la cola: {value}").format(value=config.BACKDROP)
         elif name == "arrangement":
             self._check_size()
             if config.ARRANGEMENT == "split" and not self.split:

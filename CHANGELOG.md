@@ -16,6 +16,9 @@ versioning is [semantic](https://semver.org/).
   set against the right edge and under a dark veil so the rows on top still read,
   and it is there the whole time, stacked or split; the line takes the title's place
   while nothing plays. Needs Pillow, like the cover.
+- A Queue backdrop setting (`backdrop`): the theme's picture (`auto`), none, or any
+  themed look's, so pictures, themes and palettes can be mixed freely. Choosing a
+  themed look sets both its palette and its picture once.
 - `arrangement = "split"`: the queue in a column to the right of the player, with the
   playing track's lyrics above the cover (following the sung line when they are timed)
   and the transport across both columns. Switchable live from the settings window

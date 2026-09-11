@@ -30,6 +30,7 @@ _CONFIG_GLOBALS = (
     "THEME",
     "PALETTE",
     "ARRANGEMENT",
+    "BACKDROP",
     "DEBUG",
     "KEYS",
 )

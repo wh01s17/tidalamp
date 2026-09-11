@@ -758,6 +758,13 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
       decir, **el doble de alto que de ancho**, igual que la celda. Muestrear la
       imagen como si fuera cuadrado la aplastaba de lado (la luna salía huevo). Se
       calculan columnas y filas con esa proporción; un test lo fija con la luna.
+- [x] **Fondo de la cola como ajuste propio** (`backdrop`, «Fondo de la cola»):
+      `auto` es la imagen del tema (y el valor por defecto, para que las
+      configuraciones que ya existían se vean igual), `none` la quita y el nombre de
+      cualquier tema temático toma prestada su imagen con su colocación
+      (`layouts.backdrop_for`). Elegir un tema temático en ajustes escribe su paleta y
+      su fondo una vez (`ConfigScreen._pair_palette`); después los tres ajustes son
+      libres y se pueden mezclar.
 - [x] Colocación por tema (`Layout.emblem_anchor`, `Layout.emblem_scale`): `middle`
       centra el emblema en el borde derecho y `bottom` lo mete en la esquina inferior
       derecha, a una fila del borde; la escala agranda el espacio que puede ocupar,

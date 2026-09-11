@@ -132,6 +132,11 @@ ENGLISH: dict[str, str] = {
         "split needs at least {width}×{height}; the queue stays below"
     ),
     "Disposición": "Arrangement",
+    "Fondo de la cola": "Queue backdrop",
+    "auto usa el del tema; se puede mezclar con cualquier tema y paleta": (
+        "auto uses the theme's own; mix it with any theme and palette"
+    ),
+    "fondo de la cola: {value}": "queue backdrop: {value}",
     "split pone la cola a la derecha si el terminal es ancho": (
         "split puts the queue on the right on a wide terminal"
     ),
@@ -639,6 +644,9 @@ ENGLISH: dict[str, str] = {
     "# en una columna a la derecha (necesita un terminal ancho, y si no cabe\n"
     "# vuelve sola a stacked).\n"
     'arrangement = "stacked"\n\n'
+    "# Fondo de la cola: auto usa la imagen del tema; none la quita; o el\n"
+    "# nombre de un tema temático para usar su imagen con otro tema o paleta.\n"
+    'backdrop = "auto"\n\n'
     "# Visualizador: bars (barras), mirror (espejo), curve (línea) o fine (línea\n"
     "# en Braille, necesita una fuente que lo traiga). Los cuatro se dibujan al lado\n"
     "# de la carátula y llegan al borde derecho de la ventana.\n"
@@ -679,6 +687,9 @@ ENGLISH: dict[str, str] = {
         "# column to the right (it needs a wide terminal, and falls back to stacked\n"
         "# on its own where it does not fit).\n"
         'arrangement = "stacked"\n\n'
+        "# Queue backdrop: auto uses the theme's own picture; none removes it; or\n"
+        "# a themed look's name, to use its picture with another theme or palette.\n"
+        'backdrop = "auto"\n\n'
         "# Visualizer: bars, mirror, curve, or fine (a Braille line, which needs "
         "a\n"
         "# font that has it). All four are drawn beside the cover and run to the "
@@ -803,6 +814,9 @@ def config_template() -> str:
         "# en una columna a la derecha (necesita un terminal ancho, y si no cabe\n"
         "# vuelve sola a stacked).\n"
         'arrangement = "stacked"\n\n'
+        "# Fondo de la cola: auto usa la imagen del tema; none la quita; o el\n"
+        "# nombre de un tema temático para usar su imagen con otro tema o paleta.\n"
+        'backdrop = "auto"\n\n'
         "# Visualizador: bars (barras), mirror (espejo), curve (línea) o fine "
         "(línea\n"
         "# en Braille, necesita una fuente que lo traiga). Los cuatro se dibujan al "

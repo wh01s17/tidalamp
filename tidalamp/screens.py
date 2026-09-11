@@ -34,6 +34,7 @@ from textual.widgets import Input, Static
 from . import about, artwork, audio, columns, config, library
 from .auth import ensure_fresh
 from .i18n import _
+from .layouts import BACKDROPS
 from .library import Row
 from .lyrics import LyricsDocument
 from .settings import BAND_LABELS, GAIN_LIMIT, MANUAL, PRESETS, Settings
@@ -1849,6 +1850,15 @@ class ConfigScreen(ModalScreen[None]):
                 group=looks,
             ),
             Option(
+                _("Fondo de la cola"),
+                key="backdrop",
+                choices=BACKDROPS,
+                note=_(
+                    "auto usa el del tema; se puede mezclar con cualquier tema y paleta"
+                ),
+                group=looks,
+            ),
+            Option(
                 _("Disposición"),
                 key="arrangement",
                 choices=self.ARRANGEMENTS,
@@ -2137,18 +2147,26 @@ class ConfigScreen(ModalScreen[None]):
         self._render_list()
 
     def _pair_palette(self, layout: str) -> None:
-        """A themed layout brings its palette, written once and left alone.
+        """A themed layout brings its palette and its picture, written once
+        and left alone.
 
         Only on choosing the layout: the palette stays a setting of its own,
         so whoever wants the layout in other colours picks them afterwards
         and nothing here puts the pair back.
         """
         palette = paired_palette(layout)
-        if palette is None or palette == config.PALETTE:
+        if palette is None:
             return
-        config.set_option("palette", palette)
-        if self._on_change is not None:
-            self._on_change("palette")
+        # Its picture too, by the same rule: written once, then the user's.
+        for key, value, current in (
+            ("palette", palette, config.PALETTE),
+            ("backdrop", layout, config.BACKDROP),
+        ):
+            if value == current:
+                continue
+            config.set_option(key, value)
+            if self._on_change is not None:
+                self._on_change(key)
 
     # Terminals that paint the cover over the text instead of among it. The
     # protocol is the terminal's, not ours, and neither one lets a window open
@@ -2228,6 +2246,7 @@ _ATTRIBUTES = {
     "theme": "THEME",
     "palette": "PALETTE",
     "arrangement": "ARRANGEMENT",
+    "backdrop": "BACKDROP",
     "visualizer": "VISUALIZER",
     "debug": "DEBUG",
     "transparency": "TRANSPARENCY",

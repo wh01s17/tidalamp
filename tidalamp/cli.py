@@ -84,6 +84,7 @@ def show_config() -> None:
     typer.echo(f"  theme       {settings.THEME}")
     typer.echo(f"  palette     {settings.PALETTE}")
     typer.echo(f"  arrangement {settings.ARRANGEMENT}")
+    typer.echo(f"  backdrop    {settings.BACKDROP}")
     typer.echo(f"  visualizer  {settings.VISUALIZER}")
     typer.echo(f"  debug       {str(settings.DEBUG).lower()}")
 

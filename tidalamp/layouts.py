@@ -234,6 +234,24 @@ LAYOUT_TABLE: dict[str, Layout] = {
 
 DEFAULT_LAYOUT = LAYOUT_TABLE["quattro"]
 
+# What the `backdrop` setting takes: the theme's own picture, none, or any
+# themed look's, by the look's name.
+BACKDROPS = (
+    "auto",
+    "none",
+    *(name for name, layout in LAYOUT_TABLE.items() if layout.emblem),
+)
+
+
+def backdrop_for(setting: str, layout: Layout) -> Layout | None:
+    """The look whose picture goes behind the queue, or None for none."""
+    if setting == "none":
+        return None
+    if setting == "auto":
+        return layout if layout.emblem else None
+    chosen = LAYOUT_TABLE.get(setting)
+    return chosen if chosen is not None and chosen.emblem else None
+
 
 def layout_for(name: str) -> Layout:
     """The layout called `name`, or the default for a name nobody knows."""

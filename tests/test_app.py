@@ -4949,3 +4949,76 @@ def test_moving_the_cursor_repaints_two_rows_not_the_whole_queue(monkeypatch):
             assert playlist._cursor_line() == height // 2
 
     asyncio.run(scenario())
+
+
+def test_the_queue_backdrop_is_a_setting_of_its_own(monkeypatch, tmp_path):
+    """`auto` is the theme's picture, `none` is none, and any themed look's
+    name borrows its picture, placement and all, for another theme."""
+    isolate_runtime(monkeypatch)
+    isolate_config(monkeypatch, tmp_path)
+    # In the file, not only in memory: every `set_option` reads it back.
+    app_module.config.set_option("theme", "cuaderno")
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(140, 40)) as pilot:
+            await pilot.pause()
+            playlist = application.query_one("#playlist", RowList)
+            assert playlist.backdrop and playlist.backdrop.name == "cuaderno.png"
+
+            for value, picture, anchor in (
+                ("pirata", "pirata.png", "bottom"),
+                ("none", None, None),
+                ("auto", "cuaderno.png", "middle"),
+            ):
+                app_module.config.set_option("backdrop", value)
+                application._setting_changed("backdrop")
+                await pilot.pause()
+                if picture is None:
+                    assert playlist.backdrop is None, value
+                else:
+                    assert playlist.backdrop.name == picture, value
+                    assert playlist._placement[0] == anchor, value
+
+            # A theme without a picture of its own can wear one.
+            app_module.config.set_option("theme", "retro")
+            app_module.config.set_option("backdrop", "comodin")
+            application._setting_changed("backdrop")
+            await pilot.pause()
+            assert playlist.backdrop.name == "comodin.png"
+
+    asyncio.run(scenario())
+
+
+def test_choosing_a_themed_look_writes_its_palette_and_its_backdrop(
+    monkeypatch, tmp_path
+):
+    """Both once, on choosing the look; after that each is the user's."""
+    isolate_runtime(monkeypatch)
+    path = isolate_config(monkeypatch, tmp_path)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(140, 40)) as pilot:
+            await pilot.pause()
+            screen = ConfigScreen(application._setting_changed)
+            application.push_screen(screen)
+            await pilot.pause()
+            row = config_row(screen, "Tema")
+            screen.cursor = row
+            while app_module.config.THEME != "pirata":
+                await pilot.press("enter")
+                await pilot.pause()
+            assert app_module.config.PALETTE == "pirata"
+            assert app_module.config.BACKDROP == "pirata"
+            assert app_module.config.read_file(path)["backdrop"] == "pirata"
+
+            screen.cursor = config_row(screen, "Fondo de la cola")
+            await pilot.press("enter")
+            await pilot.pause()
+            chosen = app_module.config.BACKDROP
+            assert chosen != "pirata"
+            assert app_module.config.THEME == "pirata"
+            assert app_module.config.PALETTE == "pirata"
+
+    asyncio.run(scenario())
