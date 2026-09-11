@@ -183,6 +183,17 @@ ENGLISH: dict[str, str] = {
         "remove from favourites or from the open playlist"
     ),
     " ↑↓ desplazar   / buscar   ?/esc cerrar": " ↑↓ scroll   / search   ?/esc close",
+    "Reproducción automática": "Autoplay",
+    "al terminar la cola sigue con la radio de la última pista": (
+        "when the queue ends, carry on with the last track's radio"
+    ),
+    "reproducción automática: radio de «{label}»": "autoplay: radio for «{label}»",
+    "reproducción automática: no hay más para «{label}»": (
+        "autoplay: nothing more for «{label}»"
+    ),
+    "reproducción automática: {error}": "autoplay: {error}",
+    "reproducción automática activada": "autoplay on",
+    "reproducción automática desactivada": "autoplay off",
     "velocidad": "speed",
     "velocidad: {value}": "speed: {value}",
     "velocidad de reproducción, de 0.25× a 2×": "playback speed, from 0.25× to 2×",
@@ -754,6 +765,9 @@ ENGLISH: dict[str, str] = {
     "# la carátula pasa a medios bloques: kitty y sixel pintan la imagen por encima\n"
     "# del texto y taparían la ventana.\n"
     "transparency = false\n\n"
+    "# Reproducción automática: al terminar la cola, sigue con la radio de\n"
+    "# TIDAL de la última pista.\n"
+    "autoplay = false\n\n"
     "# Teclas. La izquierda es la acción, la derecha la tecla; varias se separan con\n"
     "# comas. Las de navegación (flechas, RePág/AvPág, Enter, Esc) no se cambian.\n"
     "[keys]\n"
@@ -803,6 +817,9 @@ ENGLISH: dict[str, str] = {
         "the\n"
         "# text, and it would cover the window.\n"
         "transparency = false\n\n"
+        "# Autoplay: when the queue ends, carry on with TIDAL's radio for the\n"
+        "# last track.\n"
+        "autoplay = false\n\n"
         "# Keys. The action is on the left and the key on the right; separate multiple\n"
         "# keys with commas. Navigation keys (arrows, Page Up/Down, Enter, Esc) "
         "are fixed.\n"
@@ -933,6 +950,9 @@ def config_template() -> str:
         "encima\n"
         "# del texto y taparían la ventana.\n"
         "transparency = false\n\n"
+        "# Reproducción automática: al terminar la cola, sigue con la radio de\n"
+        "# TIDAL de la última pista.\n"
+        "autoplay = false\n\n"
         "# Teclas. La izquierda es la acción, la derecha la tecla; varias se "
         "separan con\n"
         "# comas. Las de navegación (flechas, RePág/AvPág, Enter, Esc) no se cambian.\n"

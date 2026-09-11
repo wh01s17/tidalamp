@@ -289,6 +289,9 @@ class TidalAmp(App):
         # that changes either draws it again.
         self._art_look: tuple[str, tuple[int, int, int]] | None = None
         self._flourish: tuple[str, int] | None = None
+        # A radio being fetched to carry on past the end of the queue: one at
+        # a time, so an idle mpv waiting for it cannot ask again.
+        self._autoplaying = False
         self._art_hidden = False
         self._pending_art: artwork.Cover | None = None
         self._compact = False
@@ -1622,9 +1625,65 @@ class TidalAmp(App):
     def action_next(self) -> None:
         index = self.queue.next_index()
         if index is None:
+            if config.AUTOPLAY and self._autoplay():
+                return
             self.action_stop()
         else:
             self._play_index(index)
+
+    def _autoplay(self) -> bool:
+        """Ask TIDAL for the last track's radio to carry on with. False when
+        there is nothing to carry on from, and the queue stops as it would."""
+        if self._autoplaying:
+            return True
+        seed = self.queue.current
+        if seed is None and len(self.queue):
+            seed = list(self.queue)[-1]
+        if seed is None:
+            return False
+        self._autoplaying = True
+        self.status = _("buscando la radio de «{label}»…").format(label=seed.label)
+        self._autoplay_worker(seed)
+        return True
+
+    @work(thread=True, exclusive=True, group="autoplay")
+    def _autoplay_worker(self, seed: Entry) -> None:
+        try:
+            entries = library.track_radio(self.session, seed)
+        except Exception as exc:
+            self.call_from_thread(self._autoplay_failed, str(exc))
+            return
+        self.call_from_thread(self._autoplay_ready, seed, entries)
+
+    def _autoplay_ready(self, seed: Entry, entries: list[Entry]) -> None:
+        """Add the station to the end, not over the queue.
+
+        Unlike the track menu's radio, which replaces the queue and starts on
+        its seed: the seed is what just finished, and the queue is still the
+        user's. Tracks already in it are left out, so the station does not
+        loop back over what was just heard.
+        """
+        self._autoplaying = False
+        have = {entry.id for entry in self.queue}
+        fresh = [entry for entry in entries if entry.id not in have]
+        if not fresh:
+            self.action_stop()
+            self.status = _("reproducción automática: no hay más para «{label}»").format(
+                label=seed.label
+            )
+            return
+        start = len(self.queue)
+        self.queue.append(fresh)
+        self._sync_queue()
+        self._play_index(start)
+        self.status = _("reproducción automática: radio de «{label}»").format(
+            label=seed.label
+        )
+
+    def _autoplay_failed(self, message: str) -> None:
+        self._autoplaying = False
+        self.action_stop()
+        self.status = _("reproducción automática: {error}").format(error=message)
 
     def action_prev(self) -> None:
         index = self.queue.prev_index()
@@ -2171,6 +2230,12 @@ class TidalAmp(App):
                 for widget in screen.query(RowList):
                     widget.refresh()
             self.status = _("columnas: {count}").format(count=len(config.COLUMNS))
+        elif name == "autoplay":
+            self.status = (
+                _("reproducción automática activada")
+                if config.AUTOPLAY
+                else _("reproducción automática desactivada")
+            )
         elif name == "transparency":
             for screen in self.screen_stack:
                 screen.set_class(config.TRANSPARENCY, "transparent")

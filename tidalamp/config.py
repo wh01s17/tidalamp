@@ -80,6 +80,7 @@ ENV_VARS: dict[str, str] = {
     "visualizer": "TIDALAMP_VISUALIZER",
     "debug": "TIDALAMP_DEBUG",
     "transparency": "TIDALAMP_TRANSPARENCY",
+    "autoplay": "TIDALAMP_AUTOPLAY",
 }
 
 
@@ -190,6 +191,10 @@ DEBUG = flag("debug", "TIDALAMP_DEBUG")
 # to take without asking for it.
 TRANSPARENCY = flag("transparency", "TIDALAMP_TRANSPARENCY")
 
+# When the queue runs out, carry on with TIDAL's radio for the last track
+# instead of stopping. Off by default: it changes what the end of a queue does.
+AUTOPLAY = flag("autoplay", "TIDALAMP_AUTOPLAY")
+
 # Key overrides, action name to key. Empty means "the defaults in app.py".
 KEYS: dict[str, str] = {
     str(action): str(key) for action, key in (FILE.get("keys") or {}).items()
@@ -263,6 +268,7 @@ def reload() -> None:
     """
     global FILE, DEFAULT_QUALITY, ARTWORK, LANGUAGE, THEME, PALETTE, COLUMNS
     global DEBUG, TRANSPARENCY, KEYS, VISUALIZER, ARRANGEMENT, BACKDROP, COVER_SHAPE
+    global AUTOPLAY
     FILE = read_file()
     DEFAULT_QUALITY = setting("quality", "TIDALAMP_QUALITY", "HI_RES_LOSSLESS")
     ARTWORK = setting("artwork", "TIDALAMP_ART", "auto")
@@ -276,6 +282,7 @@ def reload() -> None:
     COLUMNS = columns()
     DEBUG = flag("debug", "TIDALAMP_DEBUG")
     TRANSPARENCY = flag("transparency", "TIDALAMP_TRANSPARENCY")
+    AUTOPLAY = flag("autoplay", "TIDALAMP_AUTOPLAY")
     KEYS = {str(action): str(key) for action, key in (FILE.get("keys") or {}).items()}
 
 

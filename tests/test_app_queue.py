@@ -454,3 +454,89 @@ def test_a_track_with_no_radio_says_so_and_leaves_the_queue_alone(monkeypatch):
             assert not application.query_one("#busy", Spinner).busy
 
     asyncio.run(scenario())
+
+
+def _two_tracks_playing_the_last(application) -> None:
+    application.queue.replace(
+        [Entry(id=1, title="A", artist="x"), Entry(id=2, title="B", artist="x")],
+        start=1,
+    )
+    application._sync_queue()
+
+
+def test_autoplay_carries_on_with_the_last_track_s_radio(monkeypatch):
+    """At the end of the queue, with autoplay on: the last track's radio goes
+    on the end, without the seed or what the queue already has, and plays."""
+    isolate_runtime(monkeypatch)
+    monkeypatch.setattr(TidalAmp, "_resolve_worker", lambda self, entry: None)
+    monkeypatch.setattr(app_module.config, "AUTOPLAY", True)
+    asked: list[str] = []
+
+    def station(session, entry, limit=100):
+        asked.append(entry.title)
+        return [
+            Entry(id=1, title="A", artist="x"),
+            Entry(id=90, title="R0", artist="x"),
+            Entry(id=91, title="R1", artist="x"),
+        ]
+
+    monkeypatch.setattr(library, "track_radio", station)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(100, 30)) as pilot:
+            await pilot.pause()
+            _two_tracks_playing_the_last(application)
+            application.action_next()
+            # A second «next» while the radio is on its way asks nothing more.
+            application.action_next()
+            await settle(pilot, lambda: len(application.queue) == 4)
+
+            assert asked == ["B"]
+            assert [e.title for e in application.queue] == ["A", "B", "R0", "R1"]
+            assert application.queue.playing == 2
+
+    asyncio.run(scenario())
+
+
+def test_without_autoplay_the_end_of_the_queue_stops(monkeypatch):
+    isolate_runtime(monkeypatch)
+    asked: list[str] = []
+    monkeypatch.setattr(
+        library, "track_radio", lambda session, entry, limit=100: asked.append("x") or []
+    )
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(100, 30)) as pilot:
+            await pilot.pause()
+            _two_tracks_playing_the_last(application)
+            application.action_next()
+            await pilot.pause()
+            assert asked == []
+            assert application.queue.playing == -1
+            assert len(application.queue) == 2
+
+    asyncio.run(scenario())
+
+
+def test_a_radio_with_nothing_new_stops_and_says_so(monkeypatch):
+    isolate_runtime(monkeypatch)
+    monkeypatch.setattr(app_module.config, "AUTOPLAY", True)
+    monkeypatch.setattr(
+        library,
+        "track_radio",
+        lambda session, entry, limit=100: [Entry(id=1, title="A", artist="x")],
+    )
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(100, 30)) as pilot:
+            await pilot.pause()
+            _two_tracks_playing_the_last(application)
+            application.action_next()
+            await settle(pilot, lambda: "no hay más" in application.status)
+            assert application.queue.playing == -1
+            assert len(application.queue) == 2
+
+    asyncio.run(scenario())

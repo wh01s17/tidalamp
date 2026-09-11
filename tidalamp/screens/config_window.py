@@ -118,6 +118,13 @@ class ConfigScreen(ModalScreen[None]):
                 note=_("se aplica a la siguiente pista"),
                 group=audio,
             ),
+            Option(
+                _("Reproducción automática"),
+                key="autoplay",
+                choices=self.SWITCH,
+                note=_("al terminar la cola sigue con la radio de la última pista"),
+                group=audio,
+            ),
             Option(_("Ritmos hi-res en PipeWire"), action="rates", group=audio),
             Option(_("Reiniciar PipeWire"), action="restart", group=audio),
             Option(
@@ -605,7 +612,7 @@ class ConfigScreen(ModalScreen[None]):
 
 # The module attribute each config key is resolved into.
 # Settings the file holds as booleans while the screen cycles "true"/"false".
-_FLAGS = ("debug", "transparency")
+_FLAGS = ("debug", "transparency", "autoplay")
 
 
 _ATTRIBUTES = {
@@ -620,4 +627,5 @@ _ATTRIBUTES = {
     "visualizer": "VISUALIZER",
     "debug": "DEBUG",
     "transparency": "TRANSPARENCY",
+    "autoplay": "AUTOPLAY",
 }

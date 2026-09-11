@@ -1347,6 +1347,20 @@ fichero en sí.
       sacada de la ventana de velocidad (que ahora es un caso de ella). La de
       reiniciar abre en «cancelar», así que dos Enter por reflejo no cortan nada.
 
+### Reproducción automática — `app.py`, `config.py`
+
+- [x] `autoplay` (sí o no, apagado por defecto, «Reproducción automática» en
+      ajustes): cuando `action_next` llega al final de la cola, pide la radio de TIDAL
+      de la última pista en vez de detenerse. Engancha ahí porque es por donde pasan
+      tanto el tick (mpv en reposo tras haber sonado) como la tecla de siguiente.
+- [x] No reutiliza `_radio_ready`, que reemplaza la cola y empieza por la semilla:
+      aquí la semilla es lo que acaba de sonar y la cola sigue siendo del usuario.
+      La radio se **añade** al final sin las pistas que la cola ya tiene (la semilla
+      incluida) y suena la primera añadida.
+- [x] Una sola petición en vuelo (`_autoplaying`): mientras llega, mpv sigue en
+      reposo y otro «siguiente» no pide más. Radio vacía o sin nada nuevo, o fallida:
+      se detiene como antes y lo dice.
+
 ## 5. Estado de verificación
 
 Distinguir esto importa: parte del código nunca se ha ejecutado contra TIDAL real.
@@ -1381,6 +1395,7 @@ Distinguir esto importa: parte del código nunca se ha ejecutado contra TIDAL re
 | Carátula redonda, reloj en cuenta atrás | **CUBIERTO POR TESTS** | Tests: la máscara redonda deja las esquinas en el fondo de la banda y el centro intacto; el reloj en cuenta atrás no pasa de veinte columnas (el test falla con el código viejo). Vistos en capturas SVG. |
 | Ordenar la biblioteca, filas de ajustes con lista | **CUBIERTO POR TESTS** | Tests: favoritos pide a TIDAL el orden con los enums de tidalapi; cada sección ofrece solo sus órdenes; «Mis playlists» manda `order` y `orderDirection`; el orden local deja «más…» al final y no toca la caché; en la app, `s` ordena, el título lo dice y volver al nivel lo conserva. Las flechas no tocan las tres filas y dos Enter en reiniciar no reinician. Falta verlo contra TIDAL real, sobre todo «Mis playlists». |
 | Quitar de favoritos o de una playlist | **CUBIERTO POR TESTS** | Tests: la pista se encuentra más allá de la primera página y se quita por índice; una playlist ajena no se toca; una pista que ya no está lo dice sin quitar nada; quitar un favorito tira su nivel en todos los órdenes; en la app, `d` pregunta en «cancelar», confirmado la fila sale, y en la raíz avisa. Falta contra TIDAL real. |
+| Reproducción automática | **CUBIERTO POR TESTS** | Tests: encendida, la radio de la última pista va al final sin la semilla ni repetidas y suena la primera nueva, y un segundo «siguiente» mientras llega no pide otra; apagada, el final de la cola se detiene sin pedir nada; una radio sin nada nuevo se detiene y lo dice. Falta oírla contra TIDAL real. |
 | Dos columnas (`split`)              | **Verificado en headless y a mano** | Cuatro tests: mismos objetos (cola, carátula, transporte) y cursor al cambiar de forma, vuelta sola a apilada por ancho y por alto, las trece disposiciones caben en el umbral con el transporte bajo las dos columnas, y la letra se carga una vez por pista y sigue la línea. Capturas SVG de las trece. El mantenedor lo usó en su terminal con audio real y letra. |
 | Barras clicables                    | **Verificado**                    | Cuatro pruebas con `pilot.click`: seek a mitad, seek parado sin llamada a mpv, volumen al extremo y balance en cero exacto pese al padding. |
 | Ayuda en dos pestañas              | **Verificado**                    | Dos unitarias en la app headless: `→` lleva a «Acerca de» y dibuja el repositorio, `←` vuelve a los atajos con el desplazamiento donde se dejó, y ninguna de las dos flechas se sale por los extremos. Render a 100x30 de las dos pestañas, con la activa marcada en la barra de título. |

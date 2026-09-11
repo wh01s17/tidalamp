@@ -15,36 +15,7 @@ Lo de aquí no bloquea publicar. `plan.md` §5 y §6 mandan sobre el estado gene
 
 ---
 
-## 1. Reproducción automática al terminar la cola
-
-Un ajuste nuevo, «Reproducción automática» (`autoplay`, sí o no, apagado por
-defecto para no cambiar lo que hace hoy): al acabarse la cola sigue con la radio de
-TIDAL de la última pista en vez de detenerse.
-
-Dónde engancha: el tick ve a mpv en reposo tras haber sonado algo y llama a
-`action_next`; si `queue.next_index()` devuelve `None`, hoy se llama a `action_stop`.
-Con el ajuste encendido, ahí se pide la radio.
-
-Trampas:
-
-- **No reutilizar `_radio_ready` tal cual:** reemplaza la cola y empieza por la pista
-  semilla, que es la que acaba de sonar. Aquí la radio se **añade** al final, sin la
-  semilla ni pistas que ya estén en la cola, y suena la primera añadida. La cola que
-  había se conserva.
-- La radio llega de un worker: entre el fin de la pista y la respuesta mpv está en
-  reposo. Que eso no dispare otro `action_next` ni otra petición (una sola en vuelo).
-- Radio vacía o fallida: detenerse como hoy y decirlo en la barra de estado.
-- Con repetición de cola nunca se llega al final; con aleatorio, lo añadido tiene que
-  entrar en el orden de `Queue`, y la cola se guarda como siempre.
-- El ajuste es booleano como `debug`: va en `_FLAGS`, en las tres plantillas y en
-  `conftest`.
-
-Cómo se comprueba: tests con una cola de dos pistas y la radio simulada. Apagado, al
-acabar se detiene; encendido, se añaden las pistas sin la semilla ni repetidas, suena
-la primera nueva y la cola anterior sigue ahí; la radio vacía o con error detiene y
-avisa.
-
-## 2. Modo pantalla completa, como el de TIDAL
+## 1. Modo pantalla completa, como el de TIDAL
 
 Pedido el 2026-09-11, con una captura del cliente de TIDAL como referencia. Una vista
 que solo se abre con una tecla (sin fila en ajustes ni botón que la abra): la

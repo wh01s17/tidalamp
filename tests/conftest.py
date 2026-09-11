@@ -32,6 +32,7 @@ _CONFIG_GLOBALS = (
     "ARRANGEMENT",
     "BACKDROP",
     "COVER_SHAPE",
+    "AUTOPLAY",
     "DEBUG",
     "KEYS",
 )

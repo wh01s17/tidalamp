@@ -517,6 +517,7 @@ writes `~/.config/tidalamp/config.toml`, so a change made once stays made.
 | Cover shape | `square` `rounded` `round`              | immediately    |
 | Language  | `auto` `es` `en`                          | on restart     |
 | Visualizer | `bars` `mirror` `curve` `fine`            | immediately   |
+| Autoplay  | on / off                                  | immediately    |
 | Debug log | on / off                                  | immediately    |
 
 Quality, Hi-res rates in PipeWire and Restart PipeWire do not change with the arrows,
@@ -537,6 +538,7 @@ palette = "auto"              # colours: auto, classic, a built-in, or your own
 arrangement = "stacked"       # stacked, or split: the queue in a column on the right
 backdrop = "auto"             # the picture behind the queue: auto, none, or a themed look
 visualizer = "bars"           # analyzer shape: bars, mirror, curve, or fine
+autoplay = false              # when the queue ends, carry on with the last track's radio
 debug = false                 # log to ~/.local/state/tidalamp/tidalamp.log
 
 [keys]

@@ -7,6 +7,10 @@ versioning is [semantic](https://semver.org/).
 
 ### Added
 
+- Autoplay (`autoplay`, Autoplay in the settings window, off by default): when the
+  queue runs out, TIDAL's radio for the last track goes on the end of it and plays,
+  instead of stopping. The queue is kept, and the station leaves out the seed and
+  whatever the queue already has; a radio with nothing new stops as before.
 - A third cover shape, `rounded`: the square cover with rounded corners, the radius in
   proportion to the side so it still shows in blocks.
 - Playback speed over MPRIS: `Rate` is now writable, between `MinimumRate` 0.25 and
