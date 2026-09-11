@@ -109,6 +109,13 @@
     padding: 1 1 1 2;
 }
 
+/* The lyrics on the same ground as the band under them. The rule below the
+   words is the pane's own border, drawn on the pane's ground: dark over a
+   panel band, it left half a row of black under the line. */
+#main.nova #lyrics-pane {
+    background: $tidalamp-panel;
+}
+
 #main.nova #seek,
 #main.nova #volume,
 #main.nova #balance {

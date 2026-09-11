@@ -150,6 +150,11 @@ def test_every_look_fits_both_halves_of_the_narrowest_split(monkeypatch, tmp_pat
                 seek = application.query_one("#seek")
                 assert display.region.bottom <= seek.region.y, name
                 assert application.query_one(Artwork).rows >= app_module.DISPLAY_HEIGHT
+                # The rule under the lyrics is drawn on the pane's ground; on
+                # any other ground than the band's it left half a row of the
+                # wrong colour under the line.
+                pane = application.query_one("#lyrics-pane")
+                assert pane.styles.background == display.styles.background, name
 
     asyncio.run(scenario())
 

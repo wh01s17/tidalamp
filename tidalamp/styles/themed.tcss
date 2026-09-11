@@ -80,6 +80,7 @@
 
 #main.cuaderno #transport,
 #main.cuaderno #display,
+#main.cuaderno #lyrics-pane,
 #main.cuaderno #playlist {
     background: $tidalamp-panel;
 }
