@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import unicodedata
 
+import pytest
+
 from tidalamp.app import TidalAmp
 from tidalamp.layouts import DEFAULT_LAYOUT, LAYOUT_TABLE, layout_for
 from tidalamp.theme import LAYOUTS
@@ -49,7 +51,7 @@ def test_no_layout_draws_its_chrome_with_a_wide_glyph():
 def test_every_themed_look_has_an_emblem_the_package_ships():
     """A small PNG in `tidalamp/emblems`, readable and at most 192 px a side;
     the looks without a theme have none, and every themed one has a line."""
-    from PIL import Image
+    pil_image = pytest.importorskip("PIL.Image")
 
     from tidalamp.artwork import emblem_path
     from tidalamp.theme import PAIRED
@@ -60,7 +62,7 @@ def test_every_themed_look_has_an_emblem_the_package_ships():
             continue
         path = emblem_path(layout.emblem)
         assert path is not None, layout.name
-        with Image.open(path) as image:
+        with pil_image.open(path) as image:
             assert max(image.size) <= 192, layout.name
             assert image.mode in ("RGBA", "RGB", "P"), layout.name
         assert layout.tagline and layout.tagline(), layout.name

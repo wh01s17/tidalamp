@@ -4793,6 +4793,7 @@ def test_a_themed_look_draws_its_emblem_behind_the_queue(
     """Always there, playing or not: the emblem is the queue's ground, set
     against the right edge and faded into it, with the rows on top. The
     cursor's line keeps its accent, and a look without an emblem has none."""
+    pytest.importorskip("PIL", reason="the emblem is drawn with Pillow, like the cover")
     isolate_runtime(monkeypatch)
     isolate_config(monkeypatch, tmp_path)
     app_module.config.set_option("arrangement", arrangement)
@@ -4883,6 +4884,7 @@ def test_the_emblem_is_painted_on_a_short_line_too(monkeypatch, tmp_path):
     Where the queue ends in the middle of the picture, the picture goes on."""
     from tidalamp.artwork import QUADRANTS
 
+    pytest.importorskip("PIL", reason="the emblem is drawn with Pillow, like the cover")
     isolate_runtime(monkeypatch)
     isolate_config(monkeypatch, tmp_path)
     app_module.config.set_option("arrangement", "split")
