@@ -750,18 +750,27 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
       La primera versión lo ponía en el hueco de la carátula mientras no había
       portada; el mantenedor lo quería visible siempre. Detrás del texto no caben
       medios bloques, así que un píxel son dos celdas de ancho por una de alto
-      (cuadrado en pantalla); el dibujo se ajusta a la altura de la cola (se reduce
-      con `shrink`, detalles 4 a 1, o se amplía por un entero), va contra el borde
-      derecho, donde tapa las columnas cortas y no los títulos, y su color se mezcla
-      al 35 % con el fondo de la cola. `render_line` solo cambia el fondo de cada
-      celda: el texto conserva su color y la fila del cursor, su acento. Los tramos se
-      calculan una vez por tamaño, dibujo y paleta.
+      (cuadrado en pantalla). El dibujo ocupa como mucho el 70 % del alto de la cola
+      y el 55 % de su ancho, contra el borde derecho, donde tapa las columnas cortas
+      y no los títulos; se reduce con `shrink` o se amplía por vecino más cercano a
+      cualquier tamaño, no solo por enteros, para que en 4K (cola de ~100 filas)
+      crezca con ella. Un velo oscuro, como el de detrás de un modal, lo deja al 25 %
+      de su color sobre el fondo de la cola; se probó un difuminado y se descartó:
+      lo que se pedía era contraste, no píxeles borrosos. `render_line` solo cambia el
+      fondo de cada celda: el texto conserva su color y la fila del cursor, su acento.
+- [x] Trampa: `Strip.divide`, como `Segment.divide` de Rich, devuelve lo que queda
+      antes de cada corte y **descarta lo que sigue al último**. Sin pasarle el final
+      de la línea como corte, la cola de cada línea pintada desaparecía; en headless
+      no se nota, pero el terminal real conservaba lo que hubiera en esas celdas (el
+      resaltado del cursor de posiciones anteriores, en escalera). Un test compara
+      cada línea con la misma sin fondo: mismo ancho y mismo texto.
 - [x] Los dibujos salen de las referencias del mantenedor cuando las hay: el pixel
       art (Eva-01, Ryuk, el Joker de *El caballero oscuro*) se lee a su propia
-      rejilla, buscando paso y desfase exactos o por el canal alfa, y la bandera
-      pirata y el Ojo se reducen por área; después cada color recibe un papel a mano.
-      La parca, la ciudad de neón, el vinilo y el rosetón gótico se dibujan con
-      primitivas de Pillow. Las referencias no se versionan.
+      rejilla, buscando paso y desfase exactos (Eva, 83x82 a paso 3; Ryuk, 29x29), y
+      la bandera pirata se reduce por área; después cada color recibe un papel a mano.
+      El Ojo de Sauron, el león frente a la bandera reggae, el murciélago contra la
+      luna, la parca y la ciudad de neón se dibujan con primitivas de Pillow. Hasta
+      96 píxeles de lado. Las referencias no se versionan.
 
 ### Dos columnas - `app.py`, `styles.tcss`, `config.py`, `widgets.py`
 

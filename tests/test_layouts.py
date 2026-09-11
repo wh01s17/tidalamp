@@ -47,7 +47,7 @@ def test_no_layout_draws_its_chrome_with_a_wide_glyph():
 
 
 def test_every_themed_look_has_a_well_formed_emblem():
-    """Up to 48 pixels a side, scaled to the queue when drawn; every letter
+    """Up to 96 pixels a side, scaled to the queue when drawn; every letter
     must be a palette role or see-through, and every row as wide."""
     from tidalamp.theme import PAIRED
     from tidalamp.widgets import EMBLEM_ROLES
@@ -57,9 +57,9 @@ def test_every_themed_look_has_a_well_formed_emblem():
             assert not layout.emblem and layout.tagline is None, layout.name
             continue
         rows = layout.emblem
-        assert rows and len(rows) <= 48, layout.name
+        assert rows and len(rows) <= 96, layout.name
         assert len({len(row) for row in rows}) == 1, layout.name
-        assert len(rows[0]) <= 48, layout.name
+        assert len(rows[0]) <= 96, layout.name
         assert set("".join(rows)) <= set(EMBLEM_ROLES) | {"."}, layout.name
         assert layout.tagline and layout.tagline(), layout.name
 

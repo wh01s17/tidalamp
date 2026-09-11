@@ -772,56 +772,78 @@ def shrink(rows, width: int, height: int) -> list[str]:
     return out
 
 
-def _blend(colour: str, ground: str, amount: float) -> str:
-    """`colour` laid over `ground` at `amount`, as `#rrggbb`."""
-    top, base = colour.lstrip("#")[:6], ground.lstrip("#")[:6]
-    mixed = (
-        round(int(top[i : i + 2], 16) * amount + int(base[i : i + 2], 16) * (1 - amount))
-        for i in (0, 2, 4)
-    )
-    return "#" + "".join(f"{value:02x}" for value in mixed)
+def _rgb(colour: str) -> tuple[int, int, int]:
+    value = colour.lstrip("#")[:6]
+    return int(value[0:2], 16), int(value[2:4], 16), int(value[4:6], 16)
+
+
+def _fit_emblem(rows, width: int, height: int) -> list[str]:
+    """`rows` resized to fit `width` x `height` pixels, keeping its shape.
+
+    Shrunk with `shrink`, which keeps the details, and grown by the nearest
+    pixel to any size, not only whole multiples: on a 4K terminal the queue
+    is a hundred rows tall and a multiple of 40 either leaves the drawing
+    small or overshoots it.
+    """
+    source_h, source_w = len(rows), len(rows[0])
+    factor = min(width / source_w, height / source_h)
+    if factor <= 1:
+        return shrink(rows, width, height)
+    target_w, target_h = max(1, int(source_w * factor)), max(1, int(source_h * factor))
+    return [
+        "".join(rows[int(y / factor)][int(x / factor)] for x in range(target_w))
+        for y in range(target_h)
+    ]
 
 
 def backdrop_runs(
-    rows, palette, width: int, height: int, amount: float = 0.35
+    rows,
+    palette,
+    width: int,
+    height: int,
+    amount: float = 0.25,
+    size: float = 0.7,
 ) -> dict[int, list[tuple[int, int, str]]]:
     """Where an emblem sits behind a list, as runs of cells per line.
 
     A pixel is two cells wide and one tall, which is square on screen; there
     is no half block behind text, so this is as fine as a backdrop gets. The
-    drawing is scaled to most of the height, shrunk if it does not fit, and
-    set against the right edge where it covers the short columns rather than
-    the titles. Its colours are mixed into the list's ground so the rows on
-    top of it still read.
+    drawing takes `size` of the list's height at most (and a little over half
+    its width), sits against the right edge where it covers the short columns
+    rather than the titles, and is darkened for the rows on top of it.
     """
     if not rows or width < 8 or height < 4:
         return {}
-    room_w, room_h = (width - 2) // 2, height
-    source_h, source_w = len(rows), len(rows[0])
-    scale = max(1, min(room_w // source_w, room_h // source_h))
-    art = shrink(rows, room_w, room_h)
-    if scale > 1:
-        art = [
-            "".join(char * scale for char in row) for row in art for _copy in range(scale)
-        ]
-    ground = palette["display_background"]
+    room_w = max(1, int((width - 2) * 0.55) // 2)
+    room_h = max(1, int(height * size))
+    art = _fit_emblem(rows, room_w, room_h)
+    ground = _rgb(palette["display_background"])
+    # A dark veil over the drawing, like the scrim behind a modal window:
+    # each colour is mixed into the list's ground at `amount`, so the pixels
+    # stay crisp and the rows on top keep their contrast.
     colours = {
-        char: _blend(palette[role], ground, amount) for char, role in EMBLEM_ROLES.items()
+        char: "#"
+        + "".join(
+            f"{round(value * amount + base * (1 - amount)):02x}"
+            for value, base in zip(_rgb(palette[role]), ground, strict=True)
+        )
+        for char, role in EMBLEM_ROLES.items()
     }
-    left = width - 2 - len(art[0]) * 2
-    top = (height - len(art)) // 2
+    grid = [[colours.get(char) for char in row] for row in art]
+    left = width - 2 - len(grid[0]) * 2
+    top = (height - len(grid)) // 2
     runs: dict[int, list[tuple[int, int, str]]] = {}
-    for offset, row in enumerate(art):
-        line = []
+    for offset, line in enumerate(grid):
+        spans = []
         start, current = 0, None
-        for index, char in enumerate(row + "."):
-            colour = colours.get(char)
+        for index, colour in enumerate([*line, None]):
             if colour != current:
                 if current is not None:
-                    line.append((left + start * 2, left + index * 2, current))
+                    spans.append((left + start * 2, left + index * 2, current))
                 start, current = index, colour
-        if line:
-            runs[top + offset] = line
+        spans = [(max(0, a), max(0, b), c) for a, b, c in spans if b > 0]
+        if spans and 0 <= top + offset < height:
+            runs[top + offset] = spans
     return runs
 
 

@@ -4816,7 +4816,17 @@ def test_a_themed_look_draws_its_emblem_behind_the_queue(
             painted = [
                 y for y in range(playlist.size.height) if _grounds(playlist, y) - {plain}
             ]
-            assert len(painted) > playlist.size.height // 2, "ocupa la cola"
+            assert len(painted) > playlist.size.height // 3, "ocupa la cola"
+            # Only the ground changes: every line keeps its width and its text.
+            # `divide` drops what follows the last cut, and a line that came
+            # back short left the terminal showing old cells in its tail.
+            from textual.widget import Widget
+
+            for y in range(playlist.size.height):
+                drawn = playlist.render_line(y)
+                plain_line = Widget.render_line(playlist, y)
+                assert drawn.cell_length == plain_line.cell_length == playlist.size.width
+                assert drawn.text == plain_line.text, y
             # Set against the right edge: the left of a painted line is untouched.
             first = painted[len(painted) // 2]
             left = next(iter(playlist.render_line(first)))

@@ -210,9 +210,15 @@ class RowList(Widget):
         runs = self._backdrop().get(y)
         if not runs:
             return strip
-        cuts = sorted({edge for start, end, _c in runs for edge in (start, end)})
-        pieces = strip.divide([cut for cut in cuts if 0 < cut < strip.cell_length])
-        edges = [0, *[cut for cut in cuts if 0 < cut < strip.cell_length]]
+        length = strip.cell_length
+        edges_all = {edge for start, end, _c in runs for edge in (start, end)}
+        inner = sorted(edge for edge in edges_all if 0 < edge < length)
+        # The end of the line is a cut too: `divide` returns what lies before
+        # each cut and drops the rest. Without it the tail of every painted
+        # line went missing, and the terminal kept whatever it had there,
+        # which was the cursor's highlight from wherever it had been.
+        pieces = strip.divide([*inner, length])
+        edges = [0, *inner]
         segments = []
         for edge, piece in zip(edges, pieces, strict=False):
             colour = next((c for start, end, c in runs if start <= edge < end), None)
@@ -222,7 +228,7 @@ class RowList(Widget):
                     continue
                 style = (segment.style or Style()) + Style(bgcolor=colour)
                 segments.append(Segment(segment.text, style))
-        return Strip(segments, strip.cell_length)
+        return Strip(segments, length)
 
     def render(self) -> Text:
         palette = palette_for(self)
