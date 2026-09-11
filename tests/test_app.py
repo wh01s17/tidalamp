@@ -4775,42 +4775,70 @@ def test_every_look_keeps_its_title_and_parts_the_cover_from_the_frame(
     asyncio.run(scenario())
 
 
-def test_a_themed_look_shows_its_emblem_where_the_cover_is_not(monkeypatch, tmp_path):
-    """Nothing playing: the 8-bit emblem in the cover's box and the look's
-    line in the title's place. A cover arriving takes the box over without
-    moving the clock; the emblem comes back when it goes."""
-    from tidalamp.widgets import Emblem
+def _grounds(widget, y: int) -> set[str]:
+    """The background colours a list line is drawn on."""
+    return {
+        segment.style.bgcolor.name
+        for segment in widget.render_line(y)
+        if segment.style and segment.style.bgcolor
+    }
 
+
+@pytest.mark.parametrize(
+    ("arrangement", "size"), [("stacked", (140, 40)), ("split", (180, 44))]
+)
+def test_a_themed_look_draws_its_emblem_behind_the_queue(
+    arrangement, size, monkeypatch, tmp_path
+):
+    """Always there, playing or not: the emblem is the queue's ground, set
+    against the right edge and faded into it, with the rows on top. The
+    cursor's line keeps its accent, and a look without an emblem has none."""
     isolate_runtime(monkeypatch)
     isolate_config(monkeypatch, tmp_path)
+    app_module.config.set_option("arrangement", arrangement)
     use_theme(monkeypatch, "comodin")
 
     async def scenario() -> None:
         application = TidalAmp(object(), FakeMpv())
-        async with application.run_test(size=(120, 34)) as pilot:
+        async with application.run_test(size=size) as pilot:
+            application.queue.replace(
+                [
+                    Entry(id=n, title=f"pista {n}", artist="a", duration=9)
+                    for n in range(60)
+                ],
+                start=0,
+            )
+            application._sync_queue()
             await pilot.pause()
-            emblem = application.query_one(Emblem)
-            art = application.query_one(Artwork)
-            assert emblem.display and not art.display
-            drawn = "".join(emblem.render_line(y).text for y in range(emblem.size.height))
-            assert "▀" in drawn or "▄" in drawn
-            marquee = application.query_one(Marquee).render().plain
-            assert "serio" in marquee
-            clock = application.query_one("#clockbox").region.x
+            playlist = application.query_one("#playlist", RowList)
+            assert playlist.backdrop
+            plain = application.tidalamp_palette["display_background"].lower()
+            painted = [
+                y for y in range(playlist.size.height) if _grounds(playlist, y) - {plain}
+            ]
+            assert len(painted) > playlist.size.height // 2, "ocupa la cola"
+            # Set against the right edge: the left of a painted line is untouched.
+            first = painted[len(painted) // 2]
+            left = next(iter(playlist.render_line(first)))
+            assert left.style.bgcolor.name.lower() == plain
+            # The cursor's line is the accent and nothing else.
+            accent = application.tidalamp_palette["accent"].lower()
+            cursor = playlist._cursor_line()
+            assert {c.lower() for c in _grounds(playlist, cursor)} <= {accent, plain}
 
-            art.show(a_cover())
+            app_module.config.THEME = "quattro"
+            application._apply_appearance()
             await pilot.pause()
-            assert art.display and not emblem.display
-            assert application.query_one("#clockbox").region.x == clock
-
-            art.show(None)
-            await pilot.pause()
-            assert emblem.display
+            assert not playlist.backdrop
+            assert all(
+                not (_grounds(playlist, y) - {plain}) or y == playlist._cursor_line()
+                for y in range(playlist.size.height)
+            )
 
     asyncio.run(scenario())
 
 
-def test_split_shows_the_emblem_large_while_there_are_no_lyrics(monkeypatch, tmp_path):
+def test_split_shows_the_looks_line_while_there_are_no_lyrics(monkeypatch, tmp_path):
     from tidalamp.widgets import LyricsPane
 
     isolate_runtime(monkeypatch)
@@ -4820,13 +4848,12 @@ def test_split_shows_the_emblem_large_while_there_are_no_lyrics(monkeypatch, tmp
 
     async def scenario() -> None:
         application = TidalAmp(object(), FakeMpv())
-        async with application.run_test(size=(200, 60)) as pilot:
+        async with application.run_test(size=(180, 44)) as pilot:
             await pilot.pause(0.5)
             pane = application.query_one(LyricsPane)
             rows = [pane.render_line(y).text for y in range(pane.size.height)]
-            art = [row for row in rows if "▀" in row or "▄" in row]
-            # Doubled: eighteen pixels become thirty-six cells across.
-            assert art and max(len(row.strip()) for row in art) > 20
             assert any("anillo" in row for row in rows)
+            marquee = application.query_one(Marquee).render().plain
+            assert "anillo" in marquee
 
     asyncio.run(scenario())

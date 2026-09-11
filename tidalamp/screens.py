@@ -16,6 +16,8 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, cast
 
 from rich.cells import cell_len, set_cell_size
+from rich.segment import Segment
+from rich.style import Style
 from rich.text import Text
 from textual import work
 from textual.app import ComposeResult
@@ -23,6 +25,7 @@ from textual.binding import Binding
 from textual.containers import Horizontal, Vertical
 from textual.reactive import reactive
 from textual.screen import ModalScreen
+from textual.strip import Strip
 from textual.widget import Widget
 from textual.widgets import Input, Static
 
@@ -33,7 +36,7 @@ from .library import Row
 from .lyrics import LyricsDocument
 from .settings import BAND_LABELS, GAIN_LIMIT, MANUAL, PRESETS, Settings
 from .theme import LAYOUTS, available_palettes, paired_palette, palette_for
-from .widgets import Analyzer, EqualizerBars, Slider, Spinner
+from .widgets import Analyzer, EqualizerBars, Slider, Spinner, backdrop_runs
 
 if TYPE_CHECKING:  # The screens report back to the app; the app owns them.
     from .app import TidalAmp
@@ -49,6 +52,16 @@ class RowList(Widget):
         super().__init__(**kwargs)
         self.rows: list[Row] = []
         self.empty_text = ""
+        # A themed look's emblem, drawn behind the rows (`backdrop_runs`).
+        # The queue has one; the browser's lists do not.
+        self.backdrop: tuple[str, ...] = ()
+        self._runs_key: tuple | None = None
+        self._runs: dict[int, list[tuple[int, int, str]]] = {}
+
+    def set_backdrop(self, rows: tuple[str, ...]) -> None:
+        if rows != self.backdrop:
+            self.backdrop = rows
+            self.refresh()
 
     def set_rows(self, rows: list[Row]) -> None:
         self.rows = rows
@@ -165,6 +178,51 @@ class RowList(Widget):
         if detail:
             line += f" {detail}"
         return set_cell_size(line, width)
+
+    def _backdrop(self) -> dict[int, list[tuple[int, int, str]]]:
+        """The emblem's runs for this size and palette, worked out once."""
+        palette = palette_for(self)
+        key = (self.backdrop, self.size, id(palette))
+        if key != self._runs_key:
+            self._runs_key = key
+            self._runs = backdrop_runs(
+                self.backdrop, palette, self.size.width, self.size.height
+            )
+        return self._runs
+
+    def _cursor_line(self) -> int | None:
+        """Which line on screen the cursor is drawn on, as `render` scrolls."""
+        if not self.rows:
+            return None
+        height = max(1, self.size.height)
+        start = max(0, min(self.cursor - height // 2, len(self.rows) - height))
+        return self.cursor - start
+
+    def render_line(self, y: int) -> Strip:
+        """The rendered row, with the emblem's colours as its ground.
+
+        Only the ground changes, cell by cell, so the text on top keeps its
+        own colour; the cursor's line keeps the accent it is drawn on.
+        """
+        strip = super().render_line(y)
+        if not self.backdrop or y == self._cursor_line():
+            return strip
+        runs = self._backdrop().get(y)
+        if not runs:
+            return strip
+        cuts = sorted({edge for start, end, _c in runs for edge in (start, end)})
+        pieces = strip.divide([cut for cut in cuts if 0 < cut < strip.cell_length])
+        edges = [0, *[cut for cut in cuts if 0 < cut < strip.cell_length]]
+        segments = []
+        for edge, piece in zip(edges, pieces, strict=False):
+            colour = next((c for start, end, c in runs if start <= edge < end), None)
+            for segment in piece:
+                if colour is None or segment.control:
+                    segments.append(segment)
+                    continue
+                style = (segment.style or Style()) + Style(bgcolor=colour)
+                segments.append(Segment(segment.text, style))
+        return Strip(segments, strip.cell_length)
 
     def render(self) -> Text:
         palette = palette_for(self)

@@ -10,7 +10,6 @@ from rich.color import Color
 from rich.segment import Segment
 from rich.style import Style
 from rich.text import Text
-from textual.message import Message
 from textual.reactive import reactive
 from textual.strip import Strip
 from textual.widget import Widget
@@ -773,71 +772,57 @@ def shrink(rows, width: int, height: int) -> list[str]:
     return out
 
 
-def emblem_lines(
-    rows, palette, scale: int = 1, fit: tuple[int, int] | None = None
-) -> list[Text]:
-    """An 8-bit drawing as lines of half blocks, two pixel rows per line.
+def _blend(colour: str, ground: str, amount: float) -> str:
+    """`colour` laid over `ground` at `amount`, as `#rrggbb`."""
+    top, base = colour.lstrip("#")[:6], ground.lstrip("#")[:6]
+    mixed = (
+        round(int(top[i : i + 2], 16) * amount + int(base[i : i + 2], 16) * (1 - amount))
+        for i in (0, 2, 4)
+    )
+    return "#" + "".join(f"{value:02x}" for value in mixed)
 
-    `▀` in the top pixel's colour on the bottom pixel's, so one cell carries
-    two pixels and a square pixel is one cell wide and half a cell tall,
-    which is the shape a cell has. `.` is see-through: the widget's ground
-    shows. `scale` doubles every pixel both ways, for the lyrics pane; `fit`
-    is the room in cells, and a drawing larger than it is shrunk to it.
+
+def backdrop_runs(
+    rows, palette, width: int, height: int, amount: float = 0.35
+) -> dict[int, list[tuple[int, int, str]]]:
+    """Where an emblem sits behind a list, as runs of cells per line.
+
+    A pixel is two cells wide and one tall, which is square on screen; there
+    is no half block behind text, so this is as fine as a backdrop gets. The
+    drawing is scaled to most of the height, shrunk if it does not fit, and
+    set against the right edge where it covers the short columns rather than
+    the titles. Its colours are mixed into the list's ground so the rows on
+    top of it still read.
     """
-    if fit is not None:
-        rows = shrink(rows, fit[0], fit[1] * 2)
-    grid = [
-        "".join(char * scale for char in row) for row in rows for _copy in range(scale)
-    ]
-    if len(grid) % 2:
-        grid.append("." * len(grid[0]))
-
-    def colour(char: str) -> str | None:
-        role = EMBLEM_ROLES.get(char)
-        return palette[role] if role else None
-
-    lines = []
-    for top_row, bottom_row in zip(grid[::2], grid[1::2], strict=True):
-        line = Text(no_wrap=True)
-        for top, bottom in zip(top_row, bottom_row, strict=True):
-            up, down = colour(top), colour(bottom)
-            if up and down:
-                line.append("▀", style=f"{up} on {down}")
-            elif up:
-                line.append("▀", style=up)
-            elif down:
-                line.append("▄", style=down)
-            else:
-                line.append(" ")
-        lines.append(line)
-    return lines
-
-
-class Emblem(Widget):
-    """A themed look's 8-bit emblem, in the cover's place while there is none.
-
-    The app sizes it like the cover box and shows it only while the cover is
-    hidden, so the clock and the readout do not move when a cover arrives.
-    """
-
-    DEFAULT_CSS = "Emblem { width: 18; height: 9; display: none; }"
-
-    def __init__(self, **kwargs) -> None:
-        super().__init__(**kwargs)
-        self.rows: tuple[str, ...] = ()
-
-    def render(self) -> Text:
-        width, height = self.size.width, self.size.height
-        palette = palette_for(self)
-        lines = emblem_lines(self.rows, palette, fit=(width, height)) if self.rows else []
-        top = max(0, (height - len(lines)) // 2)
-        out = Text("\n" * top, no_wrap=True)
-        for index, line in enumerate(lines[:height]):
-            if index:
-                out.append("\n")
-            out.append(" " * max(0, (width - line.cell_len) // 2))
-            out.append_text(line)
-        return out
+    if not rows or width < 8 or height < 4:
+        return {}
+    room_w, room_h = (width - 2) // 2, height
+    source_h, source_w = len(rows), len(rows[0])
+    scale = max(1, min(room_w // source_w, room_h // source_h))
+    art = shrink(rows, room_w, room_h)
+    if scale > 1:
+        art = [
+            "".join(char * scale for char in row) for row in art for _copy in range(scale)
+        ]
+    ground = palette["display_background"]
+    colours = {
+        char: _blend(palette[role], ground, amount) for char, role in EMBLEM_ROLES.items()
+    }
+    left = width - 2 - len(art[0]) * 2
+    top = (height - len(art)) // 2
+    runs: dict[int, list[tuple[int, int, str]]] = {}
+    for offset, row in enumerate(art):
+        line = []
+        start, current = 0, None
+        for index, char in enumerate(row + "."):
+            colour = colours.get(char)
+            if colour != current:
+                if current is not None:
+                    line.append((left + start * 2, left + index * 2, current))
+                start, current = index, colour
+        if line:
+            runs[top + offset] = line
+    return runs
 
 
 class LyricsPane(Widget):
@@ -859,9 +844,8 @@ class LyricsPane(Widget):
         self.message = ""
         self._position = 0.0
         self._active: int | None = None
-        # A themed look's emblem and its line, for the time there are no
-        # words to show: nothing playing, or a track without lyrics.
-        self.emblem: tuple[str, ...] = ()
+        # A themed look's line, for the time there are no words to show:
+        # nothing playing, or a track without lyrics.
         self.tagline = ""
 
     def show(self, document: LyricsDocument | None, message: str = "") -> None:
@@ -890,7 +874,7 @@ class LyricsPane(Widget):
         width, height = self.size.width, self.size.height
         document = self.document
         if document is None:
-            if self.emblem:
+            if self.tagline:
                 return self._idle(palette, width, height)
             return Text(f"  {self.message}", style=palette["muted"])
         start, lines, active = document.window(self._position, height)
@@ -913,25 +897,16 @@ class LyricsPane(Widget):
         return out
 
     def _idle(self, palette, width: int, height: int) -> Text:
-        """The emblem, as large as fits, with the look's line and the reason
-        there are no words under it, all centred in the pane."""
-        words = [(self.tagline, f"bold {palette['accent']}")] if self.tagline else []
+        """The look's line, and the reason there are no words under it,
+        centred in the pane."""
+        words = [(self.tagline, f"bold {palette['accent']}")]
         if self.message:
             words.append((self.message, palette["muted"]))
-        room = height - len(words) - (1 if words else 0)
-        art = emblem_lines(self.emblem, palette, 2)
-        if len(art) > room or (art and art[0].cell_len > width):
-            art = emblem_lines(self.emblem, palette, fit=(width, room))
-        if room < 4:
-            art = []
-        block: list[Text] = [*art]
-        if art and words:
-            block.append(Text(""))
-        block += [Text(text, style=style, no_wrap=True) for text, style in words]
-        out = Text("\n" * max(0, (height - len(block)) // 2), no_wrap=True)
-        for index, line in enumerate(block):
+        out = Text("\n" * max(0, (height - len(words)) // 2), no_wrap=True)
+        for index, (text, style) in enumerate(words):
             if index:
                 out.append("\n")
+            line = Text(text, style=style, no_wrap=True)
             line.truncate(width, overflow="ellipsis")
             out.append(" " * max(0, (width - line.cell_len) // 2))
             out.append_text(line)
@@ -1036,19 +1011,13 @@ class Artwork(Widget):
             self.show(None)
         return True
 
-    class Changed(Message):
-        """The cover came or went, for whatever stands in its place."""
-
     def show(self, cover: Cover | None) -> None:
         """Swap the cover. ``None`` hides the widget and reclaims its columns."""
         if cover is None and self.cover is not None:
             self._erase()
-        was = self.cover is not None
         self.cover = cover
         self.styles.display = "none" if cover is None else "block"
         self.refresh()
-        if was != (cover is not None):
-            self.post_message(self.Changed())
 
     def _erase(self) -> None:
         """Ask the terminal to drop the image we transmitted, if any."""

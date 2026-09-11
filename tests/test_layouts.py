@@ -46,9 +46,9 @@ def test_no_layout_draws_its_chrome_with_a_wide_glyph():
             assert not wide, f"{layout.name}: {wide}"
 
 
-def test_every_themed_look_has_an_emblem_that_fits_the_cover_box():
-    """Up to forty pixels a side, shrunk to the cover box when drawn; every
-    letter must be a palette role or see-through, and every row as wide."""
+def test_every_themed_look_has_a_well_formed_emblem():
+    """Up to 48 pixels a side, scaled to the queue when drawn; every letter
+    must be a palette role or see-through, and every row as wide."""
     from tidalamp.theme import PAIRED
     from tidalamp.widgets import EMBLEM_ROLES
 
@@ -57,19 +57,19 @@ def test_every_themed_look_has_an_emblem_that_fits_the_cover_box():
             assert not layout.emblem and layout.tagline is None, layout.name
             continue
         rows = layout.emblem
-        assert rows and len(rows) <= 40, layout.name
+        assert rows and len(rows) <= 48, layout.name
         assert len({len(row) for row in rows}) == 1, layout.name
-        assert len(rows[0]) <= 40, layout.name
+        assert len(rows[0]) <= 48, layout.name
         assert set("".join(rows)) <= set(EMBLEM_ROLES) | {"."}, layout.name
         assert layout.tagline and layout.tagline(), layout.name
 
 
-def test_a_large_emblem_shrinks_to_the_cover_box_and_keeps_its_details():
-    """A 40-pixel drawing in the smallest box: eighteen pixels square, with
-    the thin eye of the unit still there after the reduction."""
+def test_a_large_emblem_shrinks_and_keeps_its_details():
+    """In a short queue the unit comes down to eighteen pixels square, and
+    the green of its eye and horn band, a few pixels, is still there."""
     from tidalamp.widgets import shrink
 
     eva = LAYOUT_TABLE["unidad-morada"].emblem
     small = shrink(eva, 18, 18)
     assert len(small) <= 18 and len(small[0]) <= 18
-    assert "A" in "".join(small), "el ojo sobrevive"
+    assert "G" in "".join(small), "el verde sobrevive"

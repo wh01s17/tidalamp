@@ -47,7 +47,6 @@ from .theme import LAYOUTS, ThemePalette, load_palette
 from .widgets import (
     Analyzer,
     Artwork,
-    Emblem,
     Glide,
     LyricsPane,
     Marquee,
@@ -321,9 +320,6 @@ class TidalAmp(App):
                 yield LyricsPane(id="lyrics-pane")
                 with Horizontal(id="display"):
                     yield Artwork(id="art")
-                    # A themed look's 8-bit emblem, in the cover's place while
-                    # there is none (`_apply_emblem`).
-                    yield Emblem(id="emblem")
                     with Vertical(id="clockbox"):
                         yield TimeDisplay(id="clock")
                         # The rest of the track's identity, under the time:
@@ -538,37 +534,27 @@ class TidalAmp(App):
         return self.layout.title(width)
 
     def _apply_emblem(self) -> None:
-        """Put the look's emblem where the cover is not, and its line where
-        the words are not.
+        """Put the look's emblem behind the queue, and its line where the
+        words are not.
 
-        Sized like the cover box, so the clock does not move when a cover
-        arrives; hidden in compact, where the cover is too.
+        Behind the queue rather than in the cover's box, so it is there the
+        whole time and not only while nothing plays; it has the room there
+        to carry some detail.
         """
-        if not self.query("#emblem"):
+        if not self.query("#playlist"):
             return
         layout = self.layout
         tagline = layout.tagline() if layout.tagline else ""
-        emblem = self.query_one(Emblem)
-        art = self.query_one(Artwork)
-        if emblem.rows != layout.emblem:
-            emblem.rows = layout.emblem
-            emblem.refresh()
-        emblem.styles.width, emblem.styles.height = art.cols, art.rows
-        wanted = bool(layout.emblem) and not self._compact and art.cover is None
-        if emblem.display != wanted:
-            emblem.display = wanted
+        self.query_one("#playlist", RowList).set_backdrop(layout.emblem)
         pane = self.query_one(LyricsPane)
-        if (pane.emblem, pane.tagline) != (layout.emblem, tagline):
-            pane.emblem, pane.tagline = layout.emblem, tagline
+        if pane.tagline != tagline:
+            pane.tagline = tagline
             pane.refresh()
         marquee = self.query_one(Marquee)
         idle = tagline or "TIDAL AMP"
         if marquee.idle_text != idle:
             marquee.idle_text = idle
             marquee.refresh()
-
-    def on_artwork_changed(self, message: Artwork.Changed) -> None:
-        self._apply_emblem()
 
     def _apply_appearance(self) -> None:
         """Apply structure and palette without restarting playback."""
