@@ -1512,3 +1512,93 @@ def test_s_sorts_the_level_says_so_and_keeps_it(monkeypatch):
             library.forget()
 
     asyncio.run(scenario())
+
+
+def test_d_removes_a_favourite_after_asking_and_the_row_goes(monkeypatch):
+    """`d` asks first, on «cancel»; confirmed, the row leaves the level. At
+    the top there is nothing to remove from, and it says so."""
+    from app_helpers import settle, visible_labels
+
+    from tidalamp import library
+    from tidalamp.library import Row
+    from tidalamp.queue import Entry
+    from tidalamp.screens import BrowserScreen, ChoiceScreen
+
+    isolate_runtime(monkeypatch)
+    removed: list[tuple[str, bool]] = []
+    monkeypatch.setattr(
+        library,
+        "favourite",
+        lambda session, row, add=True: removed.append((row.label, add)) or row.label,
+    )
+    monkeypatch.setattr("tidalamp.screens.browser.ensure_fresh", lambda session: None)
+    tracks = [
+        Row(label=f"TOOL - {title}", entry=Entry(id=i, title=title, artist="TOOL"))
+        for i, title in enumerate(["Sober", "Schism"])
+    ]
+    favourites = Row(label="Pistas favoritas", key="fav:tracks", loader=lambda: tracks)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(120, 34)) as pilot:
+            await pilot.pause()
+            browser = BrowserScreen("MI BIBLIOTECA", lambda: [favourites])
+            application.push_screen(browser)
+            await settle(pilot, lambda: visible_labels(browser) == ["Pistas favoritas"])
+
+            await pilot.press("d")
+            await pilot.pause()
+            assert "no hay de dónde quitar" in application.status
+
+            await pilot.press("enter")
+            await settle(pilot, lambda: len(visible_labels(browser)) == 2)
+            await pilot.press("d")
+            await pilot.pause()
+            assert isinstance(application.screen, ChoiceScreen)
+            await pilot.press("enter")  # it opens on «cancel»
+            await pilot.pause()
+            assert removed == []
+            assert len(visible_labels(browser)) == 2
+
+            await pilot.press("d", "up", "enter")
+            await settle(pilot, lambda: visible_labels(browser) == ["TOOL - Schism"])
+            assert removed == [("TOOL - Sober", False)]
+            assert "quitado de favoritos" in application.status
+
+    asyncio.run(scenario())
+
+
+def test_question_mark_in_the_browser_shows_only_its_keys(monkeypatch):
+    """The footer says `? ayuda` and no more; `?` opens the help with the
+    browser's section alone, and esc comes back to the browser."""
+    from app_helpers import settle, visible_labels
+
+    from tidalamp.screens import BrowserScreen, HelpScreen
+
+    isolate_runtime(monkeypatch)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(120, 40)) as pilot:
+            await pilot.pause()
+            open_browser(application)
+            browser = application.screen
+            assert isinstance(browser, BrowserScreen)
+            await settle(pilot, lambda: len(visible_labels(browser)) > 0)
+
+            await pilot.press("question_mark")
+            await pilot.pause()
+            assert isinstance(application.screen, HelpScreen)
+            body = application.screen.query_one("#help-body")
+            text = "\n".join(body.render_line(y).text for y in range(body.size.height))
+            assert "ordenar el nivel" in text
+            assert "quitar de favoritos o de la playlist abierta" in text
+            assert "subir volumen" not in text
+            title = application.screen.query_one("#help-title").render_line(0).text
+            assert "ACERCA DE" not in title
+
+            await pilot.press("escape")
+            await pilot.pause()
+            assert application.screen is browser
+
+    asyncio.run(scenario())

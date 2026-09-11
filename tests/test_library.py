@@ -862,3 +862,75 @@ def test_a_level_tidal_cannot_sort_is_sorted_here_with_more_last():
     by_album = library._in_order(rows, library.Order("album", descending=True))
     assert [row.label for row in by_album] == ["Sober", "Schism", "Aenema", "más…"]
     assert [row.label for row in rows][:3] == titles
+
+
+class FakeOwnedPlaylist:
+    """A playlist the account owns: it lists its tracks and removes by index."""
+
+    def __init__(self, ids, name="Mía"):
+        self.name = name
+        self.ids = list(ids)
+        self.num_tracks = len(self.ids)
+        self.pages: list[int] = []
+        self.removed: list[int] = []
+
+    def tracks(self, limit=None, offset=0, **order):
+        self.pages.append(offset)
+        return [SimpleNamespace(id=i) for i in self.ids[offset : offset + limit]]
+
+    def remove_by_index(self, index):
+        self.removed.append(index)
+        del self.ids[index]
+        return True
+
+
+def test_removing_from_a_playlist_finds_the_track_past_the_first_page(monkeypatch):
+    """tidalapi's own lookup reads one page and calls a later track absent."""
+    monkeypatch.setattr(
+        library,
+        "_LEVELS",
+        {"playlist:7": [], "playlist:7|name-asc": [], "playlists": [], "fav:tracks": []},
+    )
+    playlist = FakeOwnedPlaylist(range(250))
+
+    name = library.remove_from_playlist(
+        FakePlaylistSession(playlist), "7", Entry(id=230, title="t", artist="a")
+    )
+
+    assert name == "Mía"
+    assert playlist.removed == [230]
+    assert playlist.pages == [0, PAGE, 2 * PAGE]
+    # The playlist in every order, and the list of playlists with its count.
+    assert set(library._LEVELS) == {"fav:tracks"}
+
+
+def test_a_playlist_someone_else_owns_is_left_alone():
+    with pytest.raises(library.PlaylistNotWritable):
+        library.remove_from_playlist(
+            FakePlaylistSession(FakeReadOnlyPlaylist()),
+            "7",
+            Entry(id=1, title="t", artist="a"),
+        )
+
+
+def test_a_track_already_gone_says_so_and_removes_nothing():
+    playlist = FakeOwnedPlaylist([1, 2])
+    with pytest.raises(library.TrackNotInPlaylist):
+        library.remove_from_playlist(
+            FakePlaylistSession(playlist), "7", Entry(id=9, title="t", artist="a")
+        )
+    assert playlist.removed == []
+
+
+def test_unfavouriting_forgets_the_favourites_level_in_every_order(monkeypatch):
+    monkeypatch.setattr(
+        library,
+        "_LEVELS",
+        {"fav:tracks": [], "fav:tracks|name-asc": [], "fav:albums": []},
+    )
+    session, favorites = writer_session()
+
+    library.favourite(session, track_row("Schism"), add=False)
+
+    assert favorites.calls == [("remove_track", "1")]
+    assert set(library._LEVELS) == {"fav:albums"}

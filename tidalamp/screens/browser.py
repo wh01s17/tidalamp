@@ -18,6 +18,7 @@ from ..i18n import _
 from ..library import Row
 from ..widgets import Spinner
 from .choice import ChoiceScreen
+from .help import HelpScreen
 from .rowlist import RowList
 from .tracks import TrackActionsScreen
 
@@ -31,14 +32,10 @@ if TYPE_CHECKING:  # The screens report back to the app; the app owns them.
 # guess and drops what they would: `A` is `a` again on the whole level and
 # reads as its pair, while `f/F` is a TIDAL account you can only find here.
 BROWSER_HINTS: tuple[tuple[str, str, int], ...] = (
-    ("↵", _("abrir/reproducir"), 1),
-    ("/", _("filtrar"), 2),
-    ("a", _("añadir"), 3),
-    ("A", _("añadir todo"), 6),
-    ("f/F", _("favorito"), 5),
-    ("⌫", _("atrás"), 4),
-    ("R", _("recargar"), 7),
-    ("s", _("ordenar"), 8),
+    # The rest of the keys live in `?`, which shows the browser's and no
+    # others: a footer that tried to list them all dropped half of them on any
+    # terminal narrower than the list.
+    ("?", _("ayuda"), 1),
     ("esc", _("cerrar"), 0),
 )
 
@@ -93,6 +90,8 @@ class BrowserScreen(ModalScreen[tuple | None]):
         Binding("A", "append_all", _("añadir todo"), show=False),
         Binding("R", "reload", _("recargar"), show=False),
         Binding("s", "sort", _("ordenar"), show=False),
+        Binding("d,delete", "remove", _("quitar"), show=False),
+        Binding("question_mark", "help", _("ayuda"), show=False),
         Binding("f", "favourite", _("favorito"), show=False),
         Binding("F", "unfavourite", _("quitar favorito"), show=False),
     ]
@@ -373,6 +372,87 @@ class BrowserScreen(ModalScreen[tuple | None]):
         self._busy(_("orden: {order}").format(order=library.order_label(order)))
         self._load(title, loader, key, source)
 
+    def action_help(self) -> None:
+        """The help window, with the browser's keys and nothing else."""
+        # Here and not at the top: `app` imports this module.
+        from ..app import keys_for
+
+        self.app.push_screen(HelpScreen(keys_for, only="browser"))
+
+    def action_remove(self) -> None:
+        """Take the row out of where it is: favourites, or the playlist open.
+
+        Asked first, with the cursor on «cancel», like restarting PipeWire:
+        adding a track back to a playlist does not put it back where it was.
+        """
+        row = self.query_one(RowList).current
+        source = self._stack[-1][4] if self._stack else None
+        where = ""
+        if row is not None and row.more is None and source is not None:
+            kind, _sep, ident = source.key.partition(":")
+            if source.key.startswith("fav:"):
+                where = _("favoritos")
+            elif kind == "playlist" and ident and row.entry is not None:
+                where = f"«{source.label}»"
+        if not where or row is None or source is None:
+            self.player.status = _("aquí no hay de dónde quitar")
+            return
+        self.app.push_screen(
+            ChoiceScreen(
+                _("QUITAR"),
+                [
+                    (
+                        "remove",
+                        _("quitar «{label}» de {where}").format(
+                            label=row.label, where=where
+                        ),
+                    ),
+                    ("cancel", _("cancelar")),
+                ],
+                cursor=1,
+            ),
+            lambda answer: self._remove(row, source) if answer == "remove" else None,
+        )
+
+    def _remove(self, row: Row, source: Row) -> None:
+        self._busy(_("quitando…"))
+        self._remove_worker(row, source)
+
+    @work(thread=True, exclusive=True, group="remove")
+    def _remove_worker(self, row: Row, source: Row) -> None:
+        session = self.player.session
+        gone: Row | None = row
+        try:
+            if source.key.startswith("fav:"):
+                message = favourite_message(session, row, False)
+            else:
+                assert row.entry is not None
+                ensure_fresh(session)
+                playlist = library.remove_from_playlist(
+                    session, source.key.partition(":")[2], row.entry
+                )
+                message = _("«{label}» quitada de «{playlist}»").format(
+                    label=row.label, playlist=playlist
+                )
+        except library.TrackNotInPlaylist:
+            message = _("«{label}» ya no está en la playlist").format(label=row.label)
+        except library.PlaylistNotWritable as exc:
+            title = exc.args[0] if exc.args else ""
+            message = _("«{title}» es de otra cuenta: no se puede quitar nada").format(
+                title=title
+            )
+            gone = None
+        except Exception as exc:
+            message = _("quitar: {error}").format(error=exc)
+            gone = None
+        self.app.call_from_thread(self._removed, message, gone)
+
+    def _removed(self, message: str, row: Row | None) -> None:
+        self._idle()
+        self.player.status = message
+        if row is not None:
+            self._drop(row)
+
     def action_choose(self) -> None:
         widget = self.query_one(RowList)
         row = widget.current
@@ -478,11 +558,28 @@ class BrowserScreen(ModalScreen[tuple | None]):
                 self._favourite_done, _("favoritos: {error}").format(error=exc)
             )
             return
-        self.app.call_from_thread(self._favourite_done, message)
+        self.app.call_from_thread(self._favourite_done, message, row, add)
 
-    def _favourite_done(self, message: str) -> None:
+    def _favourite_done(
+        self, message: str, row: Row | None = None, add: bool = True
+    ) -> None:
         self._idle()
         self.player.status = message
+        # `F` inside a favourites level takes the row out of it, as `d` does.
+        source = self._stack[-1][4] if self._stack else None
+        in_favourites = source is not None and source.key.startswith("fav:")
+        if row is not None and not add and in_favourites:
+            self._drop(row)
+
+    def _drop(self, row: Row) -> None:
+        """Take a row out of the level on screen, keeping the cursor's place."""
+        level = self._level()
+        index = next((i for i, candidate in enumerate(level) if candidate is row), -1)
+        if index < 0:
+            return
+        cursor = self.query_one(RowList).cursor
+        del level[index]
+        self._show(cursor)
 
     @work(thread=True, exclusive=True)
     def _append_container(self, loader) -> None:

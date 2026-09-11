@@ -79,6 +79,12 @@ def cached(key: str, loader: Callable[[], list[Row]]) -> Callable[[], list[Row]]
     return load
 
 
+def forget_level(key: str) -> None:
+    """Drop a level and every sorted copy of it (``key|name-asc`` and so on)."""
+    for cached_key in [k for k in _LEVELS if k == key or k.startswith(f"{key}|")]:
+        _LEVELS.pop(cached_key, None)
+
+
 def forget(key: str = "") -> None:
     """Drop one cached level, or all of them when ``key`` is empty."""
     if key:
@@ -642,6 +648,8 @@ def favourite(session: tidalapi.Session, row: Row, add: bool = True) -> str:
     if entry is not None:
         track = favorites.add_track if add else favorites.remove_track
         with_retries(lambda: track(str(entry.id)))
+        # The favourites level, in every order it was opened in, is stale now.
+        forget_level("fav:tracks")
         return entry.label
 
     kind, _separator, ident = row.key.partition(":")
@@ -656,6 +664,8 @@ def favourite(session: tidalapi.Session, row: Row, add: bool = True) -> str:
         )
     call = calls[kind][0 if add else 1]
     with_retries(lambda: call(ident))
+    if kind in ("album", "artist"):
+        forget_level(f"fav:{kind}s")
     return row.label
 
 
@@ -703,6 +713,48 @@ def save_queue_playlist(
 
 class PlaylistNotWritable(RuntimeError):
     """TIDAL handed back a playlist this account cannot add to."""
+
+
+class TrackNotInPlaylist(RuntimeError):
+    """The track is no longer in the playlist the browser showed it in."""
+
+
+def remove_from_playlist(
+    session: tidalapi.Session, playlist_id: str, entry: Entry
+) -> str:
+    """Take one track out of a playlist the user owns. Returns the playlist's name.
+
+    By index, looked up here page by page in the playlist's own order.
+    tidalapi's ``remove_by_id`` reads a single page of TIDAL's default size
+    and reports a track past it as absent; and the browser may be showing the
+    playlist sorted, so the row's number on screen is no index at all. A track
+    that is in the playlist twice loses its first appearance.
+
+    The DELETE is not retried: it removes by position, and a retry after a
+    lost answer would take out the track that moved into that position.
+    """
+    playlist = with_retries(lambda: session.playlist(playlist_id))
+    title = getattr(playlist, "name", "") or ""
+    if not hasattr(playlist, "remove_by_index"):
+        # A playlist someone else owns parses fine and cannot be written to.
+        raise PlaylistNotWritable(title)
+    wanted = str(entry.id)
+    total = _count_of(playlist)
+    offset = 0
+    while total is None or offset < total:
+        page = with_retries(
+            lambda offset=offset: playlist.tracks(limit=PAGE, offset=offset)
+        )
+        if not page and total is None:
+            break
+        for position, track in enumerate(page):
+            if str(getattr(track, "id", "")) == wanted:
+                playlist.remove_by_index(offset + position)
+                forget("playlists")
+                forget_level(f"playlist:{playlist_id}")
+                return title
+        offset += PAGE
+    raise TrackNotInPlaylist(entry.label)
 
 
 def add_to_playlist(

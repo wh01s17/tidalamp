@@ -1303,6 +1303,30 @@ fichero en sí.
       hasta salir, no en `config.toml`; el título lo dice, y `R` recarga el orden
       que está puesto.
 
+### Quitar de favoritos o de una playlist — `library.py`, `screens/browser.py`
+
+- [x] `d` o Supr en el explorador quita la fila de donde está: de favoritos en un
+      nivel de favoritos, y de la playlist en una playlist propia. Pregunta antes con
+      `ChoiceScreen` abierta en «cancelar»: volver a añadir una pista no la devuelve
+      a su sitio. Al confirmar, la fila sale del nivel; `F` hace lo mismo en su nivel.
+- [x] `remove_from_playlist` busca el índice página a página, en el orden de la
+      playlist, y quita por índice. `remove_by_id` de tidalapi lee una sola página
+      del tamaño por defecto y da por ausente una pista más allá; y el explorador
+      puede estar mostrando la playlist ordenada, así que el número en pantalla no es
+      un índice. El DELETE no se reintenta: quita por posición, y un reintento tras
+      una respuesta perdida quitaría la pista que pasó a ocupar ese sitio. Una pista
+      repetida pierde su primera aparición.
+- [x] `forget_level` tira un nivel y todas sus copias ordenadas; lo usan quitar de
+      una playlist (más la lista de playlists, por el contador) y los favoritos.
+
+### La ayuda de la biblioteca — `screens/browser.py`, `screens/help.py`
+
+- [x] El pie del explorador dice solo `? ayuda` y `esc cerrar`. `?` abre
+      `HelpScreen(keys, only="browser")`, que muestra la sección cuyo
+      `about.Section.name` es `browser` y ninguna otra, sin la pestaña «Acerca de».
+      El pie que intentaba listar todas las teclas perdía la mitad en cualquier
+      terminal más estrecha que la lista.
+
 ### Filas de ajustes que se eligen de una lista — `screens/config_window.py`
 
 - [x] Calidad, Ritmos hi-res en PipeWire y Reiniciar PipeWire no cambian con las
@@ -1344,6 +1368,7 @@ Distinguir esto importa: parte del código nunca se ha ejecutado contra TIDAL re
 | Velocidad de reproducción | **VERIFICADO POR EL USUARIO** | Oída por el mantenedor contra TIDAL real (2026-09-11). Tests: la ventana ofrece las ocho velocidades y aplica con ↵, `esc` no toca nada, el botón dice la velocidad y se enciende fuera de 1×. |
 | Carátula redonda, reloj en cuenta atrás | **CUBIERTO POR TESTS** | Tests: la máscara redonda deja las esquinas en el fondo de la banda y el centro intacto; el reloj en cuenta atrás no pasa de veinte columnas (el test falla con el código viejo). Vistos en capturas SVG. |
 | Ordenar la biblioteca, filas de ajustes con lista | **CUBIERTO POR TESTS** | Tests: favoritos pide a TIDAL el orden con los enums de tidalapi; cada sección ofrece solo sus órdenes; «Mis playlists» manda `order` y `orderDirection`; el orden local deja «más…» al final y no toca la caché; en la app, `s` ordena, el título lo dice y volver al nivel lo conserva. Las flechas no tocan las tres filas y dos Enter en reiniciar no reinician. Falta verlo contra TIDAL real, sobre todo «Mis playlists». |
+| Quitar de favoritos o de una playlist | **CUBIERTO POR TESTS** | Tests: la pista se encuentra más allá de la primera página y se quita por índice; una playlist ajena no se toca; una pista que ya no está lo dice sin quitar nada; quitar un favorito tira su nivel en todos los órdenes; en la app, `d` pregunta en «cancelar», confirmado la fila sale, y en la raíz avisa. Falta contra TIDAL real. |
 | Dos columnas (`split`)              | **Verificado en headless y a mano** | Cuatro tests: mismos objetos (cola, carátula, transporte) y cursor al cambiar de forma, vuelta sola a apilada por ancho y por alto, las trece disposiciones caben en el umbral con el transporte bajo las dos columnas, y la letra se carga una vez por pista y sigue la línea. Capturas SVG de las trece. El mantenedor lo usó en su terminal con audio real y letra. |
 | Barras clicables                    | **Verificado**                    | Cuatro pruebas con `pilot.click`: seek a mitad, seek parado sin llamada a mpv, volumen al extremo y balance en cero exacto pese al padding. |
 | Ayuda en dos pestañas              | **Verificado**                    | Dos unitarias en la app headless: `→` lleva a «Acerca de» y dibuja el repositorio, `←` vuelve a los atajos con el desplazamiento donde se dejó, y ninguna de las dos flechas se sale por los extremos. Render a 100x30 de las dos pestañas, con la activa marcada en la barra de título. |

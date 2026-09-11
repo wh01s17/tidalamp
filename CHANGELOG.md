@@ -15,6 +15,11 @@ versioning is [semantic](https://semver.org/).
   the page on screen. Inside an album or an artist, which TIDAL does not sort, the
   tracks are sorted locally. The order is kept per level until you quit, and the
   title says which one is on.
+- Removing from the library: `d` (or Delete) takes the row out of where it is, your
+  favourites or the playlist you have open, after asking with the cursor on Cancel.
+  The row leaves the list at once, and so does a favourite removed with `F` from
+  its own level. Only your own playlists can be changed; a track is found by its
+  id, so a playlist shown sorted loses the right one.
 
 ### Changed
 
@@ -23,6 +28,9 @@ versioning is [semantic](https://semver.org/).
   to change the quality, rewrite PipeWire's rates or restart PipeWire and cut the
   audio. Enter opens the list, and Restart's opens on Cancel, so a double Enter by
   reflex cuts nothing.
+- The browser's footer lists only `? help` and `esc close`. `?` opens the help window
+  with the browser's keys alone; the footer that tried to list them all dropped half
+  of them on any terminal narrower than the list.
 
 ## [0.7.0] - 2026-09-11
 

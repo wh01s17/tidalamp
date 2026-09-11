@@ -189,6 +189,7 @@ show the key that actually works.
 | `/`             | inside the browser, filter the level you are on    |
 | `R`             | reload the level, bypassing the cache              |
 | `s`             | inside the browser, sort the level you are on      |
+| `d`             | inside the browser, remove from favourites or from the open playlist |
 | `y`             | show lyrics for the current track                  |
 | `s` `r`         | shuffle (`⇄`) / repeat (`↻`), on the transport row |
 | `d`             | remove from the queue                              |
@@ -747,6 +748,10 @@ where you left them.
 
 `↑` `↓` scroll, `PgUp` `PgDn` a page, `Home` `End` jump to either end, and `?`, `h` or
 `Esc` close it.
+
+Inside the browser, whether it is showing your library or search results, `?` opens
+the same window with the browser's keys alone; the browser's footer names only `?`
+and `esc`.
 
 `/` searches the tab you are on: a box opens under the text, and what you type narrows
 it to the lines that match, each under its section's heading, ignoring accents and

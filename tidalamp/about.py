@@ -185,6 +185,8 @@ class Section:
 
     title: str
     rows: tuple[tuple[str, str], ...]
+    # For the windows that show one section alone: the browser's `?`.
+    name: str = ""
 
 
 def shortcuts(keys) -> tuple[Section, ...]:
@@ -272,9 +274,11 @@ def shortcuts(keys) -> tuple[Section, ...]:
                 ("/", _("filtrar el nivel: escribe y la lista se estrecha")),
                 ("R", _("recargar, ignorando la caché")),
                 ("s", _("ordenar el nivel: fecha, nombre, artista o álbum")),
+                ("d", _("quitar de favoritos o de la playlist abierta")),
                 ("f / F", _("añadir o quitar de favoritos")),
                 ("esc", _("cerrar")),
             ),
+            name="browser",
         ),
         Section(
             _("Menú de la pista (↵ en la biblioteca, m en la cola)"),

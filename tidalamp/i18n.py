@@ -168,6 +168,21 @@ ENGLISH: dict[str, str] = {
     "ordenar el nivel: fecha, nombre, artista o álbum": (
         "sort the level: date, name, artist or album"
     ),
+    "QUITAR": "REMOVE",
+    "favoritos": "favourites",
+    "aquí no hay de dónde quitar": "there is nothing to remove from here",
+    "quitar «{label}» de {where}": "remove «{label}» from {where}",
+    "quitando…": "removing…",
+    "«{label}» quitada de «{playlist}»": "«{label}» removed from «{playlist}»",
+    "«{label}» ya no está en la playlist": "«{label}» is no longer in the playlist",
+    "«{title}» es de otra cuenta: no se puede quitar nada": (
+        "«{title}» belongs to another account: nothing can be removed"
+    ),
+    "quitar: {error}": "remove: {error}",
+    "quitar de favoritos o de la playlist abierta": (
+        "remove from favourites or from the open playlist"
+    ),
+    " ↑↓ desplazar   / buscar   ?/esc cerrar": " ↑↓ scroll   / search   ?/esc close",
     "velocidad": "speed",
     "velocidad: {value}": "speed: {value}",
     "velocidad de reproducción, de 0.25× a 2×": "playback speed, from 0.25× to 2×",

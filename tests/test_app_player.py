@@ -99,7 +99,7 @@ def test_the_footer_drops_whole_hints_instead_of_cropping_one(monkeypatch):
 
             assert cell_len(line) <= hint.size.width
             assert line.rstrip().endswith("esc cerrar")
-            assert "/ filtrar" in line
+            assert "? ayuda" in line
             # Whatever survived, survived whole.
             for key, label, _drop in BROWSER_HINTS:
                 assert (f"{key} {label}" in line) or (label not in line)

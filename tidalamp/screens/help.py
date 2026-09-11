@@ -50,9 +50,13 @@ class HelpScreen(ModalScreen[None]):
     # `←` back towards its start, so the order here is the order on screen.
     SHORTCUTS, ABOUT = 0, 1
 
-    def __init__(self, keys: Callable[[str], str]) -> None:
+    def __init__(self, keys: Callable[[str], str], only: str = "") -> None:
         super().__init__()
         self._keys = keys
+        # A section's name (`about.Section.name`) to show alone, for a window
+        # that opens its own help: the browser's `?` shows the browser's keys
+        # and nothing else, without the «Acerca de» tab.
+        self._only = only
         self._tab = self.SHORTCUTS
         # One scroll position per tab: coming back to the keys should land
         # where you left them, not at the top.
@@ -93,7 +97,11 @@ class HelpScreen(ModalScreen[None]):
             yield Static("", id="help-hint", markup=False)
 
     def on_mount(self) -> None:
-        self._pages = [self._build_shortcuts(), self._build_about()]
+        self._pages = (
+            [self._build_shortcuts()]
+            if self._only
+            else [self._build_shortcuts(), self._build_about()]
+        )
         self.query_one("#help-filter-bar", Horizontal).display = False
         self._render_tabs()
         self._render_window()
@@ -102,6 +110,8 @@ class HelpScreen(ModalScreen[None]):
 
     def _titles(self) -> tuple[str, str]:
         """Translated at call time, like everything else the screen draws."""
+        if self._only:
+            return (_("AYUDA"),)
         return (_("AYUDA"), _("ACERCA DE"))
 
     def _render_tabs(self) -> None:
@@ -123,6 +133,8 @@ class HelpScreen(ModalScreen[None]):
 
         if self._searching():
             hint = _(" escribe para filtrar   ↵ listo   esc quitar la búsqueda")
+        elif self._only:
+            hint = _(" ↑↓ desplazar   / buscar   ?/esc cerrar")
         elif self._tab == self.SHORTCUTS:
             hint = _(" ↑↓ desplazar   / buscar   → acerca de   ?/h/esc cerrar")
         else:
@@ -235,6 +247,8 @@ class HelpScreen(ModalScreen[None]):
         lines: list[tuple[str, str]] = []
 
         for section in about.shortcuts(self._keys):
+            if self._only and section.name != self._only:
+                continue
             lines.append(("heading", section.title))
             width = max(len(key) for key, _description in section.rows)
             for key, description in section.rows:
