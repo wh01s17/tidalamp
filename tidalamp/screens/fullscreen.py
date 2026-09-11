@@ -82,6 +82,10 @@ class FullscreenScreen(Screen[None]):
         # Set once a kitty cover has been shown here: closing the view deletes
         # the image then, whatever the cover and the protocol are by that time.
         self._sent_kitty = False
+        # False until on_mount, which runs once the widgets exist. The player's
+        # tick sees this screen in front the moment it is pushed, before its
+        # widgets are mounted, and a slow machine got there first.
+        self._ready = False
 
     @property
     def player(self) -> TidalAmp:
@@ -103,6 +107,7 @@ class FullscreenScreen(Screen[None]):
             yield Static("", id="fs-side")
 
     def on_mount(self) -> None:
+        self._ready = True
         # The frame is the look's own: whatever border the player wears, this
         # view wears too, so a theme changes both.
         self.styles.border = self.player.query_one("#main").styles.border
@@ -233,6 +238,8 @@ class FullscreenScreen(Screen[None]):
 
     def follow(self, position: float, duration: float) -> None:
         """The player's tick, while this view is in front."""
+        if not self._ready:
+            return
         seek = self.query_one("#fs-seek", SeekBar)
         seek.position, seek.total = position, duration
         self.query_one("#fs-times", Static).update(
@@ -357,7 +364,7 @@ class FullscreenScreen(Screen[None]):
         The same rows as the player's list, filter and all, so a row here is
         the same row there and every queue action lands where it is aimed.
         """
-        if not self.is_mounted:
+        if not self._ready:
             return
         main = self._main_list()
         shape = (id(main.rows), len(main.rows), main.marked, main.cursor)

@@ -437,3 +437,37 @@ def test_transparency_turned_on_over_the_view_leaves_no_kitty_image(
             assert FullArtwork().image_id in deleted
 
     asyncio.run(scenario())
+
+
+def test_a_new_cover_shape_reaches_the_view(monkeypatch, tmp_path):
+    from app_helpers import isolate_config
+
+    isolate_runtime(monkeypatch)
+    isolate_config(monkeypatch, tmp_path)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(120, 40)) as pilot:
+            await pilot.pause()
+            a_queue_playing(application)
+            await pilot.press("w")
+            await pilot.pause()
+            asked: list[str] = []
+            monkeypatch.setattr(
+                FullscreenScreen, "_request", lambda self: asked.append("again")
+            )
+            app_module.config.set_option("cover_shape", "round")
+            application._setting_changed("cover_shape")
+            assert asked == ["again"]
+
+    asyncio.run(scenario())
+
+
+def test_the_tick_can_reach_the_view_before_it_is_mounted(monkeypatch):
+    """The player's tick sees the view in front as soon as it is pushed, and on
+    a slow machine (CI, Python 3.11) that was before its widgets existed: the
+    bar's lookup failed and took the app down. Until mounted it does nothing."""
+    isolate_runtime(monkeypatch)
+    view = FullscreenScreen()
+    view.follow(12.0, 200.0)
+    view.mirror_queue(force=True)
