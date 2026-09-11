@@ -514,7 +514,7 @@ writes `~/.config/tidalamp/config.toml`, so a change made once stays made.
 | --------- | ----------------------------------------- | -------------- |
 | Quality   | `LOW` `HIGH` `LOSSLESS` `HI_RES_LOSSLESS` | the next track |
 | Cover art | `auto` `kitty` `sixel` `blocks` `off`     | on restart     |
-| Cover shape | `square` `round`                        | immediately    |
+| Cover shape | `square` `rounded` `round`              | immediately    |
 | Language  | `auto` `es` `en`                          | on restart     |
 | Visualizer | `bars` `mirror` `curve` `fine`            | immediately   |
 | Debug log | on / off                                  | immediately    |
@@ -529,7 +529,7 @@ exist:
 ```toml
 quality = "HI_RES_LOSSLESS"   # LOW, HIGH, LOSSLESS, or HI_RES_LOSSLESS
 artwork = "auto"              # auto, kitty, sixel, blocks, or off
-cover_shape = "square"        # square, or round: the cover as a disc
+cover_shape = "square"        # square, rounded (rounded corners), or round (a disc)
 language = "auto"             # auto follows the locale; es or en pin it
 columns = "artist,album,year,duration"   # queue columns, comma separated
 theme = "quattro"             # layout: quattro, retro, nova, ascii, or a themed look
@@ -695,7 +695,8 @@ blocks, which work everywhere.
 `cover_shape = "round"` (Cover shape in the settings window) draws the cover as a disc,
 under any theme. The corners are painted in the band's own colour rather than left
 transparent, since sixel and blocks have no transparency to leave, so the disc looks
-the same with every protocol.
+the same with every protocol. `rounded` keeps the square and rounds its corners, with a
+radius in proportion to the side so it still shows in `blocks`.
 
 `blocks` draws with the quadrant glyphs (`▘▝▖▗▚▞…`), so each cell carries **four**
 samples: two across and two down. A cell still holds only two colours, so where its four

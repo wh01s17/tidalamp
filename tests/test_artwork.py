@@ -382,3 +382,35 @@ def test_render_cuts_the_cover_before_any_protocol_sees_it():
     assert cover.pixels[0][0] == (0, 0, 0)
     middle = cover.pixels[len(cover.pixels) // 2][len(cover.pixels[0]) // 2]
     assert middle == (250, 250, 250)
+
+
+def test_rounded_corners_keep_the_edges_straight():
+    """The corners take the band's ground; the middle of each edge is still
+    the cover, which is what tells `rounded` from `round`."""
+    pil_image = pytest.importorskip("PIL.Image")
+    red = pil_image.new("RGB", (80, 80), (200, 20, 20))
+    ground = (10, 30, 12)
+    card = artwork.shape(red, "rounded", ground)
+    for corner in ((0, 0), (79, 0), (0, 79), (79, 79)):
+        assert card.getpixel(corner) == ground, corner
+    # One pixel in, the smoothed edge: still all but the ground.
+    assert all(
+        abs(a - b) <= 8 for a, b in zip(card.getpixel((1, 1)), ground, strict=True)
+    )
+    for edge in ((40, 0), (0, 40), (79, 40), (40, 79)):
+        assert card.getpixel(edge) == (200, 20, 20), edge
+
+
+def test_rounded_corners_survive_the_blocks_protocol():
+    """Four pixels a cell: a radius in proportion to the side still shows."""
+    pil_image = pytest.importorskip("PIL.Image")
+    buffer = io.BytesIO()
+    pil_image.new("RGB", (64, 64), (250, 250, 250)).save(buffer, "PNG")
+    cover = artwork.render(
+        buffer.getvalue(), 18, 9, Protocol.BLOCKS, outline="rounded", ground=(0, 0, 0)
+    )
+    assert cover is not None and cover.pixels is not None
+    # The corner cell averages its four pixels: mostly ground, a trace of edge.
+    assert max(cover.pixels[0][0]) < 64
+    middle_of_top = cover.pixels[0][len(cover.pixels[0]) // 2]
+    assert middle_of_top == (250, 250, 250)

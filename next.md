@@ -15,24 +15,7 @@ Lo de aquí no bloquea publicar. `plan.md` §5 y §6 mandan sobre el estado gene
 
 ---
 
-## 1. Más formas de carátula
-
-`cover_shape` tiene `square` y `round`. Añadir al menos `rounded`, esquinas
-redondeadas, con `ImageDraw.rounded_rectangle` en `artwork.shape`, sobre la misma
-máscara dibujada a 4x.
-
-Trampas:
-
-- En `blocks` una celda son cuatro píxeles: un radio pequeño desaparece. Radio en
-  proporción al lado (alrededor de un 12 %) y mirarlo en `blocks`, no solo en kitty.
-- Las formas viven en `ConfigScreen.COVER_SHAPES`, en las tres copias de la plantilla
-  de `i18n.py`, en el README (tabla de ajustes y sección de la carátula) y en el test
-  de `artwork.shape`.
-
-Cómo se comprueba: test de que la esquina queda en el fondo de la banda y un píxel
-algo hacia dentro ya es la carátula; captura en `blocks` y a la vista en kitty.
-
-## 2. Reproducción automática al terminar la cola
+## 1. Reproducción automática al terminar la cola
 
 Un ajuste nuevo, «Reproducción automática» (`autoplay`, sí o no, apagado por
 defecto para no cambiar lo que hace hoy): al acabarse la cola sigue con la radio de
@@ -61,7 +44,7 @@ acabar se detiene; encendido, se añaden las pistas sin la semilla ni repetidas,
 la primera nueva y la cola anterior sigue ahí; la radio vacía o con error detiene y
 avisa.
 
-## 3. Modo pantalla completa, como el de TIDAL
+## 2. Modo pantalla completa, como el de TIDAL
 
 Pedido el 2026-09-11, con una captura del cliente de TIDAL como referencia. Una vista
 que solo se abre con una tecla (sin fila en ajustes ni botón que la abra): la

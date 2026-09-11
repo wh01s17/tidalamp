@@ -225,6 +225,11 @@ def shape(image, outline: str, ground: Pixel):
     box = (0, 0, width * scale - 1, height * scale - 1)
     if outline == "round":
         draw.ellipse(box, fill=255)
+    elif outline == "rounded":
+        # In proportion to the side, not a fixed number of pixels: in blocks a
+        # cell is four pixels, and a radius a kitty cover shows would vanish.
+        radius = round(min(width, height) * scale * 0.12)
+        draw.rounded_rectangle(box, radius=radius, fill=255)
     else:
         return image
     mask = mask.resize((width, height), Image.Resampling.LANCZOS)

@@ -7,6 +7,8 @@ versioning is [semantic](https://semver.org/).
 
 ### Added
 
+- A third cover shape, `rounded`: the square cover with rounded corners, the radius in
+  proportion to the side so it still shows in blocks.
 - Playback speed over MPRIS: `Rate` is now writable, between `MinimumRate` 0.25 and
   `MaximumRate` 2, and announced when it changes. A desktop's rate lands on the
   nearest quarter; 0 is ignored, as the specification asks.

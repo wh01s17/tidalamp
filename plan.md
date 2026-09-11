@@ -783,6 +783,10 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
       vuelve a pedir si un cambio de tema o de ajuste los cambia. Se probó también
       que cada tema cambiara la barra, los sliders y el analizador (`Skin`); al
       mantenedor no le gustó y se quitó entero.
+- [x] **`rounded`**, la tercera forma (2026-09-11): el cuadrado con las esquinas
+      redondeadas, `rounded_rectangle` sobre la misma máscara a 4x, con un radio del
+      12 % del lado. En proporción y no en píxeles fijos: en `blocks` una celda son
+      cuatro píxeles, y un radio pensado para kitty desaparecería.
 - [x] **Los nombres de los temas en el idioma en uso** (2026-09-11). `layouts.label`
       da la etiqueta (`bosque` → forest, `pirata` → pirate…) y la usan la ventana de
       ajustes (tema, paleta y fondo de la cola) y la barra de estado. `config.toml`

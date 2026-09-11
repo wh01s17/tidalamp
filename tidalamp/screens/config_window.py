@@ -82,7 +82,7 @@ class ConfigScreen(ModalScreen[None]):
     LANGUAGES = ("auto", "es", "en")
     SWITCH = ("false", "true")
     ARRANGEMENTS = ("stacked", "split")
-    COVER_SHAPES = ("square", "round")
+    COVER_SHAPES = ("square", "rounded", "round")
 
     def __init__(self, on_change=None) -> None:
         super().__init__()
@@ -174,7 +174,7 @@ class ConfigScreen(ModalScreen[None]):
                 _("Forma de la carátula"),
                 key="cover_shape",
                 choices=self.COVER_SHAPES,
-                note=_("cuadrada o redonda, con cualquier tema"),
+                note=_("cuadrada, redondeada o redonda, con cualquier tema"),
                 group=looks,
             ),
             Option(
