@@ -510,6 +510,10 @@ ENGLISH: dict[str, str] = {
     "LISTA DE REPRODUCCIÓN": "PLAYLIST",
     "cola": "queue",
     "COLA": "QUEUE",
+    "BITÁCORA": "LOG",
+    "páginas": "pages",
+    "CRÓNICA": "CHRONICLE",
+    "baraja": "deck",
     " ↑↓ desplazar   y/esc cerrar": " ↑↓ scroll   y/esc close",
     "? ayuda · / buscar · l lib · y letra · e eq · o config · f/F favorito · q salir": (
         "? help · / search · l lib · y lyrics · e eq · o config · f/F favourite · q quit"
@@ -599,10 +603,13 @@ ENGLISH: dict[str, str] = {
     "# Columnas de la cola, separadas por coma. Disponibles: track, version,\n"
     "# artist, album, year, quality, explicit, popularity, disc, isrc, duration.\n"
     'columns = "artist,album,year,duration"\n\n'
-    "# Estilo visual: quattro, retro, nova o ascii.\n"
+    "# Estilo visual: quattro, retro, nova o ascii, o un tema que trae su paleta:\n"
+    "# unidad-morada, pirata, cuaderno, neon-noir, runas, reggae, comodin,\n"
+    "# gotico o death-metal.\n"
     'theme = "quattro"\n\n'
     "# Paleta: auto sigue Omarchy; también classic, tokyo-night, catppuccin,\n"
-    "# nord, gruvbox, black o un TOML en ~/.config/tidalamp/palettes/.\n"
+    "# nord, gruvbox, black, la de cualquier tema o un TOML en\n"
+    "# ~/.config/tidalamp/palettes/.\n"
     'palette = "auto"\n\n'
     "# Visualizador: bars (barras), mirror (espejo), curve (línea) o fine (línea\n"
     "# en Braille, necesita una fuente que lo traiga). Los cuatro se dibujan al lado\n"
@@ -632,10 +639,13 @@ ENGLISH: dict[str, str] = {
         "# Queue columns, comma separated. Available: track, version, artist,\n"
         "# album, year, quality, explicit, popularity, disc, isrc, duration.\n"
         'columns = "artist,album,year,duration"\n\n'
-        "# Visual style: quattro, retro, nova or ascii.\n"
+        "# Visual style: quattro, retro, nova or ascii, or a theme that brings its\n"
+        "# palette: unidad-morada, pirata, cuaderno, neon-noir, runas, reggae,\n"
+        "# comodin, gotico or death-metal.\n"
         'theme = "quattro"\n\n'
         "# Palette: auto follows Omarchy; also classic, tokyo-night, catppuccin,\n"
-        "# nord, gruvbox, black, or a TOML file in ~/.config/tidalamp/palettes/.\n"
+        "# nord, gruvbox, black, any theme's own, or a TOML file in\n"
+        "# ~/.config/tidalamp/palettes/.\n"
         'palette = "auto"\n\n'
         "# Visualizer: bars, mirror, curve, or fine (a Braille line, which needs "
         "a\n"
@@ -749,10 +759,13 @@ def config_template() -> str:
         "# Columnas de la cola, separadas por coma. Disponibles: track, version,\n"
         "# artist, album, year, quality, explicit, popularity, disc, isrc, duration.\n"
         'columns = "artist,album,year,duration"\n\n'
-        "# Estilo visual: quattro, retro, nova o ascii.\n"
+        "# Estilo visual: quattro, retro, nova o ascii, o un tema que trae su paleta:\n"
+        "# unidad-morada, pirata, cuaderno, neon-noir, runas, reggae, comodin,\n"
+        "# gotico o death-metal.\n"
         'theme = "quattro"\n\n'
         "# Paleta: auto sigue Omarchy; también classic, tokyo-night, catppuccin,\n"
-        "# nord, gruvbox, black o un TOML en ~/.config/tidalamp/palettes/.\n"
+        "# nord, gruvbox, black, la de cualquier tema o un TOML en\n"
+        "# ~/.config/tidalamp/palettes/.\n"
         'palette = "auto"\n\n'
         "# Visualizador: bars (barras), mirror (espejo), curve (línea) o fine "
         "(línea\n"

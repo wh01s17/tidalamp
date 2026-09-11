@@ -411,11 +411,31 @@ both can be changed from the settings window (`o`) without restarting playback.
   </tr>
 </table>
 
+### Themed looks
+
+Nine more layouts come with a palette of their own name. Choosing one in the settings
+window also sets `palette` to its colours, once: after that the palette is yours again,
+so a themed layout in `nord` is one keypress away and nothing puts the pair back. Their
+palettes can be picked on their own too, under any layout.
+
+| `theme`         | Look                                                                         |
+| --------------- | ---------------------------------------------------------------------------- |
+| `unidad-morada` | Purple armour, lime for what is lit, orange warning stripes, a heavy frame.  |
+| `pirata`        | Straw yellow on open sea, a rounded frame and a log for a queue.             |
+| `cuaderno`      | A black notebook: no frame, a red margin rule, headings on a ruled line.     |
+| `neon-noir`     | Night city neon, yellow and cyan, a thick frame and hard flat bars.          |
+| `runas`         | Old gold on a dark forest, a double frame and square keys.                   |
+| `reggae`        | Red, gold and green on black, a wide frame.                                  |
+| `comodin`       | The wild card: a purple suit, green hair, a dashed card edge and the suits.  |
+| `gotico`        | Crimson and violet under a pointed arch, square keys and centred headings.   |
+| `death-metal`   | Bone on black, blood red, a tall frame and noise at the edges.               |
+
+### Palettes
+
 `palette` accepts `auto` (follow Omarchy), `classic` (green-on-black, the player's own),
-the built-ins `tokyo-night`, `catppuccin`, `nord`, `gruvbox` and `black` — pure black
-with grey and white accents, where lightness carries what hue carries elsewhere — or the
-name of a TOML
-file you drop in `~/.config/tidalamp/palettes/`. Custom palettes use the same format as
+the built-ins `tokyo-night`, `catppuccin`, `nord`, `gruvbox` and `black` (pure black
+with grey and white accents, where lightness carries what hue carries elsewhere), the
+nine that come with the themed looks, or the name of a TOML file you drop in `~/.config/tidalamp/palettes/`. Custom palettes use the same format as
 Omarchy's `colors.toml`, so the built-ins and your own work on any Linux, with or
 without Omarchy.
 
@@ -468,7 +488,7 @@ quality = "HI_RES_LOSSLESS"   # LOW, HIGH, LOSSLESS, or HI_RES_LOSSLESS
 artwork = "auto"              # auto, kitty, sixel, blocks, or off
 language = "auto"             # auto follows the locale; es or en pin it
 columns = "artist,album,year,duration"   # queue columns, comma separated
-theme = "quattro"             # layout: quattro, retro, nova, or ascii
+theme = "quattro"             # layout: quattro, retro, nova, ascii, or a themed look
 palette = "auto"              # colours: auto, classic, a built-in, or your own
 visualizer = "bars"           # analyzer shape: bars, mirror, curve, or fine
 debug = false                 # log to ~/.local/state/tidalamp/tidalamp.log

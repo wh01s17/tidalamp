@@ -15,96 +15,18 @@ Lo de aquí no bloquea publicar. `plan.md` §5 y §6 mandan sobre el estado gene
 
 ---
 
-## 1. Temas temáticos: una disposición propia y una paleta que la acompaña
+## 1. Temas temáticos: verlos en un terminal real
 
-Hoy hay **dos ejes ortogonales**. `LAYOUTS` en `theme.py` da la estructura (`quattro`,
-`retro`, `nova`, `ascii`) y la paleta da el color (`auto`, `classic`, y las
-incorporadas `tokyo-night`, `catppuccin`, `nord`, `gruvbox`, `black`). Cualquier
-disposición funciona con cualquier paleta.
+Implementados el 2026-09-10 (ver `plan.md` «Disposiciones como datos» y el CHANGELOG):
+los nueve temas, con nombres que evocan sin nombrar marcas. Lo único que queda es la
+comprobación a mano que ningún test sustituye, porque `plan.md` §9.5 ya mordió una vez
+por dar por buena una disposición vista solo en un test:
 
-No hace falta un tercer concepto. Un tema temático es **una entrada más en cada uno de
-los dos ejes, con el mismo nombre**:
-
-- `eva-01` entra en `LAYOUTS`: su propia estructura, tan distinta como haga falta.
-- `eva-01` entra en `_BUILTIN_SOURCES`: sus propios colores.
-- Elegir el tema `eva-01` deja puesta la paleta `eva-01`, y desde ahí **la paleta sigue
-  siendo libre**: quien quiera `eva-01` con `nord` lo tiene, y el tema no lo revierte.
-
-**Decidido el 2026-09-10.** Se descartó la idea previa de un «ambiente» como tercer
-ajuste que agrupara los otros dos. Con el emparejamiento por nombre no hay nada que
-arbitrar: no existe la pregunta «¿qué gana si pido `ambiente = eva-01` y
-`palette = nord`?», porque no hay un tercer valor. Menos código, menos config y menos
-documentación para el mismo resultado.
-
-**Esto es compatible hacia atrás por construcción.** Ningún nombre de disposición
-actual existe como paleta ni al revés, así que la regla del emparejamiento no cambia
-el comportamiento de nadie que ya use `quattro`, `retro`, `nova` o `ascii`.
-
-### Lo que hay que hacer
-
-Ya hecho el 2026-09-10 (ver `plan.md` «Disposiciones como datos»): la tabla
-`layouts.LAYOUT_TABLE` que sustituye a los `if config.THEME ==`, la regla de
-emparejamiento (elegir el tema escribe su paleta una vez, `theme.PAIRED`), el test
-que impide que una disposición y una paleta compartan nombre sin declararlo, el test
-de presupuesto ASCII y el de contraste mínimo. `load_palette(name="auto")` no se tocó,
-como estaba decidido. Queda, por tema:
-
-1. **Una `Layout` en `LAYOUT_TABLE`**, con su estructura: título, encabezado de la
-   cola, un `_transport_<nombre>` si no reutiliza uno, y su bloque de TCSS.
-2. **Una entrada en `_BUILTIN_SOURCES` con el mismo nombre.** Queda elegible por su
-   cuenta, como las demás: la paleta `eva-01` con disposición `retro` es una
-   combinación válida y nadie tiene que impedirla.
-3. **Su nombre en `theme.PAIRED`.** Sin eso el test de choque de nombres falla, que es
-   justo lo que tiene que hacer.
-
-### Trampas conocidas
-
-- **Las paletas nuevas se quedan dentro del vocabulario de diez.** `_from_source()`
-  acepta `accent`, `background`, `foreground`, `muted`, `dark_background`,
-  `lighter_background`, `red`, `yellow`, `green` y `blue`, y de ahí deriva los
-  veinticinco semánticos con `_OMARCHY_KEYS`. Es lo que mantiene compatibles las
-  paletas de Omarchy y las de usuario, y **no hay que romperlo**: una paleta escrita
-  en esos diez es además copiable tal cual a
-  `~/.config/tidalamp/palettes/loquesea.toml`, que es media documentación gratis. Si
-  alguna necesitara de verdad control fino de algo como `eq_background`, la salida es
-  construirle la `ThemePalette` desde los veinticinco saltándose `_from_source()`,
-  nunca ampliar el vocabulario compartido. Que sea la excepción y no la norma.
-- **`ascii` no puede dibujar.** Esa disposición existe para terminales sin glifos de
-  caja, y el presupuesto de glifos es parte de la disposición (`Layout.ascii_only`,
-  con test). Los temas nuevos son libres de usar lo que quieran, pero ninguno debe
-  empujar sus rótulos a `ascii`.
-- **Cada rótulo nuevo es una entrada de catálogo.** Todo literal `_()` necesita su
-  pareja en `i18n.ENGLISH` y el test que recorre el AST exige igualdad exacta. Los
-  nombres propios de tema no se pasan por `_()`.
-- **Verlos en un terminal de verdad.** `plan.md` §9.5 ya mordió una vez por dar por
-  buena una disposición que solo se había visto en un test.
-
-### La lista propuesta
-
-Nueve, de la conversación del 2026-09-10: eva-01, One Piece, Death Note, Cyberpunk
-2077, El Señor de los Anillos, reggae, el Joker de *El caballero oscuro*, gótico y
-death metal.
-
-**Antes de fijar los nombres hay que resolver lo de las marcas.** Seis de los nueve son
-marcas registradas y muy defendidas. Una paleta de colores no es registrable y nadie
-puede reclamar el morado con verde y naranja; el **nombre** y el **logotipo** sí lo son,
-y tidalamp se publica en PyPI a nombre propio del mantenedor. Lo barato es evocar sin
-nombrar: `eva-01` pasa a `unidad-morada`, Cyberpunk 2077 a `neon-noir`, Death Note a
-`cuaderno`, y así. Los tres de género (reggae, gótico, death metal) no tienen ese
-problema y pueden entrar tal cual. Esto es decisión del mantenedor, no técnica; queda
-escrito para que no se decida por descuido al teclear el primer nombre.
-
-### Cómo se comprueba
-
-- Ninguna disposición y ninguna paleta comparten nombre salvo a propósito: la lista de
-  parejas declaradas es explícita y el test falla ante una coincidencia nueva.
-- Elegir un tema con pareja escribe esa paleta en el config; cambiar la paleta después
-  no toca la disposición ni los rótulos.
-- `palette = "auto"` sigue resolviendo Omarchy y luego `classic`, con tema emparejado
-  o sin él, exactamente como hoy.
-- Cada paleta nueva produce una `ThemePalette` con los veinticinco colores válidos y
-  pasa el contraste mínimo.
-- A mano, en un terminal real y a dos tamaños: los nueve, con captura.
+- A mano, en un terminal real y a dos tamaños (el mínimo y uno ancho): los nueve, con
+  su paleta y con otra, y con captura para el README.
+- Mirar en particular los glifos de cromo que dependen de la fuente: `▚ ▰ ☠ ⎈ ✎ ♫ ♠ ♥
+  ♦ ♣ ✠ ⟦ ⟧ ◆`. Si alguno sale como tofu o a dos celdas, se cambia en `layouts.py`; el
+  test de ancho solo cubre lo que Unicode declara ancho, no lo que la fuente decide.
 
 ---
 

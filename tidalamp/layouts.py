@@ -54,6 +54,8 @@ class Layout:
     # The glyph budget: a layout for terminals without box drawing keeps its
     # own chrome to ASCII, and the transport swaps every glyph for a stand-in.
     ascii_only: bool = False
+    # What `_transport_keycaps` draws either side of each key's face.
+    keycaps: tuple[str, str] = ("[", "]")
 
 
 # Each heading is a function rather than a string so the words go through
@@ -100,8 +102,96 @@ LAYOUT_TABLE: dict[str, Layout] = {
             queue_heading=lambda width, hints: spread(
                 f"--[ {_('COLA')} ]", hints, width, "-"
             ),
-            transport="ascii",
+            transport="keycaps",
             ascii_only=True,
+        ),
+        # The themed looks. Each is paired with a built-in palette of the same
+        # name (`theme.PAIRED`), and the names evoke rather than name: a colour
+        # scheme belongs to nobody, a registered title does.
+        #
+        # A purple giant with a lime trim and orange warning stripes.
+        Layout(
+            "unidad-morada",
+            title=lambda width: ruled("UNIDAD-01  //  TIDAL AMP", width, "▚"),
+            queue_heading=lambda width, hints: spread(
+                f"▰▰ {_('COLA')} ▰▰", hints, width, " "
+            ),
+            transport="keycaps",
+            keycaps=("⟦", "⟧"),
+        ),
+        # Straw-yellow on open sea, a flag at the masthead.
+        Layout(
+            "pirata",
+            title=lambda width: ruled("☠  TIDAL AMP  ☠", width, "~"),
+            queue_heading=lambda width, hints: spread(
+                f"⎈ {_('BITÁCORA')} ", hints, width, "~"
+            ),
+            transport="keycaps",
+            keycaps=("(", ")"),
+        ),
+        # A black notebook, ruled lines, one red that matters.
+        Layout(
+            "cuaderno",
+            title=lambda width: "✎ tidal amp",
+            queue_heading=lambda width, hints: spread(
+                f"✎ {_('páginas')} ", hints, width, "_"
+            ),
+            transport="nova",
+        ),
+        # Night city: yellow and cyan neon, hard edges.
+        Layout(
+            "neon-noir",
+            title=lambda width: ruled("▌NEON//NOIR▐  tidalamp", width, "━"),
+            queue_heading=lambda width, hints: spread(
+                f"▌{_('COLA')}▐ ", hints, width, "━"
+            ),
+            transport="keycaps",
+            keycaps=("▐", "▌"),
+        ),
+        # Old gold on a dark forest, a chronicle rather than a list.
+        Layout(
+            "runas",
+            title=lambda width: ruled("◆  T I D A L   A M P  ◆", width, "·"),
+            queue_heading=lambda width, hints: ruled(_("CRÓNICA"), width, "·"),
+            transport="retro",
+        ),
+        # Red, gold and green on black.
+        Layout(
+            "reggae",
+            title=lambda width: ruled("♫  tidal amp  ♫", width, "≈"),
+            queue_heading=lambda width, hints: spread(
+                f"♫ {_('cola')} ", hints, width, "≈"
+            ),
+            transport="quattro",
+        ),
+        # The wild card: a purple suit, green hair, the four suits.
+        Layout(
+            "comodin",
+            title=lambda width: ruled("♠ ♥  TIDAL AMP  ♦ ♣", width, "─"),
+            queue_heading=lambda width, hints: spread(
+                f"♠ {_('baraja')} ", hints, width, "─"
+            ),
+            transport="keycaps",
+            keycaps=("{", "}"),
+        ),
+        # Crimson and violet under a pointed arch.
+        Layout(
+            "gotico",
+            title=lambda width: ruled("✠  TIDAL AMP  ✠", width, "━"),
+            queue_heading=lambda width, hints: ruled(
+                _("LISTA DE REPRODUCCIÓN"), width, "━"
+            ),
+            transport="retro",
+        ),
+        # Bone on black, blood red, and noise at the edges.
+        Layout(
+            "death-metal",
+            title=lambda width: ruled("▓▒░  T I D A L   A M P  ░▒▓", width, "░"),
+            queue_heading=lambda width, hints: spread(
+                f"░▒▓ {_('COLA')} ▓▒░", hints, width, " "
+            ),
+            transport="keycaps",
+            keycaps=("╣", "╠"),
         ),
     )
 }

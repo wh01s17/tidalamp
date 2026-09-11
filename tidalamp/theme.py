@@ -163,6 +163,135 @@ _BUILTIN_SOURCES: dict[str, dict[str, str]] = {
         "bright_green": "#ffffff",
         "blue": "#9a9a9a",
     },
+    # The themed palettes, one per themed layout of the same name (see
+    # `layouts.py` and `PAIRED` below). Each also spells `dark_foreground`,
+    # for the reason `black` gives above: quiet text needs its own grey.
+    # A purple giant: lime for what is lit, orange for warnings.
+    "unidad-morada": {
+        "accent": "#9bff4d",
+        "background": "#1c1128",
+        "foreground": "#e6dcf7",
+        "dark_foreground": "#a896c4",
+        "muted": "#6a4f8a",
+        "dark_background": "#120a1a",
+        "lighter_background": "#2e1d44",
+        "red": "#ff6a1f",
+        "yellow": "#ffb000",
+        "green": "#9bff4d",
+        "blue": "#a07de0",
+    },
+    # Straw yellow on open sea.
+    "pirata": {
+        "accent": "#ffd23f",
+        "background": "#0e2a3f",
+        "foreground": "#f4ecd8",
+        "dark_foreground": "#a9bccb",
+        "muted": "#4a7391",
+        "dark_background": "#081c2b",
+        "lighter_background": "#173e5c",
+        "red": "#ef4f5a",
+        "yellow": "#ffd23f",
+        "green": "#57cc99",
+        "blue": "#4cc9f0",
+    },
+    # A black notebook: white pages, one red that matters.
+    "cuaderno": {
+        "accent": "#e5383b",
+        "background": "#0b0b0b",
+        "foreground": "#ededed",
+        "dark_foreground": "#8a8a8a",
+        "muted": "#444444",
+        "dark_background": "#000000",
+        "lighter_background": "#1a1a1a",
+        "red": "#e5383b",
+        "yellow": "#cfcfcf",
+        "green": "#bdbdbd",
+        "blue": "#8f8f8f",
+    },
+    # Night city neon: yellow, cyan and a hard red.
+    "neon-noir": {
+        "accent": "#fcee0a",
+        "background": "#0b0b14",
+        "foreground": "#e4f6f8",
+        "dark_foreground": "#7fa3aa",
+        "muted": "#3a3f5c",
+        "dark_background": "#05050a",
+        "lighter_background": "#1a1a2e",
+        "red": "#ff2a55",
+        "yellow": "#fcee0a",
+        "green": "#00f0c8",
+        "blue": "#00e0ff",
+    },
+    # Old gold on a dark forest.
+    "runas": {
+        "accent": "#d4a93a",
+        "background": "#15170f",
+        "foreground": "#e8dcc0",
+        "dark_foreground": "#a89d80",
+        "muted": "#5c5540",
+        "dark_background": "#0c0d08",
+        "lighter_background": "#27291c",
+        "red": "#c0503a",
+        "yellow": "#e0b84c",
+        "green": "#8aab62",
+        "blue": "#7d9ab4",
+    },
+    # Red, gold and green on black.
+    "reggae": {
+        "accent": "#f7d117",
+        "background": "#10100a",
+        "foreground": "#f2efe0",
+        "dark_foreground": "#aaa68c",
+        "muted": "#4f4a2a",
+        "dark_background": "#080805",
+        "lighter_background": "#1f1f14",
+        "red": "#e8412c",
+        "yellow": "#f7d117",
+        "green": "#2fbf5a",
+        "blue": "#6fc98a",
+    },
+    # The wild card: a purple suit and green hair.
+    "comodin": {
+        "accent": "#b77cff",
+        "background": "#150e1d",
+        "foreground": "#ebe4d4",
+        "dark_foreground": "#a99bb8",
+        "muted": "#5a3f73",
+        "dark_background": "#0c0712",
+        "lighter_background": "#2a1a3a",
+        "red": "#ef4444",
+        "yellow": "#f0a830",
+        "green": "#46d974",
+        "blue": "#b77cff",
+    },
+    # Crimson and violet under a pointed arch.
+    "gotico": {
+        "accent": "#d63a5c",
+        "background": "#0e0a0f",
+        "foreground": "#dcd2de",
+        "dark_foreground": "#9a8c9e",
+        "muted": "#4a3a4d",
+        "dark_background": "#070507",
+        "lighter_background": "#1e1522",
+        "red": "#d63a5c",
+        "yellow": "#c2a472",
+        "green": "#a08fb3",
+        "blue": "#8a74b8",
+    },
+    # Bone on black, and blood red.
+    "death-metal": {
+        "accent": "#e0102a",
+        "background": "#070707",
+        "foreground": "#ddd6c6",
+        "dark_foreground": "#8f887a",
+        "muted": "#3d3a35",
+        "dark_background": "#000000",
+        "lighter_background": "#171513",
+        "red": "#ff2a3d",
+        "yellow": "#a69c86",
+        "green": "#c2baa8",
+        "blue": "#847e72",
+    },
 }
 
 
@@ -195,7 +324,19 @@ LAYOUTS = tuple(LAYOUT_TABLE)
 # a name shared by accident would recolour a layout for everyone: a `nova`
 # palette added one day must not quietly change what `theme = "nova"` looks
 # like. A test holds the shared names to exactly this set.
-PAIRED: frozenset[str] = frozenset()
+PAIRED: frozenset[str] = frozenset(
+    {
+        "unidad-morada",
+        "pirata",
+        "cuaderno",
+        "neon-noir",
+        "runas",
+        "reggae",
+        "comodin",
+        "gotico",
+        "death-metal",
+    }
+)
 
 
 def paired_palette(layout: str) -> str | None:

@@ -720,6 +720,27 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
 - [x] Contraste mínimo en las paletas incorporadas (`contrast_ratio`, WCAG): `body`
       contra `screen` a 4,5 y `accent` contra `screen` a 3,0. Las seis actuales pasan
       con holgura (la peor, `gruvbox`, deja el acento en 6,6).
+- [x] **Nueve temas temáticos** (2026-09-10): `unidad-morada`, `pirata`, `cuaderno`,
+      `neon-noir`, `runas`, `reggae`, `comodin`, `gotico` y `death-metal`. Los nombres
+      **evocan sin nombrar**, por decisión del mantenedor: seis de las fuentes son
+      marcas registradas y tidalamp se publica a nombre propio. Cada uno es una
+      `Layout`, una paleta en `_BUILTIN_SOURCES` y su nombre en `PAIRED`.
+- [x] El transporte de `ascii` pasó a `_transport_keycaps`, con las tapas de cada tecla
+      en `Layout.keycaps`: `ascii` las deja en `[ ]` y en glifos ASCII, y cinco temas
+      traen las suyas (`⟦ ⟧`, `( )`, `▐ ▌`, `{ }`, `╣ ╠`). Los demás reutilizan
+      `quattro`, `retro` o `nova`. La estructura propia de cada uno (marco, qué barras
+      llevan fondo, alineación) vive en su bloque de `styles.tcss`.
+- [x] Las paletas nuevas se quedan en el vocabulario de Omarchy. Añaden
+      `dark_foreground` a los diez básicos, por la razón que da `black`: sin él, el
+      texto secundario brilla igual que el principal.
+- [x] Un test prohíbe glifos anchos (East Asian Width `W`/`F`) en título y encabezado:
+      `⚓`, que se presenta como emoji, ocupa dos celdas en casi todos los terminales y
+      echaba las pistas del encabezado fuera del marco. Rich lo mide como dos, pero el
+      encabezado se había compuesto contando uno.
+- [x] Vistos en capturas SVG de Textual a 120x34 y 80x26, con su paleta. Ojo al
+      mirarlas: `rsvg-convert` tira de fuentes de reserva más anchas para `▰`, `☠` o
+      `◢` y parece que desbordan; `render_line` confirma que ocupan exactamente el
+      ancho del widget. Falta verlos en un terminal real (`plan.md` §5).
 
 ### Configuración — `config.py`, `audio.py`, `screens.py`
 
@@ -1066,6 +1087,7 @@ Distinguir esto importa: parte del código nunca se ha ejecutado contra TIDAL re
 | Buscador de la cola (`ctrl+f`)      | **Verificado**                    | Siete unitarias en la app real headless: `ctrl+f` abre la barra y enfoca la caja, «later» deja 1 de 3, `esc` la cierra y devuelve las 3 filas dejando el cursor en la pista a la que se había llegado, la fila filtrada conserva el número 3, `↵` sobre ella reproduce la tercera de la cola y `d` quita esa, la marca `▶` desaparece mientras el filtro esconde lo que suena y vuelve cuando lo enseña, y escribir `x` en la caja no pausa el reproductor. Render a 96x28 con la barra abierta. Falta verlo contra una cola larga real. |
 | Volver a lo que suena (`g`)         | **Verificado**                    | Tres pruebas en la app headless: mueve desde otra fila, limpia un filtro que escondía la pista y, sin reproducción, conserva el cursor y explica por qué. |
 | Guardar cola como playlist (`p`)    | **Verificado con dobles**         | Crea con el nombre del modal tras `ensure_fresh`, usa una instantánea en orden, divide 700 pistas en siete lotes de 100, permite duplicados, invalida la caché, deja una creación parcial con recuento visible y no abre nada con la cola vacía. Falta probar la escritura contra una cuenta real. |
+| Temas temáticos                     | **Verificado en headless**        | Tests: cada `Layout` nombra un transporte que existe, `ascii_only` pinta su cromo en ASCII, sin glifos anchos en títulos, nombres compartidos solo los de `PAIRED`, contraste mínimo en todas las paletas, y elegir un tema escribe su paleta una vez. Las trece disposiciones pasan los tests de 60x18 y de la carátula. Capturas SVG de los nueve a 120x34 y 80x26. **Falta verlos en un terminal real.** |
 | Barras clicables                    | **Verificado**                    | Cuatro pruebas con `pilot.click`: seek a mitad, seek parado sin llamada a mpv, volumen al extremo y balance en cero exacto pese al padding. |
 | Ayuda en dos pestañas              | **Verificado**                    | Dos unitarias en la app headless: `→` lleva a «Acerca de» y dibuja el repositorio, `←` vuelve a los atajos con el desplazamiento donde se dejó, y ninguna de las dos flechas se sale por los extremos. Render a 100x30 de las dos pestañas, con la activa marcada en la barra de título. |
 | Barra de ayuda del navegador       | **Verificado**                    | Medida en la app real: a 82 columnas entraba `… ⌫ atrás   R` y el resto lo comía el borde. Ahora `fit_hints()` suelta entradas enteras por prioridad y la línea termina siempre en `esc cerrar`. |

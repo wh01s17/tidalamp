@@ -844,33 +844,37 @@ class TidalAmp(App):
                     row.append(edge[2], style=body)
         return rows
 
-    def _transport_ascii(
+    def _transport_keycaps(
         self, hits: list[tuple[int, int, str]], body: str, dim: str, lit: str
     ) -> list[Text]:
-        """Bracket keys on one line, the way a terminal did it before boxes.
+        """Capped keys on one line, the way a terminal did it before boxes.
 
-        `[ z << ]` is a button because the brackets say so, not because
-        anything was drawn around it — which is how a BBS or a curses program
-        of the era wrote one. Nothing on this row costs more than ASCII.
+        `[ z << ]` is a button because the caps say so, not because anything
+        was drawn around it, which is how a BBS or a curses program of the era
+        wrote one. The caps are the layout's: `ascii` keeps them to brackets
+        and its glyphs to ASCII, and the themed looks bring their own.
         """
+        layout = self.layout
+        opening, closing = layout.keycaps
         rows = [Text("", style=body) for _row in range(3)]
         row = rows[1]
         row.append("  ", style=body)
         # `[ z << ]` needs eight columns for a two-glyph button; at 60 the six
-        # of them plus the menu do not fit, so the brackets close up instead
-        # of the row wrapping into the one below it.
+        # of them plus the menu do not fit, so the caps close up instead of
+        # the row wrapping into the one below it.
         pad = "" if self._compact else " "
         gap = " " if self._compact else "  "
-        for group_index, group in enumerate(self._buttons(words=True, plain=True)):
+        buttons = self._buttons(words=True, plain=layout.ascii_only)
+        for group_index, group in enumerate(buttons):
             if group_index:
                 row.append(gap, style=dim)
             for action, label, enabled in group:
                 row.append(gap, style=body)
-                width = cell_len(label) + 2 * len(pad) + 2
+                width = cell_len(f"{opening}{pad}{label}{pad}{closing}")
                 hits.append((row.cell_len, row.cell_len + width, action))
-                row.append(f"[{pad}", style=dim)
+                row.append(f"{opening}{pad}", style=dim)
                 row.append(label, style=lit if enabled else body)
-                row.append(f"{pad}]", style=dim)
+                row.append(f"{pad}{closing}", style=dim)
         return rows
 
     def _transport_nova(

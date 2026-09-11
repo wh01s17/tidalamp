@@ -5,6 +5,13 @@ versioning is [semantic](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Nine themed looks, each a layout with a palette of the same name: `unidad-morada`,
+  `pirata`, `cuaderno`, `neon-noir`, `runas`, `reggae`, `comodin`, `gotico` and
+  `death-metal`. Choosing one in the settings window sets its palette once; the palette
+  stays free afterwards, and each of the nine palettes can be used under any layout.
+
 ## [0.5.1] - 2026-09-10
 
 ### Changed
