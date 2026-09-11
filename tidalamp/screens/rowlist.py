@@ -212,21 +212,32 @@ class RowList(Widget):
             line += f" {detail}"
         return set_cell_size(line, width)
 
+    def _ground(self, palette) -> tuple[int, int, int]:
+        """The colour the queue is actually painted on, for the emblem to blend
+        into. Not always the display's: nova and cuaderno put the queue on the
+        panel, and an emblem blended into the wrong ground left a dark block
+        round every cell its edge only partly covered."""
+        background = self.styles.background
+        if background.a:
+            return (background.r, background.g, background.b)
+        ground = palette["display_background"].lstrip("#")
+        return (int(ground[0:2], 16), int(ground[2:4], 16), int(ground[4:6], 16))
+
     def _backdrop(self) -> dict[int, dict[int, _Paint]]:
         """The emblem's cells for this size and palette, worked out once."""
         palette = palette_for(self)
-        key = (self.backdrop, self._placement, self.size, id(palette))
+        ground = self._ground(palette)
+        key = (self.backdrop, self._placement, self.size, id(palette), ground)
         if key != self._cells_key:
             self._cells_key = key
             self._painted.clear()
             self._mix.clear()
-            ground = palette["display_background"].lstrip("#")
             lines = (
                 artwork.emblem_cells(
                     self.backdrop,
                     self.size.width,
                     self.size.height,
-                    (int(ground[0:2], 16), int(ground[2:4], 16), int(ground[4:6], 16)),
+                    ground,
                     anchor=self._placement[0],
                     scale=self._placement[1],
                 )

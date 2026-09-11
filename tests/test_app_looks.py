@@ -639,6 +639,29 @@ def test_the_queue_backdrop_is_a_setting_of_its_own(monkeypatch, tmp_path):
     asyncio.run(scenario())
 
 
+def test_the_backdrop_blends_into_the_ground_the_queue_is_painted_on(monkeypatch):
+    """Nova puts the queue on the panel, not on the display's ground. Blended
+    into the display's, every cell the picture's edge only partly covered came
+    out as a dark block round the picture."""
+    pytest.importorskip("PIL")
+    isolate_runtime(monkeypatch)
+    use_theme(monkeypatch, "nova")
+    monkeypatch.setattr(app_module.config, "BACKDROP", "bosque")
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(140, 40)) as pilot:
+            await pilot.pause()
+            playlist = application.query_one("#playlist", RowList)
+            panel = application.tidalamp_palette["panel"].lstrip("#")
+            want = tuple(int(panel[i : i + 2], 16) for i in (0, 2, 4))
+            assert playlist._ground(application.tidalamp_palette) == want
+            assert playlist.backdrop is not None
+            assert playlist._backdrop()
+
+    asyncio.run(scenario())
+
+
 def test_choosing_a_themed_look_writes_its_palette_and_its_backdrop(
     monkeypatch, tmp_path
 ):
