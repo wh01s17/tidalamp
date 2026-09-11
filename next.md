@@ -53,13 +53,16 @@ el comportamiento de nadie que ya use `quattro`, `retro`, `nova` o `ascii`.
 3. **Una entrada en `_BUILTIN_SOURCES` con el mismo nombre.** Queda elegible por su
    cuenta, como las demás: la paleta `eva-01` con disposición `retro` es una
    combinación válida y nadie tiene que impedirla.
-4. **La regla de emparejamiento, en dos sitios.**
-   - La pantalla de ajustes, al elegir el tema, **escribe** `palette = eva-01` en el
-     config. Explícito y a la vista, y por tanto cambiable como cualquier otro ajuste.
-   - `load_palette(name="auto")` resuelve primero la paleta que se llame como el tema
-     activo, y solo si no existe sigue con Omarchy y luego con `classic`. Esto cubre a
-     quien edita `config.toml` a mano y deja `palette = "auto"`, que si no se
-     encontraría la estructura de `eva-01` pintada con los colores de su escritorio.
+4. **La regla de emparejamiento: una escritura y nada más.** Al elegir el tema en la
+   pantalla de ajustes, se **escribe** `palette = eva-01` en el config. Ahí acaba.
+   Cambiarla después ya funciona hoy, porque `palette` es un ajuste como cualquier
+   otro: no hay nada que construir para que el usuario pueda cambiarla.
+
+   **No tocar `load_palette(name="auto")`.** Se consideró que `auto` resolviera la
+   paleta del tema antes que Omarchy, para cubrir a quien edita `config.toml` a mano.
+   **Descartado el 2026-09-10:** `auto` ya es una elección de paleta, la de «sigue a mi
+   escritorio», y pisarla es precisamente restringir la paleta. Quien pide `auto` pide
+   auto.
 
 ### Trampas conocidas
 
@@ -108,10 +111,10 @@ escrito para que no se decida por descuido al teclear el primer nombre.
 
 - Ninguna disposición y ninguna paleta comparten nombre salvo a propósito: la lista de
   parejas declaradas es explícita y el test falla ante una coincidencia nueva.
-- Elegir un tema con pareja deja esa paleta puesta; cambiar la paleta después no toca
-  la disposición ni los rótulos.
-- Con `palette = "auto"` y un tema con pareja, gana la pareja; con un tema sin pareja,
-  sigue ganando Omarchy y luego `classic`, como hoy.
+- Elegir un tema con pareja escribe esa paleta en el config; cambiar la paleta después
+  no toca la disposición ni los rótulos.
+- `palette = "auto"` sigue resolviendo Omarchy y luego `classic`, con tema emparejado
+  o sin él, exactamente como hoy.
 - Cada paleta nueva produce una `ThemePalette` con los veinticinco colores válidos y
   pasa el contraste mínimo.
 - A mano, en un terminal real y a dos tamaños: los nueve, con captura.
