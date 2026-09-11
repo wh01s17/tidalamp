@@ -46,30 +46,21 @@ def test_no_layout_draws_its_chrome_with_a_wide_glyph():
             assert not wide, f"{layout.name}: {wide}"
 
 
-def test_every_themed_look_has_a_well_formed_emblem():
-    """Up to 96 pixels a side, scaled to the queue when drawn; every letter
-    must be a palette role or see-through, and every row as wide."""
+def test_every_themed_look_has_an_emblem_the_package_ships():
+    """A small PNG in `tidalamp/emblems`, readable and at most 192 px a side;
+    the looks without a theme have none, and every themed one has a line."""
+    from PIL import Image
+
+    from tidalamp.artwork import emblem_path
     from tidalamp.theme import PAIRED
-    from tidalamp.widgets import EMBLEM_ROLES
 
     for layout in LAYOUT_TABLE.values():
         if layout.name not in PAIRED:
             assert not layout.emblem and layout.tagline is None, layout.name
             continue
-        rows = layout.emblem
-        assert rows and len(rows) <= 96, layout.name
-        assert len({len(row) for row in rows}) == 1, layout.name
-        assert len(rows[0]) <= 96, layout.name
-        assert set("".join(rows)) <= set(EMBLEM_ROLES) | {"."}, layout.name
+        path = emblem_path(layout.emblem)
+        assert path is not None, layout.name
+        with Image.open(path) as image:
+            assert max(image.size) <= 192, layout.name
+            assert image.mode in ("RGBA", "RGB", "P"), layout.name
         assert layout.tagline and layout.tagline(), layout.name
-
-
-def test_a_large_emblem_shrinks_and_keeps_its_details():
-    """In a short queue the unit comes down to eighteen pixels square, and
-    the green of its eye and horn band, a few pixels, is still there."""
-    from tidalamp.widgets import shrink
-
-    eva = LAYOUT_TABLE["unidad-morada"].emblem
-    small = shrink(eva, 18, 18)
-    assert len(small) <= 18 and len(small[0]) <= 18
-    assert "G" in "".join(small), "el verde sobrevive"

@@ -741,36 +741,38 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
       mirarlas: `rsvg-convert` tira de fuentes de reserva más anchas para `▰`, `☠` o
       `◢` y parece que desbordan; `render_line` confirma que ocupan exactamente el
       ancho del widget. Falta verlos en un terminal real (`plan.md` §5).
-- [x] **Emblemas 8-bit y guiños** (2026-09-11). `Layout.emblem` es un dibujo de hasta
-      48 píxeles de lado en letras de papel (`widgets.EMBLEM_ROLES`: acento, cuerpo,
-      peligro, aviso...) y `.` transparente, así que se recolorea con la paleta.
-      `Layout.tagline` es la frase guiño: va en el marquee cuando no suena nada y en
-      el panel de letra de split cuando no hay letra.
-- [x] **El emblema es el fondo de la cola** (`RowList.set_backdrop`, `backdrop_runs`).
-      La primera versión lo ponía en el hueco de la carátula mientras no había
-      portada; el mantenedor lo quería visible siempre. Detrás del texto no caben
-      medios bloques, así que un píxel son dos celdas de ancho por una de alto
-      (cuadrado en pantalla). El dibujo ocupa como mucho el 70 % del alto de la cola
-      y el 55 % de su ancho, contra el borde derecho, donde tapa las columnas cortas
-      y no los títulos; se reduce con `shrink` o se amplía por vecino más cercano a
-      cualquier tamaño, no solo por enteros, para que en 4K (cola de ~100 filas)
-      crezca con ella. Un velo oscuro, como el de detrás de un modal, lo deja al 25 %
-      de su color sobre el fondo de la cola; se probó un difuminado y se descartó:
-      lo que se pedía era contraste, no píxeles borrosos. `render_line` solo cambia el
-      fondo de cada celda: el texto conserva su color y la fila del cursor, su acento.
+- [x] **Emblemas y guiños** (2026-09-11). Cada tema temático tiene una imagen, un
+      PNG pequeño en `tidalamp/emblems/` (`Layout.emblem` es su nombre), y una frase
+      guiño (`Layout.tagline`) que va en el marquee cuando no suena nada y en el panel
+      de letra de split cuando no hay letra.
+- [x] **La imagen es el fondo de la cola, dibujada como la carátula**
+      (`artwork.emblem_cells`, `RowList.render_line`). Cuatro píxeles por celda con
+      los glifos de cuadrante y color real: en una celda vacía va el glifo con sus
+      dos colores; en una con letra, el color medio de sus cuatro píxeles como fondo,
+      y la letra conserva el suyo. Ocupa como mucho el 70 % del alto y el 55 % del
+      ancho de la cola, contra el borde derecho, y escala a cualquier tamaño, así que
+      crece en 4K. Un velo oscuro, como el de detrás de un modal, la mezcla al 30 %
+      con el fondo de la cola. La fila del cursor no se toca. Sin Pillow no hay
+      emblema, igual que no hay carátula.
+- [x] Historia, para no repetirla: primero fue un dibujo de 18x18 en letras de papel
+      en el hueco de la carátula (se veía solo sin pista y los personajes no daban
+      de sí); luego ese dibujo, más grande, de fondo de la cola a un píxel por dos
+      celdas (poca definición, y los papeles de paleta destrozaban las fotos). La
+      comparación con la carátula del mantenedor decidió el formato actual.
 - [x] Trampa: `Strip.divide`, como `Segment.divide` de Rich, devuelve lo que queda
       antes de cada corte y **descarta lo que sigue al último**. Sin pasarle el final
       de la línea como corte, la cola de cada línea pintada desaparecía; en headless
       no se nota, pero el terminal real conservaba lo que hubiera en esas celdas (el
       resaltado del cursor de posiciones anteriores, en escalera). Un test compara
-      cada línea con la misma sin fondo: mismo ancho y mismo texto.
-- [x] Los dibujos salen de las referencias del mantenedor cuando las hay: el pixel
-      art (Eva-01, Ryuk, el Joker de *El caballero oscuro*) se lee a su propia
-      rejilla, buscando paso y desfase exactos (Eva, 83x82 a paso 3; Ryuk, 29x29), y
-      la bandera pirata se reduce por área; después cada color recibe un papel a mano.
-      El Ojo de Sauron, el león frente a la bandera reggae, el murciélago contra la
-      luna, la parca y la ciudad de neón se dibujan con primitivas de Pillow. Hasta
-      96 píxeles de lado. Las referencias no se versionan.
+      cada línea con la misma sin fondo: mismo ancho, y solo los espacios pueden
+      volverse glifos.
+- [x] Las imágenes salen de las referencias del mantenedor (que no se versionan):
+      recortadas al motivo, fondo liso a transparente, reducidas a 192 px y 48
+      colores. El damero pintado de la parca se quita rellenando desde las esquinas
+      con un umbral de 160 (PIL suma los tres canales). El cuervo y la parca, oscuros,
+      se aclaran antes de reducirlos o desaparecen bajo el velo. La ciudad de neón
+      está dibujada a mano. El Joker y Ryuk del pixel art llevan firma de otros
+      artistas; se usan por decisión del mantenedor.
 
 ### Dos columnas - `app.py`, `styles.tcss`, `config.py`, `widgets.py`
 

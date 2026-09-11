@@ -11,11 +11,11 @@ versioning is [semantic](https://semver.org/).
   `pirata`, `cuaderno`, `neon-noir`, `runas`, `reggae`, `comodin`, `gotico` and
   `death-metal`. Choosing one in the settings window sets its palette once; the palette
   stays free afterwards, and each of the nine palettes can be used under any layout.
-- Each themed look has an 8-bit emblem and a line that nods to what it is based on.
-  The emblem is drawn behind the queue, faded into its ground and set against the
-  right edge, so it is there the whole time, stacked or split; the line takes the
-  title's place while nothing plays. Emblems are drawn in palette roles, so they
-  follow whatever palette is picked.
+- Each themed look has a picture and a line that nods to what it is based on. The
+  picture is drawn behind the queue the way a cover is drawn, four pixels to a cell,
+  set against the right edge and under a dark veil so the rows on top still read,
+  and it is there the whole time, stacked or split; the line takes the title's place
+  while nothing plays. Needs Pillow, like the cover.
 - `arrangement = "split"`: the queue in a column to the right of the player, with the
   playing track's lyrics above the cover (following the sung line when they are timed)
   and the transport across both columns. Switchable live from the settings window

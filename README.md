@@ -440,10 +440,10 @@ smaller one it stays stacked on its own, and the settings window says so. Switch
 (from the settings window, `o`) moves nothing but the layout: the track keeps playing
 and the queue's cursor stays where it was. It works with every layout and palette.
 
-Each of the nine also has an 8-bit emblem and a line of its own. The emblem is drawn
-behind the queue, faded so the rows on top still read; the line stands in for the
-title while nothing is playing. They are drawn with the palette's roles, so they
-recolour with it.
+Each of the nine also has a picture and a line of its own. The picture is drawn behind
+the queue the way the cover is drawn, darkened so the rows on top still read; the line
+stands in for the title while nothing is playing. The picture needs Pillow (the `art`
+extra), like the cover.
 
 ### Palettes
 

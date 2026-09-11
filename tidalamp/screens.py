@@ -13,6 +13,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
+from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
 from rich.cells import cell_len, set_cell_size
@@ -36,10 +37,14 @@ from .library import Row
 from .lyrics import LyricsDocument
 from .settings import BAND_LABELS, GAIN_LIMIT, MANUAL, PRESETS, Settings
 from .theme import LAYOUTS, available_palettes, paired_palette, palette_for
-from .widgets import Analyzer, EqualizerBars, Slider, Spinner, backdrop_runs
+from .widgets import Analyzer, EqualizerBars, Slider, Spinner
 
 if TYPE_CHECKING:  # The screens report back to the app; the app owns them.
     from .app import TidalAmp
+
+
+def _hex(pixel: tuple[int, int, int]) -> str:
+    return "#{:02x}{:02x}{:02x}".format(*pixel)
 
 
 class RowList(Widget):
@@ -52,15 +57,16 @@ class RowList(Widget):
         super().__init__(**kwargs)
         self.rows: list[Row] = []
         self.empty_text = ""
-        # A themed look's emblem, drawn behind the rows (`backdrop_runs`).
-        # The queue has one; the browser's lists do not.
-        self.backdrop: tuple[str, ...] = ()
-        self._runs_key: tuple | None = None
-        self._runs: dict[int, list[tuple[int, int, str]]] = {}
+        # A themed look's emblem, drawn behind the rows the way a cover is
+        # drawn in its box (`artwork.emblem_cells`). The queue has one; the
+        # browser's lists do not.
+        self.backdrop: Path | None = None
+        self._cells_key: tuple | None = None
+        self._cells: dict[int, list[artwork.EmblemCell]] = {}
 
-    def set_backdrop(self, rows: tuple[str, ...]) -> None:
-        if rows != self.backdrop:
-            self.backdrop = rows
+    def set_backdrop(self, path: Path | None) -> None:
+        if path != self.backdrop:
+            self.backdrop = path
             self.refresh()
 
     def set_rows(self, rows: list[Row]) -> None:
@@ -179,16 +185,24 @@ class RowList(Widget):
             line += f" {detail}"
         return set_cell_size(line, width)
 
-    def _backdrop(self) -> dict[int, list[tuple[int, int, str]]]:
-        """The emblem's runs for this size and palette, worked out once."""
+    def _backdrop(self) -> dict[int, list[artwork.EmblemCell]]:
+        """The emblem's cells for this size and palette, worked out once."""
         palette = palette_for(self)
         key = (self.backdrop, self.size, id(palette))
-        if key != self._runs_key:
-            self._runs_key = key
-            self._runs = backdrop_runs(
-                self.backdrop, palette, self.size.width, self.size.height
+        if key != self._cells_key:
+            self._cells_key = key
+            ground = palette["display_background"].lstrip("#")
+            self._cells = (
+                artwork.emblem_cells(
+                    self.backdrop,
+                    self.size.width,
+                    self.size.height,
+                    (int(ground[0:2], 16), int(ground[2:4], 16), int(ground[4:6], 16)),
+                )
+                if self.backdrop is not None
+                else {}
             )
-        return self._runs
+        return self._cells
 
     def _cursor_line(self) -> int | None:
         """Which line on screen the cursor is drawn on, as `render` scrolls."""
@@ -199,35 +213,46 @@ class RowList(Widget):
         return self.cursor - start
 
     def render_line(self, y: int) -> Strip:
-        """The rendered row, with the emblem's colours as its ground.
+        """The rendered row, with the emblem drawn behind it cell by cell.
 
-        Only the ground changes, cell by cell, so the text on top keeps its
-        own colour; the cursor's line keeps the accent it is drawn on.
+        A cell the row leaves blank gets the emblem's quadrant glyph and its
+        two colours, as a cover does; a cell with a letter in it keeps the
+        letter and its colour and takes the mean of the four pixels as its
+        ground. The cursor's line keeps the accent it is drawn on.
         """
         strip = super().render_line(y)
-        if not self.backdrop or y == self._cursor_line():
+        if self.backdrop is None or y == self._cursor_line():
             return strip
-        runs = self._backdrop().get(y)
-        if not runs:
+        cells = {cell[0]: cell for cell in self._backdrop().get(y, ())}
+        if not cells:
             return strip
         length = strip.cell_length
-        edges_all = {edge for start, end, _c in runs for edge in (start, end)}
-        inner = sorted(edge for edge in edges_all if 0 < edge < length)
+        inner = sorted({edge for x in cells for edge in (x, x + 1) if 0 < edge < length})
         # The end of the line is a cut too: `divide` returns what lies before
         # each cut and drops the rest. Without it the tail of every painted
         # line went missing, and the terminal kept whatever it had there,
         # which was the cursor's highlight from wherever it had been.
         pieces = strip.divide([*inner, length])
-        edges = [0, *inner]
         segments = []
-        for edge, piece in zip(edges, pieces, strict=False):
-            colour = next((c for start, end, c in runs if start <= edge < end), None)
+        for edge, piece in zip([0, *inner], pieces, strict=True):
+            cell = cells.get(edge)
+            if cell is None or piece.cell_length != 1:
+                segments.extend(piece)
+                continue
+            _x, glyph, fg, bg, mean = cell
             for segment in piece:
-                if colour is None or segment.control:
+                if segment.control:
                     segments.append(segment)
                     continue
-                style = (segment.style or Style()) + Style(bgcolor=colour)
-                segments.append(Segment(segment.text, style))
+                style = segment.style or Style()
+                if segment.text == " ":
+                    segments.append(
+                        Segment(glyph, style + Style(color=_hex(fg), bgcolor=_hex(bg)))
+                    )
+                else:
+                    segments.append(
+                        Segment(segment.text, style + Style(bgcolor=_hex(mean)))
+                    )
         return Strip(segments, length)
 
     def render(self) -> Text:

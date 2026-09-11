@@ -4822,15 +4822,23 @@ def test_a_themed_look_draws_its_emblem_behind_the_queue(
             # back short left the terminal showing old cells in its tail.
             from textual.widget import Widget
 
+            from tidalamp.artwork import QUADRANTS
+
+            glyphs = 0
             for y in range(playlist.size.height):
                 drawn = playlist.render_line(y)
                 plain_line = Widget.render_line(playlist, y)
                 assert drawn.cell_length == plain_line.cell_length == playlist.size.width
-                assert drawn.text == plain_line.text, y
+                # A blank cell may carry the emblem's glyph; a letter never
+                # changes.
+                for mine, theirs in zip(drawn.text, plain_line.text, strict=True):
+                    assert mine == theirs or (theirs == " " and mine in QUADRANTS), y
+                    glyphs += mine != theirs
+            assert glyphs, "las celdas vacías llevan el dibujo, como la carátula"
             # Set against the right edge: the left of a painted line is untouched.
             first = painted[len(painted) // 2]
             left = next(iter(playlist.render_line(first)))
-            assert left.style.bgcolor.name.lower() == plain
+            assert left.style.bgcolor is None or left.style.bgcolor.name.lower() == plain
             # The cursor's line is the accent and nothing else.
             accent = application.tidalamp_palette["accent"].lower()
             cursor = playlist._cursor_line()

@@ -19,6 +19,7 @@ measured in cells, and gives back either a pixel matrix or an escape sequence.
 from __future__ import annotations
 
 import base64
+import functools
 import hashlib
 import logging
 import os
@@ -274,6 +275,103 @@ def blocks(image, cols: int, rows: int) -> Matrix:
         )
         for row in range(height)
     )
+
+
+# -------------------------------------------------------------------- emblems
+
+# The themed looks' pictures, drawn behind the queue the way a cover is drawn
+# in its box: quadrant blocks, real colours. Small PNGs shipped in the package.
+EMBLEM_DIR = Path(__file__).parent / "emblems"
+
+# One emblem cell: its column, and the glyph, colours and mean it carries.
+EmblemCell = tuple[int, str, Pixel, Pixel, Pixel]
+
+
+def emblem_path(name: str) -> Path | None:
+    """The emblem file called `name`, if the package has it."""
+    path = EMBLEM_DIR / name if name else None
+    return path if path is not None and path.is_file() else None
+
+
+@functools.lru_cache(maxsize=16)
+def _emblem_image(path: str):
+    try:
+        from PIL import Image
+    except ImportError:
+        return None
+    try:
+        with Image.open(path) as opened:
+            return opened.convert("RGBA")
+    except OSError as exc:
+        log.warning("emblema ilegible: %s", exc)
+        return None
+
+
+def _veil(pixel: Pixel, ground: Pixel, amount: float) -> Pixel:
+    return (
+        round(pixel[0] * amount + ground[0] * (1 - amount)),
+        round(pixel[1] * amount + ground[1] * (1 - amount)),
+        round(pixel[2] * amount + ground[2] * (1 - amount)),
+    )
+
+
+def emblem_cells(
+    path: Path,
+    width: int,
+    height: int,
+    ground: Pixel,
+    *,
+    amount: float = 0.3,
+    size: float = 0.7,
+    share: float = 0.55,
+) -> dict[int, list[EmblemCell]]:
+    """An emblem laid behind a list `width` x `height` cells, line by line.
+
+    Sampled like a cover, four pixels to a cell, and set against the right
+    edge: at most `size` of the height and `share` of the width, scaled to
+    any size so it grows with a 4K terminal. Every colour goes under a dark
+    veil, mixed into `ground` at `amount`, the way a modal's scrim darkens
+    what is behind it, so the rows on top keep their contrast.
+
+    Each cell carries both renderings: the quadrant glyph with its two
+    colours, for a cell the list leaves empty, and the mean of its four
+    pixels, for a cell with a letter in it, where only the ground can change.
+    A cell all of whose pixels are transparent is left out. Empty without
+    Pillow, as the cover is.
+    """
+    image = _emblem_image(str(path))
+    cols_room, rows_room = int((width - 2) * share), int(height * size)
+    if image is None or cols_room < 4 or rows_room < 2:
+        return {}
+    factor = min(cols_room * 2 / image.width, rows_room * 2 / image.height)
+    pixels_w = max(2, int(image.width * factor)) // 2 * 2
+    pixels_h = max(2, int(image.height * factor)) // 2 * 2
+    from PIL import Image
+
+    small = image.resize((pixels_w, pixels_h), Image.Resampling.LANCZOS)
+    raw = small.tobytes()
+    cols, rows = pixels_w // 2, pixels_h // 2
+    left, top = width - 2 - cols, (height - rows) // 2
+
+    def pixel(x: int, y: int) -> Pixel | None:
+        i = (y * pixels_w + x) * 4
+        if raw[i + 3] < 128:
+            return None
+        return _veil((raw[i], raw[i + 1], raw[i + 2]), ground, amount)
+
+    lines: dict[int, list[EmblemCell]] = {}
+    for row in range(rows):
+        cells: list[EmblemCell] = []
+        for col in range(cols):
+            quad = [pixel(col * 2 + dx, row * 2 + dy) for dy in (0, 1) for dx in (0, 1)]
+            if all(p is None for p in quad):
+                continue
+            filled = tuple(p or ground for p in quad)
+            glyph, fg, bg = quadrant_cell(filled)  # type: ignore[arg-type]
+            cells.append((left + col, glyph, fg, bg, _mean(list(filled))))
+        if cells:
+            lines[top + row] = cells
+    return lines
 
 
 # ----------------------------------------------------------------------- kitty
