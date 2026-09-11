@@ -1311,7 +1311,8 @@ Distinguir esto importa: parte del código nunca se ha ejecutado contra TIDAL re
 | Volver a lo que suena (`g`)         | **Verificado**                    | Tres pruebas en la app headless: mueve desde otra fila, limpia un filtro que escondía la pista y, sin reproducción, conserva el cursor y explica por qué. |
 | Guardar cola como playlist (`p`)    | **Verificado con dobles**         | Crea con el nombre del modal tras `ensure_fresh`, usa una instantánea en orden, divide 700 pistas en siete lotes de 100, permite duplicados, invalida la caché, deja una creación parcial con recuento visible y no abre nada con la cola vacía. Falta probar la escritura contra una cuenta real. |
 | Temas temáticos                     | **VERIFICADO A LA VISTA**         | Tests: cada `Layout` nombra un transporte que existe, `ascii_only` pinta su cromo en ASCII, sin glifos anchos en títulos, nombres compartidos solo los de `PAIRED`, contraste mínimo en todas las paletas, y elegir un tema escribe su paleta una vez. Las trece disposiciones pasan los tests de 60x18 y de la carátula. Capturas SVG de los nueve a 120x34 y 80x26, y después capturas del mantenedor en su terminal (unas 274x100, split, cola de 100 pistas) de los nueve con su emblema: posición y tamaño ajustados a su gusto a partir de ellas. El rendimiento en 4K, medido en un pty con pyte a 480x130. `bosque`, su emblema y los marcos nuevos de los diez, vistos por el mantenedor en su terminal (2026-09-11). |
-| Velocidad, carátula redonda, reloj en cuenta atrás | **CUBIERTO POR TESTS** | Tests: la ventana ofrece las ocho velocidades y aplica con ↵, `esc` no toca nada, el botón dice la velocidad; la máscara redonda deja las esquinas en el fondo de la banda y el centro intacto; el reloj en cuenta atrás no pasa de veinte columnas (el test falla con el código viejo). La carátula redonda y el reloj, vistos en capturas SVG; la velocidad todavía no se ha oído contra TIDAL real. |
+| Velocidad de reproducción | **VERIFICADO POR EL USUARIO** | Oída por el mantenedor contra TIDAL real (2026-09-11). Tests: la ventana ofrece las ocho velocidades y aplica con ↵, `esc` no toca nada, el botón dice la velocidad y se enciende fuera de 1×. |
+| Carátula redonda, reloj en cuenta atrás | **CUBIERTO POR TESTS** | Tests: la máscara redonda deja las esquinas en el fondo de la banda y el centro intacto; el reloj en cuenta atrás no pasa de veinte columnas (el test falla con el código viejo). Vistos en capturas SVG. |
 | Dos columnas (`split`)              | **Verificado en headless y a mano** | Cuatro tests: mismos objetos (cola, carátula, transporte) y cursor al cambiar de forma, vuelta sola a apilada por ancho y por alto, las trece disposiciones caben en el umbral con el transporte bajo las dos columnas, y la letra se carga una vez por pista y sigue la línea. Capturas SVG de las trece. El mantenedor lo usó en su terminal con audio real y letra. |
 | Barras clicables                    | **Verificado**                    | Cuatro pruebas con `pilot.click`: seek a mitad, seek parado sin llamada a mpv, volumen al extremo y balance en cero exacto pese al padding. |
 | Ayuda en dos pestañas              | **Verificado**                    | Dos unitarias en la app headless: `→` lleva a «Acerca de» y dibuja el repositorio, `←` vuelve a los atajos con el desplazamiento donde se dejó, y ninguna de las dos flechas se sale por los extremos. Render a 100x30 de las dos pestañas, con la activa marcada en la barra de título. |
@@ -1326,7 +1327,7 @@ Distinguir esto importa: parte del código nunca se ha ejecutado contra TIDAL re
 | Espectro con cava                  | **VERIFICADO CON AUDIO REAL**     | El usuario instaló cava 0.10.7 y reprodujo Thriller: la insignia dice `FFT` y las bandas dibujan un espectro con forma, graves y agudos por separado. `pgrep` confirma `cava -p ~/.cache/tidalamp/cava.conf` vivo junto al mpv de la app. |
 | Balance y ecualizador              | **Verificado**                    | Grafos validados con `ffmpeg -af` de verdad; en la app real los filtros llegan a mpv, se guardan, y se reaplican tras reiniciar mpv.                                            |
 | Reintentos de red                  | **Verificado**                    | Unitarias: reintenta conexión/timeout/503 y `TooManyRequests`; el 429 respeta `retry_after`, cae al backoff con `-1` y abandona sin dormir por encima del tope. No reintenta 404 y se rinde al tercer intento. |
-| Letras sincronizadas               | **Verificado con dobles**         | 9 pruebas de LRC, texto plano, ventanas, carga y fallos transitorios; el trabajo de red queda fuera del loop. Falta probar una letra real de TIDAL.                             |
+| Letras sincronizadas               | **VERIFICADO CONTRA TIDAL REAL**  | Una letra real de TIDAL, probada por el mantenedor (2026-09-11). 9 pruebas de LRC, texto plano, ventanas, carga y fallos transitorios; el trabajo de red queda fuera del loop. |
 | Paletas: Omarchy, integradas y propias | **Verificado**                 | Unitarias con paletas temporales, las seis integradas (`classic`, `tokyo-night`, `catppuccin`, `nord`, `gruvbox`, `black`), un TOML propio leído de su directorio y un nombre con `../` rechazado sin tocar el disco; más montaje Textual y cambio en vivo. La máquina cambió de Wh01s17 a Tokyo Night y el lector tomó el nuevo acento. |
 | Estructuras (`theme`): las cuatro | **VERIFICADO A LA VISTA, A MEDIAS** | Pruebas Textual por estructura: los botones cuadrados de `retro` y sus dos barras regladas, el subrayado del acento en `nova`, los corchetes de `ascii`, que ninguna se sale a 60×18 y que ninguna deja la carátula sobre la barra de posición. **A la vista en kitty el usuario confirmó `quattro` y `nova`.** De `retro` sólo llegó a verse la versión de medios bloques, que se descartó por eso mismo (§7); la de teclas cuadradas y `ascii` no se han visto nunca en un terminal real, sólo bajo prueba. |
 | Refresco del token                 | **VERIFICADO CONTRA TIDAL REAL**  | Copia de la sesión real con el access token invalidado a mano: la app arranca, reescribe el token, completa el handshake (user id y país) y la API responde. El fichero real quedó intacto. Además 10 unitarias con dobles, incluida la del 401 que tidalapi deja escapar. |
@@ -1354,26 +1355,27 @@ una pista en cada calidad y leer `~/.local/state/tidalamp/tidalamp.log`.
 
 > [!NOTE]
 > La funcionalidad comprometida para la próxima versión vive en
-> [next.md](./next.md), con sus trampas y su forma de comprobarse. Tras la `0.6.0`
-> queda allí la partición de los ficheros grandes; esta sección sigue siendo el estado general y aquella, la cola de trabajo.
+> [next.md](./next.md), con sus trampas y su forma de comprobarse. Tras la `0.7.0`
+> quedan allí la velocidad por MPRIS, más formas de carátula, la reproducción
+> automática y las filas de ajustes que se eligen de una lista. Esta sección sigue
+> siendo el estado general y aquella, la cola de trabajo.
 
 P1–P4 están cerradas: lo que queda no es funcionalidad que falte para que el
 reproductor sirva, sino acabado, distribución y confirmar contra TIDAL real cosas hoy
 probadas sólo con dobles.
 
-**Orden propuesto (2026-09-09):** ~~P5 empaquetado~~ y ~~carátula~~ ✅ hechos. No queda
-funcionalidad: lo que hay abierto pide credenciales tuyas o un par de ojos.
+**Orden propuesto (2026-09-11):** ~~P5 empaquetado~~ y ~~carátula~~ ✅ hechos. Cada
+versión se publica siguiendo `publish.md`; la última es la `0.7.0` (2026-09-11), en
+PyPI y en GitHub. Lo que queda abierto aquí pide credenciales tuyas o un par de ojos.
 
-1. Subir el commit de la versión `0.1.0` a `main`, esperar el CI y crear el tag
-   anotado `v0.1.0`, que iniciará la publicación en PyPI. Trusted Publishing ya está
-   configurado.
-2. Publicar en el AUR cuando vuelva a abrir el registro de cuentas nuevas. El paquete
+1. Publicar en el AUR cuando vuelva a abrir el registro de cuentas nuevas. El paquete
    está preparado y se puede probar localmente, pero el alta final depende del
    servicio externo y no tiene fecha anunciada.
-3. ~~Mirar `retro` y `ascii` en un terminal de verdad~~ ✅ hecho el 2026-09-10; ver §9.5.
+2. ~~Mirar `retro` y `ascii` en un terminal de verdad~~ ✅ hecho el 2026-09-10; ver §9.5.
    Queda el extremo pequeño: la disposición compacta no se ha visto nunca.
-4. Una letra real de TIDAL, lo último de §5 que sólo se ha probado con dobles.
-5. §9.4, que es una decisión y no una prueba.
+3. ~~Una letra real de TIDAL~~ ✅ probada por el mantenedor el 2026-09-11; era lo
+   último de §5 que sólo se había probado con dobles.
+4. §9.4, que es una decisión y no una prueba.
 
 **Aviso para quien retome esto:** hay sesión guardada y funciona (§5). Lo que no se
 puede automatizar desde aquí sigue siendo rehacerla: `tidalamp login` es interactivo
