@@ -705,3 +705,47 @@ def test_a_desktop_s_rate_lands_on_the_nearest_quarter(monkeypatch):
             assert "b 2×" in transport(application)
 
     asyncio.run(scenario())
+
+
+def test_q_asks_before_quitting_and_ctrl_c_does_not(monkeypatch):
+    """`q` sits next to `w`: it asks, on «cancel», and `q` again confirms.
+    ctrl+c is the way out that does not ask."""
+    from tidalamp.screens import ChoiceScreen
+
+    isolate_runtime(monkeypatch)
+    closed: list[str] = []
+
+    async def close_player(self) -> None:
+        closed.append("closed")
+
+    # Not Textual's `_shutdown`: stubbing that one left the test waiting on
+    # an app that never finished closing.
+    monkeypatch.setattr(TidalAmp, "_close_player", close_player)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(150, 26)) as pilot:
+            await pilot.pause()
+            await pilot.press("q")
+            await pilot.pause()
+            assert isinstance(application.screen, ChoiceScreen)
+            await pilot.press("enter")  # «cancel»
+            await pilot.pause()
+            assert closed == []
+            assert len(application.screen_stack) == 1
+
+            await pilot.press("q", "q")
+            await settle(pilot, lambda: closed == ["closed"])
+
+            await pilot.press("ctrl+c")
+            await settle(pilot, lambda: closed == ["closed", "closed"])
+            assert len(application.screen_stack) == 1
+
+            # With a window open too: ctrl+c is checked before any window.
+            await pilot.press("q")
+            await pilot.pause()
+            assert isinstance(application.screen, ChoiceScreen)
+            await pilot.press("ctrl+c")
+            await settle(pilot, lambda: closed == ["closed", "closed", "closed"])
+
+    asyncio.run(scenario())

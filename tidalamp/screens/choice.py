@@ -41,6 +41,8 @@ class ChoiceScreen(ModalScreen[object]):
         *,
         cursor: int | None = None,
         hint: str | None = None,
+        keys: tuple[str, ...] = (),
+        key_value: object = None,
     ) -> None:
         super().__init__()
         self._heading = heading
@@ -51,6 +53,11 @@ class ChoiceScreen(ModalScreen[object]):
             cursor = values.index(current) if current in values else 0
         self.cursor = cursor
         self._hint = hint if hint is not None else _(" ↑↓ elegir  ↵ aplicar  esc cerrar")
+        # Keys that answer ``key_value`` at once: the key that asked the
+        # question, pressed again. The app's own bindings do not reach a key
+        # pressed while this window is in front, so the window listens itself.
+        self._keys = keys
+        self._key_value = key_value
 
     def compose(self) -> ComposeResult:
         with Vertical(id="choice-box"):
@@ -86,6 +93,11 @@ class ChoiceScreen(ModalScreen[object]):
 
     def action_choose(self) -> None:
         self.dismiss(self._options[self.cursor][0])
+
+    def on_key(self, event: events.Key) -> None:
+        if event.key in self._keys:
+            event.stop()
+            self.dismiss(self._key_value)
 
     def on_click(self, event: events.Click) -> None:
         """A click on an option picks it, the way ↵ on it would."""

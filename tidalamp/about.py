@@ -50,6 +50,17 @@ def releases() -> tuple[Release, ...]:
     """Newest first. Translated at call time, not at import time."""
     return (
         Release(
+            "0.8.0",
+            "2026-09-11",
+            (
+                _("s ordena la biblioteca y d quita; ? con su propia ayuda."),
+                _("w: pantalla completa, con la cola al lado."),
+                _("Reproducción automática; la velocidad, también por MPRIS."),
+                _("Carátula más nítida en blocks y más ligera en kitty y sixel."),
+                _("Calidad, ritmos y reiniciar PipeWire se eligen de una lista."),
+            ),
+        ),
+        Release(
             "0.7.0",
             "2026-09-11",
             (
@@ -258,7 +269,8 @@ def shortcuts(keys) -> tuple[Section, ...]:
                 (key("equalizer"), _("ecualizador")),
                 (key("config"), _("configuración")),
                 (key("help"), _("esta ayuda")),
-                (key("quit"), _("salir")),
+                (key("quit"), _("salir; pregunta antes")),
+                (key("force_quit"), _("salir sin preguntar")),
             ),
         ),
         Section(

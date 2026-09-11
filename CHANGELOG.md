@@ -5,6 +5,8 @@ versioning is [semantic](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-09-11
+
 ### Added
 
 - A full-screen view, on `w` only: the cover centred and as large as the terminal
@@ -37,6 +39,11 @@ versioning is [semantic](https://semver.org/).
   id, so a playlist shown sorted loses the right one.
 
 ### Changed
+
+- `q` asks before quitting, with the cursor on Cancel; `q` again confirms. It sits next
+  to `w`, and a slip from the full-screen key used to close the player. `ctrl+c` quits
+  at once, without asking.
+- The full-screen view's bar has a row of air above and below its controls.
 
 - Windows opened over the full-screen view are opaque, even with transparency on.
   Under them lies a cover as large as the terminal, and a see-through window sent its

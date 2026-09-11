@@ -655,7 +655,10 @@ FullscreenScreen {
 }
 
 #fs-bar {
-    height: 3;
+    /* Three rows of content and one of air above and below: flush against
+       the frame, the controls read as stuck to it. */
+    height: 5;
+    padding: 1 0;
     background: $tidalamp-panel;
 }
 

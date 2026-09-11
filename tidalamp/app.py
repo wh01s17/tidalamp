@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import contextlib
+import functools
 import time
 from typing import cast
 
@@ -13,6 +14,7 @@ from textual import events, on, work
 from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, Vertical
+from textual.css.query import NoMatches
 from textual.reactive import reactive
 from textual.widgets import Input, Static
 from textual.worker import get_current_worker
@@ -30,6 +32,7 @@ from .player import Mpv
 from .queue import Entry, Queue, Repeat
 from .screens import (
     BrowserScreen,
+    ChoiceScreen,
     ConfigScreen,
     EqScreen,
     FullscreenScreen,
@@ -128,8 +131,32 @@ DEFAULT_KEYS: dict[str, str] = {
     "fullscreen": "w",
     "config": "o",
     "help": "question_mark,h",
-    "quit": "q,ctrl+c",
+    # `q` asks first: it sits next to `w`, and one slip closed the player.
+    # ctrl+c is the way out that does not ask.
+    "quit": "q",
+    "force_quit": "ctrl+c",
 }
+
+
+def _quiet_after_teardown(method):
+    """Let a timer or a resize that arrives during exit find nothing, quietly.
+
+    Textual's own shutdown tears the screens down, and a tick or a resize
+    already queued can still run after that and look for widgets that are
+    gone. There is nothing left to update then. While the app is running the
+    error goes through: a widget missing then is a real fault.
+    """
+
+    @functools.wraps(method)
+    def guarded(self, *args, **kwargs):
+        try:
+            return method(self, *args, **kwargs)
+        except NoMatches:
+            if getattr(self, "_running", True):
+                raise
+            return None
+
+    return guarded
 
 
 def keys_for(action: str) -> str:
@@ -268,6 +295,16 @@ class TidalAmp(App):
         _bind("config", _("config"), show=True),
         _bind("help", _("ayuda"), show=True),
         _bind("quit", _("salir"), show=True),
+        # Priority, so it is checked before any window: the way out that does
+        # not ask has to work whatever is open. `q` is not, or typing a «q»
+        # into a search box would quit.
+        Binding(
+            keys_for("force_quit"),
+            "force_quit",
+            _("salir sin preguntar"),
+            show=False,
+            priority=True,
+        ),
     ]
 
     status = reactive(_("listo"))
@@ -293,6 +330,8 @@ class TidalAmp(App):
         # that changes either draws it again.
         self._art_look: tuple[str, tuple[int, int, int]] | None = None
         self._flourish: tuple[str, int] | None = None
+        # The question `q` asks, while it is open.
+        self._quit_question: ChoiceScreen | None = None
         # A radio being fetched to carry on past the end of the queue: one at
         # a time, so an idle mpv waiting for it cannot ask again.
         self._autoplaying = False
@@ -384,6 +423,7 @@ class TidalAmp(App):
                 yield Static("", id="status", markup=False)
         yield Static("", id="too-small")
 
+    @_quiet_after_teardown
     def _check_size(self) -> None:
         """Cover the UI with an explanation when the terminal is too small."""
         width, height = self.size.width, self.size.height
@@ -706,6 +746,7 @@ class TidalAmp(App):
         if self.art_protocol is not artwork.Protocol.NONE and not artwork.have_decoder():
             self.status = _('sin carátula: falta Pillow (pip install "tidalamp[art]")')
 
+    @_quiet_after_teardown
     def _refresh_theme(self) -> None:
         """Follow an Omarchy theme switch without disturbing other state."""
         palette = load_palette(name=config.PALETTE)
@@ -784,6 +825,7 @@ class TidalAmp(App):
 
     # ------------------------------------------------------------------- ticks
 
+    @_quiet_after_teardown
     def _tick_fast(self) -> None:
         playing = not self.mpv.paused and not self.mpv.idle
         # The play/pause button follows the state, but only redraw it when the
@@ -816,6 +858,7 @@ class TidalAmp(App):
         analyzer.tick()
         self.query_one(Marquee).tick()
 
+    @_quiet_after_teardown
     def _tick_slow(self) -> None:
         if not self.mpv.alive:
             self._recover_mpv()
@@ -2436,11 +2479,40 @@ class TidalAmp(App):
         clock.countdown = not clock.countdown
 
     async def action_quit(self) -> None:
+        """Ask before closing: `q` sits right next to `w`, and a slip from
+        the full-screen key closed the player. The cursor starts on «cancel»;
+        `q` again with the question open means yes."""
+        if self._quit_question is not None and self.screen is self._quit_question:
+            self._quit_question.dismiss("quit")
+            return
+        self._quit_question = ChoiceScreen(
+            _("¿SALIR DE TIDALAMP?"),
+            [("quit", _("salir")), ("cancel", _("cancelar"))],
+            cursor=1,
+            # The quit key again means yes; the app's binding cannot hear it
+            # with this window in front.
+            keys=tuple(key.strip() for key in keys_for("quit").split(",")),
+            key_value="quit",
+        )
+        self.push_screen(self._quit_question, self._quit_answered)
+
+    def _quit_answered(self, answer: object) -> None:
+        self._quit_question = None
+        if answer == "quit":
+            self.run_worker(self._close_player(), exclusive=False)
+
+    async def action_force_quit(self) -> None:
         # Async because Textual's own action_quit is: saving the queue, closing
         # mpv and dropping off the bus are things to finish, not to fire off.
-        await self._shutdown()
+        await self._close_player()
 
-    async def _shutdown(self) -> None:
+    async def _close_player(self) -> None:
+        """Save, let go of mpv and the bus, and exit.
+
+        Not `_shutdown`: that is Textual's own, the one that closes the screens
+        and the driver once the app exits, and a method of that name here
+        replaced it rather than running before it.
+        """
         self.queue.save()
         self.settings.save()
         if self._mpris_ready:
@@ -2558,4 +2630,4 @@ class TidalAmp(App):
     def mpris_quit(self) -> None:
         # Comes in on the bus, not from the keyboard: hand the shutdown to the
         # loop rather than awaiting it inside a D-Bus method call.
-        self.run_worker(self._shutdown(), exclusive=False)
+        self.run_worker(self._close_player(), exclusive=False)

@@ -217,6 +217,9 @@ ENGLISH: dict[str, str] = {
     "anterior, reproducir o pausar, detener, siguiente": (
         "previous, play or pause, stop, next"
     ),
+    "¿SALIR DE TIDALAMP?": "QUIT TIDALAMP?",
+    "salir sin preguntar": "quit without asking",
+    "salir; pregunta antes": "quit; asks first",
     "velocidad": "speed",
     "velocidad: {value}": "speed: {value}",
     "velocidad de reproducción, de 0.25× a 2×": "playback speed, from 0.25× to 2×",
@@ -359,6 +362,22 @@ ENGLISH: dict[str, str] = {
     ),
     "buscar en la ayuda…": "search the help…",
     "Acerca de": "About",
+    # --- notas de versión 0.8.0
+    "s ordena la biblioteca y d quita; ? con su propia ayuda.": (
+        "s sorts the library and d removes; ? with its own help."
+    ),
+    "w: pantalla completa, con la cola al lado.": (
+        "w: full screen, with the queue beside it."
+    ),
+    "Reproducción automática; la velocidad, también por MPRIS.": (
+        "Autoplay; the speed over MPRIS too."
+    ),
+    "Carátula más nítida en blocks y más ligera en kitty y sixel.": (
+        "Sharper covers in blocks, lighter ones in kitty and sixel."
+    ),
+    "Calidad, ritmos y reiniciar PipeWire se eligen de una lista.": (
+        "Quality, rates and PipeWire's restart chosen from a list."
+    ),
     # --- notas de versión 0.7.0
     "bosque, un décimo tema, ecológico; marcos más finos en todos.": (
         "bosque, a tenth, ecological theme; finer frames on all of them."
