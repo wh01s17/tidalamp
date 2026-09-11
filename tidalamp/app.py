@@ -1901,6 +1901,10 @@ class TidalAmp(App):
         entry = self.queue.current
         if entry is not None:
             self._load_art(entry)
+        # The full-screen view keeps a cover of its own, in the old protocol.
+        fullscreen = self._fullscreen()
+        if fullscreen is not None:
+            fullscreen.reload_cover()
 
     def _art_ready(self, cover: artwork.Cover) -> None:
         """Put a freshly rendered cover up — and take it straight back down if

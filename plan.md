@@ -1410,6 +1410,16 @@ fichero en sí.
       los lados de la caja esas filas son la carátula mezclada con el velo, miles de
       celdas de colores distintos. En reposo la vista escribe 8 KiB/s con
       transparencia o sin ella.
+- [x] **Una imagen kitty que quedaba pegada** (encontrado por el mantenedor): kitty,
+      `w`, los ajustes, activar la transparencia, cerrarlos y cerrar la vista con `w`.
+      La vista se había guardado su carátula kitty al abrirse los ajustes y la volvía
+      a poner al cerrarlos, aunque la transparencia había pasado la carátula a
+      `blocks`; en kitty esa imagen quedaba en pantalla sobre el reproductor.
+      Reproducido en un pty contando envíos y borrados por id. Ahora `_reload_art`
+      avisa a la vista (`reload_cover`), que tira la carátula guardada y pide una en
+      el protocolo nuevo; al volver de una ventana no pone una guardada en otro
+      protocolo; y al cerrarse borra su imagen kitty por id siempre que haya mostrado
+      una, tenga lo que tenga en ese momento.
 - [x] El tick lento le pasa posición y duración mientras está delante (`follow`),
       y ahí se redibujan la barra, los controles y, si está abierta, la cola, solo
       cuando cambió. La barra de posición se llama `#fs-seek`: con `#seek`, el clic

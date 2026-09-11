@@ -374,3 +374,66 @@ def test_turning_transparency_on_over_the_view_leaves_that_window_opaque(monkeyp
             assert not settings.has_class("transparent")
 
     asyncio.run(scenario())
+
+
+def test_transparency_turned_on_over_the_view_leaves_no_kitty_image(
+    monkeypatch, tmp_path
+):
+    """kitty, `w`, the settings, transparency on, the settings closed, `w`:
+    the view put back the kitty cover it had kept, though transparency had
+    moved the cover to blocks, and the image stayed stuck on the player. The
+    kept cover is dropped for one in the new protocol, and closing the view
+    deletes its kitty image whatever it shows by then."""
+    pil_image = pytest.importorskip("PIL.Image")
+    from app_helpers import isolate_config
+
+    from tidalamp import widgets
+    from tidalamp.app import ConfigScreen
+
+    isolate_runtime(monkeypatch)
+    isolate_config(monkeypatch, tmp_path)
+    buffer = io.BytesIO()
+    pil_image.new("RGB", (64, 64), (200, 20, 20)).save(buffer, "PNG")
+    monkeypatch.setattr(artwork, "fetch", lambda url, **kwargs: buffer.getvalue())
+    deleted: list[int] = []
+    real_delete = artwork.kitty_delete
+
+    def recording(image_id):
+        deleted.append(image_id)
+        return real_delete(image_id)
+
+    monkeypatch.setattr(artwork, "kitty_delete", recording)
+    monkeypatch.setattr(widgets, "kitty_delete", recording)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(120, 40)) as pilot:
+            await pilot.pause()
+            application.art_protocol = artwork.Protocol.KITTY
+            a_queue_playing(application)
+            await pilot.press("w")
+            view = application.screen
+            art = view.query_one(FullArtwork)
+            await settle(pilot, lambda: art.cover is not None)
+            assert art.cover.protocol is artwork.Protocol.KITTY
+
+            settings = ConfigScreen(application._setting_changed)
+            application.push_screen(settings)
+            await pilot.pause()
+            row = next(
+                option for option in settings._rows if option.key == "transparency"
+            )
+            settings._cycle(row, 1)
+            await pilot.pause()
+            assert application.art_protocol is artwork.Protocol.BLOCKS
+            settings.dismiss(None)
+            await settle(pilot, lambda: art.cover is not None)
+            assert art.cover.protocol is artwork.Protocol.BLOCKS
+
+            deleted.clear()
+            await pilot.press("w")
+            await pilot.pause()
+            assert len(application.screen_stack) == 1
+            assert FullArtwork().image_id in deleted
+
+    asyncio.run(scenario())

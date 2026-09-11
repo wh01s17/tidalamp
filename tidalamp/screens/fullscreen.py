@@ -79,6 +79,9 @@ class FullscreenScreen(Screen[None]):
         self._hits: list[tuple[int, int, str]] = []
         # What the queue panel last mirrored, to redraw it only when it changed.
         self._queue_shape: tuple = ()
+        # Set once a kitty cover has been shown here: closing the view deletes
+        # the image then, whatever the cover and the protocol are by that time.
+        self._sent_kitty = False
 
     @property
     def player(self) -> TidalAmp:
@@ -189,7 +192,22 @@ class FullscreenScreen(Screen[None]):
         if self._suspended and cover.protocol is not artwork.Protocol.BLOCKS:
             self._pending = cover
             return
+        self._show(cover)
+
+    def _show(self, cover: artwork.Cover) -> None:
+        if cover.protocol is artwork.Protocol.KITTY:
+            self._sent_kitty = True
         self.query_one(FullArtwork).show(cover)
+
+    def reload_cover(self) -> None:
+        """The cover protocol changed (a window over this view turned
+        transparency on, which moves it to blocks): drop the cover kept for
+        after the window and fetch one in the protocol in use now."""
+        self._pending = None
+        self.query_one(FullArtwork).show(None)
+        self._url = ""
+        if not self._suspended:
+            self._request()
 
     def on_screen_suspend(self, event: events.ScreenSuspend) -> None:
         """A window opened over this view: a pixel cover would float over it."""
@@ -201,9 +219,15 @@ class FullscreenScreen(Screen[None]):
 
     def on_screen_resume(self, event: events.ScreenResume) -> None:
         self._suspended = False
-        if self._pending is not None:
-            self.query_one(FullArtwork).show(self._pending)
-            self._pending = None
+        pending, self._pending = self._pending, None
+        # A cover kept from before the window, in a protocol that is no longer
+        # the one in use, is not put back: it was a kitty image sent again
+        # after transparency had moved the cover to blocks.
+        if pending is not None and pending.protocol is self.player.art_protocol:
+            self._show(pending)
+        elif self._url != self._current_url() or pending is not None:
+            self._url = ""
+            self._request()
 
     # ------------------------------------------------------------- the bar
 
@@ -386,5 +410,12 @@ class FullscreenScreen(Screen[None]):
 
     def action_close(self) -> None:
         # Down first: a kitty image outlives the cells it was drawn over.
-        self.query_one(FullArtwork).show(None)
+        art = self.query_one(FullArtwork)
+        art.show(None)
+        # And deleted by id whenever one was ever shown here, whatever the
+        # cover is now: a view closed after its protocol changed left one
+        # stuck on the player.
+        driver = getattr(self.app, "_driver", None)
+        if self._sent_kitty and driver is not None:
+            driver.write(artwork.kitty_delete(art.image_id))
         self.dismiss(None)
