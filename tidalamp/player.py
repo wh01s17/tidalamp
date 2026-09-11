@@ -35,6 +35,15 @@ _AUDIO_FILTER = "@astats:lavfi=[astats=metadata=1:reset=1]"
 _PROTOCOLS = "file,http,https,tcp,tls,crypto"
 _PROTOCOL_OPTION = f"protocol_whitelist=%{len(_PROTOCOLS)}%{_PROTOCOLS}"
 
+# `--cache=auto` turns the cache on for network streams and off for local
+# files, and a hi-res track reaches mpv as a *local* .m3u8 whose segments are
+# https (see stream.py): mpv looks at the playlist, calls it local, and plays
+# 6 Mbit/s of FLAC off the network with nothing but the one-second demuxer
+# readahead in front of it. Measured on a 176.4 kHz track: 1.02 s buffered and
+# an input rate exactly equal to the bitrate, which is no headroom at all.
+# Asking for the cache explicitly took the same track to 29.8 s buffered.
+_CACHE_SECONDS = 20
+
 
 class MpvNotFound(RuntimeError):
     pass
@@ -77,6 +86,8 @@ class Mpv:
                 f"--input-ipc-server={IPC_SOCKET}",
                 f"--af={_AUDIO_FILTER}",
                 f"--demuxer-lavf-o={_PROTOCOL_OPTION}",
+                "--cache=yes",
+                f"--demuxer-readahead-secs={_CACHE_SECONDS}",
             ],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,

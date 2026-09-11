@@ -6,6 +6,17 @@ plain stand-ins that expose only the attributes the code under test reads.
 
 from __future__ import annotations
 
+import os
+
+# Before importing anything of the package. A handful of strings are built
+# when their module is imported — `BINDINGS` lists, the browser's hint bar —
+# so by the time a fixture can call `i18n.use()` they are already in whatever
+# language the developer's `$LANG` chose. The autouse fixture below still
+# handles everything decided at run time; this handles what is decided at
+# import time, which is the half that made the suite pass or fail on nothing
+# but the terminal it was run from.
+os.environ.setdefault("TIDALAMP_LANG", "es")
+
 import pytest
 
 from tidalamp.queue import Entry

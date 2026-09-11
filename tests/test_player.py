@@ -143,3 +143,19 @@ def test_mpv_is_allowed_to_follow_https_from_a_local_playlist(mpv):
 
     assert value == "protocol_whitelist=%30%file,http,https,tcp,tls,crypto"
     assert "https" in value and "file" in value
+
+
+def test_the_cache_is_asked_for_rather_than_left_to_auto(mpv):
+    """`--cache=auto` reads the *playlist* to decide, and a hi-res track's
+    playlist is a local file: mpv called it local, switched the cache off and
+    streamed 6 Mbit/s of FLAC behind a one-second readahead. Measured on a
+    176.4 kHz track: 1.02 s buffered, and asking explicitly gave 29.8 s.
+
+    Headroom against a slow network. It was *not* what caused the dropouts we
+    were chasing when this was written; those were a USB cable that had
+    negotiated full speed, capping the DAC at 16 bit / 96 kHz."""
+    args = mpv._proc.args
+
+    assert "--cache=yes" in args
+    readahead = next(a for a in args if a.startswith("--demuxer-readahead-secs="))
+    assert float(readahead.split("=", 1)[1]) >= 10

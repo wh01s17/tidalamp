@@ -4336,3 +4336,47 @@ def test_favouriting_drops_the_cached_favourites_levels(monkeypatch):
             assert "fav:tracks" not in library._LEVELS
 
     asyncio.run(scenario())
+
+
+def test_the_output_rate_is_followed_until_pipewire_settles(monkeypatch):
+    """The badge used to read the sink a quarter second after `loadfile`.
+
+    PipeWire only switches the graph rate once mpv opens the device, which is
+    after the stream has been fetched and decoded: that early read reported
+    the *previous* track's rate, so the badge said 44.1 kHz while the DAC's
+    own screen read 96K. The worker has to keep looking.
+    """
+    from tidalamp import app as app_module
+
+    rates = iter([44100, 44100, 96000, 96000, 96000, 96000, 96000, 96000])
+    seen: list[int] = []
+
+    def fake_sink() -> audio_module.Sink:
+        return audio_module.Sink(
+            name="alsa_output.usb",
+            description="FIIO BTR15",
+            rate=next(rates, 96000),
+            sample_format="s16le",
+        )
+
+    monkeypatch.setattr(audio_module, "sink", fake_sink)
+    monkeypatch.setattr(app_module, "SINK_SETTLE", 0.3)
+    monkeypatch.setattr(app_module, "SINK_POLL", 0.0)
+    monkeypatch.setattr(
+        app_module, "get_current_worker", lambda: type("W", (), {"is_cancelled": False})
+    )
+
+    class Recorder:
+        def _set_sink(self, sink):
+            seen.append(sink.rate)
+
+        def call_from_thread(self, fn, sink):
+            fn(sink)
+
+    recorder = Recorder()
+    # The worker body, called straight rather than through Textual's runner.
+    TidalAmp._refresh_sink_worker.__wrapped__(recorder)
+
+    # It published the stale rate first, then corrected itself, and it did not
+    # repeat a rate that had not moved.
+    assert seen == [44100, 96000]

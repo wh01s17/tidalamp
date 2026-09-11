@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import contextlib
+import time
 from typing import cast
 
 import tidalapi
@@ -14,6 +15,7 @@ from textual.binding import Binding
 from textual.containers import Horizontal, Vertical
 from textual.reactive import reactive
 from textual.widgets import Input, Static
+from textual.worker import get_current_worker
 
 from . import about, artwork, audio, columns, config, i18n, library
 from .auth import NotLoggedIn, ensure_fresh
@@ -140,6 +142,12 @@ def unknown_key_actions() -> list[str]:
 
 # Fixed pieces of the display band, from styles.tcss. `_fit_artwork` needs
 # them to work out how much of the row is left for the cover.
+# How long to keep watching the output device after a track starts, and how
+# often. PipeWire's rate switch lands somewhere in the first couple of
+# seconds, and is silent: there is nothing to subscribe to.
+SINK_SETTLE = 4.0
+SINK_POLL = 0.4
+
 CLOCK_WIDTH = 24
 READOUT_WIDTH = 30
 DISPLAY_HEIGHT = 9
@@ -1716,7 +1724,7 @@ class TidalAmp(App):
         self._refresh_readout()
         # PipeWire can switch graph rate when playback starts. Query it off
         # the UI thread after handing the URL to mpv.
-        self.set_timer(0.25, self._refresh_sink_worker)
+        self._refresh_sink_worker()
         self.status = _("reproduciendo {label}").format(label=entry.label)
         if getattr(playable, "downgraded", False):
             # Say it out loud. The badge shows what arrived, which on its own
@@ -1796,8 +1804,26 @@ class TidalAmp(App):
 
     @work(thread=True, exclusive=True, group="audio-output")
     def _refresh_sink_worker(self) -> None:
-        sink = audio.sink()
-        self.call_from_thread(self._set_sink, sink)
+        """Follow the sink until it settles on the rate this track will use.
+
+        PipeWire only switches the graph rate once mpv opens the device, and
+        mpv only opens it after fetching and decoding enough of the stream —
+        a good deal later than the quarter second this used to wait. Reading
+        `pactl` once, that early, reports the rate of the *previous* track:
+        the badge said 44.1 kHz while the DAC's own screen read 96K. So poll
+        instead of guessing a delay, and publish each change as it lands.
+        """
+        worker = get_current_worker()
+        deadline = time.monotonic() + SINK_SETTLE
+        last: audio.Sink | None = None
+        while not worker.is_cancelled:
+            sink = audio.sink()
+            if sink != last:
+                last = sink
+                self.call_from_thread(self._set_sink, sink)
+            if time.monotonic() >= deadline:
+                return
+            time.sleep(SINK_POLL)
 
     def _set_sink(self, sink: audio.Sink) -> None:
         self._sink = sink

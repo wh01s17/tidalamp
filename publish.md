@@ -250,18 +250,22 @@ incrementa únicamente `pkgrel`.
 
 ### 3.3. Cerrar el changelog
 
-En `CHANGELOG.md`, conserva una sección vacía para cambios futuros y mueve las notas
-actuales bajo la versión y fecha de publicación:
+El `CHANGELOG.md` está **en inglés**, como el README y las notas de los releases: es lo
+que lee alguien de fuera. Conserva una sección vacía para cambios futuros y mueve las
+notas actuales bajo la versión y la fecha de publicación:
 
 ```markdown
-## [Sin publicar]
+## [Unreleased]
 
-## [0.1.0] - AAAA-MM-DD
+## [0.1.0] - YYYY-MM-DD
 
-### Añadido
+### Added
 
 ...
 ```
+
+Los encabezados son los de Keep a Changelog en inglés: `Added`, `Changed`, `Deprecated`,
+`Removed`, `Fixed`, `Security`.
 
 Revisa que las notas describan sólo cambios incluidos en el commit que se etiquetará, y
 que el resumen de `about.releases()` (paso 3.2) diga lo mismo en corto: son dos textos
@@ -432,8 +436,10 @@ página pública con las notas de la versión. GitHub añadirá automáticamente
 2. Pulsa **Draft a new release**.
 3. En **Choose a tag**, selecciona el tag que ya se publicó: `vX.Y.Z`.
 4. Usa como título `tidalamp X.Y.Z`.
-5. Copia las notas de esa versión desde `CHANGELOG.md` o pulsa **Generate release
-   notes** y revísalas manualmente.
+5. Copia las notas de esa versión desde `CHANGELOG.md`, que ya está en inglés, o
+   pulsa **Generate release notes** y revísalas manualmente. No dejes las notas en
+   español: los seis releases publicados están en inglés y el enlace «Full changelog»
+   de cada uno lleva a un fichero en inglés.
 6. Marca **Set as the latest release**.
 7. Marca **This is a pre-release** sólo si quieres presentar explícitamente esa versión
    como preliminar.

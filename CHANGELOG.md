@@ -1,450 +1,442 @@
-# Registro de cambios
+# Changelog
 
-El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y el
-versionado es [semántico](https://semver.org/lang/es/).
+The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the
+versioning is [semantic](https://semver.org/).
 
-## [Sin publicar]
+## [Unreleased]
+
+### Changed
+
+- A hi-res track now streams with a real buffer in front of it. `--cache=auto`
+  decides from the playlist, and a hi-res track's playlist is a local file, so
+  mpv called the whole stream local and turned the cache off: 6 Mbit/s of FLAC
+  was arriving behind a one-second readahead, with an input rate exactly equal
+  to the bitrate. The cache is now asked for explicitly. Measured on a 176.4
+  kHz track: 1.02 s buffered before, 29.8 s after. This is headroom against a
+  slow network, not a fix for any reported dropout: the stuttering that led us
+  here turned out to be a USB cable negotiating full speed.
+
+### Fixed
+
+- The `OUT` badge reported the previous track's sample rate. It read the sink a
+  quarter second after handing the URL to mpv, but PipeWire only switches the
+  graph rate once mpv opens the device, which happens after the stream has been
+  fetched and decoded. The badge said 44.1 kHz while the DAC's own screen read
+  96K. It now follows the sink until it settles.
 
 ## [0.5.0] - 2026-09-10
 
-### Arreglado
+### Fixed
 
-- **Al cambiar de tema en vivo, la carátula se montaba sobre la barra de posición.** El
-  alto de la banda del display se recalculaba sólo cuando la carátula cambiaba de
-  tamaño, y cada disposición lleva un padding distinto: al cambiar de tema la banda
-  conservaba el alto de la anterior y la imagen sobresalía una fila. Como un protocolo
-  gráfico no se recorta a su widget sino que pinta encima, esa fila caía sobre la barra.
-  Se veía sobre todo en `nova`, y también al arrancar con ese tema ya elegido: la clase
-  de la disposición se aplica antes de que se recalculen los estilos, así que la primera
-  medición no veía el padding y la segunda no redimensionaba nada. El alto se recalcula
-  ahora siempre.
+- **Switching theme put the cover over the seek bar.** The display band's height was
+  only recomputed when the cover changed size, and each layout carries different
+  padding: on a theme change the band kept the previous one's height and the image
+  overflowed by a row. Since a graphical protocol does not clip to its widget but paints
+  over what is below, that row landed on the bar. It showed most in `nova`, and also
+  when starting up with that theme already chosen: the layout class is applied before
+  the styles are recomputed, so the first measurement saw no padding and the second
+  resized nothing. The height is now recomputed every time.
 
-### Cambiado
+### Changed
 
-- **La carátula en modo `blocks` tiene el doble de resolución horizontal.** Se dibujaba
-  con `▀`, que gasta el ancho entero de una celda en un solo píxel y por eso las
-  portadas se veían estiradas. Ahora usa los glifos de cuadrante (`▘▝▖▗▚▞…`), que meten
-  cuatro muestras por celda: dos a lo ancho y dos a lo alto. Una celda sigue admitiendo
-  sólo dos colores, así que cuando sus cuatro píxeles no coinciden se parten en un grupo
-  claro y uno oscuro y cada uno se promedia; en una foto los píxeles vecinos rara vez se
-  llevan mucho. Los glifos salen del mismo rango antiguo que `▀` y `█`, o sea que no le
-  pide nada nuevo a la fuente.
+- **Cover art in `blocks` mode has twice the horizontal resolution.** It was drawn with
+  `▀`, which spends a whole cell's width on a single pixel, and that is why covers
+  looked stretched. It now uses the quadrant glyphs (`▘▝▖▗▚▞…`), which carry four
+  samples per cell: two across and two down. A cell still holds only two colours, so
+  where its four pixels disagree they are split into a light group and a dark one and
+  each is averaged; on a photograph neighbouring pixels rarely disagree by much. The
+  glyphs come from the same ancient range as `▀` and `█`, so nothing new is asked of a
+  font.
 
-### Añadido
+### Added
 
-- **La barra espaciadora reproduce y pausa**, que es lo que hace cualquier otro
-  reproductor y nada en la ventana principal estaba usando. `x` sigue siendo la primera,
-  así que el botón del transporte conserva su letra de Winamp.
+- **The space bar plays and pauses**, which is what every other player does and nothing
+  in the main window was using. `x` is still first, so the transport button keeps its
+  Winamp letter.
 
-- **Deshacer el vaciado de la cola.** `c` detiene y `C` vacía: un resbalón con shift
-  borraba una cola que puede haber costado media hora, y desde que se puede guardar en
-  TIDAL vale más que antes. `u` la devuelve, con el cursor donde estaba. No reanuda la
-  reproducción: vaciar detuvo, y deshacer devuelve la lista, no el sonido. Un solo
-  nivel, y vive en memoria: cerrar la app entre medias la pierde.
+- **Undo a cleared queue.** `c` stops and `C` clears: a slipped shift wiped a queue that
+  may have taken half an hour, and since it can be saved to TIDAL it is worth more than
+  it was. `u` gives it back, with the cursor where it was. It does not start the music
+  again: clearing stopped it, and undoing returns the list, not the sound. One level,
+  and it lives in memory: closing the app in between loses it.
 
-- **Presets del ecualizador**: plano, rock, pop, jazz, clásica, voz, graves y agudos,
-  con `p` y `P` dentro de la ventana del ecualizador y el nombre del que está puesto a
-  la vista. Se aplican en vivo, como ya se aplicaba mover una banda. Tocar una banda
-  después deja de llamarse ese preset, porque el nombre se deduce de las ganancias y no
-  se guarda: uno guardado seguiría mintiendo hasta que algo lo reiniciara.
+- **Equalizer presets**: flat, rock, pop, jazz, classical, vocal, bass and treble, on
+  `p` and `P` inside the equalizer window, with the one you are on named in view. They
+  apply live, the way moving a band already did. Move a band afterwards and it stops
+  being that preset, because the name is worked out from the gains rather than stored: a
+  stored one would go on lying until something reset it.
 
-- **Añadir la pista a una playlist que ya tienes**, desde el menú de la pista. Elige el
-  destino entre las playlists que creaste —las que sigues no salen, porque no se pueden
-  escribir— y manda en lotes de 100. Si un lote falla, lo que ya entró se queda y el
-  mensaje dice cuántas llegaron. Olvida la caché del listado y la de esa playlist, para
-  que abrirla después no la enseñe como estaba.
+- **Add the track to a playlist you already have**, from the track menu. It picks the
+  destination among the playlists you created — the ones you follow are not offered,
+  because they cannot be written to — and sends in batches of 100. If a batch fails,
+  what already went in stays and the message says how many arrived. It forgets the cache
+  for the listing and for that playlist, so opening it afterwards does not show it as it
+  was.
 
-- **`m` abre el menú de la pista sobre la fila de la cola**, el mismo que la biblioteca
-  abre con ↵: reproducir ahora, a continuación, la radio de la pista y favoritos. En la
-  biblioteca hay que preguntarlo porque ↵ encola el nivel entero; en la cola ↵ ya
-  reproduce la fila, y el menú es lo que lleva todo lo demás.
+- **`m` opens the track menu on the queue row**, the same one the library opens with
+  `↵`: play now, play next, the track's radio and favourites. In the library it has to
+  be asked for because `↵` queues the whole level; in the queue `↵` already plays the
+  row, and the menu is what carries everything else.
 
 ## [0.4.0] - 2026-09-10
 
-### Arreglado
+### Fixed
 
-- **La fila del título de la cola se quedaba corta, y en `quattro` ni lo intentaba.**
-  Cada disposición medía ese hueco con un número escrito a mano —14 en una, 16 en otra,
-  ninguno en `quattro`— y cada una paraba a una distancia distinta del borde derecho.
-  Ahora las cuatro se miden igual y llegan al borde; sólo cambia el carácter de relleno.
+- **The queue's heading row fell short, and in `quattro` it did not even try.** Each
+  layout measured that gap with a hand-written number — 14 in one, 16 in another, none
+  in `quattro` — and each stopped a different distance from the right edge. All four now
+  measure the same way and reach the edge; only the filler character differs.
 
-- **Las ventanas de documento eran mucho más anchas que su texto.** Ayuda, «Acerca de»,
-  la letra y la configuración tomaban el 85% de la pantalla, lo que en un terminal
-  grande dejaba dos tercios de la caja vacíos con el texto pegado a la izquierda. Cada
-  una se topa ahora en lo que de verdad ocupa su línea más larga. El navegador no: es
-  una tabla y gasta cada celda que se le dé. En un terminal estrecho nada cambia.
+- **The document windows were far wider than their text.** Help, About, the lyrics and
+  the settings took 85% of the screen, which on a large terminal left two thirds of the
+  box empty with the text against the left edge. Each is now capped at what its longest
+  line actually needs. The browser is not: it is a table and spends every cell it is
+  given. On a narrow terminal nothing changes.
 
-- **`nova` empezaba en la fila cero.** Al no tener marco, el nombre quedaba pegado al
-  borde del terminal; las otras tres consiguen esa separación de su propio borde. Ahora
-  gasta una fila de aire, que en la disposición compacta devuelve. De paso, su banda del
-  display tenía una fila de contenido menos que las otras tres en compacto.
+- **`nova` started on row zero.** Having no frame, the wordmark sat against the edge of
+  the terminal; the other three get that separation from their own border. It now spends
+  a row of air, which it gives back in the compact layout. Its display band also turned
+  out to be a row of content shorter than the other three there.
 
-- **En `quattro` el nombre de la app queda centrado.** A la izquierda caía justo encima
-  de la carátula y las dos se leían apiladas; `retro` se ve limpio a la misma distancia
-  porque su nombre va en medio y sobre la carátula sólo pasa la regla. El título de la
-  cola sigue a la izquierda, que es donde esta disposición no tiene nada debajo con lo
-  que chocar.
+- **In `quattro` the wordmark is centred.** Left-aligned it landed directly on top of
+  the cover and the two read as stacked; `retro` looks clean at the same distance
+  because its name sits in the middle and only the rule passes over the artwork. The
+  queue's heading stays left, which is where this layout has nothing underneath to
+  collide with.
 
-- **La carátula y el reloj estaban a una celda.** Se leían como un solo bloque y los
-  dígitos parecían pegados a la imagen. Ahora hay dos.
+- **The cover and the clock were one cell apart.** They read as a single block and the
+  digits looked stuck to the image. Now there are two.
 
-- **La columna «Año» salía siempre vacía.** No era que a esos discos les faltara la
-  fecha en TIDAL: el álbum que viene anidado dentro de una pista en un listado trae id,
-  título y portada, y ninguna fecha, así que no había año que dibujar. Ahora se pide
-  aparte, una vez por álbum y no por pista —una cola de 100 pistas de 15 discos cuesta
-  15 peticiones—, en segundo plano y después de que la cola esté en pantalla, y sólo si
-  la columna está encendida. Una cola guardada antes de este cambio no se puede
-  rellenar, porque no guardaba a qué álbum pertenecía cada pista; se arregla sola al
-  recargarla.
+- **The Year column was always empty.** It was not those records missing a date in
+  TIDAL: the album nested inside a track in a listing carries an id, a title and a
+  cover, and no date at all, so there was no year to draw. It is now asked for
+  separately, once per album rather than once per track — a queue of 100 tracks off 15
+  records costs 15 requests — in the background and after the queue is on screen, and
+  only if the column is on. A queue saved before this change cannot be filled in,
+  because it did not record which album each track belonged to; it fixes itself on the
+  next reload.
 
-### Cambiado
+### Changed
 
-- **La identidad de la pista baja bajo el reloj.** La marquesina llevaba número, artista,
-  título y duración en una sola línea, y debajo del reloj había cinco filas vacías. Ahora
-  la marquesina es sólo el número y el título, y el artista, el álbum, el año y la
-  duración van en la columna del reloj, cada uno en su línea. El año se calla cuando el
-  catálogo no lo da. En la disposición compacta el bloque desaparece y el reloj se queda
-  con la banda entera, como antes.
+- **The track's identity moves under the clock.** The marquee carried the number, the
+  artist, the title and the length on one line, and under the clock there were five
+  empty rows. Now the marquee is only the number and the title, and the artist, the
+  album, the year and the length take the clock's column, one per line. The year is
+  silent when the catalogue does not give it. In the compact layout the block disappears
+  and the clock keeps the whole band, as before.
 
-### Añadido
+### Added
 
-- **`g` vuelve a la pista que suena**. Si el buscador de la cola la está escondiendo,
-  quita primero el filtro; si no suena nada, deja el cursor donde está y lo explica en
-  la línea de estado.
-- **`p` guarda la cola como playlist de TIDAL**. Pide el nombre, toma una instantánea
-  en el orden real de la cola, envía las pistas en lotes de 100 e invalida «Mis
-  playlists». Si un lote falla, conserva la playlist parcial y dice cuántas pistas
-  llegaron en vez de borrar trabajo a espaldas del usuario.
-- **Barras clicables**: la de posición salta al punto pulsado, y volumen y balance
-  fijan su valor; la celda central del balance queda en cero exacto.
+- **`g` goes back to the track that is playing**. If the queue's search is hiding it, it
+  clears the filter first; if nothing is playing, it leaves the cursor where it is and
+  explains itself in the status line.
+- **`p` saves the queue as a TIDAL playlist**. It asks for the name, takes a snapshot in
+  the queue's real order, sends the tracks in batches of 100 and invalidates
+  `My playlists`. If a batch fails, it keeps the partial playlist and says how many
+  tracks arrived instead of deleting work behind the user's back.
+- **Clickable bars**: the seek bar jumps to the point clicked, and volume and balance
+  take that value; the balance's centre cell lands on exactly zero.
 
-### Corregido
+### Fixed
 
-- **Los límites 429 de TIDAL vuelven a intentarse.** `tidalapi` convierte el error HTTP
-  en `TooManyRequests`, un tipo que el reintentador no reconocía. Ahora respeta
-  `Retry-After`, usa el backoff normal cuando la cabecera falta y abandona sin congelar
-  la interfaz cuando la espera indicada supera un minuto.
+- **TIDAL's 429 limits are retried again.** `tidalapi` turns the HTTP error into
+  `TooManyRequests`, a type the retry helper did not recognise. It now honours
+  `Retry-After`, uses the normal backoff when the header is missing, and gives up
+  without freezing the interface when the wait it is told to take is over a minute.
 
 ## [0.3.0] - 2026-09-10
 
-### Añadido
+### Added
 
-- **Formas para el analizador**, elegibles en la ventana de ajustes (`o`, en
-  Apariencia), en `config.toml` o con `TIDALAMP_VISUALIZER`: `bars` son las barras de
-  siempre, `mirror` las hace crecer hacia arriba y hacia abajo desde una línea central,
-  `curve` dibuja el contorno del espectro como una línea de un glifo por columna, y
-  `fine` dibuja esa misma línea sobre la rejilla de puntos del Braille, con el doble de
-  resolución horizontal y los puntos entre muestra y muestra encendidos, así que sale
-  un trazo continuo en vez de una fila de marcas sueltas. `fine` necesita una fuente
-  que traiga Braille: casi todas lo hacen, pero una que no dibuja cuadraditos y a un
-  terminal no se le puede preguntar de antemano, por eso es una forma que se elige y no
-  una a la que nada cae solo. Las cuatro se dibujan donde el analizador ha estado
-  siempre —al lado de la carátula, bajo los datos de la pista— y las cuatro llegan
-  hasta el borde derecho de la ventana; antes las barras se paraban a las 19 y dejaban
-  vacíos dos tercios de la columna. Las cuatro leen el mismo frame de cava, que ahora
-  se pide con más bandas de las que dibuja ninguna y cada forma remuestrea, así que
-  cambiar de una a otra cuesta un repintado y no reinicia el FFT.
+- **Shapes for the analyzer**, chosen from the settings window (`o`, under Appearance),
+  in `config.toml` or with `TIDALAMP_VISUALIZER`: `bars` are the usual upright bars,
+  `mirror` grows them up and down from a centre line, `curve` draws the contour of the
+  spectrum as a line one glyph per column, and `fine` draws that same line on the
+  Braille dot grid, with twice the horizontal resolution and the dots between one sample
+  and the next lit as well, so it comes out as a continuous stroke rather than a row of
+  loose marks. `fine` needs a font that carries Braille: almost all do, but one that
+  does not draws boxes, and a terminal cannot be asked beforehand, which is why it is a
+  shape you choose and not one anything falls back to. All four are drawn where the
+  analyzer has always been — beside the cover, under the track details — and all four
+  reach the right edge of the window; the bars used to stop at 19 and leave two thirds
+  of the column empty. All four read the same frame from cava, which is now asked for
+  more bands than any of them draws while each shape resamples, so switching between
+  them costs a redraw and does not restart the FFT.
 
-- **Buscador en la cola**, con `ctrl+f`. Abre una barra bajo la lista, al estilo del
-  filtro `/` del navegador de la biblioteca: no tapa la cola, la estrecha debajo
-  mientras se escribe, y a la derecha dice cuántas pistas quedan de cuántas. Ignora
-  mayúsculas y acentos, exige que cada palabra aparezca en algún sitio y busca también
-  por el álbum de la pista. Las filas conservan **el número que tienen de verdad en la
-  cola**: una coincidencia que sale como `47` dice dónde está en el orden de
-  reproducción en vez de fingir que es la primera. `↵` devuelve las flechas a la lista
-  con el filtro puesto y `esc` lo quita dejando el cursor en la pista a la que se había
-  llegado. Todo lo que actúa sobre la fila seleccionada —`↵`, `d`, `alt+↑`, `alt+↓`,
-  `f`— actúa sobre esa pista y no sobre el sitio que ocupa en la pantalla. La tecla es
-  rebindeable como cualquier otra, con la acción `filter_queue`.
+- **A search in the queue**, on `ctrl+f`. It opens a bar under the list, in the style of
+  the browser's `/` filter: it does not cover the queue, it narrows it underneath as you
+  type, and on the right it says how many tracks are left of how many. It ignores case
+  and accents, requires every word to appear somewhere, and also looks in the track's
+  album. The rows keep **the number they really have in the queue**: a match that comes
+  out as `47` says where it is in the playing order instead of pretending to be the
+  first. `↵` gives the arrows back to the list with the filter applied and `Esc` clears
+  it, leaving the cursor on the track you had reached. Everything that acts on the
+  selected row — `↵`, `d`, `alt+↑`, `alt+↓`, `f` — acts on that track and not on the
+  place it occupies on screen. The key is rebindable like any other, as `filter_queue`.
 
-- **`tidalamp -v` / `tidalamp --version`**: imprime `tidalamp <versión>` en el terminal
-  y sale. El número estaba sólo dentro de la interfaz, y quien lo necesita suele
-  necesitarlo justo cuando la interfaz no arranca. Responde antes de que nada pida
-  sesión, `mpv` ni un terminal de cierto tamaño, y lee la misma versión que enseña la
-  pantalla de ayuda.
+- **`tidalamp -v` / `tidalamp --version`**: prints `tidalamp <version>` in the terminal
+  and exits. The number lived only inside the interface, and whoever needs it usually
+  needs it exactly when the interface will not start. It answers before anything asks
+  for a session, `mpv` or a terminal of a certain size, and reads the same version the
+  help screen shows.
 
-### Cambiado
+### Changed
 
-- **El analizador es mucho más barato en pantallas grandes.** Las barras se topan en 64
-  bandas y se ensanchan para cubrir el ancho, en vez de multiplicarse y adelgazar según
-  crece el terminal, y los tramos de un mismo color se mandan al terminal en una sola
-  secuencia de escape en lugar de una por celda. A 380x50 —un 4K— eso baja el coste de
-  la app de **55% de un núcleo a 8%** a diez frames por segundo. También sale ganando el
-  analizador de siempre en un terminal normal: pinta menos tramos que antes.
+- **The analyzer is far cheaper on large displays.** The bars are capped at 64 bands and
+  widened to cover the width, instead of multiplying and thinning as the terminal grows,
+  and runs of one colour are sent to the terminal as a single escape sequence rather
+  than one per cell. At 380x50 — a 4K terminal — that takes the app from **55% of a core
+  to 8%** at ten frames a second. The everyday analyzer gains on a normal terminal too:
+  it paints fewer runs than before.
 
-- **La ayuda pasa a dos pestañas**: «Ayuda» son los atajos y `→` lleva a «Acerca de»,
-  con los créditos, la licencia y los cambios por versión; `←` vuelve. Antes era un
-  documento seguido en el que todo eso quedaba tres pantallas por debajo de lo único
-  que se abre la ventana a mirar. Cada pestaña recuerda por dónde iba, la barra de
-  título marca en cuál estás, y el pie dice a dónde lleva la flecha que queda.
+- **The help screen becomes two tabs**: "Help" is the keys and `→` leads to "About",
+  with the credits, the licence and the changes per version; `←` comes back. It used to
+  be one continuous document in which all of that sat three screens below the only thing
+  the window is opened to look at. Each tab remembers where it was, the title bar marks
+  which one you are on, and the foot says where the remaining arrow leads.
 
 ## [0.2.0] - 2026-09-10
 
-### Añadido
+### Added
 
-- **Paleta `black`**: negro puro de fondo y todo lo demás en grises y blancos. Es la
-  primera monocroma, así que declara más vocabulario que las otras: sin
-  `dark_foreground`, el texto secundario —estado, listas vacías, etiquetas inactivas,
-  las bandas apagadas del ecualizador— caía en el `foreground` de siempre, y una paleta
-  sin color donde lo callado brilla igual que lo importante no tiene con qué decirlo.
-  `red`, `yellow`, `green` y `blue` conservan su papel (error, aviso, pistas
-  reproducibles, contenedores) y se vuelven cuatro grises, porque aquí el único eje es
-  cuánta luz tiene cada cosa. Una prueba fija que ningún color de la paleta tiene tono.
+- **A `black` palette**: pure black ground and everything else in greys and whites. It
+  is the first monochrome one, so it declares more vocabulary than the others: without
+  `dark_foreground`, secondary text — status, empty lists, inactive labels, the
+  equalizer's dimmed bands — fell back on the usual `foreground`, and a palette with no
+  colour, where the quiet things shine as brightly as the important ones, has nothing to
+  say it with. `red`, `yellow`, `green` and `blue` keep their roles (error, warning,
+  playable tracks, containers) and become four greys, because the only axis here is how
+  much light each thing has. A test pins that no colour in the palette has a hue.
 
-- **Filtro dentro del navegador de la biblioteca**, con `/`. Abre una barra al pie de
-  la ventana, al estilo del buscador de un navegador web: no tapa el nivel, lo estrecha
-  debajo mientras se escribe, y a la derecha dice cuántas filas quedan de cuántas. Filtra
-  lo que el nivel tenga —pistas en favoritas, playlists en «Mis playlists», álbumes,
-  artistas o una categoría de resultados—, ignora mayúsculas y acentos (`sinfonia`
-  encuentra *Sinfonía*), exige que cada palabra escrita aparezca en algún sitio y busca
-  también por el álbum de la pista, que no está en la línea salvo que se active esa
-  columna. `↵` aplica el filtro y devuelve las flechas a la lista; `esc` lo quita y deja
-  el navegador abierto sobre la fila a la que se había llegado. La fila «más…» nunca se
-  filtra: un nivel sólo tiene una página hasta que alguien pide el resto, y esconder la
-  única forma de pedirlo convertiría el filtro en una mentira sobre 766 favoritos.
+- **A filter inside the library browser**, on `/`. It opens a bar at the foot of the
+  window, in the style of a web browser's find: it does not cover the level, it narrows
+  it underneath as you type, and on the right it says how many rows are left of how
+  many. It filters whatever the level holds — tracks in favourites, playlists in
+  `My playlists`, albums, artists or a category of results — ignores case and accents
+  (`sinfonia` finds *Sinfonía*), requires every word typed to appear somewhere, and also
+  looks in the track's album, which is not on the line unless that column is on. `↵`
+  applies the filter and gives the arrows back to the list; `Esc` clears it and leaves
+  the browser open on the row that had been reached. The `more…` row is never filtered
+  out: a level is one page deep until somebody asks for the rest, and hiding the only
+  way to ask would turn the filter into a lie about 766 favourites.
 
-- El README explica cómo actualizar una instalación con `pipx upgrade`, incluido
-  que el extra `art` se conserva y que justo después de publicar una versión pip
-  puede responder «already at latest version» por su caché del índice.
+- The README explains how to upgrade an installation with `pipx upgrade`, including that
+  the `art` extra is kept and that right after a release pip may answer "already at
+  latest version" because of its index cache.
 
-### Cambiado
+### Changed
 
-- **La carátula cambia de protocolo en vivo**, sin reiniciar. Era tolerable pedir un
-  reinicio mientras esto era un detalle del display; dejó de serlo cuando la
-  transparencia empezó a mover ese ajuste por su cuenta, porque quien la encendía se
-  quedaba con el hueco de la carátula hasta el siguiente arranque de lo mismo que estaba
-  configurando. `_reload_art()` baja la imagen vieja —una carátula de kitty la sostiene
-  el terminal y sobrevive a las celdas donde se pintó hasta que algo la borra—, cambia
-  el protocolo y vuelve a pedirla.
-- **Una carátula que llega con una ventana abierta ya no se pinta encima de ella.** Pasa
-  con cualquier cambio de pista hecho desde el navegador, no sólo al cambiar el
-  protocolo: una imagen de píxeles se dibuja sobre el texto llegue cuando llegue. Ahora
-  aterriza y se retira sola si hay un modal delante. Las de medios bloques se quedan.
-- **Con la transparencia encendida, la carátula sólo ofrece `blocks` y `off`.** Las
-  demás dejan de estar en la lista mientras dure, porque `kitty` y `sixel` pintarían la
-  imagen sobre la ventana y `auto` promete justamente eso en un terminal que las sabe
-  hacer. Al apagarla vuelven los cinco modos. El aviso sale sólo cuando el cambio quita
-  una imagen de verdad: pasar de `auto` a `blocks` donde `auto` ya era `blocks` cambia
-  la palabra de la fila y nada de la pantalla.
-- **La transparencia es una opción, no una imposición.** Nueva fila
-  «Transparencia» en la pantalla de `o` (`transparency` en el fichero,
-  `TIDALAMP_TRANSPARENCY` en el entorno), apagada por defecto. Al encenderla, la
-  carátula pasa automáticamente a `blocks` y la pantalla lo dice en vez de mover
-  un ajuste a espaldas de nadie: kitty y sixel hacen que el terminal pinte la
-  imagen por encima del texto, así que la ventana se abriría debajo de la
-  carátula. El aviso enlaza la especificación del protocolo de kitty, que es
-  donde está documentado ese orden de dibujo.
-- **La pantalla de configuración va agrupada por temática**: Audio, Apariencia y
-  General. Diez ajustes en una sola columna se leían como diez interruptores sin
-  relación, con la calidad del stream pegada al color de los bordes. La lista se
-  desplaza sola cuando el terminal es pequeño, así que las filas de abajo ya no
-  quedan seleccionables e invisibles a la vez, que es lo que pasaba al añadir las
-  cabeceras. La ventana crece con su propio texto en vez de quedarse en once
-  filas en medio de una pantalla 4K.
-- `winamp.tcss` pasa a llamarse `styles.tcss`. Aloja el layout entero y los
-  cuatro estilos visuales, de los cuales «retro» es sólo uno; el nombre viejo
-  describía una skin que hace tiempo dejó de ser todo lo que hay dentro.
+- **Cover art changes protocol live**, without a restart. Asking for a restart was
+  tolerable while this was a detail of the display; it stopped being so when
+  transparency began moving that setting on its own, because whoever turned it on was
+  left with a hole where the cover had been until the next launch of the very thing they
+  were configuring. `_reload_art()` takes the old image down — a kitty cover is held by
+  the terminal and outlives the cells it was painted in until something deletes it —
+  changes the protocol and asks for it again.
+- **A cover that arrives while a window is open no longer paints over it.** This happens
+  with any track change made from the browser, not only when changing protocol: a pixel
+  image is drawn over the text whenever it arrives. It now lands and withdraws itself if
+  a modal is in front. Half-block ones stay.
+- **With transparency on, the cover only offers `blocks` and `off`.** The others leave
+  the list for as long as it lasts, because `kitty` and `sixel` would paint the image
+  over the window and `auto` promises exactly that on a terminal that can do them.
+  Turning it off brings the five modes back. The notice only appears when the change
+  actually removes an image: going from `auto` to `blocks` where `auto` already was
+  `blocks` changes the word on the row and nothing on the screen.
+- **Transparency is an option, not an imposition.** A new `Transparency` row in the `o`
+  screen (`transparency` in the file, `TIDALAMP_TRANSPARENCY` in the environment), off
+  by default. Turning it on moves the cover to `blocks` automatically and the screen
+  says so rather than moving a setting behind anyone's back: kitty and sixel make the
+  terminal paint the image over the text, so the window would open underneath the cover.
+  The notice links kitty's protocol specification, which is where that drawing order is
+  documented.
+- **The settings screen is grouped by subject**: Audio, Appearance and General. Ten
+  settings in one column read as ten unrelated switches, with the stream's quality next
+  to the colour of the borders. The list scrolls itself when the terminal is small, so
+  the rows at the bottom are no longer selectable and invisible at the same time, which
+  is what happened when the headings were added. The window grows with its own text
+  instead of staying eleven rows in the middle of a 4K screen.
+- `winamp.tcss` becomes `styles.tcss`. It holds the whole layout and the four visual
+  styles, of which `retro` is only one; the old name described a skin that stopped being
+  everything inside it a long time ago.
+- **The windows that open over the player take the screen there is.** They were a fixed
+  84x26, so on 4K they sat like a stamp in the middle of an empty field. The library,
+  the lyrics and the help now take 85% of the terminal (capped at 160 columns, past
+  which a track line is mostly gap) and the dialogs — search, settings, columns,
+  equalizer, track menu — grow with it within what their content asks for. They still
+  fit in the 60x18 minimum.
+- **The player shows through.** The modals' background stopped being opaque: it is now a
+  translucent scrim, and each window's frame is frosted glass rather than a solid bevel.
+  A terminal cannot blur, so the scrim is what stands in for it. The project's `Screen`
+  rule was unintentionally overriding the 60% Textual already applies to `ModalScreen`,
+  which is why the player used to vanish entirely.
+- **With a modal open, the player stops redrawing itself.** That is what makes the above
+  free: with a translucent screen, every frame of the analyzer repainted the player *and*
+  recomposited the whole terminal, ten times a second. Measured at 240x62 with the
+  library open: **37.7% of a core animating against 0.5% with the background still** —
+  less than the 8.8% it cost before any of this, when the modal was opaque. What is not
+  cosmetic keeps running behind: end of track, mpv's health, MPRIS and the status line,
+  which is where a favourite added from the browser is reported. A cover drawn with half
+  blocks no longer withdraws when a modal opens; a kitty or sixel one still does,
+  because the terminal paints it over the text and it would cover the window.
+- The status line is only rewritten when it changes. It was refreshed four times a
+  second whatever it said, and `Static.update()` repaints either way.
 
-- **Las ventanas superpuestas ocupan la pantalla que hay.** Eran 84x26 fijas, así que
-  en 4K quedaban como un sello en medio de un campo vacío. Ahora la biblioteca, la
-  letra y la ayuda toman el 85% del terminal (con un tope de 160 columnas, pasadas las
-  cuales una línea de pista es casi todo hueco) y los diálogos —buscar, configuración,
-  columnas, ecualizador, menú de la pista— crecen con él dentro de lo que pide su
-  contenido. En el terminal mínimo de 60x18 siguen cabiendo.
-- **El reproductor se ve detrás.** El fondo de los modales dejó de ser opaco: ahora es
-  un velo translúcido, y el marco de cada ventana es de cristal esmerilado en vez de un
-  bisel macizo. Un terminal no sabe desenfocar, así que el velo es lo que hace de
-  desenfoque. La regla `Screen` del proyecto pisaba sin querer el 60% que Textual ya
-  aplica a `ModalScreen`, y por eso hasta ahora el reproductor desaparecía del todo.
-- **Con un modal abierto, el reproductor deja de repintarse.** Es lo que hace que lo
-  anterior salga gratis: con la pantalla translúcida, cada fotograma del analizador
-  repintaba el reproductor *y* volvía a mezclar el terminal entero, diez veces por
-  segundo. Medido en 240x62 con la biblioteca abierta: **37,7% de un núcleo animándose
-  contra 0,5% con el fondo quieto** —menos que el 8,8% que costaba antes de todo esto,
-  cuando el modal era opaco. Lo que no es cosmético sigue corriendo detrás: fin de
-  pista, salud de mpv, MPRIS y la línea de estado, que es donde informa un favorito
-  añadido desde el navegador. La carátula dibujada con medios bloques ya no se retira
-  al abrir un modal; la de kitty o sixel sigue haciéndolo porque el terminal la pinta
-  por encima del texto y taparía la ventana.
-- La línea de estado sólo se reescribe cuando cambia. Se refrescaba cuatro veces por
-  segundo dijera lo que dijera, y `Static.update()` repinta igual.
+### Fixed
 
-### Corregido
-
-- La barra de ayuda del navegador cabe en la ventana. Era un único literal de 97
-  celdas dentro de un recuadro de 84, así que el terminal la cortaba a mitad de
-  palabra y dejaba una «R» suelta contra el borde, con `R recargar` y `esc cerrar`
-  perdidos. Ahora se arma por piezas y suelta entradas enteras, de la menos esencial
-  a la más, hasta que la línea entra: se va antes `R recargar` que `esc cerrar`, y
-  `f/F favorito` aguanta más que `A añadir todo` porque `A` se adivina desde `a` y
-  los favoritos no se adivinan de ninguna parte.
+- The browser's hint bar fits in the window. It was one 97-cell literal inside an
+  84-cell box, so the terminal cut it mid-word and left a stray `R` against the edge,
+  with `R reload` and `Esc close` lost. It is now assembled from pieces and drops whole
+  entries, least essential first, until the line fits: `R reload` goes before
+  `Esc close`, and `f/F favourite` holds out longer than `A add all`, because `A` can be
+  guessed from `a` and favourites cannot be guessed from anywhere.
 
 ## [0.1.1] - 2026-09-09
 
-Versión de documentación y de primer contacto: lo que veía quien instalaba tidalamp
-fuera de Arch estaba escrito para Arch. Ningún cambio en la reproducción.
+A documentation and first-contact release: what someone installing tidalamp outside Arch
+saw was written for Arch. Nothing about playback changes.
 
-### Añadido
+### Added
 
-- **Paleta `black`**: negro puro de fondo y todo lo demás en grises y blancos. Es la
-  primera monocroma, así que declara más vocabulario que las otras: sin
-  `dark_foreground`, el texto secundario —estado, listas vacías, etiquetas inactivas,
-  las bandas apagadas del ecualizador— caía en el `foreground` de siempre, y una paleta
-  sin color donde lo callado brilla igual que lo importante no tiene con qué decirlo.
-  `red`, `yellow`, `green` y `blue` conservan su papel (error, aviso, pistas
-  reproducibles, contenedores) y se vuelven cuatro grises, porque aquí el único eje es
-  cuánta luz tiene cada cosa. Una prueba fija que ningún color de la paleta tiene tono.
+- When `mpv` or `cava` is missing, the message names the install command of the
+  distribution being run, read from `/etc/os-release`. It used to say `pacman -S mpv`
+  everywhere, so the first thing anyone installing it on Debian or Fedora saw was a
+  command their system does not have. Derivatives — Mint, Pop!_OS, Nobara — are resolved
+  through `ID_LIKE`, and a distribution that is not recognised gets no suggestion rather
+  than a wrong one.
 
-- Cuando falta `mpv` o `cava`, el mensaje nombra la orden de instalación de la
-  distribución que se está ejecutando, leída de `/etc/os-release`. Antes decía
-  `pacman -S mpv` en todas partes, así que lo primero que veía quien lo instalaba
-  en Debian o Fedora era una orden que su sistema no tiene. Las derivadas
-  —Mint, Pop!_OS, Nobara— se resuelven por `ID_LIKE`, y una distribución que no
-  se reconoce se queda sin sugerencia en vez de recibir una equivocada.
+### Changed
 
-### Cambiado
+- The project description stops defining itself by comparison with Winamp. The README,
+  the package description, the desktop entry, the `PKGBUILD`, the CLI help and the About
+  screen now talk about a retro player interface. Winamp is still named where it is a
+  fact and not a label: the origin of the transport keys, the equalizer's ten bands and
+  the trademark disclaimer.
+- The README documents the requirements per distribution: the command for `mpv` and
+  `cava` on apt, dnf, zypper and pacman, and that the Python 3.11 floor rules out
+  Ubuntu 22.04 and Debian 11.
+- The README is rewritten for the person using the program: a quick start and the
+  installation at the top — they were half a page down — and around a hundred lines gone
+  that justified design decisions to a code reviewer.
+- The README's images move to absolute URLs. With relative paths none of them appeared
+  on the PyPI page, which is the project's first impression.
 
-- La descripción del proyecto deja de definirse por comparación con Winamp. El
-  README, la descripción del paquete, la entrada de escritorio, el `PKGBUILD`, la
-  ayuda de la CLI y la pantalla «Acerca de» hablan ahora de una interfaz retro de
-  reproductor. Winamp sigue nombrado donde es un dato y no una etiqueta: el origen
-  de las teclas del transporte, las diez bandas del ecualizador y el descargo de
-  marcas.
-- El README documenta los requisitos por distribución: la orden de `mpv` y de
-  `cava` en apt, dnf, zypper y pacman, y que el suelo de Python 3.11 deja fuera
-  Ubuntu 22.04 y Debian 11.
-- El README se reescribe para quien usa el programa: un arranque rápido y la
-  instalación al principio —estaban a mitad de página— y fuera unas cien líneas
-  que justificaban decisiones de diseño ante un revisor de código.
-- Las imágenes del README pasan a URL absolutas. Con rutas relativas no se veía
-  ninguna en la página de PyPI, que es la primera impresión del proyecto.
+### Fixed
 
-### Corregido
-
-- La página de PyPI de 0.1.0 describía la interfaz como «estilo Winamp». Una
-  versión publicada es inmutable, así que la descripción corregida —y el README
-  nuevo, y las imágenes— sólo podían llegar con esta versión.
+- 0.1.0's PyPI page described the interface as "Winamp-style". A published version is
+  immutable, so the corrected description — and the new README, and the images — could
+  only arrive with this release.
 
 ## [0.1.0] - 2026-09-09
 
-Primera versión pública de tidalamp, distribuida mediante PyPI y GitHub Releases. El
-paquete del AUR está preparado, pero su publicación queda aplazada mientras siga
-cerrado el registro público de cuentas nuevas por el endurecimiento de seguridad del
-servicio. El procedimiento y el estado completo están en [`publish.md`](publish.md).
+The first public release of tidalamp, distributed through PyPI and GitHub Releases. The
+AUR package is ready, but publishing it is on hold while the service's public
+registration for new accounts remains closed for its security hardening. The procedure
+and the full status are in [`publish.md`](publish.md).
 
-### Añadido
+### Added
 
-- **Paleta `black`**: negro puro de fondo y todo lo demás en grises y blancos. Es la
-  primera monocroma, así que declara más vocabulario que las otras: sin
-  `dark_foreground`, el texto secundario —estado, listas vacías, etiquetas inactivas,
-  las bandas apagadas del ecualizador— caía en el `foreground` de siempre, y una paleta
-  sin color donde lo callado brilla igual que lo importante no tiene con qué decirlo.
-  `red`, `yellow`, `green` y `blue` conservan su papel (error, aviso, pistas
-  reproducibles, contenedores) y se vuelven cuatro grises, porque aquí el único eje es
-  cuánta luz tiene cada cosa. Una prueba fija que ningún color de la paleta tiene tono.
+- `tidalamp` with no subcommand opens the player directly; `tidalamp tui` is kept as the
+  explicit equivalent.
+- A retro desktop-player TUI: seven-segment clock, scrolling title, 19-band analyzer,
+  seek bar and volume and balance sliders.
+- Play and pause share one button and one key (`x`), whose icon is the action it will
+  perform when pressed: `▶` when stopped or paused, `‖` when playing.
+- The transport takes four adjacent keys, in the order of the buttons: `z` previous,
+  `x` play/pause, `c` stop, `v` next. The buttons' labels come from the effective
+  bindings, so they follow `config.toml`.
+- The transport is drawn as three-row buttons, in two groups: the transport on one side
+  and shuffle/repeat on the other.
+- The queue is drawn in columns when the terminal allows it, rather than putting the
+  artist inside the title. **Which ones are shown is chosen** from the `o` window, which
+  opens a picker with the eleven the TIDAL API fills in: track number, version, artist,
+  album, year, quality, explicit, popularity, disc, ISRC and duration. The change
+  applies to the queue already on screen, not to the next one loaded. They fall away on
+  their own as the window narrows, in the order in which they can be lost, and at the
+  end `artist - title` is left on one line with the duration on the right.
+- **Four visual layouts, chosen with `theme`**, independent of colour: `quattro` (the
+  default, flat and modern), `retro` (title bars drawn as a rule with the name centred,
+  square keys packed together and the toggles spelled `SHUFFLE` and `REPEAT`), `nova`
+  (frameless, one ground throughout, and an accent rule under whichever toggle is on)
+  and `ascii` (a terminal from before box drawing: `[ z << ]` buttons, rules of `=` and
+  `-`, and no glyph in the chrome you could not type). They are changed from the `o`
+  window without stopping playback.
+- **Portable palettes** as well as following Omarchy: `classic`, `tokyo-night`,
+  `catppuccin`, `nord`, `gruvbox`, or a TOML of your own in
+  `~/.config/tidalamp/palettes/`, in the same format as Omarchy's `colors.toml`. Any
+  palette works with any of the layouts.
+- The settings window warns on its own line, and in the warning colour, when PipeWire's
+  graph is fixed at one rate and resamples everything: the badge tells the truth about
+  the stream while the DAC receives something else, and nothing on screen gave it away
+  without moving the cursor.
+- Playback through a long-lived `mpv` over an IPC socket, restarted automatically if the
+  process dies.
+- TIDAL device-flow authentication, with no app registration, refreshing the token at
+  startup and mid-session.
+- A queue with shuffle, repeat in three modes, reordering and persistence between
+  sessions. Both live on the transport bar as `s ⇄` and `r ↻` buttons, lit in the
+  theme's accent; the bar separates transport and windows with `·` and aligns the
+  windows to the right.
+- A library browser: playlists, favourites, albums and artists, paginated and with the
+  levels cached in memory.
+- Search for tracks, albums, artists and playlists.
+- A menu of actions on `↵` over a song: play now (`a`), play next (`c`), play the radio
+  TIDAL generates for that track (`d`) and add to favourites (`v`), each with its icon.
+- TIDAL favourites on `f` and `F`.
+- A complete MPRIS2 service, `TrackList` interface included.
+- Cover art in the terminal through the kitty protocol, sixel or half blocks, in a box
+  that grows with the terminal (from 18×9 to 40×20) along with the analyzer.
+- Synced lyrics (LRC) with a plain-text fallback.
+- A ten-band equalizer and balance, as mpv filters, with persistence.
+- A real spectrum through `cava` when it is installed, and an RMS meter when it is not.
+- The palette taken from the active Omarchy theme, changing live.
+- A `config.toml` configuration file and rebindable keys.
+- A settings window (`o`) that writes that file: quality, cover art, language and
+  logging, warning when an environment variable overrides them. It includes the state of
+  the audio output, and enables PipeWire's hi-res rates — without which a 24/96 stream
+  reaches the DAC resampled to 48 kHz — and its restart.
+- The language becomes a setting in the file; before it came only from `$LANG`.
+- A desktop entry and icon, and a notice when the terminal is smaller than 76×20.
+- Packaging for the AUR and for PyPI, published through Trusted Publishing.
+- A bilingual interface and CLI, Spanish and English, following the locale, falling back
+  to Spanish.
+- A help window (`?` or `h`) with every shortcut grouped and read from the effective
+  bindings, so a key rebound in `config.toml` appears as the one to press. It includes
+  About — version, author, repository and licence — and the summary of changes for each
+  version.
+- A public README in English.
 
-- `tidalamp` sin subcomando abre directamente el reproductor; `tidalamp tui` se
-  conserva como forma explícita equivalente.
-- Interfaz TUI retro de reproductor de escritorio: reloj de siete segmentos, marquesina,
-  analizador de 19 bandas, barra de posición y sliders de volumen y balance.
-- Play y pausa comparten un único botón y una única tecla (`x`), cuyo icono es la
-  acción que hará al pulsarlo: `▶` parado o en pausa, `‖` sonando.
-- El transporte ocupa cuatro teclas contiguas, en el orden de los botones:
-  `z` anterior, `x` play/pausa, `c` parar, `v` siguiente. Los rótulos de los
-  botones salen de los bindings efectivos, así que siguen a `config.toml`.
-- El transporte se dibuja como botones de tres filas, en dos grupos: el transporte por
-  un lado y shuffle/repetición por otro.
-- La cola se dibuja en columnas cuando el terminal da para ello, en vez de meter el
-  artista dentro del título. **Cuáles se ven se elige** desde la ventana de `o`, que
-  abre un selector con las once que la API de TIDAL rellena: número de pista, versión,
-  artista, álbum, año, calidad, explícito, popularidad, disco, ISRC y duración. El
-  cambio se aplica a la cola que ya está en pantalla, no a la siguiente que cargues.
-  Se van cayendo solas al estrecharse la ventana, en el orden en que se pueden perder,
-  y al final queda `artista - título` en una línea con la duración a la derecha.
-- **Cuatro estructuras visuales, elegibles con `theme`**, independientes del color:
-  `quattro` (por defecto, plana y moderna), `retro` (barras de título dibujadas como
-  una regla con el nombre centrado, teclas cuadradas pegadas y los conmutadores con las
-  palabras `SHUFFLE` y `REPEAT`) y `nova` (sin marcos, un solo fondo, y una regla del
-  acento bajo el conmutador encendido) y `ascii` (un terminal de antes del dibujo de
-  cajas: botones `[ z << ]`, reglas de `=` y `-`, y ningún glifo en el cromado que no
-  se pueda teclear). Se cambian desde la ventana de `o` sin parar la reproducción.
-- **Paletas portables** además de seguir a Omarchy: `classic`, `tokyo-night`,
-  `catppuccin`, `nord`, `gruvbox`, o un TOML propio en
-  `~/.config/tidalamp/palettes/`, con el mismo formato que el `colors.toml` de
-  Omarchy. Cualquier paleta funciona con cualquiera de las tres estructuras.
-- La ventana de configuración avisa en su propia línea, y en el color de aviso, cuando
-  el grafo de PipeWire está fijo en un ritmo y remuestrea todo: la insignia dice la
-  verdad sobre el stream mientras el DAC recibe otra cosa, y no había nada en pantalla
-  que lo delatara sin mover el cursor.
-- **`v` (parar) rearrancaba la lista desde el principio**: dejaba mpv en idle y el
-  tick lo leía como «la pista acabó», así que avanzaba a la siguiente — que desde
-  una cola parada es la primera.
-- Reproducción con `mpv` de larga vida por socket IPC, con reinicio automático si el
-  proceso muere.
-- Autenticación por *device flow* de TIDAL, sin registrar ninguna app, con refresco del
-  token al arrancar y a media sesión.
-- Cola con shuffle, repetición en tres modos, reordenado y persistencia entre sesiones.
-  Ambos viven en la barra de transporte como botones `s ⇄` y `r ↻`, encendidos con
-  el acento del tema; la barra separa transporte y ventanas con `·` y alinea las
-  ventanas a la derecha.
-- Navegador de la biblioteca: playlists, favoritos, álbumes y artistas, paginado y con
-  caché de niveles en memoria.
-- Búsqueda de pistas, álbumes, artistas y playlists.
-- Menú de acciones al pulsar `↵` sobre una canción: reproducir ahora (`a`),
-  reproducir a continuación (`c`), reproducir la radio que TIDAL genera para esa
-  pista (`d`) y añadir a favoritos (`v`), cada uno con su icono.
-- Favoritos de TIDAL con `f` y `F`.
-- Servicio MPRIS2 completo, incluida la interfaz `TrackList`.
-- Carátula en el terminal por protocolo de kitty, sixel o medios bloques, en un
-  recuadro que crece con el terminal (de 18×9 a 40×20) junto con el analizador.
-- Letras sincronizadas (LRC) con respaldo a texto plano.
-- Ecualizador de diez bandas y balance, como filtros de mpv, con persistencia.
-- Espectro real con `cava` cuando está instalado, y vúmetro RMS cuando no.
-- Paleta tomada del tema Omarchy activo, con cambio en vivo.
-- Fichero de configuración `config.toml` y teclas rebindables.
-- Ventana de configuración (`o`) que escribe ese fichero: calidad, carátula,
-  idioma y registro, avisando cuando una variable de entorno los pisa. Incluye
-  el estado de la salida de audio, y activa los ritmos hi-res de PipeWire —sin
-  los cuales un 24/96 llega al DAC remuestreado a 48 kHz— y su reinicio.
-- El idioma pasa a ser un ajuste del fichero; antes sólo salía de `$LANG`.
-- Entrada de escritorio e icono, y aviso cuando el terminal es más pequeño de 76×20.
-- Empaquetado para el AUR y para PyPI, con publicación por *Trusted Publishing*.
-- Interfaz y CLI bilingües español/inglés según el locale, con fallback al español.
-- Ventana de ayuda (`?` o `h`) con todos los atajos agrupados y leídos de los
-  bindings efectivos, así que una tecla rebindeada en `config.toml` aparece como
-  la que hay que pulsar. Incluye «Acerca de» —versión, autor, repositorio y
-  licencia— y el resumen de cambios de cada versión.
-- README público en inglés.
+### Fixed
 
-### Corregido
-
-- **El hi-res no sonaba.** La playlist HLS que genera `tidalapi` lista el segmento de
-  inicialización como si fuera audio y no emite `#EXT-X-MAP`; además ffmpeg bloquea
-  `https` desde una playlist local. Las dos cosas están resueltas.
-- **La calidad por defecto no producía lossless nunca.** Pedir `LOSSLESS` al cliente del
-  device flow devuelve `HIGH` siempre; el valor por defecto es `HI_RES_LOSSLESS`.
-- **Una página corta de TIDAL no es el final de la lista.** La biblioteca dejaba fuera
-  676 de 766 pistas favoritas.
-- **«Mis playlists» tardaba 20 segundos** con 110 playlists, porque `tidalapi` pedía
-  cada una por separado. Ahora tarda 0,4 s.
-- **La app no arrancaba con un access token caducado**, que es el caso normal al abrirla
-  al día siguiente.
-- **La barra de estado quedaba fuera de la pantalla**, así que todo lo que la aplicación
-  tenía que decir se escribía donde nadie lo veía.
-- La insignia mostraba «16bit» sobre audio con pérdida.
-- **La barra de volumen se rompía por encima de 100.** El relleno no estaba
-  acotado al ancho de la pista, así que a 105 el número se corría, a 115 salía
-  del widget y a 130 la línea era tan larga que no se dibujaba nada: quedaba
-  «VOL» y una fila vacía. El widget ya no deja que ningún valor le deforme la
-  pista, y el volumen tiene tope en 100 —por encima mpv aplica ganancia digital
-  sobre una señal ya normalizada, que satura—, tanto por teclado como por MPRIS.
-- **Sin Pillow no había carátula y no se decía por qué**: el widget se quedaba
-  oculto y el único rastro era un `log.info` en un fichero. Ahora la barra de
-  estado nombra el extra que lo arregla al arrancar, y las instrucciones de
-  instalación desde el repositorio incluyen `".[art]"`, que era donde faltaba.
-- **Los corchetes desaparecían del texto que no escribimos nosotros.**
-  `Static.update` interpreta un `str` como marcado de Rich: un álbum llamado
-  «Lateralus [Deluxe Edition]» se dibujaba como «Lateralus », y un nombre con
-  una etiqueta de cierre (`[/]`) lanzaba `MarkupError` en pleno render. Los
-  cuatro `Static` que reciben nombres de TIDAL, títulos de pista o mensajes de
-  excepción se construyen ahora con `markup=False`.
+- **Hi-res did not play.** The HLS playlist `tidalapi` generates lists the
+  initialisation segment as if it were audio and emits no `#EXT-X-MAP`; on top of that
+  ffmpeg blocks `https` from a local playlist. Both are resolved.
+- **The default quality never produced lossless.** Asking the device-flow client for
+  `LOSSLESS` returns `HIGH` every time; the default is `HI_RES_LOSSLESS`.
+- **A short page from TIDAL is not the end of the list.** The library was leaving out
+  676 of 766 favourite tracks.
+- **`My playlists` took 20 seconds** with 110 playlists, because `tidalapi` fetched each
+  one separately. It now takes 0.4 s.
+- **The app would not start with an expired access token**, which is the normal case
+  when opening it the next day.
+- **The status bar was off screen**, so everything the application had to say was
+  written where nobody could see it.
+- **`c` (stop) restarted the list from the beginning**: it left mpv idle and the tick
+  read that as "the track ended", so it moved on to the next one — which from a stopped
+  queue is the first.
+- The badge showed "16bit" over lossy audio.
+- **The volume bar broke above 100.** The fill was not clamped to the track's width, so
+  at 105 the number shifted, at 115 it left the widget and at 130 the line was so long
+  that nothing was drawn at all: `VOL` and an empty row. The widget no longer lets any
+  value deform its track, and the volume is capped at 100 — above that mpv applies
+  digital gain to an already normalised signal, which clips — from the keyboard and
+  from MPRIS alike.
+- **Without Pillow there was no cover and no explanation**: the widget stayed hidden and
+  the only trace was a `log.info` in a file. The status bar now names the extra that
+  fixes it at startup, and the installation instructions from the repository include
+  `".[art]"`, which is where it was missing.
+- **Brackets disappeared from text we did not write.** `Static.update` reads a `str` as
+  Rich markup: an album called "Lateralus [Deluxe Edition]" was drawn as "Lateralus ",
+  and a name with a closing tag (`[/]`) raised `MarkupError` mid-render. The four
+  `Static` widgets that receive TIDAL names, track titles or exception messages are now
+  built with `markup=False`.

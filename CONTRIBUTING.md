@@ -1,15 +1,15 @@
-# Cómo contribuir
+# Contributing
 
-## Antes de nada: dos líneas que no se cruzan
+## First, two lines that are not crossed
 
-1. **Nada de DRM.** `stream.py` rechaza los manifiestos cifrados en vez de
-   descifrarlos, y no se descarga audio a disco. Los parches que añadan descifrado o
-   descarga a fichero no se aceptan. No es una preferencia estética: es lo que mantiene
-   el proyecto fuera de las leyes anti-elusión.
-2. **Nada de credenciales incrustadas.** Ni claves de API, ni tokens, ni secretos de
-   cliente propios en el repositorio.
+1. **No DRM.** `stream.py` rejects encrypted manifests rather than decrypting them, and
+   no audio is downloaded to disk. Patches that add decryption or download to a file are
+   not accepted. This is not an aesthetic preference: it is what keeps the project clear
+   of anti-circumvention law.
+2. **No embedded credentials.** No API keys, no tokens, no client secrets of our own in
+   the repository.
 
-## Poner en marcha el entorno
+## Setting up
 
 ```sh
 python -m venv .venv
@@ -17,10 +17,10 @@ python -m venv .venv
 .venv/bin/python -m pytest
 ```
 
-Hacen falta `mpv` en el sistema. `cava` es opcional (espectro real) y `dbus-daemon`
-también (sin él, la integración de MPRIS se salta sola en vez de fallar).
+You need `mpv` on the system. `cava` is optional (a real spectrum) and so is
+`dbus-daemon` — without it the MPRIS integration skips itself rather than failing.
 
-## Lo que tiene que pasar antes de un commit
+## What has to pass before a commit
 
 ```sh
 .venv/bin/ruff format .
@@ -29,40 +29,44 @@ también (sin él, la integración de MPRIS se salta sola en vez de fallar).
 .venv/bin/python -m pytest -q --cov
 ```
 
-Las cuatro cosas están en CI. La cobertura tiene un suelo del 70 %, que es un suelo y
-no un objetivo: existe para que un cambio que vacíe las pruebas falle en vez de pasar
-en silencio.
+All four run in CI. Coverage has a floor of 70%, which is a floor and not a target: it
+exists so that a change which empties the tests fails instead of passing quietly.
 
-`tidalamp/mpris.py` está excluido de mypy a propósito: sus anotaciones son firmas de
-D-Bus (`"b"`, `"a{sv}"`), no tipos de Python, y ningún verificador puede leerlas. A
-cambio, ese módulo tiene pruebas de contrato contra un bus real en
-`tests/test_mpris.py`.
+`tidalamp/mpris.py` is excluded from mypy on purpose: its annotations are D-Bus
+signatures (`"b"`, `"a{sv}"`), not Python types, and no checker can read them. In
+exchange, that module has contract tests against a real bus in `tests/test_mpris.py`.
 
-## Cómo se escriben las pruebas aquí
+## How the tests are written here
 
-No tocan la red, ni TIDAL, ni el bus de sesión del usuario. Hay dobles para todo lo que
-haga falta: `tests/fake_mpv.py` habla el IPC de verdad, `tests/fake_cava.py` emite
-frames binarios, y la integración de MPRIS levanta su propio `dbus-daemon` temporal.
+They do not touch the network, TIDAL, or the user's session bus. There are doubles for
+everything needed: `tests/fake_mpv.py` speaks the real IPC, `tests/fake_cava.py` emits
+binary frames, and the MPRIS integration starts its own temporary `dbus-daemon`.
 
-Cuando arregles un fallo, la prueba debería contar **qué se rompía**, no sólo qué hace
-la función. Buena parte de las de este repo llevan el síntoma en el nombre o en el
-docstring, y eso es deliberado.
+When you fix a bug, the test should say **what was breaking**, not only what the
+function does. Plenty of the ones in this repository carry the symptom in the name or in
+the docstring, and that is deliberate.
 
-## Documentación
+## Documentation
 
-- `README.md` es la documentación pública en inglés. `plan.md` sigue siendo el
-  documento de traspaso en español para el mantenedor original.
-- `plan.md` es el documento de traspaso: qué existe, qué está verificado y **con qué
-  criterio se tomó cada decisión**. Si tomas una decisión de arquitectura, va ahí, con
-  el motivo. Si pierdes una tarde con una trampa, va a §7, para que nadie la repita.
-- `next.md` es la cola de trabajo comprometido para la próxima versión: qué entra, por
-  qué, las trampas conocidas y cómo se comprueba. **Cuando algo de ahí queda hecho se
-  borra de ahí**, y su rastro pasa a `CHANGELOG.md` en la línea de usuario y a `plan.md`
-  en el detalle. Una lista que acumula entradas tachadas deja de decir qué falta.
-- `publish.md` es el procedimiento de publicación, de la versión al tag y al AUR.
-- `CHANGELOG.md` se actualiza en el mismo commit que el cambio.
+The split is by audience, not by preference: what a stranger reads is in English, and
+what the maintainer reads is in Spanish.
 
-## Mensajes de commit
+- `README.md` and `CHANGELOG.md` are the public documentation, in English. So are the
+  GitHub release notes.
+- `plan.md` is the handover document, in Spanish: what exists, what has been verified
+  and **the reasoning behind each decision**. If you make an architectural decision, it
+  goes there, with the why. If you lose an afternoon to a trap, it goes in §7, so nobody
+  repeats it.
+- `next.md` is the queue of committed work for the next version, in Spanish: what goes
+  in, why, the traps already known and how it gets checked. **When something there is
+  done it is deleted from there**, and its trace goes to `CHANGELOG.md` as the user-
+  facing line and to `plan.md` as the detail. A list that collects struck-out entries
+  stops saying what is missing.
+- `publish.md` is the release procedure, in Spanish: from the version to the tag and the
+  AUR.
+- `CHANGELOG.md` is updated in the same commit as the change.
 
-En imperativo y explicando **por qué**, no sólo qué. Si el cambio nace de una medida,
-el número va en el mensaje: es lo que permite discutirlo después.
+## Commit messages
+
+Imperative, and explaining **why**, not only what. If the change comes out of a
+measurement, the number goes in the message: that is what lets it be argued with later.
