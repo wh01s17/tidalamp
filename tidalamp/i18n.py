@@ -241,10 +241,16 @@ ENGLISH: dict[str, str] = {
     "AYUDA": "HELP",
     "ACERCA DE": "ABOUT",
     "acerca de": "about",
-    " ↑↓ desplazar   → acerca de   ?/h/esc cerrar": (
-        " ↑↓ scroll   → about   ?/h/esc close"
+    " ↑↓ desplazar   / buscar   → acerca de   ?/h/esc cerrar": (
+        " ↑↓ scroll   / search   → about   ?/h/esc close"
     ),
-    " ↑↓ desplazar   ← ayuda   ?/h/esc cerrar": " ↑↓ scroll   ← help   ?/h/esc close",
+    " ↑↓ desplazar   / buscar   ← ayuda   ?/h/esc cerrar": (
+        " ↑↓ scroll   / search   ← help   ?/h/esc close"
+    ),
+    " escribe para filtrar   ↵ listo   esc quitar la búsqueda": (
+        " type to filter   ↵ done   esc clear the search"
+    ),
+    "buscar en la ayuda…": "search the help…",
     "Acerca de": "About",
     # --- notas de versión 0.5.1
     "OUT ya no muestra la frecuencia de la pista anterior.": (

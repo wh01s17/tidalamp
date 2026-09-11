@@ -4580,3 +4580,69 @@ def test_every_look_fits_both_halves_of_the_narrowest_split(monkeypatch, tmp_pat
                 assert application.query_one(Artwork).rows >= app_module.DISPLAY_HEIGHT
 
     asyncio.run(scenario())
+
+
+def test_the_help_can_be_searched_and_says_how_at_the_bottom(monkeypatch):
+    """`/` opens a box under the keys; what is typed narrows them, each match
+    under its section's heading, and esc takes the search away before it
+    closes the window. The footer names the key."""
+    isolate_runtime(monkeypatch)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(100, 36)) as pilot:
+            await pilot.pause()
+            screen = HelpScreen(app_module.keys_for)
+            application.push_screen(screen)
+            await pilot.pause()
+
+            def body() -> str:
+                widget = screen.query_one("#help-body")
+                return "\n".join(
+                    widget.render_line(y).text for y in range(widget.size.height)
+                )
+
+            hint = screen.query_one("#help-hint", Static).render_line(0).text
+            assert "/ buscar" in hint
+            everything = body()
+
+            await pilot.press("slash")
+            await pilot.pause()
+            assert screen.query_one("#help-filter-bar").display
+            # Letters go to the box, not to the bindings: `h` would close.
+            for key in ("h", "question_mark", "backspace", "backspace"):
+                await pilot.press(key)
+            await pilot.pause()
+            assert isinstance(application.screen, HelpScreen)
+            for key in "balance":
+                await pilot.press(key)
+            await pilot.pause()
+
+            narrowed = body()
+            assert "balance" in narrowed
+            assert "Volumen y sonido" in narrowed, "cada fila bajo su sección"
+            assert "cola" not in narrowed.lower().split("volumen")[0]
+            assert len(narrowed.strip()) < len(everything.strip())
+            count = screen.query_one("#help-filter-count", Static).render_line(0).text
+            assert " de " in count
+
+            # Accents and case do not matter.
+            screen.query_one("#help-filter").value = "ECUALIZADOR"
+            await pilot.pause()
+            assert "ecualizador" in body()
+
+            screen.query_one("#help-filter").value = "zzzz"
+            await pilot.pause()
+            assert "nada coincide" in body()
+
+            await pilot.press("escape")
+            await pilot.pause()
+            assert isinstance(application.screen, HelpScreen)
+            assert not screen.query_one("#help-filter-bar").display
+            assert body() == everything, "vuelve la página entera, a su alto"
+
+            await pilot.press("escape")
+            await pilot.pause()
+            assert not isinstance(application.screen, HelpScreen)
+
+    asyncio.run(scenario())

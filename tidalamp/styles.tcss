@@ -600,6 +600,28 @@ ModalScreen.transparent {
     padding: 1 2;
 }
 
+#help-filter-bar {
+    height: 1;
+    background: $tidalamp-track-background;
+}
+
+#help-filter {
+    background: $tidalamp-track-background;
+    color: $tidalamp-accent;
+    border: none;
+    height: 1;
+    width: 1fr;
+    padding: 0 1;
+}
+
+#help-filter-count {
+    background: $tidalamp-track-background;
+    color: $tidalamp-transport-foreground;
+    height: 1;
+    width: auto;
+    padding: 0 1;
+}
+
 #help-hint {
     background: $tidalamp-transport-background;
     color: $tidalamp-transport-foreground;

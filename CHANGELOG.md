@@ -15,6 +15,9 @@ versioning is [semantic](https://semver.org/).
   live from the settings window without interrupting playback or moving the queue's
   cursor. It needs at least 180×26 and falls back to the stacked arrangement on its
   own where it does not fit.
+- Search in the help window: `/` opens a box under the page and narrows the tab you are
+  on as you type, keeping each match under its section's heading. The footer shows the
+  key.
 
 ## [0.5.1] - 2026-09-10
 

@@ -342,7 +342,17 @@ def matches(query: str, row: Row) -> bool:
     """
     entry = row.entry
     parts = [row.label, row.detail, entry.album if entry is not None else ""]
-    haystack = _folded(" ".join(part for part in parts if part))
+    return text_matches(query, " ".join(part for part in parts if part))
+
+
+def text_matches(query: str, text: str) -> bool:
+    """Every term of ``query`` somewhere in ``text``, accents and case aside.
+
+    The rule `matches` applies to a row, for anything that is only text: the
+    help screen searches its own lines with it, so «pausa» finds the same
+    things there as it would in a list.
+    """
+    haystack = _folded(text)
     return all(term in haystack for term in _folded(query).split())
 
 

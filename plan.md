@@ -913,6 +913,13 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
 - [x] La caja cede a `max-width: 100%`, al revés que los demás modales, porque lleva
       URLs y a 76×20 se cortarían.
 - [x] `push_screen` ya retiraba la carátula de kitty al apilar; la ayuda lo hereda.
+- [x] Buscador (`/`, 2026-09-10): una caja bajo el texto, como la de la cola y la del
+      navegador, que estrecha la pestaña en curso con `library.text_matches` (la misma
+      regla que `matches`, sin tildes ni mayúsculas). Cada fila que queda va bajo el
+      título de su sección, y un título que coincide trae su sección entera. `esc`
+      quita la búsqueda antes de cerrar; la barra de abajo nombra la tecla. Al abrir y
+      cerrar la caja la página se vuelve a pintar tras el layout, o quedaba una línea
+      corta.
 
 ### Tests — `tests/`
 

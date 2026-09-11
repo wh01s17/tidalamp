@@ -702,6 +702,11 @@ where you left them.
 `↑` `↓` scroll, `PgUp` `PgDn` a page, `Home` `End` jump to either end, and `?`, `h` or
 `Esc` close it.
 
+`/` searches the tab you are on: a box opens under the text, and what you type narrows
+it to the lines that match, each under its section's heading, ignoring accents and
+case. `Enter` hands the arrows back to the page with the search still on, and `Esc`
+clears it before it closes the window. The footer names the key.
+
 ## Troubleshooting
 
 If mpv dies, tidalamp starts a fresh process and reloads the current track. Expired

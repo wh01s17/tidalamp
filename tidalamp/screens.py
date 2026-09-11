@@ -1063,6 +1063,7 @@ class HelpScreen(ModalScreen[None]):
         Binding("pagedown", "page_down", "", show=False),
         Binding("home", "top", "", show=False),
         Binding("end", "bottom", "", show=False),
+        Binding("slash", "search", _("buscar"), show=False),
     ]
 
     # The tabs, left to right. `→` walks towards the end of this tuple and
@@ -1079,13 +1080,18 @@ class HelpScreen(ModalScreen[None]):
         # Built once on mount: nothing in them changes while the screen is
         # open, and building both costs less than rebuilding on every →.
         self._pages: list[list[tuple[str, str]]] = [[], []]
+        # What the search box holds. It narrows whichever tab is showing, so
+        # it survives `→`: looking a word up in the release notes is the
+        # same question as looking it up in the keys.
+        self._query = ""
 
     # The rest of the screen scrolls «the current page», so both of these read
     # through the tab instead of every caller having to index it.
 
     @property
     def _lines(self) -> list[tuple[str, str]]:
-        return self._pages[self._tab]
+        page = self._pages[self._tab]
+        return self._matching(page, self._query) if self._query else page
 
     @property
     def _offset(self) -> int:
@@ -1099,10 +1105,16 @@ class HelpScreen(ModalScreen[None]):
         with Vertical(id="help-box"):
             yield Static("", id="help-title", markup=False)
             yield Static("", id="help-body", markup=False)
+            # Under the text, the way the queue's and the browser's are: the
+            # page narrows under the eyes of whoever is typing.
+            with Horizontal(id="help-filter-bar"):
+                yield Input(placeholder=_("buscar en la ayuda…"), id="help-filter")
+                yield Static("", id="help-filter-count", markup=False)
             yield Static("", id="help-hint", markup=False)
 
     def on_mount(self) -> None:
         self._pages = [self._build_shortcuts(), self._build_about()]
+        self.query_one("#help-filter-bar", Horizontal).display = False
         self._render_tabs()
         self._render_window()
 
@@ -1129,11 +1141,12 @@ class HelpScreen(ModalScreen[None]):
         bar.append(f"  TIDAL AMP {about.version()}", style=palette["title_foreground"])
         self.query_one("#help-title", Static).update(bar)
 
-        hint = (
-            _(" ↑↓ desplazar   → acerca de   ?/h/esc cerrar")
-            if self._tab == self.SHORTCUTS
-            else _(" ↑↓ desplazar   ← ayuda   ?/h/esc cerrar")
-        )
+        if self._searching():
+            hint = _(" escribe para filtrar   ↵ listo   esc quitar la búsqueda")
+        elif self._tab == self.SHORTCUTS:
+            hint = _(" ↑↓ desplazar   / buscar   → acerca de   ?/h/esc cerrar")
+        else:
+            hint = _(" ↑↓ desplazar   / buscar   ← ayuda   ?/h/esc cerrar")
         self.query_one("#help-hint", Static).update(hint)
 
     def _go_to(self, tab: int) -> None:
@@ -1143,12 +1156,92 @@ class HelpScreen(ModalScreen[None]):
         self._tab = tab
         self._render_tabs()
         self._render_window()
+        if self._searching():
+            self._render_count()
 
     def action_next_tab(self) -> None:
         self._go_to(self._tab + 1)
 
     def action_prev_tab(self) -> None:
         self._go_to(self._tab - 1)
+
+    # --------------------------------------------------------------- search
+
+    @staticmethod
+    def _matching(lines: list[tuple[str, str]], query: str) -> list[tuple[str, str]]:
+        """The rows that answer to `query`, each under its section's heading.
+
+        A matching row without its heading would say `x` and not what `x`
+        does it for, so every section that keeps a row keeps its title too,
+        and a heading that matches brings its whole section along.
+        """
+        kept: list[tuple[str, str]] = []
+        heading: tuple[str, str] | None = None
+        whole = False
+        for kind, text in lines:
+            if kind == "heading":
+                heading = (kind, text)
+                whole = library.text_matches(query, text)
+                if whole:
+                    if kept:
+                        kept.append(("blank", ""))
+                    kept.append(heading)
+                continue
+            if kind == "blank" or not (whole or library.text_matches(query, text)):
+                continue
+            if heading is not None and heading not in kept[-1:] and not whole:
+                if kept:
+                    kept.append(("blank", ""))
+                kept.append(heading)
+                heading = None
+            kept.append((kind, text))
+        return kept
+
+    def _searching(self) -> bool:
+        return bool(self.query("#help-filter-bar")) and bool(
+            self.query_one("#help-filter-bar", Horizontal).display
+        )
+
+    def action_search(self) -> None:
+        """Open the search box under the page and start typing into it."""
+        self.query_one("#help-filter-bar", Horizontal).display = True
+        self.query_one("#help-filter", Input).focus()
+        self._render_tabs()
+        self._render_count()
+        self.call_after_refresh(self._render_window)
+
+    def on_input_changed(self, event: Input.Changed) -> None:
+        query = event.value.strip()
+        if query == self._query:
+            return
+        self._query = query
+        self._offset = 0
+        self._render_window()
+        self._render_count()
+
+    def on_input_submitted(self, event: Input.Submitted) -> None:
+        """↵ hands the arrows back to the page and leaves the filter on."""
+        self.query_one("#help-filter", Input).blur()
+        self.set_focus(None)
+
+    def _render_count(self) -> None:
+        page = self._pages[self._tab]
+        total = sum(1 for kind, _text in page if kind == "row")
+        shown = sum(1 for kind, _text in self._lines if kind == "row")
+        self.query_one("#help-filter-count", Static).update(
+            _("{shown} de {total}").format(shown=shown, total=total)
+        )
+
+    def _clear_search(self) -> None:
+        self._query = ""
+        self.query_one("#help-filter", Input).value = ""
+        self.query_one("#help-filter-bar", Horizontal).display = False
+        self.set_focus(None)
+        self._render_tabs()
+        self._render_window()
+        # The page just gained the row the box was using, and only the next
+        # layout knows it: drawn now, it came out a line short.
+        self.call_after_refresh(self._render_window)
 
     # ------------------------------------------------------------- content
 
@@ -1231,6 +1324,11 @@ class HelpScreen(ModalScreen[None]):
             "blank": palette["body"],
         }
         rendered = Text()
+        if self._query and not self._lines:
+            rendered.append(
+                "  " + _("nada coincide con «{query}»").format(query=self._query),
+                style=palette["muted"],
+            )
         for kind, text in self._lines[self._offset : self._offset + height]:
             rendered.append(f"{text}\n", style=styles[kind])
         self.query_one("#help-body", Static).update(rendered)
@@ -1263,6 +1361,11 @@ class HelpScreen(ModalScreen[None]):
         self._render_window()
 
     def action_close(self) -> None:
+        # esc takes the search away before it closes the window, as it does
+        # in the browser: the first one undoes what the last key did.
+        if self._searching():
+            self._clear_search()
+            return
         self.dismiss(None)
 
 
