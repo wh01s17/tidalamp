@@ -1453,3 +1453,62 @@ def test_the_help_can_be_searched_and_says_how_at_the_bottom(monkeypatch):
             assert not isinstance(application.screen, HelpScreen)
 
     asyncio.run(scenario())
+
+
+def test_s_sorts_the_level_says_so_and_keeps_it(monkeypatch):
+    """`s` offers the orders the level has; the level comes back sorted, the
+    title names the order, and walking out and back in keeps it."""
+    from app_helpers import settle, visible_labels
+
+    from tidalamp import library
+    from tidalamp.library import Row
+    from tidalamp.queue import Entry
+    from tidalamp.screens import BrowserScreen, ChoiceScreen
+
+    isolate_runtime(monkeypatch)
+    monkeypatch.setattr(library, "_CHOSEN", {})
+    library.forget()
+    tracks = [
+        Row(label=f"TOOL - {title}", entry=Entry(id=i, title=title, artist="TOOL"))
+        for i, title in enumerate(["Sober", "Aenema", "Schism"])
+    ]
+    album = Row(
+        label="Álbum",
+        **library._sortable(
+            "album:9",
+            library.ALBUM_TRACK_BY,
+            lambda order: lambda: list(tracks),
+            local=True,
+        ),
+    )
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(120, 34)) as pilot:
+            await pilot.pause()
+            browser = BrowserScreen("MI BIBLIOTECA", lambda: [album])
+            application.push_screen(browser)
+            await settle(pilot, lambda: visible_labels(browser) == ["Álbum"])
+
+            await pilot.press("s")
+            await pilot.pause()
+            assert "no se puede ordenar" in application.status
+
+            await pilot.press("enter")
+            await settle(pilot, lambda: len(visible_labels(browser)) == 3)
+            await pilot.press("s")
+            await pilot.pause()
+            assert isinstance(application.screen, ChoiceScreen)
+            await pilot.press("down", "enter")  # from «orden original» to name A-Z
+            wanted = ["TOOL - Aenema", "TOOL - Schism", "TOOL - Sober"]
+            await settle(pilot, lambda: visible_labels(browser) == wanted)
+            title = browser.query_one("#browser-title").render_line(0).text
+            assert "nombre: A-Z" in title
+
+            await pilot.press("backspace")
+            await settle(pilot, lambda: visible_labels(browser) == ["Álbum"])
+            await pilot.press("enter")
+            await settle(pilot, lambda: visible_labels(browser) == wanted)
+            library.forget()
+
+    asyncio.run(scenario())

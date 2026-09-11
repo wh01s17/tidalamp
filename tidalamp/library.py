@@ -16,6 +16,7 @@ from functools import partial
 from typing import Any, cast
 
 import tidalapi
+from tidalapi.types import AlbumOrder, ArtistOrder, ItemOrder, OrderDirection
 
 from .i18n import _
 from .net import with_retries
@@ -46,9 +47,9 @@ def _count_of(item: object) -> int | None:
     return int(count) if count is not None else None
 
 
-def _page_of(item: Any, offset: int, limit: int) -> list:
+def _page_of(item: Any, offset: int, limit: int, **order: Any) -> list:
     """One page of the tracks inside a playlist or an album."""
-    return item.tracks(limit=limit, offset=offset)
+    return item.tracks(limit=limit, offset=offset, **order)
 
 
 def _top_tracks_of(artist: Any, offset: int, limit: int) -> list:
@@ -86,6 +87,152 @@ def forget(key: str = "") -> None:
         _LEVELS.clear()
 
 
+@dataclass(frozen=True, slots=True)
+class Order:
+    """How a level is sorted: by what, and which way round.
+
+    ``created`` only changes the label: a playlist's date is when it was
+    made, a favourite's is when it was added.
+    """
+
+    by: str
+    descending: bool = False
+    created: bool = False
+
+    @property
+    def code(self) -> str:
+        return f"{self.by}-{'desc' if self.descending else 'asc'}"
+
+
+# What each kind of level can be sorted by. Dates come newest first, names
+# A to Z first, because that is what someone reaching for the order wants.
+TRACK_BY = ("date", "name", "artist", "album")
+ALBUM_BY = ("date", "name", "artist", "release")
+ARTIST_BY = ("date", "name")
+PLAYLIST_BY = ("date", "name")
+# Inside an album or an artist TIDAL does not sort, and the level is one
+# page, so the rows are sorted here.
+ALBUM_TRACK_BY = ("name", "artist")
+ARTIST_TRACK_BY = ("name", "album")
+
+# TIDAL's name for each, shared by its order enums.
+_TIDAL_BY = {
+    "date": "DATE",
+    "name": "NAME",
+    "artist": "ARTIST",
+    "album": "ALBUM",
+    "release": "RELEASE_DATE",
+}
+
+# The order picked for each level, by the level's key, until tidalamp quits.
+_CHOSEN: dict[str, Order | None] = {}
+
+
+def orders_for(by: tuple[str, ...], *, created: bool = False) -> tuple[Order | None, ...]:
+    """The level as TIDAL gives it, then each kind both ways round."""
+    orders: list[Order | None] = [None]
+    for kind in by:
+        newest_first = kind in ("date", "release")
+        orders.append(Order(kind, newest_first, created))
+        orders.append(Order(kind, not newest_first, created))
+    return tuple(orders)
+
+
+def order_label(order: Order | None) -> str:
+    """An order as the sort window and the browser's title say it."""
+    if order is None:
+        return _("orden original")
+    down = order.descending
+    if order.by == "date" and order.created:
+        if down:
+            return _("fecha de creación: recientes primero")
+        return _("fecha de creación: antiguas primero")
+    if order.by == "date":
+        if down:
+            return _("fecha de agregado: recientes primero")
+        return _("fecha de agregado: antiguas primero")
+    if order.by == "release":
+        return (
+            _("lanzamiento: recientes primero")
+            if down
+            else _("lanzamiento: antiguos primero")
+        )
+    if order.by == "artist":
+        return _("artista: Z-A") if down else _("artista: A-Z")
+    if order.by == "album":
+        return _("álbum: Z-A") if down else _("álbum: A-Z")
+    return _("nombre: Z-A") if down else _("nombre: A-Z")
+
+
+def chosen(key: str) -> Order | None:
+    """The order last picked for the level ``key``, or None for TIDAL's."""
+    return _CHOSEN.get(key)
+
+
+def remember(key: str, order: Order | None) -> None:
+    _CHOSEN[key] = order
+
+
+def _tidal(order: Order | None, kind: Any) -> dict[str, Any]:
+    """The keyword arguments tidalapi takes for ``order``, in its enum ``kind``."""
+    if order is None:
+        return {}
+    direction = (
+        OrderDirection.Descending if order.descending else OrderDirection.Ascending
+    )
+    return {"order": kind(_TIDAL_BY[order.by]), "order_direction": direction}
+
+
+def _in_order(rows: list[Row], order: Order | None) -> list[Row]:
+    """Sort a level here, for the levels TIDAL does not sort. «más…» stays last."""
+    if order is None:
+        return rows
+    items = [row for row in rows if row.more is None]
+    more = [row for row in rows if row.more is not None]
+
+    def value(row: Row) -> str:
+        entry = row.entry
+        if entry is None:
+            return _folded(row.label)
+        field = {"artist": entry.artist, "album": entry.album}.get(order.by, entry.title)
+        return _folded(field or "")
+
+    return sorted(items, key=value, reverse=order.descending) + more
+
+
+def _sortable(
+    key: str,
+    by: tuple[str, ...],
+    build: Callable[[Order | None], Callable[[], list[Row]]],
+    *,
+    created: bool = False,
+    local: bool = False,
+) -> dict[str, Any]:
+    """What a row needs to open its level and to open it sorted.
+
+    Each order is a level of its own in the cache (``key|name-asc``), so
+    going back to one is instant and `R` refetches only the one on screen.
+    TIDAL's own order keeps the plain key, which is what everything else
+    already calls the level.
+    """
+    base = cached(key, build(None))
+
+    def sort(order: Order | None) -> tuple[str, Callable[[], list[Row]]]:
+        if order is None:
+            return key, base
+        code = f"{key}|{order.code}"
+        if local:
+            return code, cached(code, lambda: _in_order(list(base()), order))
+        return code, cached(code, build(order))
+
+    return {
+        "key": key,
+        "loader": base,
+        "orders": orders_for(by, created=created),
+        "sort": sort,
+    }
+
+
 @dataclass(slots=True)
 class Row:
     """One line in the browser."""
@@ -105,6 +252,11 @@ class Row:
     # are a handful out of hundreds, and renumbering them 1, 2, 3 would claim
     # a playing order that is not the one the player follows.
     number: int | None = None
+    # The ways this row's level can be sorted, and how to load it in one of
+    # them: ``sort`` hands back the cache key and loader. Empty when TIDAL
+    # offers no order for it, as for the root and for search results' tracks.
+    orders: tuple[Order | None, ...] = ()
+    sort: Callable[[Order | None], tuple[str, Callable[[], list[Row]]]] | None = None
 
     @property
     def is_playable(self) -> bool:
@@ -163,6 +315,27 @@ def _tracks_to_rows(tracks: Iterable[tidalapi.Track]) -> list[Row]:
     return rows
 
 
+def _playlist_level(playlist: Any, order: Order | None) -> Callable[[], list[Row]]:
+    """A playlist's tracks, in ``order`` as TIDAL sorts them."""
+    return _paged(
+        partial(_page_of, playlist, **_tidal(order, ItemOrder)),
+        _tracks_to_rows,
+        count=partial(_count_of, playlist),
+    )
+
+
+def _album_level(album: Any, order: Order | None) -> Callable[[], list[Row]]:
+    """An album's tracks as TIDAL gives them; ``_sortable`` sorts them here."""
+    return _paged(
+        partial(_page_of, album), _tracks_to_rows, count=partial(_count_of, album)
+    )
+
+
+def _artist_level(artist: Any, order: Order | None) -> Callable[[], list[Row]]:
+    """An artist's top tracks as TIDAL gives them; sorted here, like an album."""
+    return _paged(partial(_top_tracks_of, artist), _tracks_to_rows)
+
+
 def _playlist_rows(playlists: Iterable[tidalapi.Playlist]) -> list[Row]:
     rows = []
     for playlist in playlists:
@@ -171,21 +344,19 @@ def _playlist_rows(playlists: Iterable[tidalapi.Playlist]) -> list[Row]:
             Row(
                 label=playlist.name or "",
                 detail=_("{count} pistas").format(count=count),
-                key=f"playlist:{playlist.id}",
-                loader=cached(
+                **_sortable(
                     f"playlist:{playlist.id}",
-                    _paged(
-                        partial(_page_of, playlist),
-                        _tracks_to_rows,
-                        count=partial(_count_of, playlist),
-                    ),
+                    TRACK_BY,
+                    partial(_playlist_level, playlist),
                 ),
             )
         )
     return rows
 
 
-def _playlists_level(session: tidalapi.Session) -> Callable[[], list[Row]]:
+def _playlists_level(
+    session: tidalapi.Session, order: Order | None = None
+) -> Callable[[], list[Row]]:
     """The playlists the user created, one page per request.
 
     ``session.user.playlists()`` looks like a single call and is not: parsing
@@ -197,12 +368,22 @@ def _playlists_level(session: tidalapi.Session) -> Callable[[], list[Row]]:
     second — and paginate it like every other level.
     """
 
+    # The same order and direction names tidalapi sends for favourites.
+    ordering = (
+        {}
+        if order is None
+        else {
+            "order": _TIDAL_BY[order.by],
+            "orderDirection": "DESC" if order.descending else "ASC",
+        }
+    )
+
     def fetch(offset: int, limit: int) -> list[tidalapi.Playlist]:
         response = with_retries(
             lambda: session.request.request(
                 "GET",
                 f"users/{_me(session).id}/playlists",
-                params={"limit": limit, "offset": offset},
+                params={"limit": limit, "offset": offset, **ordering},
             )
         )
         # parse() fills a Playlist from the listing without asking the API for
@@ -231,14 +412,11 @@ def _album_rows(albums: Iterable[tidalapi.Album]) -> list[Row]:
             Row(
                 label=f"{artist} - {album.name}" if artist else (album.name or ""),
                 detail=str(getattr(album, "year", "") or ""),
-                key=f"album:{album.id}",
-                loader=cached(
+                **_sortable(
                     f"album:{album.id}",
-                    _paged(
-                        partial(_page_of, album),
-                        _tracks_to_rows,
-                        count=partial(_count_of, album),
-                    ),
+                    ALBUM_TRACK_BY,
+                    partial(_album_level, album),
+                    local=True,
                 ),
             )
         )
@@ -252,13 +430,11 @@ def _artist_rows(artists: Iterable[tidalapi.Artist]) -> list[Row]:
             Row(
                 label=artist.name or "",
                 detail=_("artista"),
-                key=f"artist:{artist.id}",
-                loader=cached(
+                **_sortable(
                     f"artist:{artist.id}",
-                    _paged(
-                        partial(_top_tracks_of, artist),
-                        _tracks_to_rows,
-                    ),
+                    ARTIST_TRACK_BY,
+                    partial(_artist_level, artist),
+                    local=True,
                 ),
             )
         )
@@ -272,17 +448,23 @@ def root(session: tidalapi.Session) -> list[Row]:
         Row(
             _("Mis playlists"),
             "",
-            key="playlists",
-            loader=cached("playlists", _playlists_level(session)),
+            **_sortable(
+                "playlists",
+                PLAYLIST_BY,
+                lambda order: _playlists_level(session, order),
+                created=True,
+            ),
         ),
         Row(
             _("Pistas favoritas"),
             "",
-            key="fav:tracks",
-            loader=cached(
+            **_sortable(
                 "fav:tracks",
-                _paged(
-                    lambda offset, limit: favorites.tracks(limit=limit, offset=offset),
+                TRACK_BY,
+                lambda order: _paged(
+                    lambda offset, limit: favorites.tracks(
+                        limit=limit, offset=offset, **_tidal(order, ItemOrder)
+                    ),
                     _tracks_to_rows,
                     count=favorites.get_tracks_count,
                 ),
@@ -291,11 +473,13 @@ def root(session: tidalapi.Session) -> list[Row]:
         Row(
             _("Álbumes favoritos"),
             "",
-            key="fav:albums",
-            loader=cached(
+            **_sortable(
                 "fav:albums",
-                _paged(
-                    lambda offset, limit: favorites.albums(limit=limit, offset=offset),
+                ALBUM_BY,
+                lambda order: _paged(
+                    lambda offset, limit: favorites.albums(
+                        limit=limit, offset=offset, **_tidal(order, AlbumOrder)
+                    ),
                     _album_rows,
                     count=favorites.get_albums_count,
                 ),
@@ -304,11 +488,13 @@ def root(session: tidalapi.Session) -> list[Row]:
         Row(
             _("Artistas favoritos"),
             "",
-            key="fav:artists",
-            loader=cached(
+            **_sortable(
                 "fav:artists",
-                _paged(
-                    lambda offset, limit: favorites.artists(limit=limit, offset=offset),
+                ARTIST_BY,
+                lambda order: _paged(
+                    lambda offset, limit: favorites.artists(
+                        limit=limit, offset=offset, **_tidal(order, ArtistOrder)
+                    ),
                     _artist_rows,
                     count=favorites.get_artists_count,
                 ),

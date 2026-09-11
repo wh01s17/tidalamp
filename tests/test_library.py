@@ -7,6 +7,7 @@ from types import SimpleNamespace
 
 import pytest
 from conftest import FakeTrack
+from tidalapi.types import ItemOrder, OrderDirection
 
 from tidalamp import library
 from tidalamp.library import PAGE, Row, search_rows
@@ -26,9 +27,11 @@ class FakeFavorites:
         self.filtered = filtered
         self.counts = counts
         self.calls: list[tuple[int, int]] = []
+        self.orders: list[tuple[object, object]] = []
 
     def tracks(self, limit=50, offset=0, **kwargs):
         self.calls.append((offset, limit))
+        self.orders.append((kwargs.get("order"), kwargs.get("order_direction")))
         window = [FakeTrack(i) for i in range(offset, min(self.total, offset + limit))]
         return window[: max(0, len(window) - self.filtered)]
 
@@ -90,7 +93,7 @@ class FakePlaylistPrototype:
             id=item["uuid"],
             name=item["title"],
             num_tracks=item["numberOfTracks"],
-            tracks=lambda limit=50, offset=0: [],
+            tracks=lambda limit=50, offset=0, **order: [],
         )
 
 
@@ -121,7 +124,7 @@ class FakeSession:
                         name=f"álbum {i}",
                         year=2000 + i,
                         artist=SimpleNamespace(name="a"),
-                        tracks=lambda limit=50, offset=0: [],
+                        tracks=lambda limit=50, offset=0, **order: [],
                     )
                     for i in span
                 ]
@@ -132,7 +135,7 @@ class FakeSession:
                     SimpleNamespace(
                         id=i,
                         name=f"artista {i}",
-                        get_top_tracks=lambda limit=50, offset=0: [],
+                        get_top_tracks=lambda limit=50, offset=0, **order: [],
                     )
                     for i in span
                 ]
@@ -143,7 +146,7 @@ class FakeSession:
                     id=f"p{i}",
                     name=f"lista {i}",
                     num_tracks=i,
-                    tracks=lambda limit=50, offset=0: [],
+                    tracks=lambda limit=50, offset=0, **order: [],
                 )
                 for i in span
             ]
@@ -783,3 +786,79 @@ def test_adding_forgets_the_listing_and_that_playlist_level():
 
     assert "playlists" not in library._LEVELS
     assert "playlist:7" not in library._LEVELS
+
+
+def kinds(row: Row) -> set[str]:
+    return {order.by for order in row.orders if order is not None}
+
+
+def test_favourite_tracks_are_sorted_by_tidal_four_ways_both_ways_round(monkeypatch):
+    """TIDAL sorts the whole collection; a sort over the page already loaded
+    would order 100 tracks of 766 and call it the library."""
+    monkeypatch.setattr(library, "_CHOSEN", {})
+    library.forget()
+    session = FakeSession(total=3)
+    tracks = next(row for row in library.root(session) if row.key == "fav:tracks")
+
+    assert tracks.orders[0] is None
+    assert kinds(tracks) == {"date", "name", "artist", "album"}
+    assert len(tracks.orders) == 9
+    # Dates newest first, names A to Z first.
+    assert tracks.orders[1] == library.Order("date", descending=True)
+    assert tracks.orders[3] == library.Order("name")
+
+    key, loader = tracks.sort(library.Order("name"))
+    assert key == "fav:tracks|name-asc"
+    loader()
+    assert session.favorites.orders[-1] == (ItemOrder.Name, OrderDirection.Ascending)
+    assert tracks.sort(None)[0] == "fav:tracks"
+    library.forget()
+
+
+def test_each_section_offers_only_the_orders_that_mean_something():
+    rows = {row.key: row for row in library.root(FakeSession())}
+    assert kinds(rows["fav:albums"]) == {"date", "name", "artist", "release"}
+    assert kinds(rows["fav:artists"]) == {"date", "name"}
+    assert kinds(rows["playlists"]) == {"date", "name"}
+    # A playlist's date is when it was made, not when it was added.
+    assert library.order_label(rows["playlists"].orders[1]) == (
+        "fecha de creación: recientes primero"
+    )
+    assert library.order_label(None) == "orden original"
+
+
+def test_my_playlists_ask_tidal_for_the_order(monkeypatch):
+    monkeypatch.setattr(library.tidalapi, "Playlist", FakePlaylistPrototype)
+    library.forget()
+    session = FakeSession(playlists=3)
+    row = next(row for row in library.root(session) if row.key == "playlists")
+
+    key, loader = row.sort(library.Order("name", descending=True, created=True))
+    loader()
+
+    assert key == "playlists|name-desc"
+    assert session.request.calls[-1][2] == {
+        "limit": PAGE,
+        "offset": 0,
+        "order": "NAME",
+        "orderDirection": "DESC",
+    }
+    library.forget()
+
+
+def test_a_level_tidal_cannot_sort_is_sorted_here_with_more_last():
+    """Inside an album or an artist TIDAL takes no order. The rows are sorted
+    here, into a new list: the cached level stays as TIDAL gave it."""
+    titles = ["Sober", "Aenema", "Schism"]
+    albums = ["Undertow", "Aenima", "Lateralus"]
+    rows = [
+        Row(label=title, entry=Entry(id=i, title=title, artist="TOOL", album=album))
+        for i, (title, album) in enumerate(zip(titles, albums, strict=True))
+    ]
+    rows.append(Row(label="más…", more=list))
+
+    by_name = library._in_order(rows, library.Order("name"))
+    assert [row.label for row in by_name] == ["Aenema", "Schism", "Sober", "más…"]
+    by_album = library._in_order(rows, library.Order("album", descending=True))
+    assert [row.label for row in by_album] == ["Sober", "Schism", "Aenema", "más…"]
+    assert [row.label for row in rows][:3] == titles

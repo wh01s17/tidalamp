@@ -17,6 +17,7 @@ from ..auth import ensure_fresh
 from ..i18n import _
 from ..library import Row
 from ..widgets import Spinner
+from .choice import ChoiceScreen
 from .rowlist import RowList
 from .tracks import TrackActionsScreen
 
@@ -37,6 +38,7 @@ BROWSER_HINTS: tuple[tuple[str, str, int], ...] = (
     ("f/F", _("favorito"), 5),
     ("⌫", _("atrás"), 4),
     ("R", _("recargar"), 7),
+    ("s", _("ordenar"), 8),
     ("esc", _("cerrar"), 0),
 )
 
@@ -90,6 +92,7 @@ class BrowserScreen(ModalScreen[tuple | None]):
         Binding("a", "append_one", _("añadir"), show=False),
         Binding("A", "append_all", _("añadir todo"), show=False),
         Binding("R", "reload", _("recargar"), show=False),
+        Binding("s", "sort", _("ordenar"), show=False),
         Binding("f", "favourite", _("favorito"), show=False),
         Binding("F", "unfavourite", _("quitar favorito"), show=False),
     ]
@@ -104,9 +107,10 @@ class BrowserScreen(ModalScreen[tuple | None]):
         self._root_title = title
         self._root_loader = loader
         self._root_key = key
-        # Stack of (title, rows, key, loader) so backspace can walk back up and
-        # `R` can refetch the level it is looking at.
-        self._stack: list[tuple[str, list[Row], str, object]] = []
+        # Stack of (title, rows, key, loader, source) so backspace can walk
+        # back up, `R` can refetch the level it is looking at, and `s` can ask
+        # the row that opened it (`source`) how else it can be ordered.
+        self._stack: list[tuple[str, list[Row], str, object, Row | None]] = []
         # The filter lives here, not in `RowList`: what it narrows is the level
         # on the stack, and the widget only ever shows the part that matched.
         self._filter = ""
@@ -149,13 +153,13 @@ class BrowserScreen(ModalScreen[tuple | None]):
         self.query_one(Spinner).stop()
 
     @work(thread=True, exclusive=True)
-    def _load(self, title: str, loader, key: str = "") -> None:
+    def _load(self, title: str, loader, key: str = "", source: Row | None = None) -> None:
         try:
             rows = loader()
         except Exception as exc:
             self.app.call_from_thread(self._failed, exc)
             return
-        self.app.call_from_thread(self._push, title, rows, key, loader)
+        self.app.call_from_thread(self._push, title, rows, key, loader, source)
 
     def _failed(self, exc: Exception) -> None:
         self._idle()
@@ -164,14 +168,29 @@ class BrowserScreen(ModalScreen[tuple | None]):
         widget.empty_text = self._empty
         widget.refresh()
 
-    def _push(self, title: str, rows: list[Row], key: str = "", loader=None) -> None:
+    def _push(
+        self,
+        title: str,
+        rows: list[Row],
+        key: str = "",
+        loader=None,
+        source: Row | None = None,
+    ) -> None:
         self._idle()
-        self._stack.append((title, rows, key, loader))
+        self._stack.append((title, rows, key, loader, source))
         self._empty = _("vacío")
         # A filter belongs to the level it was typed in: opening another one
         # with the last level's word still applied would hide most of it.
         self._clear_filter()
-        self.query_one("#browser-title", Static).update(title)
+        self.query_one("#browser-title", Static).update(self._titled(title, source))
+
+    @staticmethod
+    def _titled(title: str, source: Row | None) -> str:
+        """The level's title, and its order when it is not TIDAL's own."""
+        order = library.chosen(source.key) if source is not None else None
+        if order is None:
+            return title
+        return f"{title}  ·  {library.order_label(order)}"
 
     # ----------------------------------------------------------------- view
 
@@ -284,10 +303,10 @@ class BrowserScreen(ModalScreen[tuple | None]):
         # lands, is for a level the user has left.
         self._idle()
         self._stack.pop()
-        title, _rows, _key, _loader = self._stack[-1]
+        title, _rows, _key, _loader, source = self._stack[-1]
         self._empty = _("vacío")
         self._clear_filter()
-        self.query_one("#browser-title", Static).update(title)
+        self.query_one("#browser-title", Static).update(self._titled(title, source))
 
     def action_close(self) -> None:
         # esc closes the filter before it closes the window, the way it does
@@ -306,14 +325,53 @@ class BrowserScreen(ModalScreen[tuple | None]):
         """
         if not self._stack:
             return
-        title, _rows, key, loader = self._stack[-1]
+        title, _rows, key, loader, source = self._stack[-1]
         if loader is None:
             return
         library.forget(key)
         self._stack.pop()
         self._empty = _("cargando…")
         self._busy(_("recargando {level}…").format(level=title))
-        self._load(title, loader, key)
+        self._load(title, loader, key, source)
+
+    def action_sort(self) -> None:
+        """Choose how the level on screen is ordered.
+
+        The choice is remembered for this level until tidalamp quits, so
+        walking out and back in keeps it. Each order is its own cached level:
+        TIDAL sorts the whole collection, which a sort over the page already
+        loaded could not do.
+        """
+        source = self._stack[-1][4] if self._stack else None
+        if source is None or source.sort is None or not source.orders:
+            self.player.status = _("este nivel no se puede ordenar")
+            return
+        # By code, not by the order itself: TIDAL's own order is None, and
+        # None is also what the window answers on esc.
+        by_code = {
+            (order.code if order is not None else "original"): order
+            for order in source.orders
+        }
+        current = library.chosen(source.key)
+        self.app.push_screen(
+            ChoiceScreen(
+                _("ORDENAR"),
+                [(code, library.order_label(order)) for code, order in by_code.items()],
+                current.code if current is not None else "original",
+            ),
+            lambda code: self._sorted(source, by_code[code]) if code in by_code else None,
+        )
+
+    def _sorted(self, source: Row, order: library.Order | None) -> None:
+        if order == library.chosen(source.key) or source.sort is None:
+            return
+        library.remember(source.key, order)
+        key, loader = source.sort(order)
+        title = self._stack[-1][0]
+        self._stack.pop()
+        self._empty = _("cargando…")
+        self._busy(_("orden: {order}").format(order=library.order_label(order)))
+        self._load(title, loader, key, source)
 
     def action_choose(self) -> None:
         widget = self.query_one(RowList)
@@ -330,7 +388,13 @@ class BrowserScreen(ModalScreen[tuple | None]):
             self._empty = _("cargando…")
             widget.empty_text = self._empty
             self._busy(_("abriendo {label}…").format(label=row.label))
-            self._load(row.label, row.loader, row.key)
+            # In the order last picked for this level, if one was.
+            order = library.chosen(row.key)
+            if order is not None and row.sort is not None:
+                key, loader = row.sort(order)
+                self._load(row.label, loader, key, row)
+            else:
+                self._load(row.label, row.loader, row.key, row)
             return
         # A track offers more than one thing worth doing, so ask instead of
         # assuming. `a` still means what ↵ used to do on its own.

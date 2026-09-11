@@ -271,6 +271,7 @@ def shortcuts(keys) -> tuple[Section, ...]:
                 ("A", _("añadir el nivel entero")),
                 ("/", _("filtrar el nivel: escribe y la lista se estrecha")),
                 ("R", _("recargar, ignorando la caché")),
+                ("s", _("ordenar el nivel: fecha, nombre, artista o álbum")),
                 ("f / F", _("añadir o quitar de favoritos")),
                 ("esc", _("cerrar")),
             ),

@@ -148,6 +148,26 @@ ENGLISH: dict[str, str] = {
     "reiniciar ahora; corta el audio un momento": (
         "restart now; the audio drops for a moment"
     ),
+    "orden original": "original order",
+    "fecha de agregado: recientes primero": "date added: newest first",
+    "fecha de agregado: antiguas primero": "date added: oldest first",
+    "fecha de creación: recientes primero": "date created: newest first",
+    "fecha de creación: antiguas primero": "date created: oldest first",
+    "lanzamiento: recientes primero": "release: newest first",
+    "lanzamiento: antiguos primero": "release: oldest first",
+    "nombre: A-Z": "name: A-Z",
+    "nombre: Z-A": "name: Z-A",
+    "artista: A-Z": "artist: A-Z",
+    "artista: Z-A": "artist: Z-A",
+    "álbum: A-Z": "album: A-Z",
+    "álbum: Z-A": "album: Z-A",
+    "ORDENAR": "SORT",
+    "ordenar": "sort",
+    "este nivel no se puede ordenar": "this level cannot be sorted",
+    "orden: {order}": "order: {order}",
+    "ordenar el nivel: fecha, nombre, artista o álbum": (
+        "sort the level: date, name, artist or album"
+    ),
     "velocidad": "speed",
     "velocidad: {value}": "speed: {value}",
     "velocidad de reproducción, de 0.25× a 2×": "playback speed, from 0.25× to 2×",
