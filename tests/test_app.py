@@ -4908,5 +4908,9 @@ def test_the_emblem_is_painted_on_a_short_line_too(monkeypatch, tmp_path):
                 drawn = playlist.render_line(y)
                 assert drawn.cell_length == playlist.content_region.width, y
                 assert any(c in QUADRANTS[1:] for c in drawn.text), y
+                # Every cell carries a ground: a bare one lets a translucent
+                # terminal show its wallpaper through, as a band.
+                bare = [s.text for s in drawn if not (s.style and s.style.bgcolor)]
+                assert not bare, (y, bare)
 
     asyncio.run(scenario())

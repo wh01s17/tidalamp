@@ -768,8 +768,10 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
       `pad=False`): la que sigue a la última fila llega vacía, y el emblema se perdía
       en ella. Cada línea se rellena al ancho del contenido antes de pintar; un test
       pone el final de la cola en mitad del dibujo. El mantenedor vio además el
-      emblema cortado en todas las líneas a partir de cierta fila, con 66 y con 91
-      filas; en headless y en un pty con pyte no se reproduce. **Comprobarlo a mano.**
+      emblema cortado a partir de la última fila; el relleno lo arregló (confirmado en
+      su terminal). El relleno va con el estilo de fondo del widget: con espacios sin
+      estilo, esa línea no tenía fondo y un terminal translúcido enseñaba el fondo de
+      pantalla a través, como una franja bajo la última canción.
 - [x] La transparencia parcial se respeta: cada píxel se mezcla con el fondo según su
       alfa antes del velo, así que una imagen con el borde difuminado (el Ojo, el
       cuervo) se funde con la cola en vez de acabar en un rectángulo; el Joker también. Ryuk va

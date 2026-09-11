@@ -248,10 +248,13 @@ class RowList(Widget):
             return strip
         # Textual does not pad a line to the widget: the one after the last
         # row is empty, and a short line used to swallow every emblem cell
-        # past its end. Painted to the full width, whatever it was handed.
+        # past its end. Painted to the full width, whatever it was handed,
+        # and in the widget's own ground: padded with bare spaces, that line
+        # had no background at all, and a translucent terminal showed its
+        # wallpaper through it as a band across the queue.
         width = self.content_region.width or max(0, self.size.width - 2)
         if strip.cell_length < width:
-            strip = strip.extend_cell_length(width)
+            strip = strip.extend_cell_length(width, self.visual_style.rich_style)
         key = (y, strip.text, tuple(segment.style for segment in strip))
         painted = self._painted.get(key)
         if painted is None:
