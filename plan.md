@@ -4,10 +4,14 @@ Documento de traspaso. Describe qué existe, qué está verificado, qué falta y
 criterio se tomaron las decisiones, para que cualquiera (humano o modelo) pueda
 retomar el trabajo sin contexto previo.
 
-**Última actualización:** 2026-09-11, tras `0.6.0` (sin publicar: el décimo tema
-temático, `bosque`; marcos más finos en los temáticos; la forma de la carátula como
-ajuste; la velocidad de reproducción; los nombres de los temas en el idioma en uso; el
-reloj en cuenta atrás, que no cabía. En `0.6.0`: nueve temas temáticos
+**Última actualización:** 2026-09-11, versión `0.8.0` preparada (`s` ordena la
+biblioteca y el orden persiste, `d` quita de favoritos o de una playlist y `?` trae
+su ayuda; `w`, la pantalla completa con la cola al lado; reproducción automática; la
+velocidad también por MPRIS; `rounded`; la carátula más nítida en `blocks` y mucho más
+ligera en kitty y sixel; calidad, ritmos y reiniciar PipeWire, desde una lista. En
+`0.7.0`: el décimo tema temático, `bosque`; marcos más finos en los temáticos; la
+forma de la carátula como ajuste; la velocidad de reproducción; los nombres de los
+temas en el idioma en uso; el reloj en cuenta atrás, que no cabía. En `0.6.0`: nueve temas temáticos
 con su paleta, su frase y su imagen de fondo en la cola, dibujada como la carátula y
 mezclable con cualquier tema desde el ajuste `backdrop`; disposición `split` con la
 letra sobre la carátula; buscador en la ayuda; las líneas que no caben se deslizan;
@@ -1436,6 +1440,37 @@ fichero en sí.
 - [x] Colores de la paleta; el marco se copia del `#main` del reproductor, así que
       cada tema viste también esta vista.
 
+### Revisión antes de la 0.8.0 (2026-09-11)
+
+Leído todo lo nuevo desde la `0.7.0` buscando lo que los tests no cubrían. Cuatro
+cosas, con su test cada una:
+
+- [x] **Quitar de una playlist podía borrar la pista vecina.** La posición se contaba
+      sobre lo que devolvía la página, y TIDAL deja fuera de una página lo que no
+      puede servir después de aplicar el límite (le pasa con los favoritos): tras el
+      hueco, cada posición queda una corta. Ahora `_position_of` confirma con una
+      lectura de una pista que en esa posición está la que se quita, y si no, recorre
+      la ventana de la página pista a pista antes de borrar nada.
+- [x] **La reproducción automática pisaba al usuario:** una radio que llegaba después
+      de detener o de elegir otra pista se ponía a sonar. `action_stop` y
+      `_play_index` la cancelan y una respuesta tardía se descarta.
+- [x] **Cambiar la forma de la carátula con la pantalla completa abierta** no llegaba a
+      la vista, que corta su propia carátula: ahora se la pide de nuevo.
+- [x] **`TidalAmp._shutdown` pisaba el `App._shutdown` de Textual**, el que cierra
+      las pantallas, envía el desmontaje y cierra el driver cuando la app sale:
+      nuestro método del mismo nombre lo reemplazaba sin llamarlo, así que al salir
+      Textual corría el nuestro en lugar del suyo. Salía igual, pero no por su camino.
+      Lo destapó un test que lo sustituía y dejaba a Textual esperando un cierre que
+      no llegaba. Ahora se llama `_close_player`. Con el cierre de Textual corriendo de
+      verdad salió otra cosa: un tick o un cambio de tamaño ya en cola podía llegar
+      después de que Textual vaciara las pantallas y buscar widgets que ya no estaban
+      (solo bajo carga, en la suite completa). `_quiet_after_teardown` envuelve
+      `_check_size` y los tres temporizadores: durante el cierre no hacen nada, y con la
+      app en marcha el error sigue saliendo.
+- [x] **Las tablas del codificador de sixel** se construían al importar `artwork`,
+      unos 20 ms de cada arranque para un protocolo que casi ningún terminal usa;
+      ahora se hacen la primera vez que se usa cada color.
+
 ## 5. Estado de verificación
 
 Distinguir esto importa: parte del código nunca se ha ejecutado contra TIDAL real.
@@ -1471,7 +1506,7 @@ Distinguir esto importa: parte del código nunca se ha ejecutado contra TIDAL re
 | Ordenar la biblioteca, filas de ajustes con lista | **VERIFICADO CONTRA TIDAL REAL** | Tests: favoritos pide a TIDAL el orden con los enums de tidalapi; cada sección ofrece solo sus órdenes; «Mis playlists» manda `order` y `orderDirection`; el orden local deja «más…» al final y no toca la caché; en la app, `s` ordena, el título lo dice y volver al nivel lo conserva. Las flechas no tocan las tres filas y dos Enter en reiniciar no reinician. Probado por el mantenedor contra TIDAL real (2026-09-11), «Mis playlists» incluida: TIDAL respeta el orden en esa petición. |
 | Quitar de favoritos o de una playlist | **VERIFICADO CONTRA TIDAL REAL** | Tests: la pista se encuentra más allá de la primera página y se quita por índice; una playlist ajena no se toca; una pista que ya no está lo dice sin quitar nada; quitar un favorito tira su nivel en todos los órdenes; en la app, `d` pregunta en «cancelar», confirmado la fila sale, y en la raíz avisa. Quitar de una playlist propia, probado por el mantenedor contra TIDAL real (2026-09-11). |
 | Reproducción automática | **VERIFICADO CONTRA TIDAL REAL** | Tests: encendida, la radio de la última pista va al final sin la semilla ni repetidas y suena la primera nueva, y un segundo «siguiente» mientras llega no pide otra; apagada, el final de la cola se detiene sin pedir nada; una radio sin nada nuevo se detiene y lo dice. Oída por el mantenedor contra TIDAL real (2026-09-11). |
-| Pantalla completa | **CUBIERTO POR TESTS** | Tests: `w` abre y `esc` vuelve con la cola y la reproducción intactas; `tab` abre y cierra la cola y ↵ reproduce desde ella; los controles responden al clic; la carátula kitty se queda en la vista, pasa del tope de 20 filas y se esconde bajo una ventana abierta encima; todas las disposiciones caben en el mínimo. Falta verla en un terminal de verdad, sobre todo en kitty y en 4K. |
+| Pantalla completa | **VERIFICADO POR EL USUARIO** | Tests: `w` abre y `esc` vuelve con la cola y la reproducción intactas; `tab` abre y cierra la cola y ↵ reproduce desde ella; los controles responden al clic; la carátula kitty se queda en la vista, pasa del tope de 20 filas y se esconde bajo una ventana abierta encima; todas las disposiciones caben en el mínimo. Vista por el mantenedor en su terminal 4K con kitty, sixel y `blocks`, ya fluida, y sin la imagen kitty pegada al cerrarla tras activar la transparencia (2026-09-11). |
 | Dos columnas (`split`)              | **Verificado en headless y a mano** | Cuatro tests: mismos objetos (cola, carátula, transporte) y cursor al cambiar de forma, vuelta sola a apilada por ancho y por alto, las trece disposiciones caben en el umbral con el transporte bajo las dos columnas, y la letra se carga una vez por pista y sigue la línea. Capturas SVG de las trece. El mantenedor lo usó en su terminal con audio real y letra. |
 | Barras clicables                    | **Verificado**                    | Cuatro pruebas con `pilot.click`: seek a mitad, seek parado sin llamada a mpv, volumen al extremo y balance en cero exacto pese al padding. |
 | Ayuda en dos pestañas              | **Verificado**                    | Dos unitarias en la app headless: `→` lleva a «Acerca de» y dibuja el repositorio, `←` vuelve a los atajos con el desplazamiento donde se dejó, y ninguna de las dos flechas se sale por los extremos. Render a 100x30 de las dos pestañas, con la activa marcada en la barra de título. |
