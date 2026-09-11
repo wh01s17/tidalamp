@@ -15,25 +15,47 @@ Lo de aquí no bloquea publicar. `plan.md` §5 y §6 mandan sobre el estado gene
 
 ---
 
-## 1. Temas temáticos: verlos en un terminal real
+## 1. Partir los ficheros que han crecido demasiado
 
-Implementados el 2026-09-10 (ver `plan.md` «Disposiciones como datos» y el CHANGELOG):
-los nueve temas, con nombres que evocan sin nombrar marcas. Lo único que queda es la
-comprobación a mano que ningún test sustituye, porque `plan.md` §9.5 ya mordió una vez
-por dar por buena una disposición vista solo en un test:
+Decidido el 2026-09-11, aplazado hasta cerrar los emblemas. Hoy: `tests/test_app.py`
+~5000 líneas, `tidalamp/app.py` ~2300 (una sola clase con ~170 métodos),
+`tidalamp/screens.py` ~2200 (once pantallas), `tidalamp/styles.tcss` ~1300 y
+`tidalamp/widgets.py` ~1000. Es seguro si cada paso **solo mueve código**, sin cambiar
+comportamiento, y la suite pasa después de cada uno.
 
-- A mano, en un terminal real y a dos tamaños (el mínimo y uno ancho): los nueve, con
-  su paleta y con otra, y con captura para el README.
-- Mirar en particular los glifos de cromo que dependen de la fuente: `▚ ▰ ☠ ⎈ ✎ ♫ ♠ ♥
-  ♦ ♣ ✠ ⟦ ⟧ ◆`. Si alguno sale como tofu o a dos celdas, se cambia en `layouts.py`; el
-  test de ancho solo cubre lo que Unicode declara ancho, no lo que la fuente decide.
+Orden, de menos a más riesgo:
+
+1. `screens.py` a paquete `screens/`, un módulo por pantalla; `__init__.py` reexporta
+   todo para que `from tidalamp.screens import ConfigScreen` siga valiendo.
+2. `tests/test_app.py` partido por tema (transporte, cola, split, temas, ajustes, ayuda),
+   con los helpers (`FakeMpv`, `isolate_runtime`, `use_theme`...) en `conftest.py` o en
+   un módulo propio: `tests/` no es un paquete y un test no puede importar de otro.
+3. `widgets.py`: el analizador a su módulo, los de texto (`Glide`, `Marquee`,
+   `LyricsPane`) a otro.
+4. `styles.tcss` en varios ficheros (`CSS_PATH` acepta una lista) **en el mismo orden**:
+   a igual especificidad gana la regla posterior, y varias dependen de eso.
+5. `app.py`, lo último: primero mixins por tema (apariencia, transporte, cola, carátula
+   y letra, MPRIS), que reparten sin cambiar nada; extraer objetos de verdad sería otro
+   trabajo, con su propio diseño.
+
+Trampas:
+
+- **Los `monkeypatch` de los tests** parchean nombres en un módulo concreto
+  (`screens_module.paired_palette`, `app_module.config`): si la función se muda, el
+  parche sigue en el sitio viejo y el test pasa sin probar nada. Hay que moverlos con
+  el código.
+- **El test del catálogo i18n** recorre `tidalamp/*.py` con `glob`: con subpaquetes
+  dejaría de ver sus textos sin fallar. Pasarlo a `rglob` antes de mover nada.
+- Un commit por fichero, sin funcionalidad mezclada, y un `.git-blame-ignore-revs` con
+  esos commits para que `git blame` siga apuntando al autor real.
 
 ---
 
 ## 2. Dos columnas: lo que queda por mirar
 
 Implementado el 2026-09-10 (`arrangement = "split"`, ver `plan.md` «Dos columnas»), y
-ya usado en un terminal real con audio y letra. Queda:
+en uso en el terminal del mantenedor con audio, letra y los emblemas detrás de la cola.
+Queda:
 
 - Achicar la ventana por debajo de 160 con split puesto y una carátula kitty: vuelve a
   apilada sin dejar restos de la imagen pintados encima de la cola.

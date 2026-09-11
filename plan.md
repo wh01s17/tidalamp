@@ -4,7 +4,12 @@ Documento de traspaso. Describe qué existe, qué está verificado, qué falta y
 criterio se tomaron las decisiones, para que cualquiera (humano o modelo) pueda
 retomar el trabajo sin contexto previo.
 
-**Última actualización:** 2026-09-10 (la carátula en `blocks` pasa a los glifos de
+**Última actualización:** 2026-09-11, versión `0.6.0` preparada (nueve temas temáticos
+con su paleta, su frase y su imagen de fondo en la cola, dibujada como la carátula y
+mezclable con cualquier tema desde el ajuste `backdrop`; disposición `split` con la
+letra sobre la carátula; buscador en la ayuda; las líneas que no caben se deslizan;
+la cola repinta dos filas al mover el cursor, lo que en 4K bajó de 245 a menos de 5
+KiB por pulsación; antes, 2026-09-10: la carátula en `blocks` pasa a los glifos de
 cuadrante: cuatro muestras por celda en vez de una, el doble de resolución horizontal;
 el alto de la banda del display se recalcula en cada pasada y no sólo al redimensionar
 la carátula, que era por qué al cambiar de tema —o al arrancar en `nova`— la imagen se
@@ -740,7 +745,8 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
 - [x] Vistos en capturas SVG de Textual a 120x34 y 80x26, con su paleta. Ojo al
       mirarlas: `rsvg-convert` tira de fuentes de reserva más anchas para `▰`, `☠` o
       `◢` y parece que desbordan; `render_line` confirma que ocupan exactamente el
-      ancho del widget. Falta verlos en un terminal real (`plan.md` §5).
+      ancho del widget. Vistos después en el terminal del mantenedor, los nueve, con
+      su emblema detrás de la cola (2026-09-11).
 - [x] **Emblemas y guiños** (2026-09-11). Cada tema temático tiene una imagen, un
       PNG pequeño en `tidalamp/emblems/` (`Layout.emblem` es su nombre), y una frase
       guiño (`Layout.tagline`) que va en el marquee cuando no suena nada y en el panel
@@ -1232,7 +1238,7 @@ Distinguir esto importa: parte del código nunca se ha ejecutado contra TIDAL re
 | Buscador de la cola (`ctrl+f`)      | **Verificado**                    | Siete unitarias en la app real headless: `ctrl+f` abre la barra y enfoca la caja, «later» deja 1 de 3, `esc` la cierra y devuelve las 3 filas dejando el cursor en la pista a la que se había llegado, la fila filtrada conserva el número 3, `↵` sobre ella reproduce la tercera de la cola y `d` quita esa, la marca `▶` desaparece mientras el filtro esconde lo que suena y vuelve cuando lo enseña, y escribir `x` en la caja no pausa el reproductor. Render a 96x28 con la barra abierta. Falta verlo contra una cola larga real. |
 | Volver a lo que suena (`g`)         | **Verificado**                    | Tres pruebas en la app headless: mueve desde otra fila, limpia un filtro que escondía la pista y, sin reproducción, conserva el cursor y explica por qué. |
 | Guardar cola como playlist (`p`)    | **Verificado con dobles**         | Crea con el nombre del modal tras `ensure_fresh`, usa una instantánea en orden, divide 700 pistas en siete lotes de 100, permite duplicados, invalida la caché, deja una creación parcial con recuento visible y no abre nada con la cola vacía. Falta probar la escritura contra una cuenta real. |
-| Temas temáticos                     | **Verificado en headless**        | Tests: cada `Layout` nombra un transporte que existe, `ascii_only` pinta su cromo en ASCII, sin glifos anchos en títulos, nombres compartidos solo los de `PAIRED`, contraste mínimo en todas las paletas, y elegir un tema escribe su paleta una vez. Las trece disposiciones pasan los tests de 60x18 y de la carátula. Capturas SVG de los nueve a 120x34 y 80x26. **Falta verlos en un terminal real.** |
+| Temas temáticos                     | **VERIFICADO A LA VISTA**         | Tests: cada `Layout` nombra un transporte que existe, `ascii_only` pinta su cromo en ASCII, sin glifos anchos en títulos, nombres compartidos solo los de `PAIRED`, contraste mínimo en todas las paletas, y elegir un tema escribe su paleta una vez. Las trece disposiciones pasan los tests de 60x18 y de la carátula. Capturas SVG de los nueve a 120x34 y 80x26, y después capturas del mantenedor en su terminal (unas 274x100, split, cola de 100 pistas) de los nueve con su emblema: posición y tamaño ajustados a su gusto a partir de ellas. El rendimiento en 4K, medido en un pty con pyte a 480x130. |
 | Dos columnas (`split`)              | **Verificado en headless y a mano** | Cuatro tests: mismos objetos (cola, carátula, transporte) y cursor al cambiar de forma, vuelta sola a apilada por ancho y por alto, las trece disposiciones caben en el umbral con el transporte bajo las dos columnas, y la letra se carga una vez por pista y sigue la línea. Capturas SVG de las trece. El mantenedor lo usó en su terminal con audio real y letra. |
 | Barras clicables                    | **Verificado**                    | Cuatro pruebas con `pilot.click`: seek a mitad, seek parado sin llamada a mpv, volumen al extremo y balance en cero exacto pese al padding. |
 | Ayuda en dos pestañas              | **Verificado**                    | Dos unitarias en la app headless: `→` lleva a «Acerca de» y dibuja el repositorio, `←` vuelve a los atajos con el desplazamiento donde se dejó, y ninguna de las dos flechas se sale por los extremos. Render a 100x30 de las dos pestañas, con la activa marcada en la barra de título. |
@@ -1275,9 +1281,9 @@ una pista en cada calidad y leer `~/.local/state/tidalamp/tidalamp.log`.
 
 > [!NOTE]
 > La funcionalidad comprometida para la próxima versión vive en
-> [next.md](./next.md), con sus trampas y su forma de comprobarse. Ahora mismo no
-> queda allí ninguna entrada comprometida; esta sección sigue siendo el estado general
-> y aquella, la cola de trabajo.
+> [next.md](./next.md), con sus trampas y su forma de comprobarse. Tras la `0.6.0`
+> queda allí la partición de los ficheros grandes y dos comprobaciones a mano de
+> `split`; esta sección sigue siendo el estado general y aquella, la cola de trabajo.
 
 P1–P4 están cerradas: lo que queda no es funcionalidad que falte para que el
 reproductor sirva, sino acabado, distribución y confirmar contra TIDAL real cosas hoy

@@ -305,6 +305,11 @@ git diff --check
 
 No continúes si alguna falla.
 
+Si la única que falla es `test_the_version_is_the_one_the_package_declares`, no es la
+versión sino la instalación: la editable guarda la metadata de cuando se instaló y
+sigue diciendo el número anterior hasta reinstalarla con
+`.venv/bin/python -m pip install -e ".[dev]"`. Pasó al preparar la `0.6.0`.
+
 ### 4.2. Construir y revisar los artefactos
 
 Usa un directorio temporal nuevo para no validar por accidente archivos de una versión

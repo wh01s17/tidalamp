@@ -5,6 +5,8 @@ versioning is [semantic](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-09-11
+
 ### Added
 
 - Nine themed looks, each a layout with a palette of the same name: `unidad-morada`,
@@ -45,7 +47,6 @@ versioning is [semantic](https://semver.org/).
   leaves it instead of a row at a time. With a themed picture behind the queue on a
   4K terminal this cut what a keypress sends to the terminal from about 245 KiB to
   under 5.
-
 - Switching from split back to stacked left the queue heading's key hints halfway
   across the row, measured for the half it had just left.
 

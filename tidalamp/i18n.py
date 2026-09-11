@@ -257,6 +257,19 @@ ENGLISH: dict[str, str] = {
     ),
     "buscar en la ayuda…": "search the help…",
     "Acerca de": "About",
+    # --- notas de versión 0.6.0
+    "Nueve temas temáticos, cada uno con su paleta y su imagen.": (
+        "Nine themed looks, each with its palette and its picture."
+    ),
+    "La imagen del tema, de fondo de la cola; se puede mezclar.": (
+        "The theme's picture behind the queue, free to mix."
+    ),
+    "split: la cola a la derecha y la letra sobre la carátula.": (
+        "split: the queue on the right, lyrics above the cover."
+    ),
+    "/ busca en la ayuda; los textos largos se deslizan.": (
+        "/ searches the help; long lines glide."
+    ),
     # --- notas de versión 0.5.1
     "OUT ya no muestra la frecuencia de la pista anterior.": (
         "OUT no longer shows the previous track's sample rate."
