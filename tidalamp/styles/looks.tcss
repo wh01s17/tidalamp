@@ -1,0 +1,139 @@
+/* Three layouts share these widgets; each block below is one of them. Colour
+   is the other axis and comes from the palette, so any look works with any
+   palette. Adding one means adding a block here and a builder in app.py.
+
+   Quattro: flatter hierarchy, short dividers and left-aligned headings. */
+#main.quattro {
+    border: solid $tidalamp-border;
+}
+
+#main.quattro #titlebar {
+    background: $tidalamp-panel;
+    color: $tidalamp-accent;
+    /* Centred, against this look's own preference for left-aligned headings.
+       Left, the wordmark lands directly over the cover and the two read as
+       stacked on each other; retro reads clean at the same distance because
+       its name sits in the middle and only the rule passes over the artwork.
+       The heading below it stays left, so the look keeps its habit where it
+       has nothing underneath to collide with. */
+    text-align: center;
+    padding: 0 1;
+    /* A row between the bar and the band. Tried once while the wordmark was
+       still left-aligned and taken back: there it gave a bar that already sat
+       on top of the cover a neighbourhood of its own. Centred, the same row
+       reads as separation instead of isolation. */
+    margin: 0 0 1 0;
+}
+
+#main.quattro #pl-title {
+    background: $tidalamp-track-background;
+    color: $tidalamp-accent;
+}
+
+#main.quattro #transport {
+    background: $tidalamp-panel;
+}
+
+/* Retro: the 1997 skin as far as a terminal goes. A raised outer bevel and
+   title bars drawn as a rule with the heading centred on it, which is what
+   told the original's two windows apart on the desktop. */
+#main.retro {
+    border: outer $tidalamp-border;
+}
+
+#main.retro #titlebar {
+    background: $tidalamp-title-background;
+    color: $tidalamp-title-foreground;
+    text-align: center;
+    text-style: bold;
+    padding: 0;
+}
+
+#main.retro #pl-title {
+    background: $tidalamp-title-background;
+    color: $tidalamp-title-foreground;
+    text-align: center;
+    padding: 0;
+}
+
+#main.retro #transport {
+    background: $tidalamp-panel;
+}
+
+/* Ascii: a terminal before it had box drawing. Textual's own `ascii` border
+   draws with `+ - |`, so even the panel's edge stays typable. */
+#main.ascii {
+    border: ascii $tidalamp-border;
+}
+
+#main.ascii #titlebar {
+    background: $tidalamp-title-background;
+    color: $tidalamp-title-foreground;
+    text-align: center;
+    text-style: bold;
+    padding: 0;
+}
+
+#main.ascii #pl-title {
+    background: $tidalamp-title-background;
+    color: $tidalamp-title-foreground;
+    text-align: left;
+    padding: 0;
+}
+
+#main.ascii #transport {
+    background: $tidalamp-panel;
+}
+
+/* Nova: modern and frameless. One ground throughout, no boxes anywhere, and
+   colour reserved for the two things that actually carry state. Space is the
+   only separator, which is why every band here drops its own background. */
+#main.nova {
+    border: none;
+    /* A row of air on top. The other three get that separation from their
+       border; frameless meant the wordmark sat on row zero, against the edge
+       of the terminal. Here the space is the frame, so it has to be spent. */
+    padding: 1 1 0 1;
+}
+
+#main.nova #titlebar {
+    background: $tidalamp-panel;
+    color: $tidalamp-accent;
+    text-align: left;
+    text-style: bold;
+    padding: 0 1;
+}
+
+#main.nova #display {
+    background: $tidalamp-panel;
+    padding: 1 1 1 2;
+}
+
+#main.nova #seek,
+#main.nova #volume,
+#main.nova #balance {
+    background: $tidalamp-panel;
+}
+
+#main.nova #transport {
+    background: $tidalamp-panel;
+}
+
+#main.nova #pl-title {
+    background: $tidalamp-panel;
+    color: $tidalamp-accent;
+    text-style: none;
+    padding: 0 1;
+}
+
+#main.nova #playlist {
+    background: $tidalamp-panel;
+}
+
+#main.nova #status,
+#main.nova #statusbar,
+#main.nova #queue-filter,
+#main.nova #queue-filter-count,
+#main.nova #queue-filter-bar {
+    background: $tidalamp-panel;
+}

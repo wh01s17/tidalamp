@@ -1,0 +1,579 @@
+/* The two halves and the transport between them. Stacked, the player takes
+   what it needs and the queue the rest, which is how the panel always looked.
+   `split` lays the same widgets on a grid: the player and the queue side by
+   side, and the title, the transport and the status line across both, so the
+   keys and the menu get the whole width instead of crowding half of it. */
+#player-half {
+    height: auto;
+}
+
+#queue-half {
+    height: 1fr;
+}
+
+#main.split {
+    layout: grid;
+    grid-size: 2;
+    grid-columns: 1fr 1fr;
+    grid-rows: auto 1fr auto auto;
+}
+
+#main.split #titlebar,
+#main.split #transport,
+#main.split #statusbar {
+    column-span: 2;
+}
+
+#main.split #player-half,
+#main.split #queue-half {
+    height: 100%;
+}
+
+/* A column rule between the two, in the frame's own colour, so the queue
+   reads as the window next door rather than a continuation of the band. */
+#main.split #queue-half {
+    border-left: solid $tidalamp-border;
+}
+
+#lyrics-pane {
+    display: none;
+}
+
+/* Split only: the lyrics take the top of the player's column, and the band,
+   the sliders and the keys sit together at its foot, at the height they have
+   when stacked. */
+#main.split #lyrics-pane {
+    display: block;
+    height: 1fr;
+    background: $tidalamp-display-background;
+    padding: 1 1 0 1;
+    /* A rule under the words, in the frame's colour like the one between the
+       columns: without it the last sung line ran straight into the cover and
+       the two read as one block. */
+    border-bottom: solid $tidalamp-border;
+}
+
+/* A column rule between the two, in the frame's own colour, so the queue
+   reads as the window next door rather than a continuation of the band. */
+#main.split #queue-half {
+    width: 1fr;
+    height: 100%;
+    border-left: solid $tidalamp-border;
+}
+
+#titlebar {
+    background: $tidalamp-title-background;
+    color: $tidalamp-title-foreground;
+    text-align: center;
+    text-style: bold;
+    height: 1;
+}
+
+#display {
+    background: $tidalamp-display-background;
+    height: 9;
+    /* Air round the cover inside the dark band: a row above and below it and
+       two cells on the left, the same two that part it from the clock. Flush against
+       both, as it was, the picture read as glued to the border.
+       `_fit_display_band` adds the row to the band's height and `_fit_artwork`
+       takes the two columns out of the cover's budget. The right keeps its
+       cell, where the analyser ends. */
+    padding: 1 1 1 2;
+}
+
+/* The clock and the track's identity share one column, to the right of the
+   cover. `_fit_artwork` measures this column as CLOCK_WIDTH, so the box keeps
+   the width the clock used to declare. */
+#clockbox {
+    width: 24;
+    /* Two cells off the cover. At one they read as a single block and the
+       digits looked stuck to the artwork. */
+    padding: 0 0 0 1;
+}
+
+#clock {
+    width: 100%;
+    height: 4;
+    padding: 1 0 0 1;
+}
+
+#trackmeta {
+    color: $tidalamp-muted;
+    height: 1fr;
+    /* A row of air under the clock: pegged to it, the digits and the artist
+       read as one block and the eye cannot tell where the time ends. */
+    padding: 1 0 0 1;
+    text-wrap: nowrap;
+}
+
+#readout {
+    width: 1fr;
+    padding: 1 1 0 1;
+}
+
+#badges {
+    color: $tidalamp-muted;
+    height: 1;
+    text-wrap: nowrap;
+}
+
+#output {
+    color: $tidalamp-body;
+    height: 1;
+    text-wrap: nowrap;
+}
+
+/* The display band grows with the terminal to make room for a bigger cover.
+   Analyzer.render already draws to whatever height it is given, so letting it
+   take the slack keeps the bars beside the cover instead of leaving a hole. */
+#analyzer {
+    height: 1fr;
+}
+
+#seek {
+    background: $tidalamp-track-background;
+    padding: 0 1;
+    height: 1;
+    /* A row before the volume; the band's bottom padding gives the one
+       above. Pressed between the cover and the volume slider, the seek bar
+       read as the edge of one of them rather than a control of its own. */
+    margin: 0 0 1 0;
+}
+
+#main.compact #seek {
+    margin: 0;
+}
+
+#volume {
+    background: $tidalamp-track-background;
+    padding: 0 1;
+    width: 100%;
+    height: 1;
+}
+
+#balance {
+    background: $tidalamp-track-background;
+    padding: 0 1;
+    width: 100%;
+    height: 1;
+}
+
+#transport {
+    background: $tidalamp-transport-background;
+    color: $tidalamp-transport-foreground;
+    height: 3;
+    overflow-x: hidden;
+}
+
+/* The transport keys keep their place under the sliders; everything else is
+   a menu and sits against the right edge, so the two do not read as one run
+   of characters. */
+#transport-play {
+    background: $tidalamp-transport-background;
+    color: $tidalamp-transport-foreground;
+    width: auto;
+    max-width: 100%;
+    height: 3;
+}
+
+#transport-menu {
+    background: $tidalamp-transport-background;
+    color: $tidalamp-transport-foreground;
+    width: 1fr;
+    height: 3;
+    text-align: right;
+    /* One line, cropped when it does not fit. Wrapped, it climbed into the
+       buttons' rows and the whole band turned to soup. */
+    text-wrap: nowrap;
+}
+
+#pl-title {
+    background: $tidalamp-title-background;
+    color: $tidalamp-title-foreground;
+    text-style: bold;
+    height: 1;
+    /* Same gutter as #playlist below it: flush against the border, the title
+       was the one row of the panel that touched the frame. */
+    padding: 0 1;
+    text-wrap: nowrap;
+}
+
+#playlist {
+    background: $tidalamp-display-background;
+    padding: 0 1;
+    /* 1fr, not auto: RowList paints as many rows as it is given, so an auto
+       height grows until the status bar falls off the bottom of the screen. */
+    height: 1fr;
+}
+
+#status {
+    background: $tidalamp-track-background;
+    color: $tidalamp-body;
+    height: 1;
+    width: 1fr;
+}
+
+#search-box,
+#playlist-name-box {
+    width: 45%;
+    min-width: 50;
+    max-width: 90;
+    height: auto;
+    max-height: 100%;
+    background: $tidalamp-panel;
+    border: outer $tidalamp-border;
+    padding: 1 2;
+}
+
+#search-title,
+#playlist-name-title {
+    color: $tidalamp-accent;
+    text-style: bold;
+    height: 1;
+}
+
+#search-input,
+#playlist-name-input {
+    background: $tidalamp-display-background;
+    color: $tidalamp-accent;
+    border: tall $tidalamp-input-border;
+}
+
+#browser-box {
+    background: $tidalamp-panel;
+    border: outer $tidalamp-border;
+    padding: 1 2;
+}
+
+#statusbar {
+    height: 1;
+    background: $tidalamp-track-background;
+}
+
+/* The queue's search bar, between the list and the status line. Same shape as
+   the browser's, because it is the same gesture on a different list. */
+#queue-filter-bar {
+    height: 1;
+    background: $tidalamp-track-background;
+}
+
+#queue-filter {
+    background: $tidalamp-track-background;
+    color: $tidalamp-accent;
+    border: none;
+    height: 1;
+    width: 1fr;
+    padding: 0 1;
+}
+
+#queue-filter-count {
+    background: $tidalamp-track-background;
+    color: $tidalamp-transport-foreground;
+    height: 1;
+    width: auto;
+    padding: 0 1;
+}
+
+#busy {
+    background: $tidalamp-track-background;
+    width: auto;
+    padding: 0 1;
+}
+
+#lyrics-head {
+    background: $tidalamp-title-background;
+    height: 1;
+}
+
+#browser-head {
+    background: $tidalamp-title-background;
+    height: 1;
+}
+
+#browser-title {
+    background: $tidalamp-title-background;
+    color: $tidalamp-title-foreground;
+    text-style: bold;
+    height: 1;
+    width: 1fr;
+    padding: 0 1;
+}
+
+#browser-spinner {
+    background: $tidalamp-title-background;
+    width: 34;
+    padding: 0 1;
+}
+
+#browser-list {
+    background: $tidalamp-display-background;
+    height: 1fr;
+    padding: 0 1;
+}
+
+/* The filter bar, at the foot of the browser and over nothing. */
+#browser-filter-bar {
+    height: 1;
+    background: $tidalamp-track-background;
+}
+
+#browser-filter {
+    background: $tidalamp-track-background;
+    color: $tidalamp-accent;
+    border: none;
+    height: 1;
+    width: 1fr;
+    padding: 0 1;
+}
+
+#browser-filter-count {
+    background: $tidalamp-track-background;
+    color: $tidalamp-transport-foreground;
+    height: 1;
+    width: auto;
+    padding: 0 1;
+}
+
+#browser-hint {
+    background: $tidalamp-transport-background;
+    color: $tidalamp-transport-foreground;
+    height: 1;
+}
+
+#lyrics-box {
+    background: $tidalamp-panel;
+    border: outer $tidalamp-border;
+    padding: 1 2;
+}
+
+#lyrics-title {
+    background: $tidalamp-title-background;
+    color: $tidalamp-title-foreground;
+    text-style: bold;
+    height: 1;
+    width: 1fr;
+    padding: 0 1;
+}
+
+#lyrics-spinner {
+    background: $tidalamp-title-background;
+    width: 34;
+    padding: 0 1;
+}
+
+#lyrics-body {
+    background: $tidalamp-display-background;
+    color: $tidalamp-body;
+    height: 1fr;
+    padding: 1 2;
+}
+
+#lyrics-hint {
+    background: $tidalamp-transport-background;
+    color: $tidalamp-transport-foreground;
+    height: 1;
+}
+
+/* The playlist picker: a list to walk, so it takes a share like the browser,
+   but a short one -- a playlist name is a line, not a table row. */
+#picker-box {
+    width: 45%;
+    min-width: 46;
+    max-width: 76;
+    height: 60%;
+    min-height: 12;
+    max-height: 100%;
+    background: $tidalamp-panel;
+    border: outer $tidalamp-border;
+}
+
+#picker-title {
+    background: $tidalamp-title-background;
+    color: $tidalamp-title-foreground;
+    text-style: bold;
+    height: 1;
+    padding: 0 1;
+}
+
+#picker-list {
+    background: $tidalamp-display-background;
+    height: 1fr;
+    padding: 1 1;
+}
+
+#picker-hint {
+    background: $tidalamp-transport-background;
+    color: $tidalamp-transport-foreground;
+    height: 1;
+    dock: bottom;
+}
+
+#actions-box {
+    /* Sized to its content: a four-line menu, not another full-height pane. */
+    width: 35%;
+    min-width: 46;
+    max-width: 68;
+    height: auto;
+    background: $tidalamp-panel;
+    border: outer $tidalamp-border;
+}
+
+#actions-title {
+    background: $tidalamp-title-background;
+    color: $tidalamp-title-foreground;
+    text-style: bold;
+    height: 1;
+    padding: 0 1;
+}
+
+#actions-list {
+    background: $tidalamp-display-background;
+    color: $tidalamp-body;
+    height: auto;
+    padding: 1 1;
+}
+
+#actions-hint {
+    background: $tidalamp-transport-background;
+    color: $tidalamp-transport-foreground;
+    height: 1;
+}
+
+#config-box {
+    width: 65%;
+    min-width: 60;
+    /* A label, a value and a note under it. Past this the value column is
+       marooned in the middle of an empty box. */
+    max-width: 92;
+    /* Its own text decides, with a floor. Eleven rows in the middle of a 4K
+       terminal read as a business card; a share of the screen read as half an
+       empty window, because a `1fr` list inside an `auto` box takes every row
+       there is. The floor only rounds the card up. */
+    height: auto;
+    min-height: 24;
+    max-height: 100%;
+    background: $tidalamp-panel;
+    border: outer $tidalamp-border;
+}
+
+#config-title {
+    background: $tidalamp-title-background;
+    color: $tidalamp-title-foreground;
+    text-style: bold;
+    height: 1;
+    padding: 0 1;
+}
+
+#config-list {
+    background: $tidalamp-display-background;
+    color: $tidalamp-body;
+    /* `auto`, not `1fr`: the box is auto too, and a `1fr` child inside an
+       auto parent takes every row the terminal has. */
+    height: auto;
+    padding: 1 2;
+}
+
+#columns-box {
+    width: 40%;
+    min-width: 52;
+    max-width: 84;
+    height: auto;
+    max-height: 100%;
+    background: $tidalamp-panel;
+    border: outer $tidalamp-border;
+}
+
+#columns-title {
+    background: $tidalamp-title-background;
+    color: $tidalamp-title-foreground;
+    text-style: bold;
+    height: 1;
+    padding: 0 1;
+}
+
+#columns-list {
+    background: $tidalamp-display-background;
+    color: $tidalamp-body;
+    height: auto;
+    padding: 1 1;
+}
+
+#columns-hint {
+    background: $tidalamp-transport-background;
+    color: $tidalamp-transport-foreground;
+    height: 1;
+    dock: bottom;
+}
+
+#config-hint {
+    background: $tidalamp-transport-background;
+    color: $tidalamp-transport-foreground;
+    height: 1;
+    /* Docked, so that the line telling you how to close the window is the
+       one thing a short terminal never clips off the bottom. */
+    dock: bottom;
+}
+
+#help-box {
+    /* This one holds URLs, so a narrow terminal gives it the whole width
+       rather than cutting them off. */
+    background: $tidalamp-panel;
+    border: outer $tidalamp-border;
+    padding: 1 2;
+}
+
+#help-title {
+    background: $tidalamp-title-background;
+    color: $tidalamp-title-foreground;
+    text-style: bold;
+    height: 1;
+    padding: 0 1;
+}
+
+#help-body {
+    background: $tidalamp-display-background;
+    color: $tidalamp-body;
+    height: 1fr;
+    padding: 1 2;
+}
+
+#help-filter-bar {
+    height: 1;
+    background: $tidalamp-track-background;
+}
+
+#help-filter {
+    background: $tidalamp-track-background;
+    color: $tidalamp-accent;
+    border: none;
+    height: 1;
+    width: 1fr;
+    padding: 0 1;
+}
+
+#help-filter-count {
+    background: $tidalamp-track-background;
+    color: $tidalamp-transport-foreground;
+    height: 1;
+    width: auto;
+    padding: 0 1;
+}
+
+#help-hint {
+    background: $tidalamp-transport-background;
+    color: $tidalamp-transport-foreground;
+    height: 1;
+}
+
+#eq-box {
+    width: 50%;
+    min-width: 60;
+    max-width: 100;
+    /* Taller faders on a tall terminal: `#eq-bars` is 1fr, so the rows the
+       box gains go to the bands and not to its chrome. */
+    height: 40%;
+    min-height: 17;
+    max-height: 28;
+    background: $tidalamp-panel;
+    border: outer $tidalamp-border;
+}

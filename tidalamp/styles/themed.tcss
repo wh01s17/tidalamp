@@ -1,0 +1,234 @@
+/* The themed looks. Each comes with a palette of its own name, but like the
+   four above it only says structure here: borders, which bars carry a ground
+   and where the headings sit. Colour stays the palette's, so any of these
+   works under any palette the user picks afterwards. */
+
+/* Unidad morada: a heavy armoured frame and bars on the accent, the way a
+   warning display lights up. */
+#main.unidad-morada {
+    border: heavy $tidalamp-accent;
+}
+
+#main.unidad-morada #titlebar {
+    background: $tidalamp-title-background;
+    color: $tidalamp-accent;
+    text-align: center;
+    text-style: bold;
+    padding: 0;
+}
+
+#main.unidad-morada #pl-title {
+    background: $tidalamp-title-background;
+    color: $tidalamp-warning;
+    text-style: bold;
+    padding: 0 1;
+}
+
+#main.unidad-morada #transport {
+    background: $tidalamp-panel;
+}
+
+/* Pirata: rounded like a porthole, the sea running along both title bars. */
+#main.pirata {
+    border: round $tidalamp-container;
+}
+
+#main.pirata #titlebar {
+    background: $tidalamp-title-background;
+    color: $tidalamp-accent;
+    text-align: center;
+    text-style: bold;
+    padding: 0;
+}
+
+#main.pirata #pl-title {
+    background: $tidalamp-track-background;
+    color: $tidalamp-accent;
+    padding: 0 1;
+}
+
+#main.pirata #transport {
+    background: $tidalamp-panel;
+}
+
+/* Cuaderno: a page. No frame on the sides, a margin rule down the left and
+   the headings written on the ruled line, not on a bar. */
+#main.cuaderno {
+    border: none;
+    border-left: vkey $tidalamp-danger;
+    padding: 1 1 0 1;
+}
+
+/* The row of air on top, given back in compact like nova's. */
+#main.compact.cuaderno {
+    padding: 0 1;
+}
+
+#main.cuaderno #titlebar {
+    background: $tidalamp-panel;
+    color: $tidalamp-body;
+    text-align: left;
+    text-style: italic;
+    padding: 0 1;
+}
+
+#main.cuaderno #pl-title {
+    background: $tidalamp-panel;
+    color: $tidalamp-danger;
+    padding: 0 1;
+}
+
+#main.cuaderno #transport,
+#main.cuaderno #display,
+#main.cuaderno #playlist {
+    background: $tidalamp-panel;
+}
+
+/* Neon noir: a thick neon frame and hard, flat bars. */
+#main.neon-noir {
+    border: thick $tidalamp-accent;
+}
+
+#main.neon-noir #titlebar {
+    background: $tidalamp-screen;
+    color: $tidalamp-container;
+    text-style: bold;
+    padding: 0;
+}
+
+#main.neon-noir #pl-title {
+    background: $tidalamp-screen;
+    color: $tidalamp-accent;
+    text-style: bold;
+    padding: 0 1;
+}
+
+#main.neon-noir #transport {
+    background: $tidalamp-screen;
+}
+
+/* Runas: a double frame like an illuminated page, headings centred. */
+#main.runas {
+    border: double $tidalamp-accent;
+}
+
+#main.runas #titlebar,
+#main.runas #pl-title {
+    background: $tidalamp-title-background;
+    color: $tidalamp-accent;
+    text-align: center;
+    padding: 0;
+}
+
+#main.runas #transport {
+    background: $tidalamp-panel;
+}
+
+/* Reggae: a wide frame, a gold title and the queue heading in green. */
+#main.reggae {
+    border: wide $tidalamp-playable;
+}
+
+#main.reggae #titlebar {
+    background: $tidalamp-panel;
+    color: $tidalamp-accent;
+    text-align: center;
+    text-style: bold;
+    padding: 0;
+}
+
+#main.reggae #pl-title {
+    background: $tidalamp-track-background;
+    color: $tidalamp-playable;
+    padding: 0 1;
+}
+
+#main.reggae #transport {
+    background: $tidalamp-panel;
+}
+
+/* Comodín: a dashed card edge, the title in the suit colour. */
+#main.comodin {
+    border: dashed $tidalamp-accent;
+}
+
+#main.comodin #titlebar {
+    background: $tidalamp-title-background;
+    color: $tidalamp-playable;
+    text-align: center;
+    text-style: bold;
+    padding: 0;
+}
+
+#main.comodin #pl-title {
+    background: $tidalamp-track-background;
+    color: $tidalamp-accent;
+    padding: 0 1;
+}
+
+#main.comodin #transport {
+    background: $tidalamp-panel;
+}
+
+/* Gótico: an outer bevel like carved stone, both headings centred. */
+#main.gotico {
+    border: outer $tidalamp-accent;
+}
+
+#main.gotico #titlebar,
+#main.gotico #pl-title {
+    background: $tidalamp-title-background;
+    color: $tidalamp-accent;
+    text-align: center;
+    text-style: bold;
+    padding: 0;
+}
+
+#main.gotico #transport {
+    background: $tidalamp-panel;
+}
+
+/* Death metal: a tall block frame, bone on black and the red kept for the
+   headings. */
+#main.death-metal {
+    border: tall $tidalamp-accent;
+}
+
+#main.death-metal #titlebar {
+    background: $tidalamp-screen;
+    color: $tidalamp-accent;
+    text-align: center;
+    text-style: bold;
+    padding: 0;
+}
+
+#main.death-metal #pl-title {
+    background: $tidalamp-screen;
+    color: $tidalamp-body;
+    text-style: bold;
+    padding: 0 1;
+}
+
+#main.death-metal #transport {
+    background: $tidalamp-screen;
+}
+
+#eq-title {
+    background: $tidalamp-title-background;
+    color: $tidalamp-title-foreground;
+    text-style: bold;
+    height: 1;
+    padding: 0 1;
+}
+
+#eq-bars {
+    background: $tidalamp-display-background;
+    height: 1fr;
+    padding: 1 2;
+}
+
+#eq-hint {
+    background: $tidalamp-transport-background;
+    color: $tidalamp-transport-foreground;
+    height: 1;
+}

@@ -1,0 +1,58 @@
+/* 60–79 columns, or a short terminal: keep every action and a useful queue,
+   but spend no rows or columns on decorative artwork. */
+#main.compact #display {
+    height: 5;
+    padding: 0 1 0 0;
+}
+
+/* Nova buys its breathing room with a row, and the compact layout has none to
+   sell: at that size the queue is what the window is for. */
+#main.compact.nova {
+    padding: 0 1;
+}
+
+/* Nova's display band carries a row of its own padding, which its block sets
+   after the compact one and therefore wins. In compact that left it a row of
+   content short of the other three. */
+#main.compact.nova #display {
+    padding: 0 1 0 0;
+}
+
+/* In split the title is a grid row sized to the widget, and the grid does
+   not count margins: quattro's row of separation took the only row the title
+   had and the wordmark vanished. The same row, as height instead. */
+#main.split.quattro #titlebar {
+    margin: 0;
+    height: 2;
+}
+
+/* Quattro's row of separation, given back where there is none to spend. */
+#main.compact.quattro #titlebar {
+    margin: 0;
+}
+
+#main.compact #art {
+    display: none;
+}
+
+#main.compact #trackmeta {
+    display: none;
+}
+
+#main.compact #clock {
+    width: 20;
+    height: 3;
+    padding: 0;
+}
+
+#main.compact #readout {
+    padding: 0 0 0 1;
+}
+
+#main.compact #analyzer {
+    height: 1;
+}
+
+#main.compact #balance {
+    display: none;
+}

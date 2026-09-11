@@ -1,0 +1,104 @@
+/* The whole interface: layout, chrome and the semantic palette behind both.
+   The palette follows Omarchy when there is one and falls back to the classic
+   colours otherwise. The sheet is five files read in order, and the order
+   matters: base (screen and windows), player, compact, looks (quattro, retro,
+   nova, ascii) and themed. Later rules win at equal specificity. */
+
+Screen {
+    background: $tidalamp-screen;
+    layers: base notice;
+}
+
+/* Every modal is centred; whether the player shows through it is the
+   `transparency` setting, which the app hangs on the screen as a class.
+
+   A type selector matches subclasses, so the `Screen` rule above was painting
+   an opaque ground over the whole terminal — Textual's own `ModalScreen` dims
+   to 60% and this file was overriding it without meaning to. A terminal
+   cannot blur what is behind a window, so a translucent scrim is what stands
+   in for it: the player stays readable around the box, dimmed enough that the
+   box is plainly what has the keys. */
+ModalScreen {
+    align: center middle;
+    background: $tidalamp-screen;
+}
+
+ModalScreen.transparent {
+    background: $tidalamp-screen 55%;
+}
+
+/* With transparency on, every modal box is frosted rather than solid: the
+   panel and its border let a little of what is behind them through, so the
+   edge of the window reads as glass over the player instead of a hard bevel
+   cut out of it. The widgets inside keep their own opaque grounds, so it is
+   the frame that goes soft and never the text on a list. 85% and not less:
+   at 60% the queue's own text showed through the dialogs, which reads as a
+   drawing bug rather than as glass. */
+.transparent #search-box,
+.transparent #playlist-name-box,
+.transparent #browser-box,
+.transparent #lyrics-box,
+.transparent #actions-box,
+.transparent #picker-box,
+.transparent #config-box,
+.transparent #columns-box,
+.transparent #help-box,
+.transparent #eq-box {
+    background: $tidalamp-panel 85%;
+    border: outer $tidalamp-border 70%;
+}
+
+/* The two shapes a modal takes.
+
+   A pane is a list to walk, so it takes a share of the terminal instead of a
+   fixed 84x26: on a 4K screen that box was a stamp in the middle of an empty
+   field, and the library it was showing four rows of has hundreds. It stops
+   growing sideways at 160 columns, past which a track line is mostly gap and
+   the eye has to travel to read one row. The minimum keeps it useful at the
+   60x18 the app refuses to run below. */
+#browser-box,
+#lyrics-box,
+#help-box {
+    width: 85%;
+    min-width: 60;
+    height: 85%;
+    min-height: 16;
+    max-height: 100%;
+}
+
+/* The browser is a table -- title, artist, album, year, quality, duration --
+   and spends every cell it is given. The other two are documents, and a
+   document does not get wider than its longest line: on a 4K terminal an 85%
+   box left two thirds of itself empty next to text hugging the left edge,
+   which reads as a broken window rather than a roomy one. The caps are the
+   widest line each one actually holds, plus air. */
+#browser-box {
+    max-width: 160;
+}
+
+#help-box {
+    /* The licence URL and the release notes; nothing here runs past 80. */
+    max-width: 96;
+}
+
+#lyrics-box {
+    /* A sung line is short, and a wide measure makes it harder to follow
+       down, which is the one thing this window is for. */
+    max-width: 80;
+}
+
+/* Sits above everything so a broken layout is never what the user sees. */
+#too-small {
+    layer: notice;
+    display: none;
+    width: 100%;
+    height: 100%;
+    background: $tidalamp-screen;
+    color: $tidalamp-accent;
+}
+
+#main {
+    background: $tidalamp-panel;
+    border: outer $tidalamp-border;
+    height: 100%;
+}

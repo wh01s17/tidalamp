@@ -143,7 +143,7 @@ def unknown_key_actions() -> list[str]:
     return sorted(set(config.KEYS) - set(DEFAULT_KEYS))
 
 
-# Fixed pieces of the display band, from styles.tcss. `_fit_artwork` needs
+# Fixed pieces of the display band, from styles/player.tcss. `_fit_artwork` needs
 # them to work out how much of the row is left for the cover.
 # How long to keep watching the output device after a track starts, and how
 # often. PipeWire's rate switch lands somewhere in the first couple of
@@ -187,7 +187,14 @@ class Measured(Static):
 class TidalAmp(App):
     """Main application."""
 
-    CSS_PATH = "styles.tcss"
+    # Read in this order; later rules win at equal specificity.
+    CSS_PATH = [
+        "styles/base.tcss",
+        "styles/player.tcss",
+        "styles/compact.tcss",
+        "styles/looks.tcss",
+        "styles/themed.tcss",
+    ]
     TITLE = "TIDAL AMP"
 
     # Nothing takes focus on its own. The player is driven by bindings, which
