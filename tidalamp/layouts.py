@@ -145,7 +145,7 @@ LAYOUT_TABLE: dict[str, Layout] = {
             keycaps=("(", ")"),
             emblem="pirata.png",
             emblem_anchor="bottom",
-            emblem_scale=1.3,
+            emblem_scale=1.0,
             tagline=lambda: _("rumbo a la gran ruta"),
         ),
         # A black notebook, ruled lines, one red that matters.

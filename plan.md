@@ -783,6 +783,14 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
       juntando celdas del mismo estilo, los estilos de cada celda se construyen una vez
       por tamaño y paleta, y las líneas pintadas se cachean por contenido: 17 ms con
       la caché caliente y 26 en frío.
+- [x] Trampa de la carátula de píxeles tras una ventana: `_art_ready` la ponía y
+      llamaba a `_hide_art` para quitarla, pero `_hide_art` vuelve sin hacer nada si ya
+      hay una oculta, y la hay siempre que la ventana se abrió sobre una carátula kitty
+      o sixel. Una segunda carátula (pista cambiada desde la biblioteca, o el tema
+      cambiado en ajustes, que vuelve a medir el recuadro y la descarga otra vez) se
+      quedaba pintada encima de la ventana. Visto por el mantenedor sin poder
+      repetirlo, porque depende de que hubiera una carátula de píxeles al abrir. Ahora
+      la que llega con una ventana delante se guarda para cuando se cierre, con test.
 - [x] **4K** (2026-09-11). Medido en un pty con pyte a 480x130: cada movimiento del
       cursor mandaba al terminal **245 KiB** con un emblema detrás (39 sin él),
       porque `cursor` repintaba la lista entera y la lista seguía al cursor al

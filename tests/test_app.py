@@ -511,6 +511,39 @@ def test_a_cover_that_lands_while_a_modal_is_open_does_not_cover_it(monkeypatch)
     asyncio.run(scenario())
 
 
+def test_a_second_cover_behind_a_window_stays_down_too(monkeypatch):
+    """The first cover was taken down when the window opened, so a second one
+    arriving behind it (a track changed from the browser, a theme changed in
+    the settings) found `_hide_art` saying it had already hidden a cover, and
+    stayed up, painted over the window. It waits for the window instead, and
+    is the one that comes back when the window closes."""
+    isolate_runtime(monkeypatch)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(100, 30)) as pilot:
+            await pilot.pause()
+            art = application.query_one(Artwork)
+            first = a_cover(Protocol.KITTY)
+            application._art_ready(first)
+            assert art.cover is first
+
+            application.push_screen(Screen())
+            await pilot.pause()
+            assert art.cover is None and application._art_hidden
+
+            second = a_cover(Protocol.KITTY)
+            application._art_ready(second)
+            assert art.cover is None, "no se pinta encima de la ventana"
+            assert application._pending_art is second
+
+            application.pop_screen()
+            await pilot.pause(0.4)
+            assert art.cover is second
+
+    asyncio.run(scenario())
+
+
 def test_a_cover_drawn_as_text_stays_up_behind_a_modal(monkeypatch):
     """Half blocks are characters like any other, so a modal draws over them.
     Taking them down anyway left a hole in the player behind the scrim."""

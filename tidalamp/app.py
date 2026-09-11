@@ -1736,9 +1736,18 @@ class TidalAmp(App):
         widget = self._artwork()
         if widget is None:
             return
+        # Not shown and then hidden: kept for when the window closes. It used
+        # to go up and then through `_hide_art`, which returns early when a
+        # cover is already hidden, and one always is once a window has opened
+        # over a pixel cover. So a cover arriving behind the window (a track
+        # changed from the browser, or a theme changed in the settings, which
+        # re-measures the box and fetches the cover again) stayed up, painted
+        # over the window.
+        if len(self.screen_stack) > 1 and cover.protocol is not artwork.Protocol.BLOCKS:
+            self._art_hidden = True
+            self._pending_art = cover
+            return
         widget.show(cover)
-        if len(self.screen_stack) > 1:
-            self._hide_art()
 
     def _artwork(self) -> Artwork | None:
         """The cover widget, or ``None`` before ``compose`` has produced it.

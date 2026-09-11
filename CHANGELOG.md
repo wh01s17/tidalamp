@@ -47,6 +47,10 @@ versioning is [semantic](https://semver.org/).
   leaves it instead of a row at a time. With a themed picture behind the queue on a
   4K terminal this cut what a keypress sends to the terminal from about 245 KiB to
   under 5.
+- A kitty or sixel cover could end up painted over an open window: one that arrived
+  while a window was open (a track changed from the browser, or the theme changed in
+  the settings, which fetches the cover again) went up over it if another cover had
+  already been taken down for that window. It now waits for the window to close.
 - Switching from split back to stacked left the queue heading's key hints halfway
   across the row, measured for the half it had just left.
 
