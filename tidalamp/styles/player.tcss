@@ -565,6 +565,42 @@
     height: 1;
 }
 
+/* The speed window: eight rows and a hint, no wider than it reads. */
+#speed-box {
+    width: 30;
+    height: auto;
+    background: $tidalamp-panel;
+    border: outer $tidalamp-border;
+}
+
+#speed-title {
+    background: $tidalamp-title-background;
+    color: $tidalamp-title-foreground;
+    text-style: bold;
+    text-align: center;
+    height: 1;
+    margin-bottom: 1;
+}
+
+.speed-row {
+    color: $tidalamp-body;
+    height: 1;
+    padding: 0 1;
+}
+
+.speed-row.-cursor {
+    background: $tidalamp-accent;
+    color: $tidalamp-active-foreground;
+    text-style: bold;
+}
+
+#speed-hint {
+    background: $tidalamp-transport-background;
+    color: $tidalamp-transport-foreground;
+    height: 1;
+    margin-top: 1;
+}
+
 #eq-box {
     width: 50%;
     min-width: 60;

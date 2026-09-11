@@ -38,8 +38,10 @@ from .screens import (
     PlaylistPickerScreen,
     RowList,
     SearchScreen,
+    SpeedScreen,
     TrackActionsScreen,
     favourite_message,
+    speed_text,
 )
 from .settings import Settings
 from .spectrum import Cava, SpectrumUnavailable
@@ -119,6 +121,8 @@ DEFAULT_KEYS: dict[str, str] = {
     "balance_right": "full_stop",
     "balance_centre": "backslash",
     "toggle_time": "t",
+    # After z x c v, where Winamp kept its fifth key.
+    "speed": "b",
     "config": "o",
     "help": "question_mark,h",
     "quit": "q,ctrl+c",
@@ -254,6 +258,7 @@ class TidalAmp(App):
         _bind("balance_right", _("balance der")),
         _bind("balance_centre", _("centrar balance")),
         _bind("toggle_time", _("tiempo")),
+        _bind("speed", _("velocidad")),
         _bind("favourite", _("favorito")),
         _bind("unfavourite", _("quitar favorito")),
         _bind("config", _("config"), show=True),
@@ -982,6 +987,19 @@ class TidalAmp(App):
         else:
             shuffle = f"{key('shuffle')}{separator}{'⇄●' if self.queue.shuffle else '⇄○'}"
             repeat = f"{key('repeat')}{separator}{self.REPEAT_GLYPHS[self.queue.repeat]}"
+        rate = speed_text(self.mpv.speed)
+        rate = (rate.replace("×", "x") if plain else rate).ljust(5)
+        modes: list[tuple[str, str, bool]] = [
+            ("shuffle", shuffle, self.queue.shuffle),
+            ("repeat", repeat, self.queue.repeat is not Repeat.NONE),
+        ]
+        # Lit off 1×, like a toggle left on, and padded to its widest,
+        # `0.25×`, so choosing a speed never shifts the row. Not in the
+        # compact player, which has no columns to spare; `b` still opens it.
+        if not self._compact:
+            modes.append(
+                ("speed", f"{key('speed')}{separator}{rate}", self.mpv.speed != 1.0)
+            )
         return [
             [
                 ("prev", f"{key('prev')}{separator}{prev}", False),
@@ -989,10 +1007,7 @@ class TidalAmp(App):
                 ("stop", f"{key('stop')}{separator}{stop}", False),
                 ("next", f"{key('next')}{separator}{nxt}", False),
             ],
-            [
-                ("shuffle", shuffle, self.queue.shuffle),
-                ("repeat", repeat, self.queue.repeat is not Repeat.NONE),
-            ],
+            modes,
         ]
 
     # Each builder fills `hits` with the (start, end, action) spans of the
@@ -2089,6 +2104,16 @@ class TidalAmp(App):
 
     def action_equalizer(self) -> None:
         self.push_screen(EqScreen(self.settings, self._apply_audio), self._eq_closed)
+
+    def action_speed(self) -> None:
+        self.push_screen(SpeedScreen(self.mpv.speed), self._speed_chosen)
+
+    def _speed_chosen(self, speed: float | None) -> None:
+        if speed is None or speed == self.mpv.speed:
+            return
+        self.mpv.speed = speed
+        self.status = _("velocidad: {value}").format(value=speed_text(speed))
+        self._refresh_modes()
 
     def action_config(self) -> None:
         self.push_screen(ConfigScreen(self._setting_changed))

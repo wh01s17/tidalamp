@@ -36,6 +36,7 @@ class FakeMpv:
     duration = 0.0
     paused = False
     idle = True
+    speed = 1.0
 
     def __init__(self) -> None:
         self.filter_calls: list[tuple[str, str | None]] = []

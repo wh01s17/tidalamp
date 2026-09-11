@@ -17,6 +17,7 @@ from .help import HelpScreen
 from .lyrics_window import LyricsScreen
 from .prompts import PlaylistNameScreen, SearchScreen
 from .rowlist import RowList, _hex, _Paint
+from .speed import SpeedScreen, speed_text
 from .tracks import TRACK_ACTIONS, PlaylistPickerScreen, TrackActionsScreen
 
 __all__ = [
@@ -37,6 +38,7 @@ __all__ = [
     "PlaylistPickerScreen",
     "RowList",
     "SearchScreen",
+    "SpeedScreen",
     "TrackActionsScreen",
     "_Paint",
     "_crop",
@@ -44,4 +46,5 @@ __all__ = [
     "column_label",
     "favourite_message",
     "fit_hints",
+    "speed_text",
 ]

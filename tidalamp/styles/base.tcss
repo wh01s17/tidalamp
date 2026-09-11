@@ -43,6 +43,7 @@ ModalScreen.transparent {
 .transparent #config-box,
 .transparent #columns-box,
 .transparent #help-box,
+.transparent #speed-box,
 .transparent #eq-box {
     background: $tidalamp-panel 85%;
     border: outer $tidalamp-border 70%;

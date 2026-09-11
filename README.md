@@ -199,6 +199,7 @@ show the key that actually works.
 | `←` `→`         | seek ±5 seconds                                    |
 | `+` `-`         | change volume                                      |
 | `t`             | toggle elapsed / remaining time                    |
+| `b`             | playback speed, from 0.25× to 2×                   |
 | `o`             | open the settings window                           |
 | `?` `h`         | open the help window                               |
 | `q`             | quit                                               |
@@ -260,6 +261,12 @@ The settings window over the scrim. `Transparencia` is on, and `Carátula` sitti
 
 `f` adds the selected track, album, artist, or playlist to TIDAL favourites; `F`
 removes it.
+
+`b` opens the speed window: 0.25× to 2× in quarters, 1× as recorded. Walk it with
+`↑` `↓` and apply with `↵` (or click a speed); `esc` leaves the speed alone. The
+transport's speed button says the current one and lights up off 1×. mpv keeps the
+pitch, which it does with a filter, so a speed other than 1× is not bit-perfect.
+The speed lasts until you quit.
 
 `s` toggles shuffle and `r` cycles repeat (off → queue → track). Both sit on the
 transport row as buttons, lit in the palette's accent while they are on. Every state

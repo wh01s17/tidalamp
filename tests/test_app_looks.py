@@ -73,10 +73,10 @@ def test_the_retro_theme_squares_each_button_and_spells_the_toggles(monkeypatch)
             widget = application.query_one("#transport-play")
             top, face, bottom = (widget.render_line(y).text for y in range(3))
 
-            # Six buttons, six frames, square corners — not one shared frame.
-            assert top.count("┌") == 6 and top.count("┐") == 6
-            assert bottom.count("└") == 6 and bottom.count("┘") == 6
-            assert face.count("│") == 12
+            # Seven buttons, seven frames, square corners — not one shared frame.
+            assert top.count("┌") == 7 and top.count("┐") == 7
+            assert bottom.count("└") == 7 and bottom.count("┘") == 7
+            assert face.count("│") == 14
             assert "┐┌" in top, "los botones van pegados, no fundidos"
             # No half blocks: they fill their cell, so a row of them came out
             # as a solid slab instead of an edge.

@@ -54,6 +54,9 @@ class Mpv:
     # that is digital gain on an already-normalised stream: it clips. The
     # slider is a 0-100 Winamp slider, and this is the number it means.
     VOLUME_MAX = 100
+    # A quarter to double, in quarters. mpv takes any speed above zero; these
+    # are the ones the speed window offers, and 1 is the track as recorded.
+    SPEEDS = (0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0)
 
     def __init__(self) -> None:
         if shutil.which("mpv") is None:
@@ -64,8 +67,9 @@ class Mpv:
         self._buf = b""
         self._request_id = 0
         # Kept so a respawned mpv comes back with the user's volume rather
-        # than mpv's default.
+        # than mpv's default. The speed likewise.
         self._volume = 100
+        self._speed = 1.0
         self._proc = self._spawn()
         self._connect()
 
@@ -129,6 +133,8 @@ class Mpv:
         self._connect()
         log.warning("mpv reiniciado (pid %s)", self._proc.pid)
         self.set("volume", self._volume)
+        if self._speed != 1.0:
+            self.set("speed", self._speed)
 
     # ------------------------------------------------------------------- IPC
 
@@ -237,6 +243,16 @@ class Mpv:
     def volume(self, value: int) -> None:
         self._volume = max(0, min(self.VOLUME_MAX, value))
         self.set("volume", self._volume)
+
+    @property
+    def speed(self) -> float:
+        """How fast the track plays: 1 as recorded. mpv keeps the pitch."""
+        return self._speed
+
+    @speed.setter
+    def speed(self, value: float) -> None:
+        self._speed = value
+        self.set("speed", value)
 
     def rms(self) -> float:
         """Overall RMS level in dBFS, or -91.0 when silent/unavailable."""

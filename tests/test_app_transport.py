@@ -62,15 +62,16 @@ def test_the_transport_buttons_are_clickable_without_changing_keyboard_controls(
 
 def test_the_transport_runs_z_x_c_v_across_the_keyboard(monkeypatch):
     """Four adjacent keys in the order the buttons sit on screen. Winamp's
-    fifth (`b`) went with the separate pause button."""
+    fifth (`b`) went with the separate pause button, and came back for the
+    speed window: never a second pause."""
     isolate_runtime(monkeypatch)
     keys = app_module.DEFAULT_KEYS
 
     faces = [keys[action].split(",")[0] for action in ("prev", "play", "stop", "next")]
     assert faces == list("zxcv")
-    assert "b" not in {
-        key for binding in TidalAmp.BINDINGS for key in binding.key.split(",")
-    }
+    assert {
+        binding.action for binding in TidalAmp.BINDINGS if "b" in binding.key.split(",")
+    } == {"speed"}
 
     async def scenario() -> None:
         application = TidalAmp(object(), FakeMpv())
@@ -636,5 +637,47 @@ def test_source_output_and_pause_are_separate_truthful_readouts(monkeypatch):
             assert "HI-RES" in source and "PAUSA" in source
             assert output == "OUT  FIIO BTR15 · PCM S32LE · 176.4 kHz"
             assert application.query_one("#volume", Slider).label == "VOL/mpv"
+
+    asyncio.run(scenario())
+
+
+def test_the_speed_window_offers_a_quarter_to_double_and_applies_on_enter(monkeypatch):
+    """Eight speeds in quarters with 1 as recorded; ↵ applies, esc leaves the
+    speed alone, and the button says the speed and lights up off 1×."""
+    from tidalamp.player import Mpv
+    from tidalamp.screens import SpeedScreen
+
+    assert Mpv.SPEEDS == (0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0)
+    isolate_runtime(monkeypatch)
+
+    async def scenario() -> None:
+        mpv = FakeMpv()
+        application = TidalAmp(object(), mpv)
+        async with application.run_test(size=(150, 26)) as pilot:
+            await pilot.pause()
+            assert "b 1×" in transport(application)
+
+            await pilot.press("b")
+            await pilot.pause()
+            assert isinstance(application.screen, SpeedScreen)
+            await pilot.press("escape")
+            await pilot.pause()
+            assert mpv.speed == 1.0
+
+            await pilot.press("b")
+            await pilot.press("up", "up")
+            await pilot.press("enter")
+            await pilot.pause()
+            assert not isinstance(application.screen, SpeedScreen)
+            assert mpv.speed == 0.5
+            assert "b 0.5×" in transport(application)
+            assert "0.5×" in application.status
+
+            await pilot.press("b")
+            for _step in range(10):
+                await pilot.press("down")
+            await pilot.press("enter")
+            await pilot.pause()
+            assert mpv.speed == 2.0
 
     asyncio.run(scenario())

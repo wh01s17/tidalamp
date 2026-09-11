@@ -12,6 +12,10 @@ versioning is [semantic](https://semver.org/).
   rule, and an original picture behind the queue: a tree and sprouts on half a globe.
   Its palette works under any layout, and its picture can be borrowed with
   `backdrop = "bosque"`.
+- Playback speed: `b` (or the new speed button in the transport) opens a window
+  with 0.25× to 2× in quarters, 1× as recorded. The button shows the current speed
+  and lights up off 1×; mpv keeps the pitch. The speed survives an mpv restart and
+  lasts until you quit. The compact player leaves the button out but keeps the key.
 - A Cover shape setting (`cover_shape`): `square`, or `round` to draw the cover as a
   disc under any theme. The corners take the band's colour, so it looks the same in
   kitty, sixel and blocks, and it changes on screen at once.

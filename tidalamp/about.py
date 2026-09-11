@@ -200,6 +200,7 @@ def shortcuts(keys) -> tuple[Section, ...]:
                 (key("seek_back"), _("retroceder 5 s")),
                 (key("seek_fwd"), _("avanzar 5 s")),
                 (key("toggle_time"), _("tiempo transcurrido o restante")),
+                (key("speed"), _("velocidad de reproducción, de 0.25× a 2×")),
             ),
         ),
         Section(
