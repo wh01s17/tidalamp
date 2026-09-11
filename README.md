@@ -451,6 +451,13 @@ The picture is a setting of its own, `backdrop` (Queue backdrop in the settings 
 picture. Choosing a themed look sets its palette and its picture once; after that both
 are yours to change, so any theme, palette and picture can be mixed.
 
+<p align="center">
+  <img src="https://raw.githubusercontent.com/wh01s17/tidalamp/main/img/split-backdrop.webp?v=0.6.0" alt="The split arrangement: timed lyrics above the cover and the clock on the left, the queue on the right with a purple armoured figure drawn dimly behind its rows, and the transport keys running across both columns" width="880">
+</p>
+
+Split, with the timed lyrics following the song above the cover. The queue carries the
+`unidad-morada` picture under a layout and palette that are not its own.
+
 ### Palettes
 
 `palette` accepts `auto` (follow Omarchy), `classic` (green-on-black, the player's own),
