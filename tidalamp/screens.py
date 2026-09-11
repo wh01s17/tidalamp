@@ -32,7 +32,7 @@ from .i18n import _
 from .library import Row
 from .lyrics import LyricsDocument
 from .settings import BAND_LABELS, GAIN_LIMIT, MANUAL, PRESETS, Settings
-from .theme import LAYOUTS, available_palettes, palette_for
+from .theme import LAYOUTS, available_palettes, paired_palette, palette_for
 from .widgets import Analyzer, EqualizerBars, Slider, Spinner
 
 if TYPE_CHECKING:  # The screens report back to the app; the app owns them.
@@ -1821,6 +1821,8 @@ class ConfigScreen(ModalScreen[None]):
         config.set_option(option.key, value)
         if self._on_change is not None:
             self._on_change(option.key)
+        if option.key == "theme":
+            self._pair_palette(str(value))
         if option.key == "transparency":
             if value is True:
                 self._limit_artwork()
@@ -1828,6 +1830,20 @@ class ConfigScreen(ModalScreen[None]):
             # rebuilt rather than left describing the setting as it was.
             self._rows = self._options()
         self._render_list()
+
+    def _pair_palette(self, layout: str) -> None:
+        """A themed layout brings its palette, written once and left alone.
+
+        Only on choosing the layout: the palette stays a setting of its own,
+        so whoever wants the layout in other colours picks them afterwards
+        and nothing here puts the pair back.
+        """
+        palette = paired_palette(layout)
+        if palette is None or palette == config.PALETTE:
+            return
+        config.set_option("palette", palette)
+        if self._on_change is not None:
+            self._on_change("palette")
 
     # Terminals that paint the cover over the text instead of among it. The
     # protocol is the terminal's, not ours, and neither one lets a window open

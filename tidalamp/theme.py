@@ -189,6 +189,38 @@ DEFAULT_PALETTE = ThemePalette(DEFAULT_COLORS)
 # layout works with any palette.
 LAYOUTS = tuple(LAYOUT_TABLE)
 
+# A themed look is a layout and a built-in palette with the same name, and
+# choosing the layout in the settings writes that palette once. From then on
+# the palette is free again. Pairs are declared here and not inferred, because
+# a name shared by accident would recolour a layout for everyone: a `nova`
+# palette added one day must not quietly change what `theme = "nova"` looks
+# like. A test holds the shared names to exactly this set.
+PAIRED: frozenset[str] = frozenset()
+
+
+def paired_palette(layout: str) -> str | None:
+    """The palette that comes with `layout`, if it was declared with one."""
+    return layout if layout in PAIRED else None
+
+
+def contrast_ratio(first: str, second: str) -> float:
+    """WCAG contrast between two `#rrggbb` colours, from 1 to 21.
+
+    The alpha byte an eight-digit colour may carry is ignored: the terminal
+    draws the ground opaque whatever the palette says.
+    """
+
+    def luminance(color: str) -> float:
+        channels = (int(color[index : index + 2], 16) / 255 for index in (1, 3, 5))
+        r, g, b = (
+            value / 12.92 if value <= 0.04045 else ((value + 0.055) / 1.055) ** 2.4
+            for value in channels
+        )
+        return 0.2126 * r + 0.7152 * g + 0.0722 * b
+
+    light, dark = sorted((luminance(first), luminance(second)), reverse=True)
+    return (light + 0.05) / (dark + 0.05)
+
 
 def omarchy_colors_path(
     environ: Mapping[str, str] | None = None, home: Path | None = None

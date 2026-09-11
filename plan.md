@@ -706,6 +706,20 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
       sea un programa disfrazado. Un test comprueba que cada entrada nombra un
       constructor que existe, y otro que las disposiciones con `ascii_only` pintan
       título, marco del encabezado y transporte en ASCII puro.
+- [x] **Emparejamiento por nombre** (`theme.PAIRED`, `paired_palette`). Un tema
+      temático es una disposición y una paleta incorporada con el mismo nombre. Elegir
+      la disposición en ajustes escribe esa paleta en el config **una vez**
+      (`ConfigScreen._pair_palette`) y ahí acaba: cambiar la paleta después, o salir
+      a otra disposición, no la revierte. `load_palette(name="auto")` no se tocó a
+      propósito: `auto` es la elección «sigue a mi escritorio» y pisarla sería
+      restringir la paleta.
+- [x] Las parejas se **declaran**, no se deducen: un test exige que los nombres
+      compartidos entre `LAYOUTS` y `_BUILTIN_SOURCES` sean exactamente `PAIRED`.
+      Sin eso, añadir una paleta `nova` recolorearía la disposición `nova` para todo
+      el mundo. Las paletas de usuario no emparejan nunca.
+- [x] Contraste mínimo en las paletas incorporadas (`contrast_ratio`, WCAG): `body`
+      contra `screen` a 4,5 y `accent` contra `screen` a 3,0. Las seis actuales pasan
+      con holgura (la peor, `gruvbox`, deja el acento en 6,6).
 
 ### Configuración — `config.py`, `audio.py`, `screens.py`
 

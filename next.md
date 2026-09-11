@@ -42,24 +42,20 @@ el comportamiento de nadie que ya use `quattro`, `retro`, `nova` o `ascii`.
 
 ### Lo que hay que hacer
 
-1. ~~Quitar el `if config.THEME ==` de en medio~~: **hecho** el 2026-09-10, ver
-   `plan.md` «Disposiciones como datos». Una disposición nueva es ahora una `Layout`
-   en `layouts.LAYOUT_TABLE`, un `_transport_<nombre>` si no reutiliza uno, y su
-   bloque de TCSS.
-2. **Una entrada en `LAYOUT_TABLE` por tema**, con su estructura.
-3. **Una entrada en `_BUILTIN_SOURCES` con el mismo nombre.** Queda elegible por su
+Ya hecho el 2026-09-10 (ver `plan.md` «Disposiciones como datos»): la tabla
+`layouts.LAYOUT_TABLE` que sustituye a los `if config.THEME ==`, la regla de
+emparejamiento (elegir el tema escribe su paleta una vez, `theme.PAIRED`), el test
+que impide que una disposición y una paleta compartan nombre sin declararlo, el test
+de presupuesto ASCII y el de contraste mínimo. `load_palette(name="auto")` no se tocó,
+como estaba decidido. Queda, por tema:
+
+1. **Una `Layout` en `LAYOUT_TABLE`**, con su estructura: título, encabezado de la
+   cola, un `_transport_<nombre>` si no reutiliza uno, y su bloque de TCSS.
+2. **Una entrada en `_BUILTIN_SOURCES` con el mismo nombre.** Queda elegible por su
    cuenta, como las demás: la paleta `eva-01` con disposición `retro` es una
    combinación válida y nadie tiene que impedirla.
-4. **La regla de emparejamiento: una escritura y nada más.** Al elegir el tema en la
-   pantalla de ajustes, se **escribe** `palette = eva-01` en el config. Ahí acaba.
-   Cambiarla después ya funciona hoy, porque `palette` es un ajuste como cualquier
-   otro: no hay nada que construir para que el usuario pueda cambiarla.
-
-   **No tocar `load_palette(name="auto")`.** Se consideró que `auto` resolviera la
-   paleta del tema antes que Omarchy, para cubrir a quien edita `config.toml` a mano.
-   **Descartado el 2026-09-10:** `auto` ya es una elección de paleta, la de «sigue a mi
-   escritorio», y pisarla es precisamente restringir la paleta. Quien pide `auto` pide
-   auto.
+3. **Su nombre en `theme.PAIRED`.** Sin eso el test de choque de nombres falla, que es
+   justo lo que tiene que hacer.
 
 ### Trampas conocidas
 
@@ -73,16 +69,10 @@ el comportamiento de nadie que ya use `quattro`, `retro`, `nova` o `ascii`.
   alguna necesitara de verdad control fino de algo como `eq_background`, la salida es
   construirle la `ThemePalette` desde los veinticinco saltándose `_from_source()`,
   nunca ampliar el vocabulario compartido. Que sea la excepción y no la norma.
-- **Los nombres pasan a ser un espacio compartido.** En cuanto el emparejamiento es por
-  nombre, llamar igual a una disposición y a una paleta **significa** algo. Hace falta
-  un test que impida un choque accidental: si se añade una paleta `nova`, de golpe el
-  tema `nova` cambia de colores para todo el mundo sin que nadie lo pidiera.
 - **`ascii` no puede dibujar.** Esa disposición existe para terminales sin glifos de
-  caja, y el presupuesto de glifos es parte de la disposición. Los temas nuevos son
-  libres de usar lo que quieran, pero ninguno debe empujar sus rótulos a `ascii`.
-- **Legibilidad.** La mitad de la lista tira a negro sobre negro. Hace falta una
-  comprobación de contraste mínimo entre `body` y `screen`, y entre `accent` y
-  `screen`, o habrá temas bonitos en la captura e inservibles en uso.
+  caja, y el presupuesto de glifos es parte de la disposición (`Layout.ascii_only`,
+  con test). Los temas nuevos son libres de usar lo que quieran, pero ninguno debe
+  empujar sus rótulos a `ascii`.
 - **Cada rótulo nuevo es una entrada de catálogo.** Todo literal `_()` necesita su
   pareja en `i18n.ENGLISH` y el test que recorre el AST exige igualdad exacta. Los
   nombres propios de tema no se pasan por `_()`.

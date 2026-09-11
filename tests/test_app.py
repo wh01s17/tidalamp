@@ -14,6 +14,7 @@ from tidalamp import about, artwork, library
 from tidalamp import app as app_module
 from tidalamp import audio as audio_module
 from tidalamp import columns as columns_module
+from tidalamp import screens as screens_module
 from tidalamp.app import BrowserScreen, ConfigScreen, HelpScreen, RowList, TidalAmp
 from tidalamp.artwork import Cover, Protocol
 from tidalamp.layouts import LAYOUT_TABLE
@@ -3497,6 +3498,57 @@ def test_theme_and_palette_change_live_and_persist(monkeypatch, tmp_path):
             assert application.tidalamp_palette.source == "classic"
             assert app_module.config.read_file(path)["theme"] == "retro"
             assert app_module.config.read_file(path)["palette"] == "classic"
+
+    asyncio.run(scenario())
+
+
+def test_a_paired_theme_writes_its_palette_once_and_then_lets_go(monkeypatch, tmp_path):
+    """Choosing the layout brings its colours; the palette stays free after.
+
+    No pair ships yet, so `retro` is paired with `nord` for the test. What is
+    under test is the screen: one write on choosing the layout, and nothing
+    that puts the pair back when the palette or another layout is chosen.
+    """
+    isolate_runtime(monkeypatch)
+    path = isolate_config(monkeypatch, tmp_path)
+    monkeypatch.setattr(
+        screens_module,
+        "paired_palette",
+        lambda layout: "nord" if layout == "retro" else None,
+    )
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(120, 34)) as pilot:
+            await pilot.pause()
+            screen = ConfigScreen(application._setting_changed)
+            application.push_screen(screen)
+            await pilot.pause()
+
+            screen.cursor = config_row(screen, "Tema")
+            await pilot.press("enter")
+            await pilot.pause()
+            assert app_module.config.THEME == "retro"
+            assert app_module.config.PALETTE == "nord"
+            assert application.tidalamp_palette.source == "builtin:nord"
+            assert app_module.config.read_file(path)["palette"] == "nord"
+
+            # The palette moves on its own and the layout stays where it was.
+            screen.cursor = config_row(screen, "Paleta")
+            await pilot.press("enter")
+            await pilot.pause()
+            chosen = app_module.config.PALETTE
+            assert chosen != "nord"
+            assert app_module.config.THEME == "retro"
+            assert application.query_one("#main").has_class("retro")
+
+            # And leaving the paired layout does not revert the palette.
+            screen.cursor = config_row(screen, "Tema")
+            await pilot.press("enter")
+            await pilot.pause()
+            assert app_module.config.THEME != "retro"
+            assert chosen == app_module.config.PALETTE
+            assert app_module.config.read_file(path)["palette"] == chosen
 
     asyncio.run(scenario())
 

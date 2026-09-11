@@ -5,11 +5,16 @@ from __future__ import annotations
 from pathlib import Path
 
 from tidalamp.theme import (
+    _BUILTIN_SOURCES,
     DEFAULT_COLORS,
     DEFAULT_PALETTE,
+    LAYOUTS,
+    PAIRED,
     available_palettes,
+    contrast_ratio,
     load_palette,
     omarchy_colors_path,
+    paired_palette,
 )
 
 
@@ -154,3 +159,40 @@ def test_css_variable_names_are_namespaced():
 
     assert variables["tidalamp-accent"] == "#00ff4c"
     assert variables["tidalamp-title-background"] == "#2b3a4a"
+
+
+def test_a_layout_and_a_palette_share_a_name_only_when_declared():
+    """Pairing is by name, so a shared name means something.
+
+    A palette called `nova` added one day would recolour the `nova` layout for
+    everyone who picks it. Every shared name has to be in `PAIRED`, and every
+    pair has to exist on both sides.
+    """
+    assert set(LAYOUTS) & set(_BUILTIN_SOURCES) == PAIRED
+    for name in PAIRED:
+        assert paired_palette(name) == name
+    for name in set(LAYOUTS) - PAIRED:
+        assert paired_palette(name) is None
+
+
+def test_contrast_ratio_matches_the_wcag_endpoints():
+    assert round(contrast_ratio("#000000", "#ffffff"), 1) == 21.0
+    assert contrast_ratio("#777777", "#777777") == 1.0
+    # Order does not matter, and an alpha byte is ignored.
+    assert contrast_ratio("#ffffff", "#000000cc") == contrast_ratio("#000000", "#ffffff")
+
+
+def test_every_shipped_palette_stays_readable():
+    """Half the themes people ask for lean black on black.
+
+    The body text against the ground is held to WCAG AA for text (4.5), and
+    the accent, which lights buttons and the cursor, to AA for interface
+    elements (3.0). A palette that fails is pretty in a screenshot and
+    useless in a terminal.
+    """
+    for name in ("classic", *_BUILTIN_SOURCES):
+        palette = load_palette(name=name)
+        assert len(palette.colors) == len(DEFAULT_COLORS), name
+        screen = palette["screen"]
+        assert contrast_ratio(palette["body"], screen) >= 4.5, f"{name}: body"
+        assert contrast_ratio(palette["accent"], screen) >= 3.0, f"{name}: accent"
