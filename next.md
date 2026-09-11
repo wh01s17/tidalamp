@@ -15,54 +15,51 @@ Lo de aquí no bloquea publicar. `plan.md` §5 y §6 mandan sobre el estado gene
 
 ---
 
-## 1. Ambientes: un tema que cambia estructura, color y rótulos a la vez
+## 1. Temas temáticos: una disposición propia y una paleta que la acompaña
 
-Hoy hay **dos ejes deliberadamente ortogonales**. `LAYOUTS` en `theme.py` da la
-estructura (`quattro`, `retro`, `nova`, `ascii`) y la paleta da el color (`auto`,
-`classic`, cuatro incorporadas y las de usuario en `~/.config/tidalamp/palettes`). El
-docstring lo dice sin rodeos: cualquier disposición funciona con cualquier paleta. Eso
-da color, pero no identidad: elegir `gruvbox` no hace que el reproductor *se sienta*
-de otra cosa.
+Hoy hay **dos ejes ortogonales**. `LAYOUTS` en `theme.py` da la estructura (`quattro`,
+`retro`, `nova`, `ascii`) y la paleta da el color (`auto`, `classic`, y las
+incorporadas `tokyo-night`, `catppuccin`, `nord`, `gruvbox`, `black`). Cualquier
+disposición funciona con cualquier paleta.
 
-Un **ambiente** es un nombre que fija los dos ejes de una vez y además cambia los
-rótulos del chrome. Una sola elección en config y el reproductor entero cambia de
-carácter.
+No hace falta un tercer concepto. Un tema temático es **una entrada más en cada uno de
+los dos ejes, con el mismo nombre**:
 
-**Decidido el 2026-09-10: un ambiente elige, no encierra.** No es un tercer eje, es un
-*preset*: un punto con nombre dentro del espacio (disposición x paleta) más un puñado
-de cadenas. Elegirlo deja la paleta que le pega a la temática, y a partir de ahí la
-paleta **sigue siendo libre**: quien quiera el ambiente gótico con `nord` puede
-tenerlo, y el ambiente no lo revierte ni se queja.
+- `eva-01` entra en `LAYOUTS`: su propia estructura, tan distinta como haga falta.
+- `eva-01` entra en `_BUILTIN_SOURCES`: sus propios colores.
+- Elegir el tema `eva-01` deja puesta la paleta `eva-01`, y desde ahí **la paleta sigue
+  siendo libre**: quien quiera `eva-01` con `nord` lo tiene, y el tema no lo revierte.
 
-Esto fija dos reglas de implementación:
+**Decidido el 2026-09-10.** Se descartó la idea previa de un «ambiente» como tercer
+ajuste que agrupara los otros dos. Con el emparejamiento por nombre no hay nada que
+arbitrar: no existe la pregunta «¿qué gana si pido `ambiente = eva-01` y
+`palette = nord`?», porque no hay un tercer valor. Menos código, menos config y menos
+documentación para el mismo resultado.
 
-- **El ambiente escribe en `theme` y `palette`, no los sustituye.** Aplicarlo es
-  asignar esos dos ajustes y los rótulos; no hay un tercer valor que arbitrar en el
-  config ni una precedencia que documentar. La pregunta «¿qué gana si pido
-  `ambiente = gotico` y `palette = nord`?» deja de existir, que es la mitad del valor
-  de haberlo decidido así.
-- **Cambiar la paleta después no desactiva el ambiente.** Los rótulos y la disposición
-  se quedan. Un ambiente al que se le cambió el color sigue siendo ese ambiente.
+**Esto es compatible hacia atrás por construcción.** Ningún nombre de disposición
+actual existe como paleta ni al revés, así que la regla del emparejamiento no cambia
+el comportamiento de nadie que ya use `quattro`, `retro`, `nova` o `ascii`.
 
 ### Lo que hay que hacer
 
 1. **Primero, quitar el `if config.THEME ==` de en medio.** Hoy la disposición se
-   decide con comparaciones de cadena repartidas por `app.py`: `_title_text()`,
-   el diccionario de `_transport_*`, y dos sitios más alrededor de las líneas 1006 y
-   1018. Con cuatro disposiciones se aguanta; con cuatro más nueve ambientes se
-   convierte en el sitio donde viven los fallos. Antes de añadir nada, esas ramas
-   tienen que pasar a una tabla de datos: una `Layout` con los campos que hoy son
-   ramas (rótulo del título, regla, constructor del transporte, presupuesto de
-   glifos).
-2. **Un `Ambience`** con: disposición base, paleta, rótulo del título y poco más.
-   Guardado como datos, no como código.
-3. **Una paleta nueva por ambiente**, porque ninguna de las cuatro actuales evoca nada
-   de la lista. Entran en `_BUILTIN_SOURCES` como las demás, lo que las vuelve
-   **elegibles por su cuenta**: se puede tener la paleta del ambiente gótico con la
-   disposición `retro` y sin sus rótulos, igual que hoy se elige `nord`. El ambiente
-   es quien la pone por omisión, no quien la posee.
-4. **Exponerlo en config y en la pantalla de ajustes**, junto a `theme` y `palette`,
-   diciendo que los sobrescribe.
+   decide con comparaciones de cadena repartidas por `app.py`: `_title_text()`, el
+   diccionario de `_transport_*`, y dos sitios más alrededor de las líneas 1006 y 1018.
+   Con cuatro disposiciones se aguanta; con trece se convierte en el sitio donde viven
+   los fallos. Antes de añadir nada, esas ramas tienen que pasar a una tabla de datos:
+   una `Layout` con los campos que hoy son ramas (rótulo del título, regla, constructor
+   del transporte, presupuesto de glifos).
+2. **Una entrada en `LAYOUTS` por tema**, con su estructura.
+3. **Una entrada en `_BUILTIN_SOURCES` con el mismo nombre.** Queda elegible por su
+   cuenta, como las demás: la paleta `eva-01` con disposición `retro` es una
+   combinación válida y nadie tiene que impedirla.
+4. **La regla de emparejamiento, en dos sitios.**
+   - La pantalla de ajustes, al elegir el tema, **escribe** `palette = eva-01` en el
+     config. Explícito y a la vista, y por tanto cambiable como cualquier otro ajuste.
+   - `load_palette(name="auto")` resuelve primero la paleta que se llame como el tema
+     activo, y solo si no existe sigue con Omarchy y luego con `classic`. Esto cubre a
+     quien edita `config.toml` a mano y deja `palette = "auto"`, que si no se
+     encontraría la estructura de `eva-01` pintada con los colores de su escritorio.
 
 ### Trampas conocidas
 
@@ -76,16 +73,19 @@ Esto fija dos reglas de implementación:
   alguna necesitara de verdad control fino de algo como `eq_background`, la salida es
   construirle la `ThemePalette` desde los veinticinco saltándose `_from_source()`,
   nunca ampliar el vocabulario compartido. Que sea la excepción y no la norma.
+- **Los nombres pasan a ser un espacio compartido.** En cuanto el emparejamiento es por
+  nombre, llamar igual a una disposición y a una paleta **significa** algo. Hace falta
+  un test que impida un choque accidental: si se añade una paleta `nova`, de golpe el
+  tema `nova` cambia de colores para todo el mundo sin que nadie lo pidiera.
 - **`ascii` no puede dibujar.** Esa disposición existe para terminales sin glifos de
-  caja. Un ambiente que le meta un rótulo con caracteres raros la rompe justo para
-  quien la eligió. El presupuesto de glifos es parte de la disposición y manda sobre
-  el ambiente.
+  caja, y el presupuesto de glifos es parte de la disposición. Los temas nuevos son
+  libres de usar lo que quieran, pero ninguno debe empujar sus rótulos a `ascii`.
 - **Legibilidad.** La mitad de la lista tira a negro sobre negro. Hace falta una
   comprobación de contraste mínimo entre `body` y `screen`, y entre `accent` y
-  `screen`, o habrá ambientes bonitos en la captura e inservibles en uso.
+  `screen`, o habrá temas bonitos en la captura e inservibles en uso.
 - **Cada rótulo nuevo es una entrada de catálogo.** Todo literal `_()` necesita su
-  pareja en `i18n.ENGLISH` y el test que recorre el AST exige igualdad exacta. Si los
-  nombres de ambiente son propios, no pasarlos por `_()`.
+  pareja en `i18n.ENGLISH` y el test que recorre el AST exige igualdad exacta. Los
+  nombres propios de tema no se pasan por `_()`.
 - **Verlos en un terminal de verdad.** `plan.md` §9.5 ya mordió una vez por dar por
   buena una disposición que solo se había visto en un test.
 
@@ -106,12 +106,14 @@ escrito para que no se decida por descuido al teclear el primer nombre.
 
 ### Cómo se comprueba
 
-- La suite recorre todos los ambientes y comprueba que cada uno nombra una disposición
-  que existe y una paleta que `available_palettes()` lista, y que esa paleta produce
-  una `ThemePalette` con los veinticinco colores válidos.
-- Cambiar la paleta con un ambiente puesto no toca la disposición ni los rótulos.
-- Un test de contraste mínimo sobre cada ambiente.
-- El ambiente `ascii` de turno no emite ningún carácter fuera de ASCII.
+- Ninguna disposición y ninguna paleta comparten nombre salvo a propósito: la lista de
+  parejas declaradas es explícita y el test falla ante una coincidencia nueva.
+- Elegir un tema con pareja deja esa paleta puesta; cambiar la paleta después no toca
+  la disposición ni los rótulos.
+- Con `palette = "auto"` y un tema con pareja, gana la pareja; con un tema sin pareja,
+  sigue ganando Omarchy y luego `classic`, como hoy.
+- Cada paleta nueva produce una `ThemePalette` con los veinticinco colores válidos y
+  pasa el contraste mínimo.
 - A mano, en un terminal real y a dos tamaños: los nueve, con captura.
 
 ---
@@ -155,9 +157,9 @@ reiniciar la reproducción.
   doble de ancho. Hace falta un umbral propio y **volver solo** a la forma apilada
   cuando no quepa, o quien la active en un terminal normal se encuentra la interfaz
   rota sin saber por qué.
-- **Multiplica contra los otros ejes.** Cuatro disposiciones por dos formas, y con los
-  ambientes de la entrada 1 la cuenta se dispara. Comparte prerrequisito con esa
-  entrada: **las comparaciones `if config.THEME ==` repartidas por `app.py` tienen que
+- **Multiplica contra el otro eje.** Cuatro disposiciones por dos formas, y con los
+  nueve temas de la entrada 1 son veintiséis combinaciones. Comparte prerrequisito con
+  esa entrada: **las comparaciones `if config.THEME ==` repartidas por `app.py` tienen que
   pasar a una tabla de datos antes**, o cada forma nueva se paga en cuatro sitios
   distintos.
 
