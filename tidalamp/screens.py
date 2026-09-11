@@ -24,6 +24,7 @@ from textual import work
 from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, Vertical
+from textual.geometry import Region
 from textual.reactive import reactive
 from textual.screen import ModalScreen
 from textual.strip import Strip
@@ -55,7 +56,8 @@ _Paint = tuple[str, Style, Style]
 class RowList(Widget):
     """A scrolling list of rows with a cursor. Used by both panes."""
 
-    cursor = reactive(0)
+    # No repaint of its own: `watch_cursor` repaints only what moved.
+    cursor = reactive(0, repaint=False)
     marked = reactive(-1)
 
     def __init__(self, **kwargs) -> None:
@@ -66,12 +68,17 @@ class RowList(Widget):
         # drawn in its box (`artwork.emblem_cells`). The queue has one; the
         # browser's lists do not.
         self.backdrop: Path | None = None
+        # The first row on screen, kept between repaints (`_window_start`).
+        self._start = 0
         self._placement: tuple[str, float] = ("middle", 1.0)
         self._cells_key: tuple | None = None
         self._cells: dict[int, dict[int, _Paint]] = {}
         # Painted lines, by what the row drew there. A repaint that changes
         # nothing (the cursor moving two rows away, a tick) reuses them.
         self._painted: dict[tuple, Strip] = {}
+        # A row's style with an emblem cell's ground, for the cells that have
+        # a letter in them (`_paint`).
+        self._mix: dict[tuple, Style] = {}
 
     def set_backdrop(
         self, path: Path | None, anchor: str = "middle", scale: float = 1.0
@@ -89,7 +96,37 @@ class RowList(Widget):
     def move(self, delta: int) -> None:
         if self.rows:
             self.cursor = max(0, min(len(self.rows) - 1, self.cursor + delta))
+
+    def _window_start(self) -> int:
+        """The first row on screen: where it was, unless the cursor left.
+
+        It used to follow the cursor to the middle of the list, so past the
+        middle every keypress moved every row and the whole list was drawn
+        and sent to the terminal again. With a themed emblem behind it that
+        was the heaviest thing on screen, hundreds of kilobytes a keypress on
+        a 4K terminal; now the list only moves when the cursor reaches an
+        edge, and then by half a screen.
+        """
+        height = max(1, self.size.height)
+        start = self._start
+        # Leaving by either edge re-centres the cursor rather than creeping
+        # a row at a time: one repaint of the whole list, then half a screen
+        # of moves that only redraw the two rows they touch.
+        if self.cursor < start or self.cursor >= start + height:
+            start = self.cursor - height // 2
+        return max(0, min(start, max(0, len(self.rows) - height)))
+
+    def watch_cursor(self, old: int, new: int) -> None:
+        """Repaint the two rows that changed, or all of them if it scrolled."""
+        start = self._window_start()
+        height = self.size.height
+        if start != self._start or not height:
             self.refresh()
+            return
+        width = self.size.width
+        for row in (old, new):
+            if 0 <= row - start < height:
+                self.refresh(Region(0, row - start, width, 1))
 
     @property
     def current(self) -> Row | None:
@@ -204,6 +241,7 @@ class RowList(Widget):
         if key != self._cells_key:
             self._cells_key = key
             self._painted.clear()
+            self._mix.clear()
             ground = palette["display_background"].lstrip("#")
             lines = (
                 artwork.emblem_cells(
@@ -217,13 +255,21 @@ class RowList(Widget):
                 if self.backdrop is not None
                 else {}
             )
+            # One style object per pair of colours, shared by every cell that
+            # uses it, so neighbours compare as the same style and merge.
+            styles: dict[tuple, Style] = {}
+
+            def style(fg, bg) -> Style:
+                found = styles.get((fg, bg))
+                if found is None:
+                    found = styles[(fg, bg)] = Style(
+                        color=_hex(fg) if fg else None, bgcolor=_hex(bg)
+                    )
+                return found
+
             self._cells = {
                 y: {
-                    x: (
-                        glyph,
-                        Style(color=_hex(fg), bgcolor=_hex(bg)),
-                        Style(bgcolor=_hex(mean)),
-                    )
+                    x: (glyph, style(fg, bg), style(None, mean))
                     for x, glyph, fg, bg, mean in cells
                 }
                 for y, cells in lines.items()
@@ -231,12 +277,10 @@ class RowList(Widget):
         return self._cells
 
     def _cursor_line(self) -> int | None:
-        """Which line on screen the cursor is drawn on, as `render` scrolls."""
+        """Which line on screen the cursor is drawn on."""
         if not self.rows:
             return None
-        height = max(1, self.size.height)
-        start = max(0, min(self.cursor - height // 2, len(self.rows) - height))
-        return self.cursor - start
+        return self.cursor - self._window_start()
 
     def render_line(self, y: int) -> Strip:
         """The rendered row, with the emblem drawn behind it cell by cell.
@@ -270,27 +314,23 @@ class RowList(Widget):
             self._painted[key] = painted
         return painted
 
-    @staticmethod
-    def _paint(strip: Strip, cells: dict[int, _Paint]) -> Strip:
+    def _paint(self, strip: Strip, cells: dict[int, _Paint]) -> Strip:
         """One pass over the line, cell by cell, merging runs of one style.
 
         It used to cut the line at every emblem cell with `Strip.divide`,
-        which cost six times the render of the list itself; a walk over the
-        characters does the same work for a fraction of it.
+        which cost six times the render of the list itself. And on a 4K
+        terminal the emblem is some twelve thousand cells of distinct colour:
+        combining each with the row's style went through Rich's `Style +`,
+        whose cache holds a thousand, so every repaint rebuilt them all. A
+        blank cell now takes the emblem's own style as it is, since there is
+        no letter whose colour could matter, and the cells with a letter keep
+        their combinations in a cache of their own.
         """
+        mix = self._mix
         out: list[Segment] = []
         text: list[str] = []
         current: Style | None = None
         x = 0
-
-        def emit(char: str, style: Style | None) -> None:
-            nonlocal current
-            if style != current and text:
-                out.append(Segment("".join(text), current))
-                text.clear()
-            current = style
-            text.append(char)
-
         for segment in strip:
             if segment.control:
                 if text:
@@ -298,16 +338,23 @@ class RowList(Widget):
                     text.clear()
                 out.append(segment)
                 continue
-            base = segment.style or Style()
+            base = segment.style
             for char in segment.text:
-                size = cell_len(char)
+                size = 1 if char.isascii() else cell_len(char)
                 cell = cells.get(x) if size == 1 else None
                 if cell is None:
-                    emit(char, segment.style)
+                    style = base
                 elif char == " ":
-                    emit(cell[0], base + cell[1])
+                    char, style = cell[0], cell[1]
                 else:
-                    emit(char, base + cell[2])
+                    style = mix.get((base, cell[2]))
+                    if style is None:
+                        style = mix[(base, cell[2])] = (base or Style()) + cell[2]
+                if style is not current and style != current and text:
+                    out.append(Segment("".join(text), current))
+                    text.clear()
+                current = style
+                text.append(char)
                 x += size
         if text:
             out.append(Segment("".join(text), current))
@@ -321,7 +368,7 @@ class RowList(Widget):
         height = max(1, self.size.height)
         width = max(1, self.size.width)
         # Keep the cursor in view without a full scrolling container.
-        start = max(0, min(self.cursor - height // 2, len(self.rows) - height))
+        start = self._start = self._window_start()
         # One column width for the whole list, from the widest detail on it.
         detail_width = min(
             max(cell_len(row.detail) for row in self.rows), max(0, width // 3)

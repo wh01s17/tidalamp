@@ -4914,3 +4914,38 @@ def test_the_emblem_is_painted_on_a_short_line_too(monkeypatch, tmp_path):
                 assert not bare, (y, bare)
 
     asyncio.run(scenario())
+
+
+def test_moving_the_cursor_repaints_two_rows_not_the_whole_queue(monkeypatch):
+    """Past the middle the list used to follow the cursor, so every keypress
+    redrew and resent every row, emblem and all: hundreds of kilobytes on a
+    4K terminal. Inside the window only the two rows that changed are dirty;
+    leaving it re-centres the cursor, so the next half screen is cheap too."""
+    isolate_runtime(monkeypatch)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(120, 40)) as pilot:
+            application.queue.replace(
+                [Entry(id=n, title=f"t{n}", artist="a", duration=9) for n in range(200)],
+                start=0,
+            )
+            application._sync_queue()
+            await pilot.pause()
+            playlist = application.query_one("#playlist", RowList)
+            height = playlist.size.height
+            playlist.render_lines(playlist.size.region)
+
+            playlist.move(1)
+            dirty = playlist._styles_cache._dirty_lines
+            assert len(dirty) == 2, sorted(dirty)
+            await pilot.pause()
+
+            # Down to the last row on screen, then one more: a jump.
+            playlist.cursor = height - 1
+            await pilot.pause()
+            playlist.move(1)
+            await pilot.pause()
+            assert playlist._cursor_line() == height // 2
+
+    asyncio.run(scenario())

@@ -360,32 +360,35 @@ def emblem_cells(
 
     pixels_w, pixels_h = cols * 2, rows * 2
     small = image.resize((pixels_w, pixels_h), Image.Resampling.LANCZOS)
-    raw = small.tobytes()
+    alpha = small.getchannel("A")
+    # The veil and the transparency in one pass, over the whole picture:
+    # each pixel goes into the ground by its alpha times `amount`, so a
+    # feathered edge melts into the list instead of ending in a square.
+    veil = alpha.point(lambda a: round(a * amount))
+    veiled = Image.composite(
+        small.convert("RGB"), Image.new("RGB", small.size, ground), veil
+    )
+    raw = veiled.tobytes()
+    seen = alpha.tobytes()
+
     left = width - 2 - cols
     # `bottom` tucks the picture into the lower right corner, a row off the
     # edge; `middle` centres it down the right side.
     top = max(0, height - rows - 1) if anchor == "bottom" else (height - rows) // 2
 
-    def pixel(x: int, y: int) -> Pixel | None:
-        i = (y * pixels_w + x) * 4
-        alpha = raw[i + 3]
-        if alpha < 8:
-            return None
-        # Partial transparency fades into the ground, so a picture with a
-        # feathered edge melts into the list instead of ending in a square.
-        seen = _veil((raw[i], raw[i + 1], raw[i + 2]), ground, alpha / 255)
-        return _veil(seen, ground, amount)
-
     lines: dict[int, list[EmblemCell]] = {}
     for row in range(rows):
         cells: list[EmblemCell] = []
         for col in range(cols):
-            quad = [pixel(col * 2 + dx, row * 2 + dy) for dy in (0, 1) for dx in (0, 1)]
-            if all(p is None for p in quad):
+            spots = [
+                (row * 2 + dy) * pixels_w + col * 2 + dx for dy in (0, 1) for dx in (0, 1)
+            ]
+            if all(seen[i] < 8 for i in spots):
                 continue
-            filled = tuple(p or ground for p in quad)
-            glyph, fg, bg = quadrant_cell(filled)  # type: ignore[arg-type]
-            cells.append((left + col, glyph, fg, bg, _mean(list(filled))))
+            quad = tuple((raw[i * 3], raw[i * 3 + 1], raw[i * 3 + 2]) for i in spots)
+            glyph, fg, bg = quadrant_cell(quad)  # type: ignore[arg-type]
+            mean = _mean(list(quad))
+            cells.append((left + col, glyph, fg, bg, mean))
         if cells:
             lines[top + row] = cells
     return lines

@@ -770,6 +770,19 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
       juntando celdas del mismo estilo, los estilos de cada celda se construyen una vez
       por tamaño y paleta, y las líneas pintadas se cachean por contenido: 17 ms con
       la caché caliente y 26 en frío.
+- [x] **4K** (2026-09-11). Medido en un pty con pyte a 480x130: cada movimiento del
+      cursor mandaba al terminal **245 KiB** con un emblema detrás (39 sin él),
+      porque `cursor` repintaba la lista entera y la lista seguía al cursor al
+      centro, así que pasada la mitad cada pulsación desplazaba todas las filas.
+      Ahora `watch_cursor` repinta solo las dos filas que cambian si la ventana no se
+      mueve, y la ventana (`_window_start`) solo se desplaza cuando el cursor sale
+      por un borde, y entonces media pantalla, dejándolo en el centro: **0,6 KiB**
+      por pulsación dentro de la ventana y 4,4 de media recorriendo la cola entera.
+      Sin tocar la imagen: se probó bajar a 16-32 colores, fusionar celdas parecidas
+      y poner tope de filas, y se descartó a petición del mantenedor (bajaba la
+      calidad por un 15-30 % de bytes). Se quedaron los cambios sin pérdida: el velo
+      aplicado a la imagen entera con Pillow, un objeto `Style` compartido por par de
+      colores y el atajo en las celdas vacías.
 - [x] Textual no rellena las líneas al ancho del widget (`Visual.to_strips` con
       `pad=False`): la que sigue a la última fila llega vacía, y el emblema se perdía
       en ella. Cada línea se rellena al ancho del contenido antes de pintar; un test
