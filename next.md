@@ -42,14 +42,11 @@ el comportamiento de nadie que ya use `quattro`, `retro`, `nova` o `ascii`.
 
 ### Lo que hay que hacer
 
-1. **Primero, quitar el `if config.THEME ==` de en medio.** Hoy la disposición se
-   decide con comparaciones de cadena repartidas por `app.py`: `_title_text()`, el
-   diccionario de `_transport_*`, y dos sitios más alrededor de las líneas 1006 y 1018.
-   Con cuatro disposiciones se aguanta; con trece se convierte en el sitio donde viven
-   los fallos. Antes de añadir nada, esas ramas tienen que pasar a una tabla de datos:
-   una `Layout` con los campos que hoy son ramas (rótulo del título, regla, constructor
-   del transporte, presupuesto de glifos).
-2. **Una entrada en `LAYOUTS` por tema**, con su estructura.
+1. ~~Quitar el `if config.THEME ==` de en medio~~: **hecho** el 2026-09-10, ver
+   `plan.md` «Disposiciones como datos». Una disposición nueva es ahora una `Layout`
+   en `layouts.LAYOUT_TABLE`, un `_transport_<nombre>` si no reutiliza uno, y su
+   bloque de TCSS.
+2. **Una entrada en `LAYOUT_TABLE` por tema**, con su estructura.
 3. **Una entrada en `_BUILTIN_SOURCES` con el mismo nombre.** Queda elegible por su
    cuenta, como las demás: la paleta `eva-01` con disposición `retro` es una
    combinación válida y nadie tiene que impedirla.
@@ -161,10 +158,9 @@ reiniciar la reproducción.
   cuando no quepa, o quien la active en un terminal normal se encuentra la interfaz
   rota sin saber por qué.
 - **Multiplica contra el otro eje.** Cuatro disposiciones por dos formas, y con los
-  nueve temas de la entrada 1 son veintiséis combinaciones. Comparte prerrequisito con
-  esa entrada: **las comparaciones `if config.THEME ==` repartidas por `app.py` tienen que
-  pasar a una tabla de datos antes**, o cada forma nueva se paga en cuatro sitios
-  distintos.
+  nueve temas de la entrada 1 son veintiséis combinaciones. El prerrequisito que
+  compartía con esa entrada, pasar las comparaciones `if config.THEME ==` a una tabla
+  de datos, ya está hecho (`layouts.py`).
 
 ### Cómo se comprueba
 

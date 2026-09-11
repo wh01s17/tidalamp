@@ -16,6 +16,7 @@ from tidalamp import audio as audio_module
 from tidalamp import columns as columns_module
 from tidalamp.app import BrowserScreen, ConfigScreen, HelpScreen, RowList, TidalAmp
 from tidalamp.artwork import Cover, Protocol
+from tidalamp.layouts import LAYOUT_TABLE
 from tidalamp.library import Row
 from tidalamp.player import Mpv
 from tidalamp.queue import Entry, Queue
@@ -957,6 +958,35 @@ def test_every_look_fits_the_smallest_supported_terminal(monkeypatch):
                 for y in range(3):
                     drawn = play.render_line(y).text
                     assert cell_len(drawn) <= play.size.width, f"{name} fila {y}"
+
+    asyncio.run(scenario())
+
+
+def test_a_layout_on_an_ascii_budget_draws_its_own_chrome_in_ascii(monkeypatch):
+    """The key hints come from the catalogue and are shared by every look;
+    what the layout itself adds (the title, the heading's frame and the
+    buttons) has to be something a terminal without box drawing can type."""
+    isolate_runtime(monkeypatch)
+    budgeted = [layout for layout in LAYOUT_TABLE.values() if layout.ascii_only]
+    assert budgeted, "ascii tiene que seguir existiendo"
+
+    async def scenario() -> None:
+        for layout in budgeted:
+            for width in (20, 80, 160):
+                assert layout.title(width).isascii(), layout.name
+                assert layout.queue_heading(width, "").isascii(), layout.name
+            app_module.config.THEME = layout.name
+            application = TidalAmp(object(), FakeMpv())
+            async with application.run_test(size=(120, 30)) as pilot:
+                await pilot.pause()
+                assert (
+                    application.query_one("#titlebar", Static)
+                    .render_line(0)
+                    .text.isascii()
+                )
+                play = application.query_one("#transport-play")
+                for y in range(3):
+                    assert play.render_line(y).text.isascii(), f"{layout.name} fila {y}"
 
     asyncio.run(scenario())
 

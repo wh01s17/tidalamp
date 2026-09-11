@@ -100,6 +100,9 @@ tidalamp/
   settings.py   Balance y ecualizador: grafos de filtro y persistencia.
   lyrics.py     Carga de letras, parseo LRC y modelo de sincronización. Sin Textual.
   theme.py      Paleta semántica: tema Omarchy activo o fallback clásico validado.
+  layouts.py    Las disposiciones como datos: `Layout` (título, encabezado de la
+                cola, constructor del transporte, presupuesto de glifos) y
+                `LAYOUT_TABLE`. `app.py` no compara `config.THEME` con nombres.
   artwork.py    Carátula: descarga con cache, y codificación kitty / sixel /
                 medios bloques. Sin Textual ni tidalapi.
   i18n.py       Español como fuente y fallback, catálogo inglés y detección de locale.
@@ -683,6 +686,26 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
       cambia de verdad: ese tick corre diez veces por segundo.
 - [x] `? ayuda` va primero en el menú: en un terminal estrecho el bloque derecho se
       recorta por la derecha, y la entrada que explica todas las demás sobrevive.
+
+### Disposiciones como datos - `layouts.py`, `app.py`
+
+- [x] Lo que distingue una disposición de otra vive en una `Layout` por entrada de
+      `LAYOUT_TABLE`: el título (`title(width)`), el encabezado de la cola
+      (`queue_heading(width, hints)`), qué `_transport_<nombre>` dibuja los botones y
+      el presupuesto de glifos (`ascii_only`). Antes eran cuatro cadenas de
+      `if config.THEME ==` repartidas por `app.py`; con más disposiciones en camino
+      (`next.md` §1 y §2) cada una nueva se habría pagado en cuatro sitios.
+- [x] `theme.LAYOUTS` sale de la tabla, así que la pantalla de ajustes, la plantilla
+      de config y la app no pueden desincronizarse. Un nombre desconocido cae en
+      `quattro` (`layout_for`).
+- [x] Los encabezados son funciones y no cadenas: el texto pasa por `_()` al
+      dibujarse, porque el idioma cambia en caliente, y cada `_()` conserva un literal
+      para que el test del catálogo lo encuentre.
+- [x] El transporte sigue siendo código (`_transport_*` en la app): cada disposición
+      dibuja sus botones de forma demasiado distinta para que una tabla de glifos no
+      sea un programa disfrazado. Un test comprueba que cada entrada nombra un
+      constructor que existe, y otro que las disposiciones con `ascii_only` pintan
+      título, marco del encabezado y transporte en ASCII puro.
 
 ### Configuración — `config.py`, `audio.py`, `screens.py`
 

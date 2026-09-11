@@ -20,6 +20,7 @@ from textual.worker import get_current_worker
 from . import about, artwork, audio, columns, config, i18n, library
 from .auth import NotLoggedIn, ensure_fresh
 from .i18n import _
+from .layouts import Layout, layout_for
 from .library import Row
 from .lyrics import LyricsDocument, load_lyrics
 from .mpris import MprisService
@@ -427,29 +428,13 @@ class TidalAmp(App):
             if main.has_class(name) != wanted:
                 main.set_class(wanted, name)
 
-    @staticmethod
-    def _ruled(title: str, width: int, rule: str) -> str:
-        """A centred title on a rule that fills the row, Winamp's title bars.
-
-        The original draws its heading over a band of thin horizontal lines,
-        which is what tells its two windows apart from everything else on the
-        desktop. One row of `═` is as close as a terminal gets.
-        """
-        label = f" {title} "
-        if width <= cell_len(label):
-            return label.strip()[:width]
-        slack = width - cell_len(label)
-        left = slack // 2
-        return rule * left + label + rule * (slack - left)
+    @property
+    def layout(self) -> Layout:
+        """The layout in force, read fresh: the settings screen swaps it live."""
+        return layout_for(config.THEME)
 
     def _title_text(self, width: int = 0) -> str:
-        if config.THEME == "retro":
-            return self._ruled("T I D A L   A M P", width, "═")
-        if config.THEME == "ascii":
-            return self._ruled("[ TIDAL AMP ]", width, "=")
-        if config.THEME == "nova":
-            return "▍ tidalamp"
-        return "TIDAL AMP  //  PLAYER"
+        return self.layout.title(width)
 
     def _apply_appearance(self) -> None:
         """Apply structure and palette without restarting playback."""
@@ -933,11 +918,7 @@ class TidalAmp(App):
         lit = f"bold {palette['active_foreground']} on {palette['accent']}"
 
         hits: list[tuple[int, int, str]] = []
-        builder = {
-            "retro": self._transport_retro,
-            "nova": self._transport_nova,
-            "ascii": self._transport_ascii,
-        }.get(config.THEME, self._transport_quattro)
+        builder = getattr(self, f"_transport_{self.layout.transport}")
         rows = builder(hits, body, dim, lit)
         for row in rows:
             row.append("  ", style=body)
@@ -1003,31 +984,7 @@ class TidalAmp(App):
             if self._compact
             else _("↵ reproducir · ↑↓ navegar · d quitar · alt+↑↓ mover")
         )
-        if config.THEME == "retro":
-            # The original's playlist is its own window with its own title
-            # bar, and the keys are not written on it. They are one `?` away,
-            # and the transport menu still leads with «? ayuda» in every look.
-            widget.update(self._ruled(_("LISTA DE REPRODUCCIÓN"), widget.size.width, "═"))
-            return
-        # The other three put the heading on the left and the hints against the
-        # right edge, with the row's own filler between them. Each used to
-        # measure that gap with a number written by hand — 14 here, 16 there,
-        # nothing at all in quattro — and every one of them stopped short of
-        # the edge by a different amount. One measurement, three fillers.
-        width = widget.size.width
-        if config.THEME == "ascii":
-            widget.update(self._spread(f"--[ {_('COLA')} ]", hints, width, "-"))
-            return
-        if config.THEME == "nova":
-            widget.update(self._spread(f"▍ {_('cola')} ", hints, width, "─"))
-            return
-        widget.update(self._spread("▓ PLAYLIST ▓", hints, width, " "))
-
-    @staticmethod
-    def _spread(heading: str, hints: str, width: int, fill: str) -> str:
-        """Heading left, hints hard against the right edge, `fill` between."""
-        room = width - cell_len(heading) - cell_len(hints) - 2
-        return f"{heading}{fill * max(1, room)}  {hints}"
+        widget.update(self.layout.queue_heading(widget.size.width, hints))
 
     # ------------------------------------------------------------------ queue
 

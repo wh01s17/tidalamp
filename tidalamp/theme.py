@@ -18,6 +18,8 @@ from pathlib import Path
 from types import MappingProxyType
 from typing import Any
 
+from .layouts import LAYOUT_TABLE
+
 _HEX_COLOR = re.compile(r"#[0-9a-fA-F]{6}(?:[0-9a-fA-F]{2})?\Z")
 
 DEFAULT_COLORS = MappingProxyType(
@@ -181,17 +183,11 @@ class ThemePalette:
 
 DEFAULT_PALETTE = ThemePalette(DEFAULT_COLORS)
 
-# The three layouts, listed once so the settings screen, the config template
-# and the app itself cannot drift apart. Colour is the other axis and lives in
-# the palettes above: any layout works with any palette.
-#
-#   quattro  a flat, modern TUI treatment; the default
-#   retro    the 1997 skin, as far as a terminal can go: square keys, ruled
-#            title bars and a centred playlist window heading
-#   nova     no frames at all, one flat ground, state carried by colour
-#   ascii     a terminal before it had box drawing: `[ z << ]` keys, rules
-#             made of `=` and `-`, and no glyph the chrome cannot type
-LAYOUTS = ("quattro", "retro", "nova", "ascii")
+# The layout names, listed once so the settings screen, the config template
+# and the app itself cannot drift apart. What each one looks like is data in
+# `layouts.py`. Colour is the other axis and lives in the palettes above: any
+# layout works with any palette.
+LAYOUTS = tuple(LAYOUT_TABLE)
 
 
 def omarchy_colors_path(
