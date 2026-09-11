@@ -583,6 +583,11 @@ are consulted in that order.
 language = "en"   # auto, es, or en
 ```
 
+Theme and palette names follow the language on screen: in English `bosque` reads as
+forest, `pirata` as pirate, `unidad-morada` as purple-unit. `config.toml` keeps the
+names in the table above whichever language is set, so a file written under one
+still works under the other.
+
 To override for one run:
 
 ```sh

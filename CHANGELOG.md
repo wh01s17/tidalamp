@@ -27,13 +27,6 @@ versioning is [semantic](https://semver.org/).
   characters belong to their owners and the GPL does not cover them. The README's
   licence section says so too.
 
-### Fixed
-
-- Counting down (`t`) broke the clock apart: the minus made the time one glyph
-  wider than the clock, the rows wrapped, and the digits came out in pieces over the
-  track's details. The minus is now one column against the first digit, so
-  `-15:00` fits where `15:00` did.
-
 ### Changed
 
 - The themed looks have finer frames. Each title bar is a pattern of its own instead of
@@ -42,6 +35,20 @@ versioning is [semantic](https://semver.org/).
   railing, noise), and each frame but the notebook's carries a small flourish centred
   in its foot. Reggae's notes are green and red along its gold waves, and red,
   gold and green in its foot.
+
+### Fixed
+
+- Counting down (`t`) broke the clock apart: the minus made the time one glyph
+  wider than the clock, the rows wrapped, and the digits came out in pieces over the
+  track's details. The minus is now one column against the first digit, so
+  `-15:00` fits where `15:00` did.
+- The queue's picture came out ringed with dark blocks in `nova` and `cuaderno`: it
+  was blended into the display's ground, and those two paint the queue on the panel,
+  so every cell the picture's edge only partly covered took the wrong colour. It is
+  now blended into the ground the queue is actually painted on.
+- In split, `nova` and `cuaderno` left half a row of black under the rule below the
+  lyrics: the rule is the pane's own border, drawn on the pane's dark ground, over a
+  band painted as the panel. The pane now takes the band's ground.
 
 ## [0.6.0] - 2026-09-11
 

@@ -4,7 +4,10 @@ Documento de traspaso. Describe qué existe, qué está verificado, qué falta y
 criterio se tomaron las decisiones, para que cualquiera (humano o modelo) pueda
 retomar el trabajo sin contexto previo.
 
-**Última actualización:** 2026-09-11, versión `0.6.0` preparada (nueve temas temáticos
+**Última actualización:** 2026-09-11, tras `0.6.0` (sin publicar: el décimo tema
+temático, `bosque`; marcos más finos en los temáticos; la forma de la carátula como
+ajuste; la velocidad de reproducción; los nombres de los temas en el idioma en uso; el
+reloj en cuenta atrás, que no cabía. En `0.6.0`: nueve temas temáticos
 con su paleta, su frase y su imagen de fondo en la cola, dibujada como la carátula y
 mezclable con cualquier tema desde el ajuste `backdrop`; disposición `split` con la
 letra sobre la carátula; buscador en la ayuda; las líneas que no caben se deslizan;
@@ -95,7 +98,7 @@ tidalamp/
   analyzer.py   Analyzer (cinco formas) y EqualizerBars: los que pintan bandas.
   scrolling.py  Texto que se mueve: Glide, Marquee y LyricsPane.
   screens/      Un módulo por ventana (browser, tracks, help, config_window,
-                equalizer, lyrics_window, column_picker, prompts) y `rowlist.py`
+                equalizer, lyrics_window, column_picker, prompts, speed) y `rowlist.py`
                 con RowList y `fit_hints()`. `__init__.py` lo reexporta todo. No
                 guardan estado del reproductor: reciben lo que necesitan al
                 construirse y contestan por `dismiss`.
@@ -662,6 +665,21 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
 
 ### Barra de transporte — `app.py`, `styles/player.tcss`
 
+- [x] **Velocidad de reproducción** (2026-09-11). `b` o el botón del transporte abren
+      `SpeedScreen` (`screens/speed.py`) con `Mpv.SPEEDS`: 0.25 a 2 en cuartos, 1 la
+      grabada. Se aplica con ↵ o con un clic, no al mover el cursor, para no arrastrar
+      la canción por cada velocidad intermedia. mpv no acepta 0 ni negativas (lo
+      negativo sería reproducir al revés, que con los streams de TIDAL no puede).
+      El botón va con aleatorio y repetición, se enciende fuera de 1× y tiene ancho
+      fijo (`0.25×`) para que la fila no se mueva; el reproductor compacto lo deja
+      fuera y conserva la tecla. `Mpv.speed` se reaplica en `restart`, como el
+      volumen. No se guarda en `config.toml`: dura hasta salir. mpv conserva el tono
+      con un filtro, así que fuera de 1× la señal deja de ser bit-perfect.
+- [x] **El reloj en cuenta atrás** cabe: `-03:17` eran seis glifos de cuatro columnas
+      en un reloj de veinte, las filas se partían y los dígitos salían a trozos. El
+      menos ocupa ahora una columna pegada al primer dígito y no sobra espacio al
+      final. Venía así desde el primer commit y nadie lo había probado.
+
 - [x] Dos mitades en un `Horizontal`: a la izquierda las teclas de transporte, a la
       derecha las ventanas alineadas al borde (`width: 1fr; text-align: right`). Antes
       era una sola cadena y el menú arrancaba pegado a `b ▶▶`.
@@ -739,8 +757,34 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
       `Layout`, una paleta en `_BUILTIN_SOURCES` y su nombre en `PAIRED`.
 - [x] **`bosque`**, el décimo (2026-09-11): temática ecológica, verde hoja sobre musgo.
       No evoca ninguna obra: su emblema (un árbol y brotes sobre medio globo) está
-      dibujado desde cero, así que
-      no depende del aviso de `tidalamp/emblems/NOTICE`.
+      dibujado desde cero, así que no depende del aviso de `tidalamp/emblems/NOTICE`.
+- [x] **Marcos más finos** (2026-09-11). `ruled` acepta un patrón además de un glifo
+      (repetido, cortado a la medida y reflejado a la izquierda), y cada temático
+      tiene el suyo: franjas, olas, línea punteada de cuaderno, tubo de neón, cenefa
+      con rombos, olas con notas, los cuatro palos, reja, ruido y la enredadera de
+      `bosque`. `Layout.frame_subtitle` es un remate centrado al pie del marco
+      (`border_subtitle` del panel; se asigna solo cuando cambia, porque corre en
+      cada resize). `Layout.tint` y `tint_colors` tiñen glifos del título por turnos
+      con roles de la paleta, y `flourish_colors` los del remate: las notas de
+      `reggae` van verdes y rojas entre olas doradas, y rojo, oro y verde al pie. Los
+      cuatro básicos no se tocaron: quattro y retro imitan a Winamp, `ascii` es
+      solo ASCII y nova no tiene marco a propósito.
+- [x] **Forma de la carátula como ajuste**, `cover_shape` (`square` o `round`), con
+      cualquier tema. `artwork.shape` corta la imagen ya encajada con una máscara
+      dibujada a 4x y reducida, y pinta las esquinas con el fondo real de la banda
+      (`#display`, que en nova y `cuaderno` es el panel): sixel no tiene alfa fiable
+      y los bloques ninguna, así que así se ve igual en los tres. `_art_look` guarda
+      con qué forma y fondo se cortó la que está en pantalla, y `_reshape_art` la
+      vuelve a pedir si un cambio de tema o de ajuste los cambia. Se probó también
+      que cada tema cambiara la barra, los sliders y el analizador (`Skin`); al
+      mantenedor no le gustó y se quitó entero.
+- [x] **Los nombres de los temas en el idioma en uso** (2026-09-11). `layouts.label`
+      da la etiqueta (`bosque` → forest, `pirata` → pirate…) y la usan la ventana de
+      ajustes (tema, paleta y fondo de la cola) y la barra de estado. `config.toml`
+      guarda siempre el nombre de la tabla. Trampa ya pisada: `_cycle` buscaba la
+      etiqueta entre los nombres guardados, no la encontraba y volvía al primero;
+      ahora recorre `_stored`, y un test en inglés da la vuelta entera a los temas en
+      los dos sentidos.
 - [x] El transporte de `ascii` pasó a `_transport_keycaps`, con las tapas de cada tecla
       en `Layout.keycaps`: `ascii` las deja en `[ ]` y en glifos ASCII, y cinco temas
       traen las suyas (`⟦ ⟧`, `( )`, `▐ ▌`, `{ }`, `╣ ╠`). Los demás reutilizan
@@ -1234,6 +1278,8 @@ fichero en sí.
       exige que cada llamada a `_()` sea literal y tenga exactamente una traducción,
       comprueba los placeholders y prohíbe sombrear la función `_`.
 - [x] `README.md` está en inglés y documenta cómo forzar ambos idiomas.
+- [x] Los nombres de los temas y paletas se traducen en pantalla con `layouts.label`
+      (ver «Temas»); el valor del fichero no cambia con el idioma.
 
 ## 5. Estado de verificación
 
@@ -1264,7 +1310,8 @@ Distinguir esto importa: parte del código nunca se ha ejecutado contra TIDAL re
 | Buscador de la cola (`ctrl+f`)      | **Verificado**                    | Siete unitarias en la app real headless: `ctrl+f` abre la barra y enfoca la caja, «later» deja 1 de 3, `esc` la cierra y devuelve las 3 filas dejando el cursor en la pista a la que se había llegado, la fila filtrada conserva el número 3, `↵` sobre ella reproduce la tercera de la cola y `d` quita esa, la marca `▶` desaparece mientras el filtro esconde lo que suena y vuelve cuando lo enseña, y escribir `x` en la caja no pausa el reproductor. Render a 96x28 con la barra abierta. Falta verlo contra una cola larga real. |
 | Volver a lo que suena (`g`)         | **Verificado**                    | Tres pruebas en la app headless: mueve desde otra fila, limpia un filtro que escondía la pista y, sin reproducción, conserva el cursor y explica por qué. |
 | Guardar cola como playlist (`p`)    | **Verificado con dobles**         | Crea con el nombre del modal tras `ensure_fresh`, usa una instantánea en orden, divide 700 pistas en siete lotes de 100, permite duplicados, invalida la caché, deja una creación parcial con recuento visible y no abre nada con la cola vacía. Falta probar la escritura contra una cuenta real. |
-| Temas temáticos                     | **VERIFICADO A LA VISTA**         | Tests: cada `Layout` nombra un transporte que existe, `ascii_only` pinta su cromo en ASCII, sin glifos anchos en títulos, nombres compartidos solo los de `PAIRED`, contraste mínimo en todas las paletas, y elegir un tema escribe su paleta una vez. Las trece disposiciones pasan los tests de 60x18 y de la carátula. Capturas SVG de los nueve a 120x34 y 80x26, y después capturas del mantenedor en su terminal (unas 274x100, split, cola de 100 pistas) de los nueve con su emblema: posición y tamaño ajustados a su gusto a partir de ellas. El rendimiento en 4K, medido en un pty con pyte a 480x130. |
+| Temas temáticos                     | **VERIFICADO A LA VISTA**         | Tests: cada `Layout` nombra un transporte que existe, `ascii_only` pinta su cromo en ASCII, sin glifos anchos en títulos, nombres compartidos solo los de `PAIRED`, contraste mínimo en todas las paletas, y elegir un tema escribe su paleta una vez. Las trece disposiciones pasan los tests de 60x18 y de la carátula. Capturas SVG de los nueve a 120x34 y 80x26, y después capturas del mantenedor en su terminal (unas 274x100, split, cola de 100 pistas) de los nueve con su emblema: posición y tamaño ajustados a su gusto a partir de ellas. El rendimiento en 4K, medido en un pty con pyte a 480x130. `bosque`, su emblema y los marcos nuevos de los diez, vistos por el mantenedor en su terminal (2026-09-11). |
+| Velocidad, carátula redonda, reloj en cuenta atrás | **CUBIERTO POR TESTS** | Tests: la ventana ofrece las ocho velocidades y aplica con ↵, `esc` no toca nada, el botón dice la velocidad; la máscara redonda deja las esquinas en el fondo de la banda y el centro intacto; el reloj en cuenta atrás no pasa de veinte columnas (el test falla con el código viejo). La carátula redonda y el reloj, vistos en capturas SVG; la velocidad todavía no se ha oído contra TIDAL real. |
 | Dos columnas (`split`)              | **Verificado en headless y a mano** | Cuatro tests: mismos objetos (cola, carátula, transporte) y cursor al cambiar de forma, vuelta sola a apilada por ancho y por alto, las trece disposiciones caben en el umbral con el transporte bajo las dos columnas, y la letra se carga una vez por pista y sigue la línea. Capturas SVG de las trece. El mantenedor lo usó en su terminal con audio real y letra. |
 | Barras clicables                    | **Verificado**                    | Cuatro pruebas con `pilot.click`: seek a mitad, seek parado sin llamada a mpv, volumen al extremo y balance en cero exacto pese al padding. |
 | Ayuda en dos pestañas              | **Verificado**                    | Dos unitarias en la app headless: `→` lleva a «Acerca de» y dibuja el repositorio, `←` vuelve a los atajos con el desplazamiento donde se dejó, y ninguna de las dos flechas se sale por los extremos. Render a 100x30 de las dos pestañas, con la activa marcada en la barra de título. |
