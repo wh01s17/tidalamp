@@ -1,6 +1,6 @@
 The pictures in this directory
 
-These PNG files are fan tributes: small pixel reinterpretations that nod to the
+Most of these PNG files are fan tributes: small pixel reinterpretations that nod to the
 works each themed look is inspired by. The characters, designs and marks they
 evoke belong to their respective owners. tidalamp is not affiliated with,
 sponsored by, or endorsed by any of them.
@@ -9,6 +9,9 @@ These files are NOT covered by tidalamp's licence (GPL-3.0-or-later). The GPL
 applies to tidalamp's code and to everything else in this repository; it does
 not, and cannot, grant any rights over these characters or designs. If you
 redistribute or modify tidalamp, these pictures carry no licence from us.
+
+The one exception is bosque.png, a tree drawn for tidalamp from scratch. It
+evokes nobody's work and is covered by the GPL like the code.
 
 If you hold rights over something here and want it removed, open an issue at
 https://github.com/wh01s17/tidalamp/issues and it will be taken out in the

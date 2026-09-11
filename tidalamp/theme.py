@@ -292,6 +292,20 @@ _BUILTIN_SOURCES: dict[str, dict[str, str]] = {
         "green": "#c2baa8",
         "blue": "#847e72",
     },
+    # Leaf green on moss, sun for warnings, earth red, and a clear sky.
+    "bosque": {
+        "accent": "#86cc5a",
+        "background": "#0f1a12",
+        "foreground": "#e4ecd6",
+        "dark_foreground": "#9bab8e",
+        "muted": "#3f5a3a",
+        "dark_background": "#09110b",
+        "lighter_background": "#1b2c1e",
+        "red": "#d0683f",
+        "yellow": "#e8c547",
+        "green": "#86cc5a",
+        "blue": "#6fb7d6",
+    },
 }
 
 
@@ -335,6 +349,7 @@ PAIRED: frozenset[str] = frozenset(
         "comodin",
         "gotico",
         "death-metal",
+        "bosque",
     }
 )
 

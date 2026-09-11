@@ -229,6 +229,19 @@ LAYOUT_TABLE: dict[str, Layout] = {
             emblem="death-metal.png",
             tagline=lambda: _("hasta el once"),
         ),
+        # Leaf green on moss, earth underfoot and one tree in the corner.
+        Layout(
+            "bosque",
+            title=lambda width: ruled("❦  tidal amp  ❦", width, "─"),
+            queue_heading=lambda width, hints: spread(
+                f"❦ {_('semillero')} ", hints, width, " "
+            ),
+            transport="keycaps",
+            keycaps=("‹", "›"),
+            emblem="bosque.png",
+            emblem_anchor="bottom",
+            tagline=lambda: _("no hay planeta B"),
+        ),
     )
 }
 

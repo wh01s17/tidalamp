@@ -414,7 +414,7 @@ both can be changed from the settings window (`o`) without restarting playback.
 
 ### Themed looks
 
-Nine more layouts come with a palette of their own name. Choosing one in the settings
+Ten more layouts come with a palette of their own name. Choosing one in the settings
 window also sets `palette` to its colours, once: after that the palette is yours again,
 so a themed layout in `nord` is one keypress away and nothing puts the pair back. Their
 palettes can be picked on their own too, under any layout.
@@ -430,6 +430,7 @@ palettes can be picked on their own too, under any layout.
 | `comodin`       | The wild card: a purple suit, green hair, a dashed card edge and the suits.  |
 | `gotico`        | Crimson and violet under a pointed arch, square keys and centred headings.   |
 | `death-metal`   | Bone on black, blood red, a tall frame and noise at the edges.               |
+| `bosque`        | Leaf green on moss, a plain frame and a tree growing behind the queue.       |
 
 ### Two columns
 
@@ -441,7 +442,7 @@ smaller one it stays stacked on its own, and the settings window says so. Switch
 (from the settings window, `o`) moves nothing but the layout: the track keeps playing
 and the queue's cursor stays where it was. It works with every layout and palette.
 
-Each of the nine also has a picture and a line of its own. The picture is drawn behind
+Each of the ten also has a picture and a line of its own. The picture is drawn behind
 the queue the way the cover is drawn, darkened so the rows on top still read; the line
 stands in for the title while nothing is playing. The picture needs Pillow (the `art`
 extra), like the cover.
@@ -463,7 +464,7 @@ Split, with the timed lyrics following the song above the cover. The queue carri
 `palette` accepts `auto` (follow Omarchy), `classic` (green-on-black, the player's own),
 the built-ins `tokyo-night`, `catppuccin`, `nord`, `gruvbox` and `black` (pure black
 with grey and white accents, where lightness carries what hue carries elsewhere), the
-nine that come with the themed looks, or the name of a TOML file you drop in `~/.config/tidalamp/palettes/`. Custom palettes use the same format as
+ten that come with the themed looks, or the name of a TOML file you drop in `~/.config/tidalamp/palettes/`. Custom palettes use the same format as
 Omarchy's `colors.toml`, so the built-ins and your own work on any Linux, with or
 without Omarchy.
 

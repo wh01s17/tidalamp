@@ -556,6 +556,8 @@ ENGLISH: dict[str, str] = {
     "¿por qué tan serio?": "why so serious?",
     "nunca más, dijo el cuervo": "quoth the raven, nevermore",
     "hasta el once": "all the way up to eleven",
+    "semillero": "seedbed",
+    "no hay planeta B": "there is no planet B",
     " ↑↓ desplazar   y/esc cerrar": " ↑↓ scroll   y/esc close",
     "? ayuda · / buscar · l lib · y letra · e eq · o config · f/F favorito · q salir": (
         "? help · / search · l lib · y lyrics · e eq · o config · f/F favourite · q quit"
@@ -647,7 +649,7 @@ ENGLISH: dict[str, str] = {
     'columns = "artist,album,year,duration"\n\n'
     "# Estilo visual: quattro, retro, nova o ascii, o un tema que trae su paleta:\n"
     "# unidad-morada, pirata, cuaderno, neon-noir, runas, reggae, comodin,\n"
-    "# gotico o death-metal.\n"
+    "# gotico, death-metal o bosque.\n"
     'theme = "quattro"\n\n'
     "# Paleta: auto sigue Omarchy; también classic, tokyo-night, catppuccin,\n"
     "# nord, gruvbox, black, la de cualquier tema o un TOML en\n"
@@ -690,7 +692,7 @@ ENGLISH: dict[str, str] = {
         'columns = "artist,album,year,duration"\n\n'
         "# Visual style: quattro, retro, nova or ascii, or a theme that brings its\n"
         "# palette: unidad-morada, pirata, cuaderno, neon-noir, runas, reggae,\n"
-        "# comodin, gotico or death-metal.\n"
+        "# comodin, gotico, death-metal or bosque.\n"
         'theme = "quattro"\n\n'
         "# Palette: auto follows Omarchy; also classic, tokyo-night, catppuccin,\n"
         "# nord, gruvbox, black, any theme's own, or a TOML file in\n"
@@ -817,7 +819,7 @@ def config_template() -> str:
         'columns = "artist,album,year,duration"\n\n'
         "# Estilo visual: quattro, retro, nova o ascii, o un tema que trae su paleta:\n"
         "# unidad-morada, pirata, cuaderno, neon-noir, runas, reggae, comodin,\n"
-        "# gotico o death-metal.\n"
+        "# gotico, death-metal o bosque.\n"
         'theme = "quattro"\n\n'
         "# Paleta: auto sigue Omarchy; también classic, tokyo-night, catppuccin,\n"
         "# nord, gruvbox, black, la de cualquier tema o un TOML en\n"

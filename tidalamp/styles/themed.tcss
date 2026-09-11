@@ -213,6 +213,29 @@
     background: $tidalamp-screen;
 }
 
+/* Bosque: a plain frame in leaf green, both headings in the same green. */
+#main.bosque {
+    border: solid $tidalamp-accent;
+}
+
+#main.bosque #titlebar {
+    background: $tidalamp-title-background;
+    color: $tidalamp-accent;
+    text-align: center;
+    text-style: bold;
+    padding: 0;
+}
+
+#main.bosque #pl-title {
+    background: $tidalamp-track-background;
+    color: $tidalamp-accent;
+    padding: 0 1;
+}
+
+#main.bosque #transport {
+    background: $tidalamp-panel;
+}
+
 #eq-title {
     background: $tidalamp-title-background;
     color: $tidalamp-title-foreground;
