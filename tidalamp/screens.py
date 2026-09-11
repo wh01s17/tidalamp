@@ -47,6 +47,11 @@ def _hex(pixel: tuple[int, int, int]) -> str:
     return "#{:02x}{:02x}{:02x}".format(*pixel)
 
 
+# One emblem cell ready to paint: the glyph for a blank cell and the styles
+# that go with it, both built once per size and palette, not per repaint.
+_Paint = tuple[str, Style, Style]
+
+
 class RowList(Widget):
     """A scrolling list of rows with a cursor. Used by both panes."""
 
@@ -62,7 +67,10 @@ class RowList(Widget):
         # browser's lists do not.
         self.backdrop: Path | None = None
         self._cells_key: tuple | None = None
-        self._cells: dict[int, list[artwork.EmblemCell]] = {}
+        self._cells: dict[int, dict[int, _Paint]] = {}
+        # Painted lines, by what the row drew there. A repaint that changes
+        # nothing (the cursor moving two rows away, a tick) reuses them.
+        self._painted: dict[tuple, Strip] = {}
 
     def set_backdrop(self, path: Path | None) -> None:
         if path != self.backdrop:
@@ -185,14 +193,15 @@ class RowList(Widget):
             line += f" {detail}"
         return set_cell_size(line, width)
 
-    def _backdrop(self) -> dict[int, list[artwork.EmblemCell]]:
+    def _backdrop(self) -> dict[int, dict[int, _Paint]]:
         """The emblem's cells for this size and palette, worked out once."""
         palette = palette_for(self)
         key = (self.backdrop, self.size, id(palette))
         if key != self._cells_key:
             self._cells_key = key
+            self._painted.clear()
             ground = palette["display_background"].lstrip("#")
-            self._cells = (
+            lines = (
                 artwork.emblem_cells(
                     self.backdrop,
                     self.size.width,
@@ -202,6 +211,17 @@ class RowList(Widget):
                 if self.backdrop is not None
                 else {}
             )
+            self._cells = {
+                y: {
+                    x: (
+                        glyph,
+                        Style(color=_hex(fg), bgcolor=_hex(bg)),
+                        Style(bgcolor=_hex(mean)),
+                    )
+                    for x, glyph, fg, bg, mean in cells
+                }
+                for y, cells in lines.items()
+            }
         return self._cells
 
     def _cursor_line(self) -> int | None:
@@ -223,37 +243,66 @@ class RowList(Widget):
         strip = super().render_line(y)
         if self.backdrop is None or y == self._cursor_line():
             return strip
-        cells = {cell[0]: cell for cell in self._backdrop().get(y, ())}
+        cells = self._backdrop().get(y)
         if not cells:
             return strip
-        length = strip.cell_length
-        inner = sorted({edge for x in cells for edge in (x, x + 1) if 0 < edge < length})
-        # The end of the line is a cut too: `divide` returns what lies before
-        # each cut and drops the rest. Without it the tail of every painted
-        # line went missing, and the terminal kept whatever it had there,
-        # which was the cursor's highlight from wherever it had been.
-        pieces = strip.divide([*inner, length])
-        segments = []
-        for edge, piece in zip([0, *inner], pieces, strict=True):
-            cell = cells.get(edge)
-            if cell is None or piece.cell_length != 1:
-                segments.extend(piece)
+        # Textual does not pad a line to the widget: the one after the last
+        # row is empty, and a short line used to swallow every emblem cell
+        # past its end. Painted to the full width, whatever it was handed.
+        width = self.content_region.width or max(0, self.size.width - 2)
+        if strip.cell_length < width:
+            strip = strip.extend_cell_length(width)
+        key = (y, strip.text, tuple(segment.style for segment in strip))
+        painted = self._painted.get(key)
+        if painted is None:
+            painted = self._paint(strip, cells)
+            if len(self._painted) > 1024:
+                self._painted.clear()
+            self._painted[key] = painted
+        return painted
+
+    @staticmethod
+    def _paint(strip: Strip, cells: dict[int, _Paint]) -> Strip:
+        """One pass over the line, cell by cell, merging runs of one style.
+
+        It used to cut the line at every emblem cell with `Strip.divide`,
+        which cost six times the render of the list itself; a walk over the
+        characters does the same work for a fraction of it.
+        """
+        out: list[Segment] = []
+        text: list[str] = []
+        current: Style | None = None
+        x = 0
+
+        def emit(char: str, style: Style | None) -> None:
+            nonlocal current
+            if style != current and text:
+                out.append(Segment("".join(text), current))
+                text.clear()
+            current = style
+            text.append(char)
+
+        for segment in strip:
+            if segment.control:
+                if text:
+                    out.append(Segment("".join(text), current))
+                    text.clear()
+                out.append(segment)
                 continue
-            _x, glyph, fg, bg, mean = cell
-            for segment in piece:
-                if segment.control:
-                    segments.append(segment)
-                    continue
-                style = segment.style or Style()
-                if segment.text == " ":
-                    segments.append(
-                        Segment(glyph, style + Style(color=_hex(fg), bgcolor=_hex(bg)))
-                    )
+            base = segment.style or Style()
+            for char in segment.text:
+                size = cell_len(char)
+                cell = cells.get(x) if size == 1 else None
+                if cell is None:
+                    emit(char, segment.style)
+                elif char == " ":
+                    emit(cell[0], base + cell[1])
                 else:
-                    segments.append(
-                        Segment(segment.text, style + Style(bgcolor=_hex(mean)))
-                    )
-        return Strip(segments, length)
+                    emit(char, base + cell[2])
+                x += size
+        if text:
+            out.append(Segment("".join(text), current))
+        return Strip(out, strip.cell_length)
 
     def render(self) -> Text:
         palette = palette_for(self)

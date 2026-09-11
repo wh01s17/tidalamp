@@ -758,9 +758,21 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
       decir, **el doble de alto que de ancho**, igual que la celda. Muestrear la
       imagen como si fuera cuadrado la aplastaba de lado (la luna salía huevo). Se
       calculan columnas y filas con esa proporción; un test lo fija con la luna.
+- [x] Rendimiento: la primera versión cortaba cada línea en cada celda del emblema con
+      `Strip.divide`, y la cola pasó de 11 a 61 ms por repintado (274x100, 90 filas);
+      se notaba al mover el cursor. Ahora `RowList._paint` recorre la línea una vez
+      juntando celdas del mismo estilo, los estilos de cada celda se construyen una vez
+      por tamaño y paleta, y las líneas pintadas se cachean por contenido: 17 ms con
+      la caché caliente y 26 en frío.
+- [x] Textual no rellena las líneas al ancho del widget (`Visual.to_strips` con
+      `pad=False`): la que sigue a la última fila llega vacía, y el emblema se perdía
+      en ella. Cada línea se rellena al ancho del contenido antes de pintar; un test
+      pone el final de la cola en mitad del dibujo. El mantenedor vio además el
+      emblema cortado en todas las líneas a partir de cierta fila, con 66 y con 91
+      filas; en headless y en un pty con pyte no se reproduce. **Comprobarlo a mano.**
 - [x] La transparencia parcial se respeta: cada píxel se mezcla con el fondo según su
       alfa antes del velo, así que una imagen con el borde difuminado (el Ojo, el
-      cuervo) se funde con la cola en vez de acabar en un rectángulo. Ryuk va
+      cuervo) se funde con la cola en vez de acabar en un rectángulo; el Joker también. Ryuk va
       recortado a su luna, con las puntas de las alas que salen de ella.
 - [x] Historia, para no repetirla: primero fue un dibujo de 18x18 en letras de papel
       en el hueco de la carátula (se veía solo sin pista y los personajes no daban

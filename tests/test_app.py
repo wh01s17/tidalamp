@@ -4875,3 +4875,38 @@ def test_split_shows_the_looks_line_while_there_are_no_lyrics(monkeypatch, tmp_p
             assert "anillo" in marquee
 
     asyncio.run(scenario())
+
+
+def test_the_emblem_is_painted_on_a_short_line_too(monkeypatch, tmp_path):
+    """Textual does not pad a line to the widget: the one after the last row
+    comes back empty, and the emblem's cells past a line's end were dropped.
+    Where the queue ends in the middle of the picture, the picture goes on."""
+    from tidalamp.artwork import QUADRANTS
+
+    isolate_runtime(monkeypatch)
+    isolate_config(monkeypatch, tmp_path)
+    app_module.config.set_option("arrangement", "split")
+    use_theme(monkeypatch, "cuaderno")
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(200, 60)) as pilot:
+            await pilot.pause()
+            playlist = application.query_one("#playlist", RowList)
+            lines = sorted(playlist._backdrop())
+            middle = lines[len(lines) // 2]
+            application.queue.replace(
+                [
+                    Entry(id=n, title=f"t{n}", artist="a", duration=9)
+                    for n in range(middle)
+                ],
+                start=0,
+            )
+            application._sync_queue()
+            await pilot.pause()
+            for y in (middle, middle + 1):
+                drawn = playlist.render_line(y)
+                assert drawn.cell_length == playlist.content_region.width, y
+                assert any(c in QUADRANTS[1:] for c in drawn.text), y
+
+    asyncio.run(scenario())
