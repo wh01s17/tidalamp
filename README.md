@@ -775,6 +775,12 @@ sixel are unavailable.
 
 GPL-3.0-or-later. See [LICENSE](LICENSE) for the complete text.
 
+The themed looks' pictures in `tidalamp/emblems/` are the exception: they are fan
+tributes to the works each look nods to, those characters and designs belong to their
+owners, and the GPL does not cover them. See
+[`tidalamp/emblems/NOTICE`](tidalamp/emblems/NOTICE). If you hold rights over one and
+want it gone, open an issue and it leaves in the next release.
+
 ## Disclaimer
 
 tidalamp is an independent project. **It is not affiliated with, sponsored by, or
@@ -793,5 +799,8 @@ player its key defaults and equalizer bands come from.
 - Authentication uses TIDAL's device authorization flow through `tidalapi`, not the
   developer API. Using an unofficial client may conflict with TIDAL's terms of
   service; users accept that decision and any risk to their account.
+
+The themed looks evoke other works without naming them. Their pictures are fan
+tributes, not affiliated with or endorsed by the owners of what they nod to.
 
 The licence applies to this code. It is not, and cannot be, permission from TIDAL.

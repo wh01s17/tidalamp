@@ -5,6 +5,12 @@ versioning is [semantic](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- `tidalamp/emblems/NOTICE`: the themed looks' pictures are fan tributes, their
+  characters belong to their owners and the GPL does not cover them. The README's
+  licence section says so too.
+
 ## [0.6.0] - 2026-09-11
 
 ### Added
