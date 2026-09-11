@@ -742,9 +742,7 @@ def remove_from_playlist(
     total = _count_of(playlist)
     offset = 0
     while total is None or offset < total:
-        page = with_retries(
-            lambda offset=offset: playlist.tracks(limit=PAGE, offset=offset)
-        )
+        page = with_retries(partial(playlist.tracks, limit=PAGE, offset=offset))
         if not page and total is None:
             break
         for position, track in enumerate(page):

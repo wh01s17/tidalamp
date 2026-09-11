@@ -108,7 +108,7 @@ class HelpScreen(ModalScreen[None]):
 
     # ---------------------------------------------------------------- tabs
 
-    def _titles(self) -> tuple[str, str]:
+    def _titles(self) -> tuple[str, ...]:
         """Translated at call time, like everything else the screen draws."""
         if self._only:
             return (_("AYUDA"),)
