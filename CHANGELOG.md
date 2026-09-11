@@ -5,6 +5,8 @@ versioning is [semantic](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-09-11
+
 ### Added
 
 - A tenth themed look, `bosque`: leaf green on moss, a rounded frame with a vine of

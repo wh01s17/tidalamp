@@ -276,6 +276,17 @@ ENGLISH: dict[str, str] = {
     ),
     "buscar en la ayuda…": "search the help…",
     "Acerca de": "About",
+    # --- notas de versión 0.7.0
+    "bosque, un décimo tema, ecológico; marcos más finos en todos.": (
+        "bosque, a tenth, ecological theme; finer frames on all of them."
+    ),
+    "b cambia la velocidad, de 0.25× a 2×.": "b changes the speed, from 0.25× to 2×.",
+    "La carátula puede ser redonda (cover_shape).": (
+        "The cover can be round (cover_shape)."
+    ),
+    "Los temas se llaman en tu idioma; la cuenta atrás cabe.": (
+        "Theme names follow your language; the countdown clock fits."
+    ),
     # --- notas de versión 0.6.0
     "Nueve temas temáticos, cada uno con su paleta y su imagen.": (
         "Nine themed looks, each with its palette and its picture."
