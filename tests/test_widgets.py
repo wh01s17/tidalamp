@@ -13,7 +13,7 @@ from textual.app import App, ComposeResult
 from tidalamp.library import Row
 from tidalamp.queue import Entry
 from tidalamp.screens import RowList
-from tidalamp.widgets import Glide, Marquee, Slider
+from tidalamp.widgets import Glide, Marquee, Slider, TimeDisplay
 
 # Wide enough that the track has room to be wrong in a visible way.
 WIDTH = 44
@@ -360,5 +360,43 @@ def test_a_line_that_does_not_fit_glides_to_its_end_and_back():
             # The same text again does not restart the glide.
             glide.update("corto\nBob Marley & The Wailers")
             assert rows() == seen[-1]
+
+    asyncio.run(scenario())
+
+
+class ClockApp(App):
+    CSS = "TimeDisplay { width: 20; height: 3; }"
+
+    def compose(self) -> ComposeResult:
+        yield TimeDisplay()
+
+
+@pytest.mark.parametrize(
+    ("seconds", "total", "countdown", "shown"),
+    [
+        (197.0, 217.0, False, "03:17"),
+        (20.0, 217.0, True, "-03:17"),
+        (44.0, 944.0, True, "-15:00"),
+        (0.0, 0.0, True, "00:00"),
+    ],
+)
+def test_the_clock_keeps_to_its_width_counting_down(seconds, total, countdown, shown):
+    """`t` shows the time left, one glyph longer than the time played. At
+    three columns a glyph it no longer fitted: the rows wrapped and the
+    digits broke up across the band."""
+
+    async def scenario() -> None:
+        app = ClockApp()
+        async with app.run_test(size=(30, 5)) as pilot:
+            clock = app.query_one(TimeDisplay)
+            clock.total, clock.seconds, clock.countdown = total, seconds, countdown
+            await pilot.pause()
+            # What the clock asks to draw, before Textual crops it to the
+            # widget: cropped, the overflow never shows as a long line.
+            rows = [row.rstrip() for row in clock.render().plain.split("\n")]
+            for row in rows:
+                assert cell_len(row) <= 20, (shown, rows)
+            # The minus is the middle bar of the first column, then the digits.
+            assert rows[1].startswith("_") == shown.startswith("-"), rows
 
     asyncio.run(scenario())

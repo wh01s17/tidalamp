@@ -46,7 +46,10 @@ _SEGMENTS: dict[str, tuple[str, str, str]] = {
     "8": (" _ ", "|_|", "|_|"),
     "9": (" _ ", "|_|", "|_|"),
     ":": ("   ", " . ", " . "),
-    "-": ("   ", " _ ", "   "),
+    # One column, not three, and drawn against the first digit: a countdown
+    # is one glyph longer than the time it counts down from, and the clock
+    # has room for five glyphs of three and no more.
+    "-": (" ", "_", " "),
     " ": ("   ", "   ", "   "),
 }
 _SEGMENTS["9"] = (" _ ", "|_|", " _|")
@@ -68,11 +71,15 @@ class TimeDisplay(Widget):
         minutes, secs = divmod(int(value), 60)
         text = f"{'-' if self.countdown and self.total else ''}{minutes:02d}:{secs:02d}"
 
+        # A space between glyphs and none after the last, nor after the
+        # minus. `-03:17` used to be 24 columns in a 20-column clock: the rows
+        # wrapped and the digits came out in pieces across the band.
         rows = ["", "", ""]
-        for char in text:
+        for index, char in enumerate(text):
             glyph = _SEGMENTS.get(char, _SEGMENTS[" "])
+            gap = "" if char == "-" or index == len(text) - 1 else " "
             for i in range(3):
-                rows[i] += glyph[i] + " "
+                rows[i] += glyph[i] + gap
         return Text("\n".join(rows), style=f"bold {palette_for(self)['accent']}")
 
 

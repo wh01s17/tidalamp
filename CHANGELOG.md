@@ -27,6 +27,13 @@ versioning is [semantic](https://semver.org/).
   characters belong to their owners and the GPL does not cover them. The README's
   licence section says so too.
 
+### Fixed
+
+- Counting down (`t`) broke the clock apart: the minus made the time one glyph
+  wider than the clock, the rows wrapped, and the digits came out in pieces over the
+  track's details. The minus is now one column against the first digit, so
+  `-15:00` fits where `15:00` did.
+
 ### Changed
 
 - The themed looks have finer frames. Each title bar is a pattern of its own instead of
