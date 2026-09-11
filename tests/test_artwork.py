@@ -335,3 +335,19 @@ def test_an_emblem_keeps_its_shape_behind_the_queue():
     with __import__("PIL.Image").Image.open(path) as image:
         want = 2 * image.width / image.height
     assert abs(cols / rows - want) < 0.25, (cols, rows, want)
+
+
+def test_an_emblem_can_sit_in_the_lower_right_corner_and_grow():
+    """`bottom` ends the picture a row above the list's lower edge, against
+    the right; `middle` centres it. A larger scale takes more of the room."""
+    from tidalamp.artwork import emblem_cells, emblem_path
+
+    path = emblem_path("pirata.png")
+    middle = emblem_cells(path, 120, 60, (0, 0, 0))
+    bottom = emblem_cells(path, 120, 60, (0, 0, 0), anchor="bottom")
+    bigger = emblem_cells(path, 120, 60, (0, 0, 0), anchor="bottom", scale=1.3)
+
+    assert max(bottom) == 60 - 2
+    assert abs((min(middle) + max(middle)) / 2 - 30) <= 1
+    assert max(x for cells in bottom.values() for x, *_ in cells) == 120 - 3
+    assert len(bigger) > len(bottom)

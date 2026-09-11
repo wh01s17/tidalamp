@@ -758,6 +758,12 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
       decir, **el doble de alto que de ancho**, igual que la celda. Muestrear la
       imagen como si fuera cuadrado la aplastaba de lado (la luna salía huevo). Se
       calculan columnas y filas con esa proporción; un test lo fija con la luna.
+- [x] Colocación por tema (`Layout.emblem_anchor`, `Layout.emblem_scale`): `middle`
+      centra el emblema en el borde derecho y `bottom` lo mete en la esquina inferior
+      derecha, a una fila del borde; la escala agranda el espacio que puede ocupar,
+      nunca más que la cola. A elección del mantenedor: la bandera pirata abajo y un
+      30 % mayor, la ciudad de neón abajo, el Joker abajo y un 15 % mayor; el resto,
+      en medio.
 - [x] Rendimiento: la primera versión cortaba cada línea en cada celda del emblema con
       `Strip.divide`, y la cola pasó de 11 a 61 ms por repintado (274x100, 90 filas);
       se notaba al mover el cursor. Ahora `RowList._paint` recorre la línea una vez

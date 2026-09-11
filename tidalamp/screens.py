@@ -66,15 +66,19 @@ class RowList(Widget):
         # drawn in its box (`artwork.emblem_cells`). The queue has one; the
         # browser's lists do not.
         self.backdrop: Path | None = None
+        self._placement: tuple[str, float] = ("middle", 1.0)
         self._cells_key: tuple | None = None
         self._cells: dict[int, dict[int, _Paint]] = {}
         # Painted lines, by what the row drew there. A repaint that changes
         # nothing (the cursor moving two rows away, a tick) reuses them.
         self._painted: dict[tuple, Strip] = {}
 
-    def set_backdrop(self, path: Path | None) -> None:
-        if path != self.backdrop:
-            self.backdrop = path
+    def set_backdrop(
+        self, path: Path | None, anchor: str = "middle", scale: float = 1.0
+    ) -> None:
+        placement = (anchor, scale)
+        if path != self.backdrop or placement != self._placement:
+            self.backdrop, self._placement = path, placement
             self.refresh()
 
     def set_rows(self, rows: list[Row]) -> None:
@@ -196,7 +200,7 @@ class RowList(Widget):
     def _backdrop(self) -> dict[int, dict[int, _Paint]]:
         """The emblem's cells for this size and palette, worked out once."""
         palette = palette_for(self)
-        key = (self.backdrop, self.size, id(palette))
+        key = (self.backdrop, self._placement, self.size, id(palette))
         if key != self._cells_key:
             self._cells_key = key
             self._painted.clear()
@@ -207,6 +211,8 @@ class RowList(Widget):
                     self.size.width,
                     self.size.height,
                     (int(ground[0:2], 16), int(ground[2:4], 16), int(ground[4:6], 16)),
+                    anchor=self._placement[0],
+                    scale=self._placement[1],
                 )
                 if self.backdrop is not None
                 else {}

@@ -61,6 +61,11 @@ class Layout:
     # Traced from the maintainer's reference pictures (the neon city is drawn
     # by hand), reduced to 192 px and 48 colours; the references are not kept.
     emblem: str = ""
+    # Where it sits and how large: `middle` of the right edge, or `bottom`,
+    # tucked into the lower right corner; `emblem_scale` stretches the share
+    # of the queue it may take (most look right at 1).
+    emblem_anchor: str = "middle"
+    emblem_scale: float = 1.0
     # And the line that goes with it: under the large emblem, and in the
     # title's place while nothing is playing.
     tagline: Callable[[], str] | None = None
@@ -139,6 +144,8 @@ LAYOUT_TABLE: dict[str, Layout] = {
             transport="keycaps",
             keycaps=("(", ")"),
             emblem="pirata.png",
+            emblem_anchor="bottom",
+            emblem_scale=1.3,
             tagline=lambda: _("rumbo a la gran ruta"),
         ),
         # A black notebook, ruled lines, one red that matters.
@@ -162,6 +169,7 @@ LAYOUT_TABLE: dict[str, Layout] = {
             transport="keycaps",
             keycaps=("▐", "▌"),
             emblem="neon-noir.png",
+            emblem_anchor="bottom",
             tagline=lambda: _("despierta: la ciudad no duerme"),
         ),
         # Old gold on a dark forest, a chronicle rather than a list.
@@ -194,6 +202,8 @@ LAYOUT_TABLE: dict[str, Layout] = {
             transport="keycaps",
             keycaps=("{", "}"),
             emblem="comodin.png",
+            emblem_anchor="bottom",
+            emblem_scale=1.15,
             tagline=lambda: _("¿por qué tan serio?"),
         ),
         # Crimson and violet under a pointed arch.

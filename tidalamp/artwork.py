@@ -324,6 +324,8 @@ def emblem_cells(
     amount: float = 0.3,
     size: float = 0.7,
     share: float = 0.55,
+    anchor: str = "middle",
+    scale: float = 1.0,
 ) -> dict[int, list[EmblemCell]]:
     """An emblem laid behind a list `width` x `height` cells, line by line.
 
@@ -340,7 +342,9 @@ def emblem_cells(
     Pillow, as the cover is.
     """
     image = _emblem_image(str(path))
-    cols_room, rows_room = int((width - 2) * share), int(height * size)
+    # `scale` grows the room, never past the list itself.
+    cols_room = int((width - 2) * min(1.0, share * scale))
+    rows_room = int(height * min(1.0, size * scale))
     if image is None or cols_room < 4 or rows_room < 2:
         return {}
     # A cell is twice as tall as it is wide, so a quadrant pixel is too:
@@ -357,7 +361,10 @@ def emblem_cells(
     pixels_w, pixels_h = cols * 2, rows * 2
     small = image.resize((pixels_w, pixels_h), Image.Resampling.LANCZOS)
     raw = small.tobytes()
-    left, top = width - 2 - cols, (height - rows) // 2
+    left = width - 2 - cols
+    # `bottom` tucks the picture into the lower right corner, a row off the
+    # edge; `middle` centres it down the right side.
+    top = max(0, height - rows - 1) if anchor == "bottom" else (height - rows) // 2
 
     def pixel(x: int, y: int) -> Pixel | None:
         i = (y * pixels_w + x) * 4

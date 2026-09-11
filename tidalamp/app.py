@@ -546,7 +546,7 @@ class TidalAmp(App):
         layout = self.layout
         tagline = layout.tagline() if layout.tagline else ""
         self.query_one("#playlist", RowList).set_backdrop(
-            artwork.emblem_path(layout.emblem)
+            artwork.emblem_path(layout.emblem), layout.emblem_anchor, layout.emblem_scale
         )
         pane = self.query_one(LyricsPane)
         if pane.tagline != tagline:
