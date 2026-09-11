@@ -430,7 +430,7 @@ palettes can be picked on their own too, under any layout.
 | `comodin`       | The wild card: a purple suit, green hair, a dashed card edge and the suits.  |
 | `gotico`        | Crimson and violet under a pointed arch, square keys and centred headings.   |
 | `death-metal`   | Bone on black, blood red, a tall frame and noise at the edges.               |
-| `bosque`        | Leaf green on moss, a plain frame, and a tree and sprouts on half a globe.   |
+| `bosque`        | Leaf green on moss, a rounded frame with a vine along the top, a leaf at its foot. |
 
 ### Two columns
 
@@ -505,6 +505,7 @@ writes `~/.config/tidalamp/config.toml`, so a change made once stays made.
 | --------- | ----------------------------------------- | -------------- |
 | Quality   | `LOW` `HIGH` `LOSSLESS` `HI_RES_LOSSLESS` | the next track |
 | Cover art | `auto` `kitty` `sixel` `blocks` `off`     | on restart     |
+| Cover shape | `square` `round`                        | immediately    |
 | Language  | `auto` `es` `en`                          | on restart     |
 | Visualizer | `bars` `mirror` `curve` `fine`            | immediately   |
 | Debug log | on / off                                  | immediately    |
@@ -515,6 +516,7 @@ exist:
 ```toml
 quality = "HI_RES_LOSSLESS"   # LOW, HIGH, LOSSLESS, or HI_RES_LOSSLESS
 artwork = "auto"              # auto, kitty, sixel, blocks, or off
+cover_shape = "square"        # square, or round: the cover as a disc
 language = "auto"             # auto follows the locale; es or en pin it
 columns = "artist,album,year,duration"   # queue columns, comma separated
 theme = "quattro"             # layout: quattro, retro, nova, ascii, or a themed look
@@ -671,6 +673,11 @@ terminal's capabilities:
 
 Detection reads `$TERM`, `$TERM_PROGRAM`, and `$KITTY_WINDOW_ID`, and falls back to
 blocks, which work everywhere.
+
+`cover_shape = "round"` (Cover shape in the settings window) draws the cover as a disc,
+under any theme. The corners are painted in the band's own colour rather than left
+transparent, since sixel and blocks have no transparency to leave, so the disc looks
+the same with every protocol.
 
 `blocks` draws with the quadrant glyphs (`▘▝▖▗▚▞…`), so each cell carries **four**
 samples: two across and two down. A cell still holds only two colours, so where its four

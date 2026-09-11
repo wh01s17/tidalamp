@@ -7,9 +7,14 @@ versioning is [semantic](https://semver.org/).
 
 ### Added
 
-- A tenth themed look, `bosque`: leaf green on moss, a plain frame and an original
-  picture behind the queue: a tree and sprouts on half a globe. Its palette works under
-  any layout, and its picture can be borrowed with `backdrop = "bosque"`.
+- A tenth themed look, `bosque`: leaf green on moss, a rounded frame with a vine of
+  leaves along the top and one set into its foot, the queue's heading written on its
+  rule, and an original picture behind the queue: a tree and sprouts on half a globe.
+  Its palette works under any layout, and its picture can be borrowed with
+  `backdrop = "bosque"`.
+- A Cover shape setting (`cover_shape`): `square`, or `round` to draw the cover as a
+  disc under any theme. The corners take the band's colour, so it looks the same in
+  kitty, sixel and blocks, and it changes on screen at once.
 - `tidalamp/emblems/NOTICE`: the themed looks' pictures are fan tributes, their
   characters belong to their owners and the GPL does not cover them. The README's
   licence section says so too.

@@ -32,7 +32,10 @@ def ruled(title: str, width: int, rule: str) -> str:
         return label.strip()[:width]
     slack = width - cell_len(label)
     left = slack // 2
-    return rule * left + label + rule * (slack - left)
+    # A rule may be a pattern, a vine with leaves on it: repeated and cut to
+    # length, and mirrored on the left so both sides grow out of the title.
+    right = (rule * (slack - left))[: slack - left]
+    return (rule * left)[:left][::-1] + label + right
 
 
 def spread(heading: str, hints: str, width: int, fill: str) -> str:
@@ -56,6 +59,9 @@ class Layout:
     ascii_only: bool = False
     # What `_transport_keycaps` draws either side of each key's face.
     keycaps: tuple[str, str] = ("[", "]")
+    # A line set into the bottom of the frame, centred, for the looks that
+    # finish theirs with a flourish.
+    frame_subtitle: str = ""
     # The themed looks' emblem: a small PNG in `tidalamp/emblems`, drawn behind
     # the queue the way a cover is drawn in its box (`artwork.emblem_cells`).
     # Traced from the maintainer's reference pictures (the neon city is drawn
@@ -232,10 +238,13 @@ LAYOUT_TABLE: dict[str, Layout] = {
         # Leaf green on moss, and a tree growing on half a globe.
         Layout(
             "bosque",
-            title=lambda width: ruled("❦  tidal amp  ❦", width, "─"),
+            # A vine along the top, a leaf every few cells, growing out of
+            # the name both ways.
+            title=lambda width: ruled("tidal amp", width, "────❦"),
             queue_heading=lambda width, hints: spread(
-                f"❦ {_('semillero')} ", hints, width, " "
+                f"❦ {_('semillero')} ", hints, width, "─"
             ),
+            frame_subtitle="─❦─",
             transport="keycaps",
             keycaps=("‹", "›"),
             emblem="bosque.png",

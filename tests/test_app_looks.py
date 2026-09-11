@@ -694,3 +694,33 @@ def test_choosing_a_themed_look_writes_its_palette_and_its_backdrop(
             assert app_module.config.PALETTE == "pirata"
 
     asyncio.run(scenario())
+
+
+def test_the_cover_shape_is_a_setting_of_its_own(monkeypatch, tmp_path):
+    """Round or square under any theme, the corners in the band's own ground,
+    and a change draws the cover on screen again."""
+    isolate_runtime(monkeypatch)
+    isolate_config(monkeypatch, tmp_path)
+    app_module.config.set_option("theme", "nova")
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(140, 40)) as pilot:
+            await pilot.pause()
+            assert application._cover_look()[0] == "square"
+            fetched = []
+            monkeypatch.setattr(application, "_art_worker", fetched.append)
+            application._art_url = "http://cover"
+            application._art_look = application._cover_look()
+
+            app_module.config.set_option("cover_shape", "round")
+            application._setting_changed("cover_shape")
+            await pilot.pause()
+            outline, ground = application._cover_look()
+            assert outline == "round"
+            # Nova paints the band as the panel, and the corners follow it.
+            band = application.query_one("#display").styles.background
+            assert ground == (band.r, band.g, band.b)
+            assert fetched == ["http://cover"]
+
+    asyncio.run(scenario())

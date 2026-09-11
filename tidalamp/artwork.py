@@ -206,6 +206,31 @@ def decode(data: bytes, cols: int, rows: int, *, cell: tuple[int, int] = CELL):
     return image.resize((width, height), Image.Resampling.LANCZOS)
 
 
+def shape(image, outline: str, ground: Pixel):
+    """Cut the fitted cover to `outline`, the corners painted in `ground`.
+
+    Painted rather than left transparent: sixel has no alpha worth trusting,
+    and half blocks have none at all, so every protocol gets the same picture.
+    The mask is drawn four times over and scaled down, which is what gives the
+    disc a smooth edge instead of a staircase.
+    """
+    if outline == "square":
+        return image
+    from PIL import Image, ImageDraw
+
+    width, height = image.size
+    scale = 4
+    mask = Image.new("L", (width * scale, height * scale), 0)
+    draw = ImageDraw.Draw(mask)
+    box = (0, 0, width * scale - 1, height * scale - 1)
+    if outline == "round":
+        draw.ellipse(box, fill=255)
+    else:
+        return image
+    mask = mask.resize((width, height), Image.Resampling.LANCZOS)
+    return Image.composite(image, Image.new("RGB", image.size, ground), mask)
+
+
 # -------------------------------------------------------------------- blocks
 
 # One glyph per way of splitting a cell's four quadrants between two colours,
@@ -516,6 +541,8 @@ def render(
     protocol: Protocol,
     *,
     image_id: int = 1,
+    outline: str = "square",
+    ground: Pixel = (0, 0, 0),
 ) -> Cover | None:
     """Turn raw cover bytes into whatever ``protocol`` needs. ``None`` on failure."""
     if protocol is Protocol.NONE:
@@ -523,6 +550,7 @@ def render(
     image = decode(data, cols, rows)
     if image is None:
         return None
+    image = shape(image, outline, ground)
     if protocol is Protocol.KITTY:
         escape = kitty_escape(to_png(image), cols, rows, image_id)
         return Cover(cols, rows, protocol, escape=escape)

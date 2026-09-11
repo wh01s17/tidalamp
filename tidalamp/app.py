@@ -279,6 +279,9 @@ class TidalAmp(App):
         # How this terminal can draw a cover, decided once from the environment.
         self.art_protocol = artwork.detect_protocol(configured=config.ARTWORK)
         self._art_url = ""
+        # The outline and ground the cover on screen was cut with, so a look
+        # that changes either draws it again.
+        self._art_look: tuple[str, tuple[int, int, int]] | None = None
         self._art_hidden = False
         self._pending_art: artwork.Cover | None = None
         self._compact = False
@@ -552,6 +555,9 @@ class TidalAmp(App):
             wanted = name == config.THEME
             if main.has_class(name) != wanted:
                 main.set_class(wanted, name)
+        subtitle = layout_for(config.THEME).frame_subtitle
+        if main.border_subtitle != subtitle:
+            main.border_subtitle = subtitle
 
     @property
     def layout(self) -> Layout:
@@ -560,6 +566,22 @@ class TidalAmp(App):
 
     def _title_text(self, width: int = 0) -> str:
         return self.layout.title(width)
+
+    def _cover_look(self) -> tuple[str, tuple[int, int, int]]:
+        """The outline the look cuts the cover to, and the ground its corners
+        take: the band's own, which nova and cuaderno paint as the panel."""
+        background = self.query_one("#display").styles.background
+        if background.a:
+            ground = (background.r, background.g, background.b)
+        else:
+            hex_ = self.tidalamp_palette["display_background"].lstrip("#")
+            ground = (int(hex_[0:2], 16), int(hex_[2:4], 16), int(hex_[4:6], 16))
+        return config.COVER_SHAPE, ground
+
+    def _reshape_art(self) -> None:
+        """Draw the cover again if the look now cuts it differently."""
+        if self._art_url and self._art_look not in (None, self._cover_look()):
+            self._art_worker(self._art_url)
 
     def _apply_emblem(self) -> None:
         """Put the look's emblem behind the queue, and its line where the
@@ -600,6 +622,9 @@ class TidalAmp(App):
         """Apply structure and palette without restarting playback."""
         self._layout_classes(self.query_one("#main"))
         self._apply_emblem()
+        # After the refresh: the band's ground is only the new look's once
+        # Textual has restyled it.
+        self.call_after_refresh(self._reshape_art)
         # Each layout pads the display band differently, so the height worked
         # out under the last one is wrong under this one.
         if not self._compact:
@@ -1707,6 +1732,7 @@ class TidalAmp(App):
     @work(thread=True, exclusive=True, group="artwork")
     def _art_worker(self, url: str) -> None:
         widget = self.query_one(Artwork)
+        look = self._cover_look()
         try:
             data = artwork.fetch(url)
             cover = artwork.render(
@@ -1715,6 +1741,8 @@ class TidalAmp(App):
                 widget.rows,
                 self.art_protocol,
                 image_id=widget.image_id,
+                outline=look[0],
+                ground=look[1],
             )
         except Exception as exc:
             # A missing cover is decoration; it never touches the audio path.
@@ -1723,6 +1751,7 @@ class TidalAmp(App):
             )
             return
         if url == self._art_url:
+            self._art_look = look
             self.call_from_thread(self._art_ready, cover)
 
     def _reload_art(self) -> None:
@@ -2057,6 +2086,11 @@ class TidalAmp(App):
         elif name == "artwork":
             self._reload_art()
             self.status = _("carátula: {value}").format(value=config.ARTWORK)
+        elif name == "cover_shape":
+            self._reshape_art()
+            self.status = _("forma de la carátula: {value}").format(
+                value=config.COVER_SHAPE
+            )
         elif name == "theme":
             self._apply_appearance()
             self.status = _("tema: {value}").format(value=config.THEME)

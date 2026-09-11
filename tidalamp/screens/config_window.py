@@ -80,6 +80,7 @@ class ConfigScreen(ModalScreen[None]):
     LANGUAGES = ("auto", "es", "en")
     SWITCH = ("false", "true")
     ARRANGEMENTS = ("stacked", "split")
+    COVER_SHAPES = ("square", "round")
 
     def __init__(self, on_change=None) -> None:
         super().__init__()
@@ -165,6 +166,13 @@ class ConfigScreen(ModalScreen[None]):
                     if config.TRANSPARENCY
                     else _("blocks se dibuja con texto y sobrevive a las ventanas")
                 ),
+                group=looks,
+            ),
+            Option(
+                _("Forma de la carátula"),
+                key="cover_shape",
+                choices=self.COVER_SHAPES,
+                note=_("cuadrada o redonda, con cualquier tema"),
                 group=looks,
             ),
             Option(
@@ -525,6 +533,7 @@ _FLAGS = ("debug", "transparency")
 _ATTRIBUTES = {
     "quality": "DEFAULT_QUALITY",
     "artwork": "ARTWORK",
+    "cover_shape": "COVER_SHAPE",
     "language": "LANGUAGE",
     "theme": "THEME",
     "palette": "PALETTE",

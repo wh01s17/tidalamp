@@ -214,13 +214,17 @@
     background: $tidalamp-screen;
 }
 
-/* Bosque: a plain frame in leaf green, both headings in the same green. */
+/* Bosque: a rounded frame with a leaf set into its foot, a vine along the
+   top instead of a title bar, and the queue's heading written on its rule.
+   No bars of colour: one ground, the way a clearing has one. */
 #main.bosque {
-    border: solid $tidalamp-accent;
+    border: round $tidalamp-accent;
+    border-subtitle-align: center;
+    border-subtitle-color: $tidalamp-accent;
 }
 
 #main.bosque #titlebar {
-    background: $tidalamp-title-background;
+    background: $tidalamp-panel;
     color: $tidalamp-accent;
     text-align: center;
     text-style: bold;
@@ -228,7 +232,7 @@
 }
 
 #main.bosque #pl-title {
-    background: $tidalamp-track-background;
+    background: $tidalamp-panel;
     color: $tidalamp-accent;
     padding: 0 1;
 }

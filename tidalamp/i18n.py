@@ -133,6 +133,9 @@ ENGLISH: dict[str, str] = {
     ),
     "Disposición": "Arrangement",
     "Fondo de la cola": "Queue backdrop",
+    "Forma de la carátula": "Cover shape",
+    "cuadrada o redonda, con cualquier tema": "square or round, under any theme",
+    "forma de la carátula: {value}": "cover shape: {value}",
     "auto usa el del tema; se puede mezclar con cualquier tema y paleta": (
         "auto uses the theme's own; mix it with any theme and palette"
     ),
@@ -642,6 +645,8 @@ ENGLISH: dict[str, str] = {
     'quality = "HI_RES_LOSSLESS"\n\n'
     "# Cómo dibujar la carátula: auto, kitty, sixel, blocks u off.\n"
     'artwork = "auto"\n\n'
+    "# Forma de la carátula: square (cuadrada) o round (redonda).\n"
+    'cover_shape = "square"\n\n'
     "# Idioma: auto sigue al locale del sistema; es o en lo fijan.\n"
     'language = "auto"\n\n'
     "# Columnas de la cola, separadas por coma. Disponibles: track, version,\n"
@@ -685,6 +690,8 @@ ENGLISH: dict[str, str] = {
         'quality = "HI_RES_LOSSLESS"\n\n'
         "# How to draw cover art: auto, kitty, sixel, blocks, or off.\n"
         'artwork = "auto"\n\n'
+        "# Cover shape: square or round.\n"
+        'cover_shape = "square"\n\n'
         "# Language: auto follows the system locale; es or en pin it.\n"
         'language = "auto"\n\n'
         "# Queue columns, comma separated. Available: track, version, artist,\n"
@@ -812,6 +819,8 @@ def config_template() -> str:
         'quality = "HI_RES_LOSSLESS"\n\n'
         "# Cómo dibujar la carátula: auto, kitty, sixel, blocks u off.\n"
         'artwork = "auto"\n\n'
+        "# Forma de la carátula: square (cuadrada) o round (redonda).\n"
+        'cover_shape = "square"\n\n'
         "# Idioma: auto sigue al locale del sistema; es o en lo fijan.\n"
         'language = "auto"\n\n'
         "# Columnas de la cola, separadas por coma. Disponibles: track, version,\n"

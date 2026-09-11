@@ -351,3 +351,34 @@ def test_an_emblem_can_sit_in_the_lower_right_corner_and_grow():
     assert abs((min(middle) + max(middle)) / 2 - 30) <= 1
     assert max(x for cells in bottom.values() for x, *_ in cells) == 120 - 3
     assert len(bigger) > len(bottom)
+
+
+def test_a_round_cover_is_a_disc_on_the_band_s_ground():
+    """The corners take the band's ground, whatever the protocol: sixel has
+    no alpha worth trusting and half blocks none at all. The middle is the
+    cover, untouched."""
+    pil_image = pytest.importorskip("PIL.Image")
+    red = pil_image.new("RGB", (80, 80), (200, 20, 20))
+    ground = (10, 30, 12)
+    assert artwork.shape(red, "square", ground) is red
+    disc = artwork.shape(red, "round", ground)
+    assert disc.size == red.size
+    for corner in ((0, 0), (79, 0), (0, 79), (79, 79)):
+        assert disc.getpixel(corner) == ground
+    assert disc.getpixel((40, 40)) == (200, 20, 20)
+    # The edge is blended, not stepped: some pixel sits between the two.
+    diagonal = [disc.getpixel((x, x)) for x in range(5, 20)]
+    assert any(ground[0] < pixel[0] < 200 for pixel in diagonal)
+
+
+def test_render_cuts_the_cover_before_any_protocol_sees_it():
+    pil_image = pytest.importorskip("PIL.Image")
+    buffer = io.BytesIO()
+    pil_image.new("RGB", (64, 64), (250, 250, 250)).save(buffer, "PNG")
+    cover = artwork.render(
+        buffer.getvalue(), 8, 4, Protocol.BLOCKS, outline="round", ground=(0, 0, 0)
+    )
+    assert cover is not None and cover.pixels is not None
+    assert cover.pixels[0][0] == (0, 0, 0)
+    middle = cover.pixels[len(cover.pixels) // 2][len(cover.pixels[0]) // 2]
+    assert middle == (250, 250, 250)

@@ -31,6 +31,7 @@ _CONFIG_GLOBALS = (
     "PALETTE",
     "ARRANGEMENT",
     "BACKDROP",
+    "COVER_SHAPE",
     "DEBUG",
     "KEYS",
 )

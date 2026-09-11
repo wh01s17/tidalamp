@@ -70,6 +70,7 @@ FILE = read_file()
 ENV_VARS: dict[str, str] = {
     "quality": "TIDALAMP_QUALITY",
     "artwork": "TIDALAMP_ART",
+    "cover_shape": "TIDALAMP_COVER_SHAPE",
     "language": "TIDALAMP_LANG",
     "columns": "TIDALAMP_COLUMNS",
     "theme": "TIDALAMP_THEME",
@@ -157,6 +158,10 @@ PALETTE = setting("palette", "TIDALAMP_PALETTE", "auto")
 # and like them it applies without touching playback. `split` needs a wide
 # terminal and falls back to stacked on its own where it does not fit.
 ARRANGEMENT = setting("arrangement", "TIDALAMP_ARRANGEMENT", "stacked")
+
+# The cover's outline: `square` as it comes, or `round` for a disc, its
+# corners painted in the band's ground. Any theme, any protocol.
+COVER_SHAPE = setting("cover_shape", "TIDALAMP_COVER_SHAPE", "square")
 
 # The picture behind the queue: `auto` is the one the theme brings, `none`
 # takes it away, and any themed look's name borrows its picture for another
@@ -257,10 +262,11 @@ def reload() -> None:
     Those consumers read `config.DEFAULT_QUALITY` instead — see stream.py.
     """
     global FILE, DEFAULT_QUALITY, ARTWORK, LANGUAGE, THEME, PALETTE, COLUMNS
-    global DEBUG, TRANSPARENCY, KEYS, VISUALIZER, ARRANGEMENT, BACKDROP
+    global DEBUG, TRANSPARENCY, KEYS, VISUALIZER, ARRANGEMENT, BACKDROP, COVER_SHAPE
     FILE = read_file()
     DEFAULT_QUALITY = setting("quality", "TIDALAMP_QUALITY", "HI_RES_LOSSLESS")
     ARTWORK = setting("artwork", "TIDALAMP_ART", "auto")
+    COVER_SHAPE = setting("cover_shape", "TIDALAMP_COVER_SHAPE", "square")
     LANGUAGE = setting("language", "TIDALAMP_LANG", "auto")
     THEME = setting("theme", "TIDALAMP_THEME", "quattro")
     PALETTE = setting("palette", "TIDALAMP_PALETTE", "auto")

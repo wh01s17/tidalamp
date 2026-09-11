@@ -204,6 +204,7 @@ def test_set_option_writes_each_type_the_way_toml_reads_it(tmp_path):
     assert config.read_file(path) == {
         "quality": "HIGH",
         "artwork": "auto",
+        "cover_shape": "square",
         "language": "en",
         "columns": "artist,album,year,duration",
         "theme": "quattro",
