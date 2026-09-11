@@ -1630,6 +1630,7 @@ class TidalAmp(App):
         self.status = _("pausa") if self.mpv.paused else _("reproduciendo")
 
     def action_stop(self) -> None:
+        self._autoplaying = False
         self.mpv.stop()
         self.queue.playing = -1
         # The tick reads "mpv went idle" as "the track ended" and moves on.
@@ -1683,6 +1684,10 @@ class TidalAmp(App):
         user's. Tracks already in it are left out, so the station does not
         loop back over what was just heard.
         """
+        # Stopped, or something else started, while the radio was on its way:
+        # the user decided, and a late station must not override them.
+        if not self._autoplaying:
+            return
         self._autoplaying = False
         have = {entry.id for entry in self.queue}
         fresh = [entry for entry in entries if entry.id not in have]
@@ -1701,6 +1706,8 @@ class TidalAmp(App):
         )
 
     def _autoplay_failed(self, message: str) -> None:
+        if not self._autoplaying:
+            return
         self._autoplaying = False
         self.action_stop()
         self.status = _("reproducción automática: {error}").format(error=message)
@@ -1802,6 +1809,7 @@ class TidalAmp(App):
         self.status = names[self.queue.repeat]
 
     def _play_index(self, index: int) -> None:
+        self._autoplaying = False
         if not 0 <= index < len(self.queue):
             return
         entry = self.queue[index]
@@ -2276,6 +2284,10 @@ class TidalAmp(App):
             self.status = _("carátula: {value}").format(value=config.ARTWORK)
         elif name == "cover_shape":
             self._reshape_art()
+            # The full-screen view cuts its own cover, to the old shape.
+            fullscreen = self._fullscreen()
+            if fullscreen is not None:
+                fullscreen.reload_cover()
             self.status = _("forma de la carátula: {value}").format(
                 value=config.COVER_SHAPE
             )

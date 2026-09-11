@@ -540,3 +540,40 @@ def test_a_radio_with_nothing_new_stops_and_says_so(monkeypatch):
             assert len(application.queue) == 2
 
     asyncio.run(scenario())
+
+
+def test_stopping_while_the_radio_is_on_its_way_keeps_it_stopped(monkeypatch):
+    """A station arriving after the user pressed stop, or played something
+    else, must not start by itself."""
+    isolate_runtime(monkeypatch)
+    monkeypatch.setattr(TidalAmp, "_resolve_worker", lambda self, entry: None)
+    monkeypatch.setattr(app_module.config, "AUTOPLAY", True)
+    asked: list[Entry] = []
+    monkeypatch.setattr(
+        TidalAmp, "_autoplay_worker", lambda self, seed: asked.append(seed)
+    )
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(100, 30)) as pilot:
+            await pilot.pause()
+            _two_tracks_playing_the_last(application)
+            application.action_next()
+            assert len(asked) == 1
+            application.action_stop()
+            station = [Entry(id=90, title="R0", artist="x")]
+            application._autoplay_ready(asked[0], station)
+            await pilot.pause()
+            assert len(application.queue) == 2
+            assert application.queue.playing == -1
+
+            # Back to the last track, so «next» runs past the end again.
+            _two_tracks_playing_the_last(application)
+            application.action_next()
+            assert len(asked) == 2
+            application._play_index(0)
+            application._autoplay_ready(asked[1], station)
+            assert len(application.queue) == 2
+            assert application.queue.playing == 0
+
+    asyncio.run(scenario())

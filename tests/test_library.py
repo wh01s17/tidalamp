@@ -899,7 +899,8 @@ def test_removing_from_a_playlist_finds_the_track_past_the_first_page(monkeypatc
 
     assert name == "Mía"
     assert playlist.removed == [230]
-    assert playlist.pages == [0, PAGE, 2 * PAGE]
+    # Three pages to find it, then one track read to confirm the position.
+    assert playlist.pages == [0, PAGE, 2 * PAGE, 230]
     # The playlist in every order, and the list of playlists with its count.
     assert set(library._LEVELS) == {"fav:tracks"}
 
@@ -961,3 +962,30 @@ def test_a_broken_orders_file_is_no_orders_at_all():
     library.ORDERS_FILE.write_text("{esto no es json", encoding="utf-8")
     tracks = next(row for row in library.root(FakeSession()) if row.key == "fav:tracks")
     assert library.chosen(tracks) is None
+
+
+class FakeGappyPlaylist(FakeOwnedPlaylist):
+    """A playlist TIDAL hands back with gaps: a track it cannot serve is left
+    out of a page after the limit is applied, so positions after it shift."""
+
+    def __init__(self, ids, hidden):
+        super().__init__(ids)
+        self.hidden = set(hidden)
+
+    def tracks(self, limit=None, offset=0, **order):
+        self.pages.append(offset)
+        window = self.ids[offset : offset + limit]
+        return [SimpleNamespace(id=i) for i in window if i not in self.hidden]
+
+
+def test_a_gap_in_the_page_does_not_delete_the_neighbour():
+    """Counting the page put track 7 at position 6, behind the hidden 3; the
+    position is checked before deleting, and the real one is 7."""
+    playlist = FakeGappyPlaylist(range(10), hidden={3})
+
+    library.remove_from_playlist(
+        FakePlaylistSession(playlist), "7", Entry(id=7, title="t", artist="a")
+    )
+
+    assert playlist.removed == [7]
+    assert 7 not in playlist.ids and 6 in playlist.ids

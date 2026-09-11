@@ -791,12 +791,38 @@ def remove_from_playlist(
             break
         for position, track in enumerate(page):
             if str(getattr(track, "id", "")) == wanted:
-                playlist.remove_by_index(offset + position)
+                index = _position_of(playlist, wanted, offset + position, offset)
+                if index is None:
+                    raise TrackNotInPlaylist(entry.label)
+                playlist.remove_by_index(index)
                 forget("playlists")
                 forget_level(f"playlist:{playlist_id}")
                 return title
         offset += PAGE
     raise TrackNotInPlaylist(entry.label)
+
+
+def _is_at(playlist: Any, index: int, wanted: str) -> bool:
+    page = with_retries(partial(playlist.tracks, limit=1, offset=index))
+    return bool(page) and str(getattr(page[0], "id", "")) == wanted
+
+
+def _position_of(playlist: Any, wanted: str, guess: int, start: int) -> int | None:
+    """Where ``wanted`` really is, checked before anything is deleted.
+
+    ``guess`` counts what the page handed back, and TIDAL can leave a track
+    it cannot serve out of a page after applying the limit, as it does with
+    favourites: then every position after the gap is one short, and deleting
+    by it would take out the neighbour. One single-track read confirms the
+    guess; if it does not hold, the page's window is walked a track at a
+    time, which is the rare case and a hundred small reads at most.
+    """
+    if _is_at(playlist, guess, wanted):
+        return guess
+    for index in range(start, start + PAGE):
+        if _is_at(playlist, index, wanted):
+            return index
+    return None
 
 
 def add_to_playlist(

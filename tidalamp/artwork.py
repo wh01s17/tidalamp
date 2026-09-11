@@ -587,14 +587,16 @@ def to_png(image) -> bytes:
 
 # For bit ``row`` of a sixel and palette index ``index``, a table that turns a
 # row of indices into that bit where the index matches and 0 elsewhere. Built
-# once: 256 indices times six rows of 256 bytes.
-_BIT_TABLES = tuple(
-    tuple(
+# the first time a colour is used: all 256 up front cost every start of the
+# app a fifth of its import time, and most terminals never draw sixel.
+@functools.cache
+def _bit_tables(index: int) -> tuple[bytes, ...]:
+    return tuple(
         bytes((1 << row) if value == index else 0 for value in range(256))
         for row in range(6)
     )
-    for index in range(256)
-)
+
+
 # From a sixel's six bits to its character, which is the bits plus 0x3F.
 _TO_SIXEL = bytes((value + 0x3F) & 0xFF for value in range(256))
 # `!n` costs three characters, so it only pays from four repeats up.
@@ -649,7 +651,7 @@ def sixel_escape(image, colors: int = 255) -> str:
             if position:
                 out.append("$")
             out.append(f"#{index}")
-            tables = _BIT_TABLES[index]
+            tables = _bit_tables(index)
             bits = 0
             for row, line in enumerate(rows):
                 bits |= int.from_bytes(line.translate(tables[row]), "big")
