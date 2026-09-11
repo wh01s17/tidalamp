@@ -15,39 +15,7 @@ Lo de aquí no bloquea publicar. `plan.md` §5 y §6 mandan sobre el estado gene
 
 ---
 
-## 1. Partir los ficheros que han crecido demasiado
-
-Decidido el 2026-09-11, aplazado hasta cerrar los emblemas. Hoy: `tests/test_app.py`
-~5000 líneas, `tidalamp/app.py` ~2300 (una sola clase con ~170 métodos),
-`tidalamp/screens.py` ~2200 (once pantallas), `tidalamp/styles.tcss` ~1300 y
-`tidalamp/widgets.py` ~1000. Es seguro si cada paso **solo mueve código**, sin cambiar
-comportamiento, y la suite pasa después de cada uno.
-
-Orden, de menos a más riesgo:
-
-1. `screens.py` a paquete `screens/`, un módulo por pantalla; `__init__.py` reexporta
-   todo para que `from tidalamp.screens import ConfigScreen` siga valiendo.
-2. `tests/test_app.py` partido por tema (transporte, cola, split, temas, ajustes, ayuda),
-   con los helpers (`FakeMpv`, `isolate_runtime`, `use_theme`...) en `conftest.py` o en
-   un módulo propio: `tests/` no es un paquete y un test no puede importar de otro.
-3. `widgets.py`: el analizador a su módulo, los de texto (`Glide`, `Marquee`,
-   `LyricsPane`) a otro.
-4. `styles.tcss` en varios ficheros (`CSS_PATH` acepta una lista) **en el mismo orden**:
-   a igual especificidad gana la regla posterior, y varias dependen de eso.
-5. `app.py`, lo último: primero mixins por tema (apariencia, transporte, cola, carátula
-   y letra, MPRIS), que reparten sin cambiar nada; extraer objetos de verdad sería otro
-   trabajo, con su propio diseño.
-
-Trampas:
-
-- **Los `monkeypatch` de los tests** parchean nombres en un módulo concreto
-  (`screens_module.paired_palette`, `app_module.config`): si la función se muda, el
-  parche sigue en el sitio viejo y el test pasa sin probar nada. Hay que moverlos con
-  el código.
-- **El test del catálogo i18n** recorre `tidalamp/*.py` con `glob`: con subpaquetes
-  dejaría de ver sus textos sin fallar. Pasarlo a `rglob` antes de mover nada.
-- Un commit por fichero, sin funcionalidad mezclada, y un `.git-blame-ignore-revs` con
-  esos commits para que `git blame` siga apuntando al autor real.
+Nada comprometido por ahora.
 
 ## Descartado por ahora
 
@@ -64,3 +32,11 @@ No se borran: quedan escritos con el motivo para no volver a discutirlos desde c
   en el transporte. Barato, pero no lo pidió nadie todavía.
 - **Enrutar mpv a un sink propio de PipeWire** para que cava no oiga el resto del
   sistema. Cuesta un nodo por ejecución para arreglar un caso raro. Ver `plan.md` §9.4.
+- **`app.py` en mixins por tema** (2026-09-11). Probado y revertido: mypy no acepta
+  `self: TidalAmp` en un mixin (el tipo de `self` tiene que ser supertipo de la clase),
+  así que las ~1100 líneas movidas quedan sin comprobar o piden un stub con las ~170
+  firmas duplicadas. Además los `@on` solo cuentan en clases que construye Textual, y
+  seis métodos tienen que quedarse porque los tests parchean nombres en
+  `tidalamp.app`. Si se retoma, que sea extrayendo objetos de verdad (MPRIS, carátula,
+  cola), con su propio diseño. El resto del reparto (`screens/`, `styles/`,
+  `widgets.py`, los tests de la app) está hecho y en `.git-blame-ignore-revs`.

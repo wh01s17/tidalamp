@@ -42,6 +42,9 @@ versioning is [semantic](https://semver.org/).
   words is on screen by the end of it. They used to show from the top and stay there.
 - The seek bar is a line with a dot riding on it, the played part drawn heavier in the
   accent, with a row of space on each side; the thumb used to be a full block.
+- Internal: `screens.py` is a package with one module per window, the analyser and
+  the moving text left `widgets.py`, the stylesheet is five files read in order, and
+  the app tests are split by topic. Code moved, nothing changed.
 
 ### Fixed
 

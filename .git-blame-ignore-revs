@@ -1,0 +1,11 @@
+# Commits that only move code. Use with:
+#   git config blame.ignoreRevsFile .git-blame-ignore-revs
+
+# refactor(screens): partir screens.py en un paquete, una ventana por módulo
+715c107fcd7b6b76ab4313516805226f947e5b7a
+# refactor(tests): partir test_app.py por tema
+b90e17a8b41d05df4d4bd69a94b3c03839c55f80
+# refactor(widgets): el analizador y el texto que se mueve, a sus módulos
+48a7a847c97d082a167aec7402d38f091c569eca
+# refactor(styles): styles.tcss en cinco ficheros, en el mismo orden
+44a613793f07c099ce3fe3608426d711f70d89b6

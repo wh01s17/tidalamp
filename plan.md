@@ -90,13 +90,19 @@ tidalamp/
   auth.py       Device flow y persistencia de sesión. Lanza NotLoggedIn.
   stream.py     Track -> Playable (URL o playlist HLS local). Lanza StreamUnavailable.
   player.py     Clase Mpv: spawn del proceso, socket IPC, transporte, medición RMS.
-  widgets.py    TimeDisplay, Marquee, Analyzer (cinco formas), SeekBar, Slider,
-                Artwork. Sin lógica de negocio.
-  screens.py    RowList, `fit_hints()` y los seis modales: búsqueda, biblioteca, ecualizador,
-                letras, ayuda y el menú de acciones de una pista. No guardan estado del reproductor: reciben lo que necesitan
-                al construirse y contestan por `dismiss`.
+  widgets.py    TimeDisplay, SeekBar, Slider, Spinner, Artwork. Reexporta los de
+                `analyzer.py` y `scrolling.py`. Sin lógica de negocio.
+  analyzer.py   Analyzer (cinco formas) y EqualizerBars: los que pintan bandas.
+  scrolling.py  Texto que se mueve: Glide, Marquee y LyricsPane.
+  screens/      Un módulo por ventana (browser, tracks, help, config_window,
+                equalizer, lyrics_window, column_picker, prompts) y `rowlist.py`
+                con RowList y `fit_hints()`. `__init__.py` lo reexporta todo. No
+                guardan estado del reproductor: reciben lo que necesitan al
+                construirse y contestan por `dismiss`.
   app.py        TidalAmp: layout, transporte, workers y el pegamento con MPRIS.
-  styles.tcss   Paleta y layout de todo lo que se dibuja.
+  styles/       La hoja en cinco ficheros que `CSS_PATH` lee en orden: base
+                (pantalla y ventanas), player, compact, looks y themed. A igual
+                especificidad gana la regla posterior, así que el orden importa.
   queue.py      Entry (metadatos serializables + Track perezoso) y Queue (orden,
                 shuffle, repeat, persistencia). No conoce la UI.
   library.py    Navegación de la biblioteca. Devuelve listas de Row, paginadas.
@@ -135,14 +141,15 @@ Dependencia en un solo sentido:
 cli -> app -> {player, stream, widgets, screens, mpris, lyrics, spectrum, settings}
        app -> {queue, net, artwork, library} -> {auth, config}
        screens -> {widgets, library, settings, lyrics, theme, about, audio, config}
+       widgets -> {analyzer, scrolling}
        widgets -> artwork  (sólo los tipos Cover/Protocol y el borrado de kitty)
 ```
 
-`RowList` vive en `screens.py` y no en `widgets.py` a propósito: pinta un
+`RowList` vive en `screens/rowlist.py` y no en `widgets.py` a propósito: pinta un
 `library.Row`, y `library` importa `tidalapi`. Ponerlo con los demás widgets
 arrastraría TIDAL al único módulo que deliberadamente no lo conoce.
 
-`widgets.py` no conoce TIDAL ni mpv; recibe valores por reactives. Mantener esa
+`widgets.py`, `analyzer.py` y `scrolling.py` no conocen TIDAL ni mpv; recibe valores por reactives. Mantener esa
 separación: es lo que permitiría añadir otro frontend (ver §6).
 
 ## 4. Implementado
@@ -189,7 +196,7 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
 - [x] `rms()`: nivel en dBFS vía el filtro `astats` de mpv.
 - [x] `close()` con terminación limpia y borrado del socket.
 
-### Interfaz — `app.py`, `widgets.py`, `styles.tcss`
+### Interfaz — `app.py`, `widgets.py`, `styles/`
 
 - [x] Reloj de siete segmentos, con alternancia transcurrido/restante (`t`).
 - [x] Marquee del título con scroll. Lleva **el número y el título y nada más**: es una
@@ -373,7 +380,7 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
       lo vuelve a pedir. La lista cacheada se entrega tal cual, no copiada, para que
       las páginas que el usuario ya cargó con «más…» sigan ahí al volver.
 
-### Configuración — `screens.py`, `config.py`
+### Configuración — `screens/config_window.py`, `config.py`
 
 - [x] **Agrupada por temática**: Audio (calidad, ritmos hi-res, reiniciar PipeWire),
       Apariencia (tema, paleta, transparencia, carátula, columnas) y General (idioma,
@@ -414,7 +421,7 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
       El ajuste viaja como clase CSS (`ModalScreen.transparent`), no como una segunda
       hoja de estilos, y se aplica también a las ventanas ya abiertas.
 
-### Ventanas superpuestas — `styles.tcss`, `app.py`
+### Ventanas superpuestas — `styles/base.tcss`, `app.py`
 
 - [x] **Tamaño proporcional al terminal.** Eran 84x26 fijas: en 4K, un sello en medio de
       un campo vacío. Los paneles (biblioteca, letra, ayuda) toman el 85% del terminal,
@@ -483,7 +490,7 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
 - [x] Instrumentación de la rama de manifiesto: `stream.resolve()` registra si tomó
       `BTS` o `MPD`, y `Playable.manifest` lo expone.
 
-### Espectro — `spectrum.py`, `widgets.py`
+### Espectro — `spectrum.py`, `analyzer.py`
 
 - [x] `Cava`: escribe una config en cache, lanza `cava -p`, y un hilo lee frames
       binarios (un byte por banda) quedándose sólo con el último; la UI muestrea a su
@@ -653,7 +660,7 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
       modal y se restaura desde el tick lento al desapilarla, y se borra por id al
       desmontar el widget.
 
-### Barra de transporte — `app.py`, `styles.tcss`
+### Barra de transporte — `app.py`, `styles/player.tcss`
 
 - [x] Dos mitades en un `Horizontal`: a la izquierda las teclas de transporte, a la
       derecha las ventanas alineadas al borde (`width: 1fr; text-align: right`). Antes
@@ -734,7 +741,7 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
       en `Layout.keycaps`: `ascii` las deja en `[ ]` y en glifos ASCII, y cinco temas
       traen las suyas (`⟦ ⟧`, `( )`, `▐ ▌`, `{ }`, `╣ ╠`). Los demás reutilizan
       `quattro`, `retro` o `nova`. La estructura propia de cada uno (marco, qué barras
-      llevan fondo, alineación) vive en su bloque de `styles.tcss`.
+      llevan fondo, alineación) vive en su bloque de `styles/themed.tcss`.
 - [x] Las paletas nuevas se quedan en el vocabulario de Omarchy. Añaden
       `dark_foreground` a los diez básicos, por la razón que da `black`: sin él, el
       texto secundario brilla igual que el principal.
@@ -843,7 +850,7 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
       está dibujada a mano. El Joker y Ryuk del pixel art llevan firma de otros
       artistas; se usan por decisión del mantenedor.
 
-### Dos columnas - `app.py`, `styles.tcss`, `config.py`, `widgets.py`
+### Dos columnas - `app.py`, `styles/player.tcss`, `config.py`, `scrolling.py`
 
 - [x] `compose()` pone el reproductor en `#player-half`, la cola en `#queue-half` y el
       transporte entre los dos como hermano de ambos, también en la forma apilada.
@@ -888,7 +895,7 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
 - [x] En split, quattro perdía el título: la fila de la rejilla mide el widget y no
       cuenta márgenes, y su margen inferior se comía la única fila. Ahí ese aire va como
       alto (`height: 2`). Un test recorre las trece disposiciones en las dos formas.
-- [x] `Glide` (`widgets.py`): artista, disco y año bajo el reloj, `SRC`, `OUT` y el
+- [x] `Glide` (`scrolling.py`): artista, disco y año bajo el reloj, `SRC`, `OUT` y el
       título. Una línea que cabe se ve entera; una que no, se para unos dos segundos,
       se desliza una celda cada 0,3 s hasta que se ve su final, se para y vuelve. Varias
       líneas comparten fase y cada una se detiene en su final. Corta en fronteras de
@@ -901,7 +908,7 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
       `call_after_refresh` no llegaba después del layout del fondo. En headless no se
       reproduce, así que no hay test que falle sin el arreglo: **comprobarlo a mano**.
 
-### Configuración — `config.py`, `audio.py`, `screens.py`
+### Configuración — `config.py`, `audio.py`, `screens/config_window.py`
 
 - [x] `o` abre `ConfigScreen`. Todo lo que hoy se configuraba editando el TOML o
       exportando una variable está ahí: calidad, carátula, idioma y registro.
@@ -931,7 +938,7 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
       reiniciado desde la pantalla, el FiiO BTR15 muestra `PCM 176.4K` en su propia
       pantalla. Ver §5.
 
-### Menú de la pista — `screens.py`, `queue.py`, `library.py`
+### Menú de la pista — `screens/tracks.py`, `queue.py`, `library.py`
 
 - [x] `↵` sobre una canción abre `TrackActionsScreen` en vez de encolar el nivel a
       ciegas: reproducir ahora (`a`), a continuación (`c`), la radio de la pista (`d`)
@@ -955,7 +962,7 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
 - [x] El menú vale también en la biblioteca, no sólo en la búsqueda: es la misma
       `BrowserScreen`, y separarlas habría pedido una bandera para empeorar un lado.
 
-### Añadir a una playlist existente — `library.py`, `screens.py`
+### Añadir a una playlist existente — `library.py`, `screens/browser.py`
 
 - [x] Va en el menú de la pista, que desde la 0.4.0 se abre con ↵ en la biblioteca y con
       `m` en la cola: es el sitio donde ya se pregunta qué hacer con una canción.
@@ -1016,7 +1023,7 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
 - [x] La aritmética vive en `artwork.py`, que no importa Textual, y el widget sólo pide
       glifo y dos colores por celda. Así el reparto se prueba sin levantar una app.
 
-### Ayuda y acerca de — `about.py`, `screens.py`
+### Ayuda y acerca de — `about.py`, `screens/help.py`
 
 - [x] `?` o `h` abren `HelpScreen`: todos los atajos agrupados por lo que estás
       haciendo (reproducción, volumen, cola, ventanas, favoritos, y los del navegador),
