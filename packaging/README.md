@@ -5,8 +5,8 @@ dependencia real y `cava` como opcional, y PyPI para el resto de distribuciones 
 donde no se puede. Windows no es compatible y macOS no está soportado ni probado.
 
 > [!IMPORTANT]
-> **PyPI está en marcha:** `0.1.0`, `0.1.1`, `0.2.0`, `0.3.0` y `0.4.0` se publicaron
-> mediante Trusted Publishing, sin ningún token de larga vida. El `PKGBUILD` del AUR
+> **PyPI está en marcha:** todas las versiones hasta `0.5.1` se publicaron mediante
+> Trusted Publishing, sin ningún token de larga vida. El `PKGBUILD` del AUR
 > sigue preparado y sin publicar, porque
 > [el registro de cuentas nuevas sigue cerrado](https://lists.archlinux.org/archives/list/aur-general%40lists.archlinux.org/message/2IJD5MFHSLXARQTOP4FH64CJLW2BIIGC/)
 > durante el endurecimiento de seguridad del servicio y no se ha anunciado una fecha
@@ -18,10 +18,11 @@ archivo conserva el resumen y las decisiones específicas del empaquetado.
 
 ## Publicar una versión
 
-1. Cerrar la sección «Sin publicar» de `CHANGELOG.md` con el número y la fecha.
-2. Actualizar la versión en `pyproject.toml`, `tidalamp/__init__.py`, la entrada de
-   `releases()` en `tidalamp/about.py` y `pkgver` en `packaging/aur/PKGBUILD`; al
-   cambiar `pkgver`, devolver `pkgrel` a `1`.
+1. Cerrar la sección `[Unreleased]` de `CHANGELOG.md` con el número y la fecha.
+2. Actualizar la versión en los **cinco** sitios: `pyproject.toml`,
+   `tidalamp/__init__.py`, la entrada de `releases()` en `tidalamp/about.py`, el `?v=`
+   de las URLs de imagen del `README.md` y `pkgver` en `packaging/aur/PKGBUILD`; al
+   cambiar `pkgver`, devolver `pkgrel` a `1`. El detalle está en `publish.md` §3.2.
 3. Regenerar el `.SRCINFO`: `cd packaging/aur && makepkg --printsrcinfo > .SRCINFO`.
 4. Crear el commit, un tag anotado con `git tag -a vX.Y.Z -m "tidalamp X.Y.Z"` y
    subir únicamente ese tag con `git push origin vX.Y.Z`.

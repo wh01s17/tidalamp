@@ -13,7 +13,7 @@ calcula el checksum y, cuando vuelva a ser posible obtener una cuenta, se public
 paquete en el AUR.
 
 > [!IMPORTANT]
-> **Estado a 2026-09-10:** hay cinco versiones publicadas en PyPI —hasta `0.4.0`— con
+> **Estado a 2026-09-10:** hay siete versiones publicadas en PyPI, hasta `0.5.1`, con
 > Trusted Publishing. El environment `pypi` de GitHub existe y el publisher de PyPI ya
 > no está pendiente: se convirtió en uno normal con la primera publicación, así que
 > §1.2 y §1.3 quedan como registro de cómo se configuró y no como pasos a repetir. La
@@ -444,7 +444,7 @@ página pública con las notas de la versión. GitHub añadirá automáticamente
 4. Usa como título `tidalamp X.Y.Z`.
 5. Copia las notas de esa versión desde `CHANGELOG.md`, que ya está en inglés, o
    pulsa **Generate release notes** y revísalas manualmente. No dejes las notas en
-   español: los seis releases publicados están en inglés y el enlace «Full changelog»
+   español: todos los releases publicados están en inglés y el enlace «Full changelog»
    de cada uno lleva a un fichero en inglés.
 6. Marca **Set as the latest release**.
 7. Marca **This is a pre-release** sólo si quieres presentar explícitamente esa versión

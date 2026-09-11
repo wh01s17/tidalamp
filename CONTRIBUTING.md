@@ -63,7 +63,10 @@ what the maintainer reads is in Spanish.
   facing line and to `plan.md` as the detail. A list that collects struck-out entries
   stops saying what is missing.
 - `publish.md` is the release procedure, in Spanish: from the version to the tag and the
-  AUR.
+  AUR. `packaging/README.md` is its summary plus the packaging-specific decisions, also
+  in Spanish: it is a companion to `publish.md`, not a door a stranger comes in through.
+- This file is in English. Whoever reads it is deciding whether to contribute, and that
+  is a stranger by definition.
 - `CHANGELOG.md` is updated in the same commit as the change.
 
 ## Commit messages

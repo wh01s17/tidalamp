@@ -679,6 +679,20 @@ If mpv dies, tidalamp starts a fresh process and reloads the current track. Expi
 tokens are refreshed automatically; `tidalamp login` is only needed when there is no
 usable refresh token. Failed TIDAL calls are retried with backoff.
 
+**If `OUT` sits below `SRC` and the settings window reports nothing wrong**, the limit
+is the USB link, not the graph. A cable that negotiates full speed instead of high
+speed caps many DACs at 16 bit / 96 kHz, and the kernel says so:
+
+```sh
+journalctl -k -b | grep -i "top speed"
+# usb 1-4.3: not running at top speed; connect to a high speed hub
+```
+
+`/proc/asound/card*/stream0` lists the formats and rates the device is offering on the
+link it actually got. Try another cable and a direct port before suspecting the
+software: the badge is reporting the truth about hardware that has quietly downgraded
+itself.
+
 For anything else, `TIDALAMP_DEBUG=1 tidalamp` writes to
 `~/.local/state/tidalamp/tidalamp.log`. The TUI owns the terminal, so logging goes to
 a file.
