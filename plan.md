@@ -787,6 +787,18 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
 - [x] En split, quattro perdía el título: la fila de la rejilla mide el widget y no
       cuenta márgenes, y su margen inferior se comía la única fila. Ahí ese aire va como
       alto (`height: 2`). Un test recorre las trece disposiciones en las dos formas.
+- [x] `Glide` (`widgets.py`): artista, disco y año bajo el reloj, `SRC`, `OUT` y el
+      título. Una línea que cabe se ve entera; una que no, se para unos dos segundos,
+      se desliza una celda cada 0,3 s hasta que se ve su final, se para y vuelve. Varias
+      líneas comparten fase y cada una se detiene en su final. Corta en fronteras de
+      grafema (`_window`). Antes se recortaban y el final se perdía; el título daba la
+      vuelta en bucle con `***`, rápido. Se para detrás de un modal, como el resto.
+- [x] `Measured(Static)` para lo que se dibuja a su propio ancho (título, encabezado
+      de la cola, menú del transporte): se redibuja en su propio `on_resize`. Al volver
+      de split desde ajustes, en el terminal del mantenedor el encabezado se quedaba
+      medido a media anchura y las pistas acababan a mitad de fila; el
+      `call_after_refresh` no llegaba después del layout del fondo. En headless no se
+      reproduce, así que no hay test que falle sin el arreglo: **comprobarlo a mano**.
 
 ### Configuración — `config.py`, `audio.py`, `screens.py`
 

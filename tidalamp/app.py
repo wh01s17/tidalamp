@@ -7,7 +7,7 @@ import time
 from typing import cast
 
 import tidalapi
-from rich.cells import cell_len, set_cell_size
+from rich.cells import cell_len
 from rich.text import Text
 from textual import events, on, work
 from textual.app import App, ComposeResult
@@ -47,6 +47,7 @@ from .theme import LAYOUTS, ThemePalette, load_palette
 from .widgets import (
     Analyzer,
     Artwork,
+    Glide,
     LyricsPane,
     Marquee,
     SeekBar,
@@ -165,6 +166,22 @@ class MainPanel(Vertical):
 
     def on_resize(self, event) -> None:
         cast("TidalAmp", self.app)._check_size()
+
+
+class Measured(Static):
+    """A line drawn to its own width: a ruled title, a heading with the hints
+    pushed to the right edge, a menu cropped to fit.
+
+    It redraws itself when its size changes. The app used to guess when that
+    happened (a resize, a change of layout, one refresh after switching the
+    arrangement) and switching back from split beat the guess: the queue's
+    heading kept the half width it had and its hints stopped in the middle.
+    """
+
+    def on_resize(self, event) -> None:
+        app = self.app
+        if isinstance(app, TidalAmp) and app.query("#transport-menu"):
+            app._refresh_widths()
 
 
 class TidalAmp(App):
@@ -288,7 +305,7 @@ class TidalAmp(App):
             # markup=False on both headings: a layout that rules them with
             # «[ TIDAL AMP ]» hands Static a string that Rich would read as a
             # tag, and the brackets and everything between them disappeared.
-            yield Static(self._title_text(), id="titlebar", markup=False)
+            yield Measured(self._title_text(), id="titlebar", markup=False)
             # The player and the queue, each in a container of its own even
             # while they are stacked, and the transport between them as a
             # sibling of both. `split` lays the three out on a grid with a
@@ -308,11 +325,11 @@ class TidalAmp(App):
                         # The rest of the track's identity, under the time:
                         # the marquee above only has room for one line and it
                         # spends it on the title.
-                        yield Static("", id="trackmeta", markup=False)
+                        yield Glide(id="trackmeta")
                     with Vertical(id="readout"):
                         yield Marquee(id="marquee")
-                        yield Static("", id="badges")
-                        yield Static("OUT  —", id="output")
+                        yield Glide(id="badges")
+                        yield Glide("OUT  —", id="output")
                         yield Analyzer(id="analyzer")
                 yield SeekBar(id="seek")
                 yield Slider(id="volume")
@@ -325,9 +342,9 @@ class TidalAmp(App):
             # `_refresh_modes`, which dims the separators and lights the state.
             with Horizontal(id="transport"):
                 yield Static("", id="transport-play")
-                yield Static("", id="transport-menu")
+                yield Measured("", id="transport-menu")
             with Vertical(id="queue-half"):
-                yield Static("", id="pl-title", markup=False)
+                yield Measured("", id="pl-title", markup=False)
                 yield RowList(id="playlist")
                 # The queue's own search bar, the same shape as the browser's:
                 # it opens under the list without covering it, so the queue
@@ -1793,25 +1810,25 @@ class TidalAmp(App):
     def _track_meta(self) -> str:
         """Artist, album and year of what is playing, one per line.
 
-        Cropped rather than wrapped: the column is 24 cells wide and a wrapped
-        album title would push the year out of the band.
+        Never wrapped: the column is 24 cells wide and a wrapped album title
+        would push the year out of the band. A line that does not fit glides
+        to show the rest (`Glide`) instead of being cut off for good.
         """
         entry = self.queue.current
         if entry is None:
             return ""
-        width = max(1, self.query_one("#trackmeta", Static).size.width)
         tail = " · ".join(
             part for part in (str(entry.year) if entry.year else "", entry.length) if part
         )
         lines = [entry.artist, entry.album, tail]
-        return "\n".join(set_cell_size(line, width) for line in lines if line)
+        return "\n".join(line for line in lines if line)
 
     def _refresh_track_meta(self) -> None:
         """Write the block under the clock. Separate from the readout because
         it is known the moment a track starts, while the codec line waits for
         the stream to resolve."""
         if self.query("#trackmeta"):
-            self.query_one("#trackmeta", Static).update(self._track_meta())
+            self.query_one("#trackmeta", Glide).update(self._track_meta())
 
     def _refresh_readout(self) -> None:
         """Redraw source, analyser and playback state from cached values."""
@@ -1829,7 +1846,7 @@ class TidalAmp(App):
                 f"{playable.khz} kHz · {quality} · {analyzer.source} · "
                 f"{self._playback_label()}"
             )
-        self.query_one("#badges", Static).update(source)
+        self.query_one("#badges", Glide).update(source)
         self._refresh_output_line()
 
     def _refresh_output_line(self) -> None:
@@ -1843,7 +1860,7 @@ class TidalAmp(App):
             if sink.rate:
                 parts.append(f"{sink.rate / 1000:g} kHz")
             line = "OUT  " + " · ".join(parts)
-        self.query_one("#output", Static).update(line)
+        self.query_one("#output", Glide).update(line)
 
     @work(thread=True, exclusive=True, group="audio-output")
     def _refresh_sink_worker(self) -> None:

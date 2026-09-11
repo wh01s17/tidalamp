@@ -33,6 +33,7 @@ from tidalamp.theme import DEFAULT_COLORS, ThemePalette
 from tidalamp.widgets import (
     Analyzer,
     Artwork,
+    Glide,
     Marquee,
     SeekBar,
     Slider,
@@ -2197,7 +2198,7 @@ def test_the_analyser_starts_where_the_track_details_do(monkeypatch):
         async with application.run_test(size=(120, 34)) as pilot:
             await pilot.pause()
             analyzer = application.query_one("#analyzer", Analyzer)
-            badges = application.query_one("#badges", Static)
+            badges = application.query_one("#badges", Glide)
             art = application.query_one(Artwork)
 
             assert analyzer.region.x == badges.region.x
@@ -2299,7 +2300,7 @@ def test_the_block_under_the_clock_names_the_artist_album_and_year(monkeypatch):
         application = TidalAmp(object(), FakeMpv())
         async with application.run_test(size=(120, 32)) as pilot:
             await pilot.pause()
-            meta = application.query_one("#trackmeta", Static)
+            meta = application.query_one("#trackmeta", Glide)
             assert meta.render().plain == "", "vacío mientras no suena nada"
 
             application.queue.replace([a_deftones_track()], start=-1)
@@ -2345,7 +2346,7 @@ def test_a_track_with_no_year_does_not_leave_a_stray_separator(monkeypatch):
 
             lines = [
                 line.rstrip()
-                for line in application.query_one("#trackmeta", Static)
+                for line in application.query_one("#trackmeta", Glide)
                 .render()
                 .plain.split("\n")
             ]
@@ -2362,7 +2363,7 @@ def test_the_compact_layout_drops_the_block_and_keeps_the_clock(monkeypatch):
         application = TidalAmp(object(), FakeMpv())
         async with application.run_test(size=(70, 20)) as pilot:
             await pilot.pause()
-            assert not application.query_one("#trackmeta", Static).display
+            assert not application.query_one("#trackmeta", Glide).display
             assert application.query_one("#clock").display
 
     asyncio.run(scenario())
@@ -4187,7 +4188,7 @@ def test_a_quality_downgrade_reaches_the_status_line(monkeypatch):
             application._start(entry, Downgraded())
 
             assert "TIDAL entregó HIGH, no LOSSLESS" in application.status
-            badges = application.query_one("#badges", Static)
+            badges = application.query_one("#badges", Glide)
             assert "320" in str(badges.content) and "HIGH" in str(badges.content)
 
     asyncio.run(scenario())
@@ -4225,8 +4226,8 @@ def test_source_output_and_pause_are_separate_truthful_readouts(monkeypatch):
             )
             await pilot.pause()
 
-            source = str(application.query_one("#badges", Static).content)
-            output = str(application.query_one("#output", Static).content)
+            source = str(application.query_one("#badges", Glide).content)
+            output = str(application.query_one("#output", Glide).content)
             assert "SRC  FLAC" in source
             assert "24-bit" in source and "176.4 kHz" in source
             assert "HI-RES" in source and "PAUSA" in source
@@ -4524,9 +4525,15 @@ def test_switching_to_split_moves_the_halves_without_remounting_them(
             app_module.config.set_option("arrangement", "stacked")
             application._setting_changed("arrangement")
             await pilot.pause()
+            await pilot.pause()
             assert not application.split
             assert application.query_one("#playlist", RowList) is playlist
             assert playlist.cursor == 17
+            # Back at full width, the hints go back to the right edge instead
+            # of stopping where the half used to end.
+            drawn = heading.render_line(0).text
+            assert heading.size.width > 150
+            assert cell_len(drawn.rstrip()) >= heading.size.width - 2
 
     asyncio.run(scenario())
 

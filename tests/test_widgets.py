@@ -13,7 +13,7 @@ from textual.app import App, ComposeResult
 from tidalamp.library import Row
 from tidalamp.queue import Entry
 from tidalamp.screens import RowList
-from tidalamp.widgets import Marquee, Slider
+from tidalamp.widgets import Glide, Marquee, Slider
 
 # Wide enough that the track has room to be wrong in a visible way.
 WIDTH = 44
@@ -316,5 +316,49 @@ def test_the_artist_stays_in_the_title_when_it_has_no_column_of_its_own():
             assert cell_len(line) == 40
             assert "Adolescent's - Virgen" in line
             assert line.rstrip().endswith("4:32")
+
+    asyncio.run(scenario())
+
+
+class GlideApp(App):
+    CSS = "Glide { width: 10; height: 2; }"
+
+    def compose(self) -> ComposeResult:
+        yield Glide(id="glide")
+
+
+def test_a_line_that_does_not_fit_glides_to_its_end_and_back():
+    """Shown whole where it fits; otherwise it holds, slides until its end is
+    in view, holds, and slides back, each line stopping at its own end."""
+
+    async def scenario() -> None:
+        app = GlideApp()
+        async with app.run_test(size=(40, 6)) as pilot:
+            glide = app.query_one(Glide)
+            # Driven by hand: the widget's own timer is left out of it.
+            glide._timed = lambda: None
+            glide.update("corto\nBob Marley & The Wailers")
+            await pilot.pause()
+
+            def rows() -> list[str]:
+                return glide.render().plain.split("\n")
+
+            assert rows() == ["corto     ", "Bob Marley"]
+            seen = []
+            for _ in range(Glide.EVERY * (Glide.HOLD * 2 + 40)):
+                glide.tick()
+                seen.append(rows())
+                for row in seen[-1]:
+                    assert cell_len(row) == 10
+            long_rows = [r[1] for r in seen]
+            assert any(r.endswith("Wailers") for r in long_rows), "llega al final"
+            assert all(r[0] == "corto     " for r in seen), "la corta no se mueve"
+            # And it comes back to the start after reaching the end.
+            end = next(i for i, r in enumerate(long_rows) if r.endswith("Wailers"))
+            assert any(r == "Bob Marley" for r in long_rows[end:])
+
+            # The same text again does not restart the glide.
+            glide.update("corto\nBob Marley & The Wailers")
+            assert rows() == seen[-1]
 
     asyncio.run(scenario())

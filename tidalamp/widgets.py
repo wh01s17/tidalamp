@@ -5,7 +5,7 @@ from __future__ import annotations
 import contextlib
 import random
 
-from rich.cells import set_cell_size, split_graphemes
+from rich.cells import cell_len, set_cell_size, split_graphemes
 from rich.color import Color
 from rich.segment import Segment
 from rich.style import Style
@@ -61,40 +61,140 @@ class TimeDisplay(Widget):
         return Text("\n".join(rows), style=f"bold {palette_for(self)['accent']}")
 
 
-class Marquee(Widget):
-    """Scrolling track title, the way the Winamp titlebar scrolls."""
+def _window(text: str, start: int, width: int) -> str:
+    """`width` cells of `text` from cell `start`, cut on grapheme boundaries.
+
+    Code-point slicing split combining accents and made CJK and emoji rows
+    wider than their widget. A wide glyph straddling the left edge is dropped
+    and the gap padded, rather than drawn half.
+    """
+    graphemes, _cells = split_graphemes(text)
+    used = 0
+    first = len(text)
+    for begin, _end, cells in graphemes:
+        if used >= start:
+            first = begin
+            break
+        used += cells
+    lead = " " * (used - start) if used > start else ""
+    return set_cell_size(lead + text[first:], width)
+
+
+class Glide(Widget):
+    """Lines that fit are shown whole; lines that do not glide to show the rest.
+
+    Where a line is wider than the widget it holds still for a moment, slides
+    slowly left until its end is in view, holds again, and slides back. A
+    crop hid the end of an album title for good, and a loop that wraps round
+    reads the name in two pieces with the join in the middle; going there and
+    back shows the whole of it, in order, whatever the room.
+
+    Several lines share one phase and each stops at its own end, so a short
+    line waits while a long one finishes and they set off again together.
+    """
+
+    DEFAULT_CSS = "Glide { height: 1; }"
+
+    # Ten calls a second, a cell every three: slow enough to read while it
+    # moves. The hold is in those steps: about two seconds at either end.
+    EVERY = 3
+    HOLD = 7
+
+    def __init__(self, text: str = "", **kwargs) -> None:
+        super().__init__(**kwargs)
+        self._lines = text.split("\n") if text else []
+        self._offset = 0
+        self._direction = 1
+        self._wait = self.HOLD
+        self._calls = 0
+
+    def on_mount(self) -> None:
+        self.set_interval(1 / 10, self._timed)
+
+    def update(self, text: str) -> None:
+        """The same call as `Static.update`; the glide restarts on new text."""
+        lines = text.split("\n") if text else []
+        if lines == self._lines:
+            return
+        self._lines = lines
+        self._offset, self._direction, self._wait = 0, 1, self.HOLD
+        self.refresh()
+
+    @property
+    def content(self) -> str:
+        """The whole text, as `Static.content` gives it: not the window."""
+        return "\n".join(self._lines)
+
+    def _overflow(self) -> int:
+        width = self.size.width
+        return max((cell_len(line) - width for line in self._lines), default=0)
+
+    def _timed(self) -> None:
+        # Nothing behind a modal is worth animating: the player under a scrim
+        # repaints the whole blend for a line nobody is reading.
+        with contextlib.suppress(Exception):
+            if len(self.app.screen_stack) > 1:
+                return
+        self.tick()
+
+    def tick(self) -> None:
+        overflow = self._overflow()
+        if overflow <= 0:
+            if self._offset:
+                self._offset = 0
+                self.refresh()
+            return
+        self._calls = (self._calls + 1) % self.EVERY
+        if self._calls:
+            return
+        if self._wait:
+            self._wait -= 1
+            return
+        self._offset += self._direction
+        if self._offset >= overflow or self._offset <= 0:
+            self._offset = max(0, min(self._offset, overflow))
+            self._direction = -self._direction
+            self._wait = self.HOLD
+        self.refresh()
+
+    def _lines_to_draw(self) -> list[str]:
+        return self._lines
+
+    def _style(self) -> str:
+        return ""
+
+    def render(self) -> Text:
+        width = max(1, self.size.width)
+        rows = []
+        for line in self._lines_to_draw():
+            shift = max(0, min(self._offset, cell_len(line) - width))
+            rows.append(_window(line, shift, width))
+        return Text("\n".join(rows), style=self._style(), no_wrap=True)
+
+
+class Marquee(Glide):
+    """The track title, gliding there and back when it does not fit.
+
+    It used to loop like the Winamp title bar, `***` and round again, fast.
+    It now moves like every other line in the band: slowly, and back.
+    """
 
     DEFAULT_CSS = "Marquee { height: 1; }"
 
     text = reactive("")
-    _offset = reactive(0)
 
-    def watch_text(self) -> None:
-        self._offset = 0
+    def on_mount(self) -> None:
+        # The app's fast tick drives it, as it always has; no timer of its own.
+        pass
 
-    def tick(self) -> None:
-        width = max(1, self.size.width)
-        padded = f"{self.text}   ***   "
-        graphemes, cells = split_graphemes(padded)
-        if cells > width:
-            self._offset = (self._offset + 1) % len(graphemes)
-        else:
-            self._offset = 0
+    def watch_text(self, text: str) -> None:
+        self.update(text)
 
-    def render(self) -> Text:
-        width = max(1, self.size.width)
-        style = f"bold {palette_for(self)['accent']}"
-        if not self.text:
-            return Text("TIDAL AMP", style=style)
-        padded = f"{self.text}   ***   "
-        graphemes, cells = split_graphemes(padded)
-        if cells <= width:
-            return Text(set_cell_size(self.text, width), style=style)
-        # Offset and crop on grapheme boundaries. Code-point slicing split
-        # combining accents and made CJK/emoji rows wider than their widget.
-        start = graphemes[self._offset % len(graphemes)][0]
-        rotated = padded[start:] + padded[:start]
-        return Text(set_cell_size(rotated + rotated, width), style=style)
+    def _lines_to_draw(self) -> list[str]:
+        return self._lines or ["TIDAL AMP"]
+
+    def _style(self) -> str:
+        return f"bold {palette_for(self)['accent']}"
 
 
 class Analyzer(Widget):

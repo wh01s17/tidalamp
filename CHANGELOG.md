@@ -24,8 +24,16 @@ versioning is [semantic](https://semver.org/).
 
 - The cover has air inside its band: a row above and below it and two cells off the
   frame, where it used to sit flush against the border.
+- A line in the player that does not fit its room (artist, album, the `SRC` and `OUT`
+  lines, the title) now glides: it holds, slides slowly until its end is in view,
+  holds and slides back, instead of being cut off. The title no longer loops.
 - The seek bar is a line with a dot riding on it, the played part drawn heavier in the
   accent, with a row of space on each side; the thumb used to be a full block.
+
+### Fixed
+
+- Switching from split back to stacked left the queue heading's key hints halfway
+  across the row, measured for the half it had just left.
 
 ## [0.5.1] - 2026-09-10
 
