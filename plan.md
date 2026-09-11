@@ -1281,6 +1281,36 @@ fichero en sí.
 - [x] Los nombres de los temas y paletas se traducen en pantalla con `layouts.label`
       (ver «Temas»); el valor del fichero no cambia con el idioma.
 
+### Ordenar la biblioteca — `library.py`, `screens/browser.py`
+
+- [x] `s` en un nivel abre una lista (`ChoiceScreen`) con sus órdenes en los dos
+      sentidos: pistas favoritas y pistas de una playlist por fecha de agregado,
+      nombre, artista o álbum; álbumes favoritos por fecha de agregado, nombre,
+      artista o lanzamiento; artistas favoritos y playlists propias por fecha
+      (de creación, en las playlists) o nombre. `Row.orders` dice cuáles tiene un
+      nivel y `Row.sort` da la clave y el cargador de uno.
+- [x] **Lo ordena TIDAL**, con los enums de tidalapi (`ItemOrder`, `AlbumOrder`,
+      `ArtistOrder`, `OrderDirection`): la biblioteca carga de 100 en 100, y ordenar
+      la página cargada ordenaría 100 pistas de 766 y lo llamaría biblioteca.
+      «Mis playlists» se pide a mano (ver `_playlists_level`) y manda `order` y
+      `orderDirection` como los manda tidalapi para favoritos; que TIDAL lo respete
+      en ese endpoint está por ver contra TIDAL real.
+- [x] Dentro de un álbum o de un artista TIDAL no ordena, y el nivel es una página:
+      `_in_order` lo ordena aquí, en una lista nueva (la de la caché sigue como vino),
+      con «más…» al final.
+- [x] Cada orden es un nivel propio en la caché (`clave|name-asc`) y el de TIDAL
+      conserva la clave de siempre. El elegido se recuerda por nivel en `_CHOSEN`
+      hasta salir, no en `config.toml`; el título lo dice, y `R` recarga el orden
+      que está puesto.
+
+### Filas de ajustes que se eligen de una lista — `screens/config_window.py`
+
+- [x] Calidad, Ritmos hi-res en PipeWire y Reiniciar PipeWire no cambian con las
+      flechas: una de más cambiaba la calidad, reescribía el drop-in o reiniciaba
+      PipeWire y cortaba el audio. Enter abre `ChoiceScreen`, la lista de elegir uno
+      sacada de la ventana de velocidad (que ahora es un caso de ella). La de
+      reiniciar abre en «cancelar», así que dos Enter por reflejo no cortan nada.
+
 ## 5. Estado de verificación
 
 Distinguir esto importa: parte del código nunca se ha ejecutado contra TIDAL real.
@@ -1313,6 +1343,7 @@ Distinguir esto importa: parte del código nunca se ha ejecutado contra TIDAL re
 | Temas temáticos                     | **VERIFICADO A LA VISTA**         | Tests: cada `Layout` nombra un transporte que existe, `ascii_only` pinta su cromo en ASCII, sin glifos anchos en títulos, nombres compartidos solo los de `PAIRED`, contraste mínimo en todas las paletas, y elegir un tema escribe su paleta una vez. Las trece disposiciones pasan los tests de 60x18 y de la carátula. Capturas SVG de los nueve a 120x34 y 80x26, y después capturas del mantenedor en su terminal (unas 274x100, split, cola de 100 pistas) de los nueve con su emblema: posición y tamaño ajustados a su gusto a partir de ellas. El rendimiento en 4K, medido en un pty con pyte a 480x130. `bosque`, su emblema y los marcos nuevos de los diez, vistos por el mantenedor en su terminal (2026-09-11). |
 | Velocidad de reproducción | **VERIFICADO POR EL USUARIO** | Oída por el mantenedor contra TIDAL real (2026-09-11). Tests: la ventana ofrece las ocho velocidades y aplica con ↵, `esc` no toca nada, el botón dice la velocidad y se enciende fuera de 1×. |
 | Carátula redonda, reloj en cuenta atrás | **CUBIERTO POR TESTS** | Tests: la máscara redonda deja las esquinas en el fondo de la banda y el centro intacto; el reloj en cuenta atrás no pasa de veinte columnas (el test falla con el código viejo). Vistos en capturas SVG. |
+| Ordenar la biblioteca, filas de ajustes con lista | **CUBIERTO POR TESTS** | Tests: favoritos pide a TIDAL el orden con los enums de tidalapi; cada sección ofrece solo sus órdenes; «Mis playlists» manda `order` y `orderDirection`; el orden local deja «más…» al final y no toca la caché; en la app, `s` ordena, el título lo dice y volver al nivel lo conserva. Las flechas no tocan las tres filas y dos Enter en reiniciar no reinician. Falta verlo contra TIDAL real, sobre todo «Mis playlists». |
 | Dos columnas (`split`)              | **Verificado en headless y a mano** | Cuatro tests: mismos objetos (cola, carátula, transporte) y cursor al cambiar de forma, vuelta sola a apilada por ancho y por alto, las trece disposiciones caben en el umbral con el transporte bajo las dos columnas, y la letra se carga una vez por pista y sigue la línea. Capturas SVG de las trece. El mantenedor lo usó en su terminal con audio real y letra. |
 | Barras clicables                    | **Verificado**                    | Cuatro pruebas con `pilot.click`: seek a mitad, seek parado sin llamada a mpv, volumen al extremo y balance en cero exacto pese al padding. |
 | Ayuda en dos pestañas              | **Verificado**                    | Dos unitarias en la app headless: `→` lleva a «Acerca de» y dibuja el repositorio, `←` vuelve a los atajos con el desplazamiento donde se dejó, y ninguna de las dos flechas se sale por los extremos. Render a 100x30 de las dos pestañas, con la activa marcada en la barra de título. |
@@ -1356,9 +1387,9 @@ una pista en cada calidad y leer `~/.local/state/tidalamp/tidalamp.log`.
 > [!NOTE]
 > La funcionalidad comprometida para la próxima versión vive en
 > [next.md](./next.md), con sus trampas y su forma de comprobarse. Tras la `0.7.0`
-> quedan allí la velocidad por MPRIS, más formas de carátula, la reproducción
-> automática y las filas de ajustes que se eligen de una lista. Esta sección sigue
-> siendo el estado general y aquella, la cola de trabajo.
+> quedan allí la velocidad por MPRIS, más formas de carátula y la reproducción
+> automática. Esta sección sigue siendo el estado general y aquella, la cola de
+> trabajo.
 
 P1–P4 están cerradas: lo que queda no es funcionalidad que falte para que el
 reproductor sirva, sino acabado, distribución y confirmar contra TIDAL real cosas hoy

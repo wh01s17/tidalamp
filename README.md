@@ -188,6 +188,7 @@ show the key that actually works.
 | `f` `F`         | add to / remove from favourites                    |
 | `/`             | inside the browser, filter the level you are on    |
 | `R`             | reload the level, bypassing the cache              |
+| `s`             | inside the browser, sort the level you are on      |
 | `y`             | show lyrics for the current track                  |
 | `s` `r`         | shuffle (`⇄`) / repeat (`↻`), on the transport row |
 | `d`             | remove from the queue                              |
@@ -516,6 +517,10 @@ writes `~/.config/tidalamp/config.toml`, so a change made once stays made.
 | Language  | `auto` `es` `en`                          | on restart     |
 | Visualizer | `bars` `mirror` `curve` `fine`            | immediately   |
 | Debug log | on / off                                  | immediately    |
+
+Quality, Hi-res rates in PipeWire and Restart PipeWire do not change with the arrows,
+since a stray press on any of them costs more than a colour: Enter opens a list to
+choose from, and Restart's list opens on Cancel.
 
 `tidalamp config` shows the effective settings and creates the file if it does not
 exist:

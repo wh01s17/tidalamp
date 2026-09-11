@@ -5,6 +5,25 @@ versioning is [semantic](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Sorting in the library: `s` in a level opens a list of the orders it has, both
+  ways round. Favourite tracks sort by date added, name, artist or album; favourite
+  albums by date added, name, artist or release; favourite artists by date added or
+  name; your playlists by date created or name; a playlist's tracks like favourite
+  tracks. TIDAL does the sorting, so the whole collection is in order and not just
+  the page on screen. Inside an album or an artist, which TIDAL does not sort, the
+  tracks are sorted locally. The order is kept per level until you quit, and the
+  title says which one is on.
+
+### Changed
+
+- Quality, Hi-res rates in PipeWire and Restart PipeWire are chosen from a list in
+  the settings window. The arrows no longer touch those three rows: a stray one used
+  to change the quality, rewrite PipeWire's rates or restart PipeWire and cut the
+  audio. Enter opens the list, and Restart's opens on Cancel, so a double Enter by
+  reflex cuts nothing.
+
 ## [0.7.0] - 2026-09-11
 
 ### Added
