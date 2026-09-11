@@ -238,6 +238,13 @@ ENGLISH: dict[str, str] = {
     ),
     " ↑↓ desplazar   ← ayuda   ?/h/esc cerrar": " ↑↓ scroll   ← help   ?/h/esc close",
     "Acerca de": "About",
+    # --- notas de versión 0.5.1
+    "OUT ya no muestra la frecuencia de la pista anterior.": (
+        "OUT no longer shows the previous track's sample rate."
+    ),
+    "Las pistas hi-res se reproducen con buffer de verdad.": (
+        "Hi-res tracks now stream with a real buffer."
+    ),
     # --- notas de versión 0.5.0
     "u deshace el último vaciado de la cola.": "u undoes the last queue clear.",
     "Ocho presets de ecualizador, con p y P.": "Eight equalizer presets, on p and P.",

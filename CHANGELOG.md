@@ -5,6 +5,8 @@ versioning is [semantic](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-09-10
+
 ### Changed
 
 - A hi-res track now streams with a real buffer in front of it. `--cache=auto`

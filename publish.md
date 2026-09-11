@@ -228,8 +228,14 @@ sección.
 4. En `README.md`, el `?v=` de las URLs de `img/`:
 
    ```sh
-   sed -i 's/\?v=[0-9.]*"/?v='"$TIDALAMP_VERSION"'"/g' README.md
+   sed -i -E 's/\?v=[0-9.]+(["\)])/?v='"$TIDALAMP_VERSION"'\1/g' README.md
+   rg -c 'v=' README.md   # cuenta las URLs; compárala con las que quedaron sin tocar
    ```
+
+   Las dos clases de enlace tienen que entrar: las de `<img src="...">`, que
+   acaban en comilla, y las de `![alt](...)` de Markdown, que acaban en
+   paréntesis. Una expresión que solo contemple la comilla deja el banner de la
+   cabecera anclado a la versión anterior, que es justo la imagen que más se ve.
 
    Las imágenes se enlazan por URL absoluta porque PyPI no resuelve rutas
    relativas, y esa URL no cambia cuando el fichero sí: el proxy de imágenes de

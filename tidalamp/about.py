@@ -50,6 +50,14 @@ def releases() -> tuple[Release, ...]:
     """Newest first. Translated at call time, not at import time."""
     return (
         Release(
+            "0.5.1",
+            "2026-09-10",
+            (
+                _("OUT ya no muestra la frecuencia de la pista anterior."),
+                _("Las pistas hi-res se reproducen con buffer de verdad."),
+            ),
+        ),
+        Release(
             "0.5.0",
             "2026-09-10",
             (
