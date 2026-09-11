@@ -783,6 +783,13 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
       juntando celdas del mismo estilo, los estilos de cada celda se construyen una vez
       por tamaño y paleta, y las líneas pintadas se cachean por contenido: 17 ms con
       la caché caliente y 26 en frío.
+- [x] Al salir de split, la banda de la carátula cambia de sitio sin cambiar siempre de
+      tamaño, y una carátula kitty se queda donde se pintó hasta que alguien la borra:
+      `_replace_pixel_cover` la quita y la vuelve a poner, así que se borra la
+      colocación vieja, haga lo que haga el terminal. La letra sin sincronizar avanza
+      sola en el panel de split con la canción (`LyricsPane._plain_start`): sin
+      marcas de tiempo no hay línea que seguir, y el panel no tiene teclas propias
+      porque son de la cola. Las dos cosas eran lo que quedaba de split en `next.md`.
 - [x] Trampa de la carátula de píxeles tras una ventana: `_art_ready` la ponía y
       llamaba a `_hide_art` para quitarla, pero `_hide_art` vuelve sin hacer nada si ya
       hay una oculta, y la hay siempre que la ventana se abrió sobre una carátula kitty
@@ -1290,8 +1297,7 @@ una pista en cada calidad y leer `~/.local/state/tidalamp/tidalamp.log`.
 > [!NOTE]
 > La funcionalidad comprometida para la próxima versión vive en
 > [next.md](./next.md), con sus trampas y su forma de comprobarse. Tras la `0.6.0`
-> queda allí la partición de los ficheros grandes y dos comprobaciones a mano de
-> `split`; esta sección sigue siendo el estado general y aquella, la cola de trabajo.
+> queda allí la partición de los ficheros grandes; esta sección sigue siendo el estado general y aquella, la cola de trabajo.
 
 P1–P4 están cerradas: lo que queda no es funcionalidad que falte para que el
 reproductor sirva, sino acabado, distribución y confirmar contra TIDAL real cosas hoy

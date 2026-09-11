@@ -49,20 +49,6 @@ Trampas:
 - Un commit por fichero, sin funcionalidad mezclada, y un `.git-blame-ignore-revs` con
   esos commits para que `git blame` siga apuntando al autor real.
 
----
-
-## 2. Dos columnas: lo que queda por mirar
-
-Implementado el 2026-09-10 (`arrangement = "split"`, ver `plan.md` «Dos columnas»), y
-en uso en el terminal del mantenedor con audio, letra y los emblemas detrás de la cola.
-Queda:
-
-- Achicar la ventana por debajo de 160 con split puesto y una carátula kitty: vuelve a
-  apilada sin dejar restos de la imagen pintados encima de la cola.
-- La letra sin sincronizar se enseña desde arriba y no se puede desplazar en el panel
-  (en la ventana de `y` sí). Si molesta, el panel necesita su propio desplazamiento, y
-  decidir qué teclas lo mueven sin pisar las de la cola.
-
 ## Descartado por ahora
 
 No se borran: quedan escritos con el motivo para no volver a discutirlos desde cero.

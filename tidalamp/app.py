@@ -375,6 +375,8 @@ class TidalAmp(App):
             main.set_class(split, "split")
             self._place_transport(main, split)
         self._layout_classes(main)
+        if split_changed:
+            self._replace_pixel_cover()
         self._fit_artwork(compact_changed or split_changed)
         self._apply_emblem()
         # These are all cropped or ruled to their own widget's width, which
@@ -450,6 +452,25 @@ class TidalAmp(App):
         self._refresh_playlist_title()
         titlebar = self.query_one("#titlebar", Static)
         titlebar.update(self._title_text(titlebar.size.width))
+
+    def _replace_pixel_cover(self) -> None:
+        """Take a kitty or sixel cover down and put it straight back.
+
+        Switching the arrangement moves the band the cover sits in without
+        necessarily changing its size, and a pixel picture is not text: the
+        terminal keeps the old placement where it was drawn until something
+        deletes it. Put back through `show`, it is deleted first and drawn
+        again where the band now is, whatever the terminal does with a
+        placement it was not told to remove.
+        """
+        widget = self._artwork()
+        if widget is None or widget.cover is None:
+            return
+        if widget.cover.protocol is artwork.Protocol.BLOCKS:
+            return
+        cover = widget.cover
+        widget.show(None)
+        widget.show(cover)
 
     def _fit_artwork(self, compact_changed: bool = False) -> None:
         """Grow the cover box with the terminal, then draw the cover again.
@@ -1975,7 +1996,7 @@ class TidalAmp(App):
             else:
                 pane.show(None, _("buscando la letra…"))
                 self._pane_worker(entry)
-        pane.follow(position)
+        pane.follow(position, self.mpv.duration)
 
     @work(thread=True, exclusive=True, group="pane-lyrics")
     def _pane_worker(self, entry: Entry) -> None:

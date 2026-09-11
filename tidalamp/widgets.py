@@ -743,6 +743,8 @@ class LyricsPane(Widget):
         self.message = ""
         self._position = 0.0
         self._active: int | None = None
+        # The first plain line on screen (`follow`).
+        self._start = 0
         # A themed look's line, for the time there are no words to show:
         # nothing playing, or a track without lyrics.
         self.tagline = ""
@@ -751,22 +753,42 @@ class LyricsPane(Widget):
         """Swap the words, or put a line saying why there are none."""
         self.document, self.message = document, message
         self._active = None
+        self._start = 0
         self.refresh()
 
-    def follow(self, position: float) -> None:
-        """Move with the track, repainting only when the sung line changes.
+    def follow(self, position: float, duration: float = 0.0) -> None:
+        """Move with the track, repainting only when what shows changes.
 
         Called four times a second; a line lasts seconds, so almost every call
-        is a comparison and nothing else.
+        is a comparison and nothing else. Synced lyrics follow the sung line.
+        Plain ones have no timestamps, and the pane has no keys of its own to
+        scroll with (those belong to the queue), so they move through the
+        track instead: the window slides from the first line to the last as
+        the song goes, and the end of the words is on screen by the end of it.
         """
         self._position = position
         document = self.document
-        if document is None or not document.synced:
+        if document is None:
+            return
+        if not document.synced:
+            start = self._plain_start(duration)
+            if start != self._start:
+                self._start = start
+                self.refresh()
             return
         active = document.active_index(position)
         if active != self._active:
             self._active = active
             self.refresh()
+
+    def _plain_start(self, duration: float) -> int:
+        """Where plain lyrics start, for how far into the track it is."""
+        document = self.document
+        overflow = len(document.lines) - self.size.height if document else 0
+        if overflow <= 0 or duration <= 0:
+            return 0
+        progress = max(0.0, min(1.0, self._position / duration))
+        return round(progress * overflow)
 
     def render(self) -> Text:
         palette = palette_for(self)
@@ -776,7 +798,11 @@ class LyricsPane(Widget):
             if self.tagline:
                 return self._idle(palette, width, height)
             return Text(f"  {self.message}", style=palette["muted"])
-        start, lines, active = document.window(self._position, height)
+        if document.synced:
+            start, lines, active = document.window(self._position, height)
+        else:
+            start, active = self._start, None
+            lines = document.lines[start : start + height]
         out = Text()
         for offset, line in enumerate(lines):
             index = start + offset

@@ -37,6 +37,9 @@ versioning is [semantic](https://semver.org/).
 - A line in the player that does not fit its room (artist, album, the `SRC` and `OUT`
   lines, the title) now glides: it holds, slides slowly until its end is in view,
   holds and slides back, instead of being cut off. The title no longer loops.
+- Lyrics without timestamps move through the track in the split view's pane: the
+  window slides from the first line to the last as the song goes, so the end of the
+  words is on screen by the end of it. They used to show from the top and stay there.
 - The seek bar is a line with a dot riding on it, the played part drawn heavier in the
   accent, with a row of space on each side; the thumb used to be a full block.
 
@@ -47,6 +50,10 @@ versioning is [semantic](https://semver.org/).
   leaves it instead of a row at a time. With a themed picture behind the queue on a
   4K terminal this cut what a keypress sends to the terminal from about 245 KiB to
   under 5.
+- Leaving the split arrangement could leave a kitty cover drawn where the player's
+  column used to be: the band moved without always changing size, and the old
+  placement was never deleted. The cover is now taken down and put back in its new
+  place.
 - A kitty or sixel cover could end up painted over an open window: one that arrived
   while a window was open (a track changed from the browser, or the theme changed in
   the settings, which fetches the cover again) went up over it if another cover had

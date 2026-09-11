@@ -5057,3 +5057,79 @@ def test_choosing_a_themed_look_writes_its_palette_and_its_backdrop(
             assert app_module.config.PALETTE == "pirata"
 
     asyncio.run(scenario())
+
+
+def test_falling_back_from_split_redraws_a_pixel_cover_where_it_now_is(
+    monkeypatch, tmp_path
+):
+    """Leaving split moves the cover's band without always resizing it, and a
+    kitty picture stays where it was drawn until it is deleted. Put back
+    through `show`, it is deleted first, and it is still up afterwards."""
+    isolate_runtime(monkeypatch)
+    isolate_config(monkeypatch, tmp_path)
+    app_module.config.set_option("arrangement", "split")
+    erased: list[int] = []
+    original = Artwork._erase
+
+    def erase(self) -> None:
+        erased.append(1)
+        original(self)
+
+    monkeypatch.setattr(Artwork, "_erase", erase)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(180, 44)) as pilot:
+            await pilot.pause()
+            assert application.split
+            art = application.query_one(Artwork)
+            cover = a_cover(Protocol.KITTY)
+            application._art_ready(cover)
+            erased.clear()
+
+            await pilot.resize_terminal(150, 44)
+            await pilot.pause()
+            assert not application.split
+            assert erased, "la colocación vieja se borra"
+            assert art.cover is not None, "y la carátula sigue puesta"
+
+    asyncio.run(scenario())
+
+
+def test_plain_lyrics_move_through_the_track_in_the_split_pane(monkeypatch, tmp_path):
+    """Without timestamps there is no line to follow, and the pane has no keys
+    of its own; the words slide from the first line to the last as the song
+    goes, so the end of them is on screen by the end of it."""
+    from tidalamp.lyrics import parse_lyrics
+    from tidalamp.widgets import LyricsPane
+
+    isolate_runtime(monkeypatch)
+    isolate_config(monkeypatch, tmp_path)
+    app_module.config.set_option("arrangement", "split")
+
+    async def scenario() -> None:
+        mpv = FakeMpv()
+        mpv.duration = 200.0
+        application = TidalAmp(object(), mpv)
+        async with application.run_test(size=(180, 44)) as pilot:
+            await pilot.pause()
+            pane = application.query_one(LyricsPane)
+            pane.show(parse_lyrics(text="\n".join(f"verso {n}" for n in range(100))))
+            await pilot.pause()
+
+            def shown() -> str:
+                return "\n".join(
+                    pane.render_line(y).text for y in range(pane.size.height)
+                )
+
+            mpv.position = 0.0
+            await pilot.pause(0.5)
+            assert "verso 0" in shown() and "verso 99" not in shown()
+            mpv.position = 100.0
+            await pilot.pause(0.5)
+            assert "verso 0" not in shown() and "verso 99" not in shown()
+            mpv.position = 200.0
+            await pilot.pause(0.5)
+            assert "verso 99" in shown()
+
+    asyncio.run(scenario())
