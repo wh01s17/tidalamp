@@ -15,27 +15,7 @@ Lo de aquí no bloquea publicar. `plan.md` §5 y §6 mandan sobre el estado gene
 
 ---
 
-## 1. Velocidad por MPRIS
-
-`mpris.py` publica `Rate`, `MinimumRate` y `MaximumRate` fijos en 1.0 y de solo
-lectura. Qué hacer: `Rate` de lectura y escritura con la velocidad de mpv,
-`MinimumRate` 0.25 y `MaximumRate` 2.0 (los extremos de `Mpv.SPEEDS`), y avisar con
-`PropertiesChanged` cuando la velocidad cambia desde la ventana de `b`.
-
-Trampas:
-
-- Un escritorio puede pedir cualquier número. Redondear al cuarto más cercano dentro
-  del rango, para que el botón y la ventana sigan diciendo una de las ocho.
-- La especificación dice que `Rate` no debe ser 0: si llega, ignorarlo.
-- `mpris.py` no lo revisa mypy (`ignore_errors`, por las firmas de dbus-fast): lo
-  cubren los tests de contrato de `tests/test_mpris.py`, contra un bus real. El
-  método nuevo del backend va en el `Protocol` `PlayerBackend` y en el doble.
-
-Cómo se comprueba: en `tests/test_mpris.py`, leer los tres valores, escribir `Rate`
-0.5 y ver la velocidad de la app, escribir 0.6 y ver 0.5, escribir 0 y ver que no
-cambia. A mano: `playerctl` o el widget del escritorio.
-
-## 2. Más formas de carátula
+## 1. Más formas de carátula
 
 `cover_shape` tiene `square` y `round`. Añadir al menos `rounded`, esquinas
 redondeadas, con `ImageDraw.rounded_rectangle` en `artwork.shape`, sobre la misma
@@ -52,7 +32,7 @@ Trampas:
 Cómo se comprueba: test de que la esquina queda en el fondo de la banda y un píxel
 algo hacia dentro ya es la carátula; captura en `blocks` y a la vista en kitty.
 
-## 3. Reproducción automática al terminar la cola
+## 2. Reproducción automática al terminar la cola
 
 Un ajuste nuevo, «Reproducción automática» (`autoplay`, sí o no, apagado por
 defecto para no cambiar lo que hace hoy): al acabarse la cola sigue con la radio de
@@ -81,7 +61,7 @@ acabar se detiene; encendido, se añaden las pistas sin la semilla ni repetidas,
 la primera nueva y la cola anterior sigue ahí; la radio vacía o con error detiene y
 avisa.
 
-## 4. Modo pantalla completa, como el de TIDAL
+## 3. Modo pantalla completa, como el de TIDAL
 
 Pedido el 2026-09-11, con una captura del cliente de TIDAL como referencia. Una vista
 que solo se abre con una tecla (sin fila en ajustes ni botón que la abra): la

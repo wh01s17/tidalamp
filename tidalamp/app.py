@@ -2318,6 +2318,20 @@ class TidalAmp(App):
         ceiling = Mpv.VOLUME_MAX / 100.0
         self.mpv.volume = int(max(0.0, min(ceiling, value)) * 100)
 
+    def mpris_rate(self) -> float:
+        return self.mpv.speed
+
+    def mpris_set_rate(self, value: float) -> None:
+        """A desktop's speed, rounded to the nearest of the window's quarters.
+
+        MPRIS says a rate of 0 must not be set (a client should pause
+        instead), and mpv takes nothing at or below 0, so those are ignored.
+        """
+        if value <= 0:
+            return
+        speed = min(Mpv.SPEEDS, key=lambda candidate: abs(candidate - value))
+        self._speed_chosen(speed)
+
     def mpris_can_go_next(self) -> bool:
         return self.queue.has_next()
 

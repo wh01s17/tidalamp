@@ -20,6 +20,7 @@ from dbus_fast.constants import PropertyAccess, RequestNameReply
 from dbus_fast.service import ServiceInterface, dbus_property, method, signal
 
 from .i18n import _
+from .player import Mpv
 
 BUS_NAME = "org.mpris.MediaPlayer2.tidalamp"
 OBJECT_PATH = "/org/mpris/MediaPlayer2"
@@ -43,6 +44,8 @@ class PlayerBackend(Protocol):
     def mpris_position(self) -> float: ...
     def mpris_volume(self) -> float: ...
     def mpris_set_volume(self, value: float) -> None: ...
+    def mpris_rate(self) -> float: ...
+    def mpris_set_rate(self, value: float) -> None: ...
     def mpris_loop_status(self) -> str: ...
     def mpris_set_loop_status(self, value: str) -> None: ...
     def mpris_shuffle(self) -> bool: ...
@@ -196,17 +199,23 @@ class _Player(ServiceInterface):
     def Shuffle(self, value: "b"):  # noqa: N802, F821
         self._backend.mpris_set_shuffle(value)
 
-    @dbus_property(access=PropertyAccess.READ)
+    # The speed window's range: a quarter to double. A desktop may ask for any
+    # number in between; the backend rounds it to the nearest quarter.
+    @dbus_property()
     def Rate(self) -> "d":  # noqa: N802, F821
-        return 1.0
+        return self._backend.mpris_rate()
+
+    @Rate.setter
+    def Rate(self, value: "d"):  # noqa: N802, F821
+        self._backend.mpris_set_rate(value)
 
     @dbus_property(access=PropertyAccess.READ)
     def MinimumRate(self) -> "d":  # noqa: N802, F821
-        return 1.0
+        return Mpv.SPEEDS[0]
 
     @dbus_property(access=PropertyAccess.READ)
     def MaximumRate(self) -> "d":  # noqa: N802, F821
-        return 1.0
+        return Mpv.SPEEDS[-1]
 
     @dbus_property(access=PropertyAccess.READ)
     def CanGoNext(self) -> "b":  # noqa: N802, F821
@@ -364,6 +373,7 @@ class MprisService:
             "PlaybackStatus": self._backend.mpris_status(),
             "Metadata": self._backend.mpris_metadata(),
             "Volume": round(self._backend.mpris_volume(), 3),
+            "Rate": self._backend.mpris_rate(),
             "CanGoNext": self._backend.mpris_can_go_next(),
             "CanGoPrevious": self._backend.mpris_can_go_previous(),
             "LoopStatus": self._backend.mpris_loop_status(),

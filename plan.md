@@ -675,6 +675,11 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
       fuera y conserva la tecla. `Mpv.speed` se reaplica en `restart`, como el
       volumen. No se guarda en `config.toml`: dura hasta salir. mpv conserva el tono
       con un filtro, así que fuera de 1× la señal deja de ser bit-perfect.
+- [x] **La velocidad por MPRIS** (2026-09-11). `Rate` se lee y se escribe,
+      `MinimumRate` y `MaximumRate` son los extremos de `Mpv.SPEEDS` y `publish()`
+      avisa cuando cambia. `mpris_set_rate` redondea al cuarto más cercano, para que
+      el botón y la ventana sigan diciendo una de las ocho, e ignora 0 y lo negativo
+      (la especificación pide pausar en vez de poner 0).
 - [x] **El reloj en cuenta atrás** cabe: `-03:17` eran seis glifos de cuatro columnas
       en un reloj de veinte, las filas se partían y los dígitos salían a trozos. El
       menos ocupa ahora una columna pegada al primer dígito y no sobra espacio al

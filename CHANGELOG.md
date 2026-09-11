@@ -7,6 +7,9 @@ versioning is [semantic](https://semver.org/).
 
 ### Added
 
+- Playback speed over MPRIS: `Rate` is now writable, between `MinimumRate` 0.25 and
+  `MaximumRate` 2, and announced when it changes. A desktop's rate lands on the
+  nearest quarter; 0 is ignored, as the specification asks.
 - Sorting in the library: `s` in a level opens a list of the orders it has, both
   ways round. Favourite tracks sort by date added, name, artist or album; favourite
   albums by date added, name, artist or release; favourite artists by date added or

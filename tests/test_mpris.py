@@ -26,6 +26,7 @@ class FakeBackend:
         }
         self.position = 12.5
         self.volume = 0.8
+        self.rate = 1.0
         self.loop_status = "None"
         self.shuffle = False
         self.can_go_next = True
@@ -55,6 +56,12 @@ class FakeBackend:
 
     def mpris_set_volume(self, value: float) -> None:
         self.calls.append(("volume", value))
+
+    def mpris_rate(self) -> float:
+        return self.rate
+
+    def mpris_set_rate(self, value: float) -> None:
+        self.calls.append(("rate", value))
 
     def mpris_loop_status(self) -> str:
         return self.loop_status
@@ -164,6 +171,7 @@ def test_player_delegates_transport_and_writable_properties():
     player.Next()
     player.Previous()
     player.Volume = 0.45
+    player.Rate = 0.5
     player.LoopStatus = "Playlist"
     player.Shuffle = True
 
@@ -175,6 +183,7 @@ def test_player_delegates_transport_and_writable_properties():
         ("next", None),
         ("previous", None),
         ("volume", 0.45),
+        ("rate", 0.5),
         ("loop", "Playlist"),
         ("shuffle", True),
     ]
@@ -196,6 +205,7 @@ def test_publish_emits_only_changed_properties():
         "PlaybackStatus",
         "Metadata",
         "Volume",
+        "Rate",
         "CanGoNext",
         "CanGoPrevious",
         "LoopStatus",
@@ -487,3 +497,9 @@ def test_the_tick_does_not_build_metadata_just_to_find_nothing_moved():
         service.publish_tracks()
 
     assert backend.metadata_builds == 0
+
+
+def test_the_rate_range_is_the_speed_window_s():
+    player = mpris._Player(FakeBackend())
+    assert (player.MinimumRate, player.MaximumRate) == (0.25, 2.0)
+    assert player.Rate == 1.0

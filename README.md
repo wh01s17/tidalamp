@@ -734,6 +734,10 @@ list it and jump to any row.
 If there is no session bus, playback still starts and the status bar reports that
 MPRIS is unavailable.
 
+The speed goes over MPRIS too: `Rate` reads and sets it, between `MinimumRate` 0.25
+and `MaximumRate` 2. A desktop may send any number in that range; it lands on the
+nearest quarter, the speeds the `b` window offers, and 0 is ignored.
+
 ## Help and about
 
 `?` (or `h`) opens a window listing every key with what it does, grouped by what you

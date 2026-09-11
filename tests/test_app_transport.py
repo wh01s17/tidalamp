@@ -681,3 +681,27 @@ def test_the_speed_window_offers_a_quarter_to_double_and_applies_on_enter(monkey
             assert mpv.speed == 2.0
 
     asyncio.run(scenario())
+
+
+def test_a_desktop_s_rate_lands_on_the_nearest_quarter(monkeypatch):
+    """Any number a desktop sends is rounded to one of the window's eight, so
+    the button still says one of them; 0 and below are not a speed."""
+    isolate_runtime(monkeypatch)
+
+    async def scenario() -> None:
+        mpv = FakeMpv()
+        application = TidalAmp(object(), mpv)
+        async with application.run_test(size=(150, 26)) as pilot:
+            await pilot.pause()
+            application.mpris_set_rate(0.6)
+            assert mpv.speed == 0.5
+            assert application.mpris_rate() == 0.5
+            application.mpris_set_rate(0)
+            application.mpris_set_rate(-1.0)
+            assert mpv.speed == 0.5
+            application.mpris_set_rate(3.0)
+            assert mpv.speed == 2.0
+            await pilot.pause()
+            assert "b 2×" in transport(application)
+
+    asyncio.run(scenario())
