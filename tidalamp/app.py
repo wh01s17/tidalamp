@@ -1970,8 +1970,21 @@ class TidalAmp(App):
         # The `transparency` setting travels as a class rather than as two
         # copies of the stylesheet: the CSS says what transparent looks like,
         # this says whether this window is.
-        screen.set_class(config.TRANSPARENCY, "transparent")
+        screen.set_class(self._see_through(below=self.screen), "transparent")
         return super().push_screen(screen, callback, wait_for_dismiss, mode=mode)
+
+    @staticmethod
+    def _see_through(below) -> bool:
+        """Whether a window opened over ``below`` lets it show through.
+
+        Never over the full-screen view. What lies under a window there is a
+        cover as large as the terminal, and every change inside the window
+        sends its rows again with that cover blended in at the sides. Measured
+        in a pty at 480x130 with the cover in blocks: opening the help cost
+        0.86 MB and twenty lines of scroll 1.21 MB with the window see-through,
+        0.22 and 0.35 without. The player behind the other windows keeps it.
+        """
+        return config.TRANSPARENCY and not isinstance(below, FullscreenScreen)
 
     @work(thread=True, exclusive=True)
     def _resolve_worker(self, entry: Entry) -> None:
@@ -2301,8 +2314,16 @@ class TidalAmp(App):
                 else _("reproducción automática desactivada")
             )
         elif name == "transparency":
-            for screen in self.screen_stack:
-                screen.set_class(config.TRANSPARENCY, "transparent")
+            # Each screen by the one under it, as `push_screen` decided: the
+            # settings opened over the full-screen view stay opaque.
+            stack = self.screen_stack
+            for index, screen in enumerate(stack):
+                see_through = (
+                    self._see_through(below=stack[index - 1])
+                    if index
+                    else config.TRANSPARENCY
+                )
+                screen.set_class(see_through, "transparent")
             self.status = (
                 _("transparencia activada")
                 if config.TRANSPARENCY

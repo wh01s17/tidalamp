@@ -314,3 +314,63 @@ def test_sixel_is_not_drawn_past_the_size_tidal_serves(monkeypatch):
                     assert art.rows > SIXEL_ROWS
 
     asyncio.run(scenario())
+
+
+def test_a_window_over_the_view_is_not_see_through_even_with_transparency(monkeypatch):
+    """With transparency, a window over the player lets it show through; over
+    the full-screen view it does not. There every change inside the window
+    sent its rows again with the whole cover blended in at the sides, about
+    four times the bytes on a 4K terminal."""
+    isolate_runtime(monkeypatch)
+    monkeypatch.setattr(app_module.config, "TRANSPARENCY", True)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(120, 40)) as pilot:
+            await pilot.pause()
+            a_queue_playing(application)
+
+            application.push_screen(HelpScreen(app_module.keys_for))
+            await pilot.pause()
+            assert application.screen.has_class("transparent")
+            assert application.screen.styles.background.a < 1
+            await pilot.press("escape")
+            await pilot.pause()
+
+            await pilot.press("w")
+            await pilot.pause()
+            await pilot.press("question_mark")
+            await pilot.pause()
+            window = application.screen
+            assert not window.has_class("transparent")
+            assert window.styles.background.a == 1
+            assert window.query_one("#help-box").styles.background.a == 1
+
+    asyncio.run(scenario())
+
+
+def test_turning_transparency_on_over_the_view_leaves_that_window_opaque(monkeypatch):
+    """The settings opened from the full-screen view, and transparency turned
+    on in them: the change reaches every open screen, but by the same rule a
+    new window follows, so this one stays opaque."""
+    from tidalamp.app import ConfigScreen
+
+    isolate_runtime(monkeypatch)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(120, 40)) as pilot:
+            await pilot.pause()
+            a_queue_playing(application)
+            await pilot.press("w")
+            await pilot.pause()
+            application.push_screen(ConfigScreen(application._setting_changed))
+            await pilot.pause()
+            settings = application.screen
+
+            monkeypatch.setattr(app_module.config, "TRANSPARENCY", True)
+            application._setting_changed("transparency")
+            await pilot.pause()
+            assert not settings.has_class("transparent")
+
+    asyncio.run(scenario())

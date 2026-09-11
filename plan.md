@@ -1401,6 +1401,15 @@ fichero en sí.
       sixel se dibuja a su tamaño en píxeles, la vista no lo pasa de 1280 px
       (`SIXEL_ROWS`, 64 filas): 2,7 MB en 0,9 s. Una medición en 2 s de vista con
       carátula kitty mostró que la barra de abajo no provoca reenvíos de la imagen.
+- [x] **Las ventanas sobre la vista no son translúcidas**, ni con `transparency`
+      (`_see_through`, que decide `push_screen` y también el cambio del ajuste con
+      ventanas abiertas). Medido en un pty a 480x130 con la carátula en `blocks`:
+      abrir la ayuda sobre la vista, 0,86 MB translúcida contra 0,22 opaca; 20 líneas
+      de scroll, 1,21 MB contra 0,35. No era la caja: con la caja opaca y el velo
+      translúcido costaba lo mismo. Textual reenvía enteras las filas que cambian, y a
+      los lados de la caja esas filas son la carátula mezclada con el velo, miles de
+      celdas de colores distintos. En reposo la vista escribe 8 KiB/s con
+      transparencia o sin ella.
 - [x] El tick lento le pasa posición y duración mientras está delante (`follow`),
       y ahí se redibujan la barra, los controles y, si está abierta, la cola, solo
       cuando cambió. La barra de posición se llama `#fs-seek`: con `#seek`, el clic

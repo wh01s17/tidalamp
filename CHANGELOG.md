@@ -38,6 +38,12 @@ versioning is [semantic](https://semver.org/).
 
 ### Changed
 
+- Windows opened over the full-screen view are opaque, even with transparency on.
+  Under them lies a cover as large as the terminal, and a see-through window sent its
+  rows again with that cover blended in at the sides on every change: on a 4K terminal
+  with the cover in blocks, about four times the bytes to open the help and to scroll
+  it. Over the player, windows keep their transparency.
+
 - Pixel covers cost far less, in the player and above all in full screen. The sixel
   encoder works a band and a colour at a time in C and writes the same bytes about nine
   times faster (a 4K full-screen cover took 29 s); full screen stops a sixel cover at
