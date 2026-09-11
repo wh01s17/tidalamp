@@ -754,6 +754,14 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
       crece en 4K. Un velo oscuro, como el de detrás de un modal, la mezcla al 30 %
       con el fondo de la cola. La fila del cursor no se toca. Sin Pillow no hay
       emblema, igual que no hay carátula.
+- [x] Trampa: un píxel de cuadrante es media celda de ancho por media de alto, es
+      decir, **el doble de alto que de ancho**, igual que la celda. Muestrear la
+      imagen como si fuera cuadrado la aplastaba de lado (la luna salía huevo). Se
+      calculan columnas y filas con esa proporción; un test lo fija con la luna.
+- [x] La transparencia parcial se respeta: cada píxel se mezcla con el fondo según su
+      alfa antes del velo, así que una imagen con el borde difuminado (el Ojo, el
+      cuervo) se funde con la cola en vez de acabar en un rectángulo. Ryuk va
+      recortado a su luna, con las puntas de las alas que salen de ella.
 - [x] Historia, para no repetirla: primero fue un dibujo de 18x18 en letras de papel
       en el hueco de la carátula (se veía solo sin pista y los personajes no daban
       de sí); luego ese dibujo, más grande, de fondo de la cola a un píxel por dos

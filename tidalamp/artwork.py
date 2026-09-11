@@ -343,21 +343,31 @@ def emblem_cells(
     cols_room, rows_room = int((width - 2) * share), int(height * size)
     if image is None or cols_room < 4 or rows_room < 2:
         return {}
-    factor = min(cols_room * 2 / image.width, rows_room * 2 / image.height)
-    pixels_w = max(2, int(image.width * factor)) // 2 * 2
-    pixels_h = max(2, int(image.height * factor)) // 2 * 2
+    # A cell is twice as tall as it is wide, so a quadrant pixel is too:
+    # the picture takes as many cells across as its width asks for, and half
+    # as many rows as its height would at the same scale. Sampling it square
+    # squashed every emblem sideways, the moon into an egg.
+    cols = min(cols_room, int(rows_room * 2 * image.width / image.height))
+    rows = min(rows_room, int(cols * image.height / (2 * image.width)))
+    cols = min(cols, int(rows * 2 * image.width / image.height))
+    if cols < 2 or rows < 1:
+        return {}
     from PIL import Image
 
+    pixels_w, pixels_h = cols * 2, rows * 2
     small = image.resize((pixels_w, pixels_h), Image.Resampling.LANCZOS)
     raw = small.tobytes()
-    cols, rows = pixels_w // 2, pixels_h // 2
     left, top = width - 2 - cols, (height - rows) // 2
 
     def pixel(x: int, y: int) -> Pixel | None:
         i = (y * pixels_w + x) * 4
-        if raw[i + 3] < 128:
+        alpha = raw[i + 3]
+        if alpha < 8:
             return None
-        return _veil((raw[i], raw[i + 1], raw[i + 2]), ground, amount)
+        # Partial transparency fades into the ground, so a picture with a
+        # feathered edge melts into the list instead of ending in a square.
+        seen = _veil((raw[i], raw[i + 1], raw[i + 2]), ground, alpha / 255)
+        return _veil(seen, ground, amount)
 
     lines: dict[int, list[EmblemCell]] = {}
     for row in range(rows):

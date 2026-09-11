@@ -319,3 +319,19 @@ def test_render_produces_what_each_protocol_needs(protocol, attribute):
 
 def test_render_does_nothing_when_artwork_is_off():
     assert artwork.render(solid((8, 8), (0, 0, 0)), 4, 2, Protocol.NONE) is None
+
+
+def test_an_emblem_keeps_its_shape_behind_the_queue():
+    """A cell is twice as tall as it is wide, and so is a quadrant pixel: a
+    round moon has to take twice as many cells across as rows down. Sampled
+    square, every emblem came out squashed sideways."""
+    from tidalamp.artwork import emblem_cells, emblem_path
+
+    path = emblem_path("cuaderno.png")
+    lines = emblem_cells(path, 120, 60, (0, 0, 0), size=0.7, share=0.9)
+    rows = len(lines)
+    xs = [cell[0] for cells in lines.values() for cell in cells]
+    cols = max(xs) - min(xs) + 1
+    with __import__("PIL.Image").Image.open(path) as image:
+        want = 2 * image.width / image.height
+    assert abs(cols / rows - want) < 0.25, (cols, rows, want)
