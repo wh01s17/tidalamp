@@ -224,6 +224,17 @@ cannot see. `?` lists this view's keys alone. `w` again, or `esc`, comes back to
 player. The view takes its colours from the palette and its frame from the
 theme in use, and the transport keys work in it as they do everywhere.
 
+<table>
+  <tr>
+    <td width="50%"><img src="https://raw.githubusercontent.com/wh01s17/tidalamp/main/img/fullscreen.webp?v=0.7.0" alt="The full-screen view: an album cover centred on a black ground, and a bar at the foot with the track, artist and album on the left, the shuffle, previous, pause, next and repeat controls over the seek bar and the times in the middle, and the quality, the queue button and the keys on the right"></td>
+    <td width="50%"><img src="https://raw.githubusercontent.com/wh01s17/tidalamp/main/img/fullscreen-queue.webp?v=0.7.0" alt="The same view with the queue open on the right: thirty numbered tracks with their lengths, the playing one highlighted, and the cover shifted left to make room"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>The cover as large as the terminal allows</sub></td>
+    <td align="center"><sub><code>tab</code> puts the queue beside it</sub></td>
+  </tr>
+</table>
+
 ## Queue and library
 
 `/` searches for tracks and displays them directly, with albums, artists and playlists
