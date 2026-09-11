@@ -454,3 +454,36 @@ def test_the_output_rate_is_followed_until_pipewire_settles(monkeypatch):
     # It published the stale rate first, then corrected itself, and it did not
     # repeat a rate that had not moved.
     assert seen == [44100, 96000]
+
+
+def test_a_translated_theme_name_still_cycles_through_every_theme(monkeypatch, tmp_path):
+    """In English the row shows `purple-unit` for `unidad-morada`. Cycling
+    looked that label up among the stored names, missed, and started again
+    from the first: left went quattro, forest; right stopped at purple-unit."""
+    from tidalamp import i18n
+
+    isolate_runtime(monkeypatch)
+    isolate_config(monkeypatch, tmp_path)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(100, 34)) as pilot:
+            await pilot.pause()
+            screen = ConfigScreen()
+            application.push_screen(screen)
+            await pilot.pause()
+            row = next(option for option in screen._rows if option.key == "theme")
+            names = list(app_module.LAYOUTS)
+            for step in (1, -1):
+                seen = [app_module.config.THEME]
+                for _turn in names:
+                    screen._cycle(row, step)
+                    seen.append(app_module.config.THEME)
+                assert sorted(set(seen)) == sorted(names), step
+                assert seen[0] == seen[-1], step
+
+    try:
+        i18n.use("en")
+        asyncio.run(scenario())
+    finally:
+        i18n.refresh()

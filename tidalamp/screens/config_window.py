@@ -239,17 +239,21 @@ class ConfigScreen(ModalScreen[None]):
 
     # --------------------------------------------------------------- drawing
 
+    @staticmethod
+    def _stored(option: Option) -> str:
+        """The row's value as the file holds it, the way `choices` spell it."""
+        current = getattr(config, _ATTRIBUTES[option.key])
+        # `debug` is a bool in the file and "true"/"false" in the choices.
+        return str(current).lower() if isinstance(current, bool) else str(current)
+
     def _value(self, option: Option) -> str:
         if option.key:
-            current = getattr(config, _ATTRIBUTES[option.key])
-            # `debug` is a bool in the file and "true"/"false" in the choices.
-            if isinstance(current, bool):
-                return str(current).lower()
-            # Themes, palettes and pictures go by their names in the
-            # language in use; the file keeps the one it always had.
+            # Themes, palettes and pictures go by their names in the language
+            # in use; the file keeps the one it always had, and `_cycle`
+            # steps through those, never through the labels.
             if option.key in ("theme", "palette", "backdrop"):
-                return label(str(current))
-            return str(current)
+                return label(self._stored(option))
+            return self._stored(option)
         if option.action == "rates":
             if audio.rates_configured():
                 return _("configurado")
@@ -420,7 +424,7 @@ class ConfigScreen(ModalScreen[None]):
         self._render_list()
 
     def _cycle(self, option: Option, step: int) -> None:
-        current = self._value(option)
+        current = self._stored(option)
         try:
             index = option.choices.index(current)
         except ValueError:
