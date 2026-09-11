@@ -186,7 +186,7 @@ class BrowserScreen(ModalScreen[tuple | None]):
     @staticmethod
     def _titled(title: str, source: Row | None) -> str:
         """The level's title, and its order when it is not TIDAL's own."""
-        order = library.chosen(source.key) if source is not None else None
+        order = library.chosen(source) if source is not None else None
         if order is None:
             return title
         return f"{title}  ·  {library.order_label(order)}"
@@ -351,7 +351,7 @@ class BrowserScreen(ModalScreen[tuple | None]):
             (order.code if order is not None else "original"): order
             for order in source.orders
         }
-        current = library.chosen(source.key)
+        current = library.chosen(source)
         self.app.push_screen(
             ChoiceScreen(
                 _("ORDENAR"),
@@ -362,9 +362,9 @@ class BrowserScreen(ModalScreen[tuple | None]):
         )
 
     def _sorted(self, source: Row, order: library.Order | None) -> None:
-        if order == library.chosen(source.key) or source.sort is None:
+        if order == library.chosen(source) or source.sort is None:
             return
-        library.remember(source.key, order)
+        library.remember(source, order)
         key, loader = source.sort(order)
         title = self._stack[-1][0]
         self._stack.pop()
@@ -469,7 +469,7 @@ class BrowserScreen(ModalScreen[tuple | None]):
             widget.empty_text = self._empty
             self._busy(_("abriendo {label}…").format(label=row.label))
             # In the order last picked for this level, if one was.
-            order = library.chosen(row.key)
+            order = library.chosen(row)
             if order is not None and row.sort is not None:
                 key, loader = row.sort(order)
                 self._load(row.label, loader, key, row)

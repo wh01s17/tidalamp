@@ -112,3 +112,15 @@ def pristine_config(tmp_path_factory, monkeypatch):
     yield
     for name, value in saved.items():
         setattr(config, name, value)
+
+
+@pytest.fixture(autouse=True)
+def private_library_orders(tmp_path_factory, monkeypatch):
+    """The browser remembers sort orders on disk; never in the developer's own
+    state directory, and never from one test into the next."""
+    from tidalamp import library
+
+    monkeypatch.setattr(
+        library, "ORDERS_FILE", tmp_path_factory.mktemp("state") / "library-orders.json"
+    )
+    monkeypatch.setattr(library, "_CHOSEN", None)

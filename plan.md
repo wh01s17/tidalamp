@@ -1299,8 +1299,11 @@ fichero en sí.
       `_in_order` lo ordena aquí, en una lista nueva (la de la caché sigue como vino),
       con «más…» al final.
 - [x] Cada orden es un nivel propio en la caché (`clave|name-asc`) y el de TIDAL
-      conserva la clave de siempre. El elegido se recuerda por nivel en `_CHOSEN`
-      hasta salir, no en `config.toml`; el título lo dice, y `R` recarga el orden
+      conserva la clave de siempre. El elegido se recuerda por nivel y persiste entre
+      sesiones, en `~/.local/state/tidalamp/library-orders.json` (`ORDERS_FILE`),
+      no en `config.toml`, que crecería con una entrada por playlist. Se guarda el
+      código (`name-asc`) y se busca entre los órdenes del nivel al leerlo, así que
+      la fecha de una playlist sigue siendo la de creación; el título lo dice, y `R` recarga el orden
       que está puesto.
 
 ### Quitar de favoritos o de una playlist — `library.py`, `screens/browser.py`

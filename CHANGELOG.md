@@ -13,8 +13,9 @@ versioning is [semantic](https://semver.org/).
   name; your playlists by date created or name; a playlist's tracks like favourite
   tracks. TIDAL does the sorting, so the whole collection is in order and not just
   the page on screen. Inside an album or an artist, which TIDAL does not sort, the
-  tracks are sorted locally. The order is kept per level until you quit, and the
-  title says which one is on.
+  tracks are sorted locally. The order is remembered per level, across sessions
+  (in `~/.local/state/tidalamp/library-orders.json`), and the title says which one
+  is on.
 - Removing from the library: `d` (or Delete) takes the row out of where it is, your
   favourites or the playlist you have open, after asking with the cursor on Cancel.
   The row leaves the list at once, and so does a favourite removed with `F` from

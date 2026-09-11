@@ -8,6 +8,7 @@ from a worker thread, never on the UI loop.
 
 from __future__ import annotations
 
+import json
 import logging
 import unicodedata
 from collections.abc import Callable, Iterable
@@ -18,6 +19,7 @@ from typing import Any, cast
 import tidalapi
 from tidalapi.types import AlbumOrder, ArtistOrder, ItemOrder, OrderDirection
 
+from .config import STATE_DIR
 from .i18n import _
 from .net import with_retries
 from .queue import Entry
@@ -130,8 +132,11 @@ _TIDAL_BY = {
     "release": "RELEASE_DATE",
 }
 
-# The order picked for each level, by the level's key, until tidalamp quits.
-_CHOSEN: dict[str, Order | None] = {}
+# The order picked for each level, by the level's key: its code, as in
+# `name-asc`. Kept on disk so a level opens the next day the way it was left;
+# read the first time it is asked for. TIDAL's own order is not stored.
+ORDERS_FILE = STATE_DIR / "library-orders.json"
+_CHOSEN: dict[str, str] | None = None
 
 
 def orders_for(by: tuple[str, ...], *, created: bool = False) -> tuple[Order | None, ...]:
@@ -170,13 +175,52 @@ def order_label(order: Order | None) -> str:
     return _("nombre: Z-A") if down else _("nombre: A-Z")
 
 
-def chosen(key: str) -> Order | None:
-    """The order last picked for the level ``key``, or None for TIDAL's."""
-    return _CHOSEN.get(key)
+def _orders() -> dict[str, str]:
+    """The orders picked so far, loaded from disk on first use.
+
+    A missing or broken file is no orders at all: it is a convenience, and
+    a level opening in TIDAL's order is no reason to refuse to start.
+    """
+    global _CHOSEN
+    if _CHOSEN is None:
+        try:
+            raw = json.loads(ORDERS_FILE.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            raw = {}
+        _CHOSEN = (
+            {k: v for k, v in raw.items() if isinstance(k, str) and isinstance(v, str)}
+            if isinstance(raw, dict)
+            else {}
+        )
+    return _CHOSEN
 
 
-def remember(key: str, order: Order | None) -> None:
-    _CHOSEN[key] = order
+def chosen(row: Row) -> Order | None:
+    """The order last picked for the level ``row`` opens, or None for TIDAL's.
+
+    Looked up among the row's own orders by code, so a playlist's date still
+    reads as its creation date, and an order the level no longer offers is
+    simply TIDAL's.
+    """
+    code = _orders().get(row.key)
+    return next(
+        (order for order in row.orders if order is not None and order.code == code),
+        None,
+    )
+
+
+def remember(row: Row, order: Order | None) -> None:
+    """Keep ``order`` for the level ``row`` opens. Failing to write is not fatal."""
+    orders = _orders()
+    if order is None:
+        orders.pop(row.key, None)
+    else:
+        orders[row.key] = order.code
+    try:
+        ORDERS_FILE.parent.mkdir(parents=True, exist_ok=True)
+        ORDERS_FILE.write_text(json.dumps(orders, ensure_ascii=False), encoding="utf-8")
+    except OSError:
+        pass
 
 
 def _tidal(order: Order | None, kind: Any) -> dict[str, Any]:

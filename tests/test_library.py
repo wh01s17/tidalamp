@@ -934,3 +934,30 @@ def test_unfavouriting_forgets_the_favourites_level_in_every_order(monkeypatch):
 
     assert favorites.calls == [("remove_track", "1")]
     assert set(library._LEVELS) == {"fav:albums"}
+
+
+def test_the_order_picked_for_a_level_survives_a_restart():
+    """Kept on disk by the level's key, and read back as that level's own
+    order: a playlist's date is still its creation date the next day."""
+    rows = {row.key: row for row in library.root(FakeSession())}
+    playlists, tracks = rows["playlists"], rows["fav:tracks"]
+
+    library.remember(playlists, playlists.orders[1])
+    library.remember(tracks, library.Order("album", descending=True))
+    library.remember(tracks, library.Order("name"))
+
+    library._CHOSEN = None  # what a new process starts with
+    assert library.chosen(tracks) == library.Order("name")
+    back = library.chosen(playlists)
+    assert back is not None and back.created
+    assert library.order_label(back) == "fecha de creación: recientes primero"
+
+    library.remember(tracks, None)
+    library._CHOSEN = None
+    assert library.chosen(tracks) is None
+
+
+def test_a_broken_orders_file_is_no_orders_at_all():
+    library.ORDERS_FILE.write_text("{esto no es json", encoding="utf-8")
+    tracks = next(row for row in library.root(FakeSession()) if row.key == "fav:tracks")
+    assert library.chosen(tracks) is None
