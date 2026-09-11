@@ -19,6 +19,14 @@ versioning is [semantic](https://semver.org/).
   characters belong to their owners and the GPL does not cover them. The README's
   licence section says so too.
 
+### Changed
+
+- The themed looks have finer frames. Each title bar is a pattern of its own instead of
+  one repeated glyph (hazard stripes, waves, a notebook's dotted rule, a flickering
+  neon tube, a double border with diamonds, waves with notes, the four suits, an iron
+  railing, noise), and each frame but the notebook's carries a small flourish centred
+  in its foot.
+
 ## [0.6.0] - 2026-09-11
 
 ### Added

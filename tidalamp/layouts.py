@@ -131,24 +131,26 @@ LAYOUT_TABLE: dict[str, Layout] = {
         # A purple giant with a lime trim and orange warning stripes.
         Layout(
             "unidad-morada",
-            title=lambda width: ruled("UNIDAD-01  //  TIDAL AMP", width, "▚"),
+            title=lambda width: ruled("UNIDAD-01  //  TIDAL AMP", width, "▚▚ "),
             queue_heading=lambda width, hints: spread(
                 f"▰▰ {_('COLA')} ▰▰", hints, width, " "
             ),
             transport="keycaps",
             keycaps=("⟦", "⟧"),
+            frame_subtitle="▚▚ 01 ▚▚",
             emblem="unidad-morada.png",
             tagline=lambda: _("sincronía al 400 %"),
         ),
         # Straw-yellow on open sea, a flag at the masthead.
         Layout(
             "pirata",
-            title=lambda width: ruled("☠  TIDAL AMP  ☠", width, "~"),
+            title=lambda width: ruled("☠  TIDAL AMP  ☠", width, "~≈"),
             queue_heading=lambda width, hints: spread(
                 f"⎈ {_('BITÁCORA')} ", hints, width, "~"
             ),
             transport="keycaps",
             keycaps=("(", ")"),
+            frame_subtitle="≈ ⎈ ≈",
             emblem="pirata.png",
             emblem_anchor="bottom",
             emblem_scale=1.0,
@@ -157,7 +159,7 @@ LAYOUT_TABLE: dict[str, Layout] = {
         # A black notebook, ruled lines, one red that matters.
         Layout(
             "cuaderno",
-            title=lambda width: "✎ tidal amp",
+            title=lambda width: spread("✎ tidal amp ", "", width, "┈").rstrip(),
             queue_heading=lambda width, hints: spread(
                 f"✎ {_('páginas')} ", hints, width, "_"
             ),
@@ -168,12 +170,13 @@ LAYOUT_TABLE: dict[str, Layout] = {
         # Night city: yellow and cyan neon, hard edges.
         Layout(
             "neon-noir",
-            title=lambda width: ruled("▌NEON//NOIR▐  tidalamp", width, "━"),
+            title=lambda width: ruled("▌NEON//NOIR▐  tidalamp", width, "━━━╸ "),
             queue_heading=lambda width, hints: spread(
                 f"▌{_('COLA')}▐ ", hints, width, "━"
             ),
             transport="keycaps",
             keycaps=("▐", "▌"),
+            frame_subtitle="▌24/7▐",
             emblem="neon-noir.png",
             emblem_anchor="bottom",
             tagline=lambda: _("despierta: la ciudad no duerme"),
@@ -181,32 +184,35 @@ LAYOUT_TABLE: dict[str, Layout] = {
         # Old gold on a dark forest, a chronicle rather than a list.
         Layout(
             "runas",
-            title=lambda width: ruled("◆  T I D A L   A M P  ◆", width, "·"),
+            title=lambda width: ruled("◆  T I D A L   A M P  ◆", width, "══◇"),
             queue_heading=lambda width, hints: ruled(_("CRÓNICA"), width, "·"),
             transport="retro",
+            frame_subtitle="◇ ◆ ◇",
             emblem="runas.png",
             tagline=lambda: _("un anillo para oírlas a todas"),
         ),
         # Red, gold and green on black.
         Layout(
             "reggae",
-            title=lambda width: ruled("♫  tidal amp  ♫", width, "≈"),
+            title=lambda width: ruled("♫  tidal amp  ♫", width, "≈≈≈♪"),
             queue_heading=lambda width, hints: spread(
                 f"♫ {_('cola')} ", hints, width, "≈"
             ),
             transport="quattro",
+            frame_subtitle="♪ ♫ ♪",
             emblem="reggae.png",
             tagline=lambda: _("un solo amor, un solo corazón"),
         ),
         # The wild card: a purple suit, green hair, the four suits.
         Layout(
             "comodin",
-            title=lambda width: ruled("♠ ♥  TIDAL AMP  ♦ ♣", width, "─"),
+            title=lambda width: ruled("♠ ♥  TIDAL AMP  ♦ ♣", width, "──♠──♥──♦──♣"),
             queue_heading=lambda width, hints: spread(
                 f"♠ {_('baraja')} ", hints, width, "─"
             ),
             transport="keycaps",
             keycaps=("{", "}"),
+            frame_subtitle="─ ♦ ─",
             emblem="comodin.png",
             emblem_anchor="bottom",
             emblem_scale=1.15,
@@ -215,23 +221,25 @@ LAYOUT_TABLE: dict[str, Layout] = {
         # Crimson and violet under a pointed arch.
         Layout(
             "gotico",
-            title=lambda width: ruled("✠  TIDAL AMP  ✠", width, "━"),
+            title=lambda width: ruled("✠  TIDAL AMP  ✠", width, "━━┿"),
             queue_heading=lambda width, hints: ruled(
                 _("LISTA DE REPRODUCCIÓN"), width, "━"
             ),
             transport="retro",
+            frame_subtitle="━ ✠ ━",
             emblem="gotico.png",
             tagline=lambda: _("nunca más, dijo el cuervo"),
         ),
         # Bone on black, blood red, and noise at the edges.
         Layout(
             "death-metal",
-            title=lambda width: ruled("▓▒░  T I D A L   A M P  ░▒▓", width, "░"),
+            title=lambda width: ruled("▓▒░  T I D A L   A M P  ░▒▓", width, "░░▒░ "),
             queue_heading=lambda width, hints: spread(
                 f"░▒▓ {_('COLA')} ▓▒░", hints, width, " "
             ),
             transport="keycaps",
             keycaps=("╣", "╠"),
+            frame_subtitle="░▒▓█▓▒░",
             emblem="death-metal.png",
             tagline=lambda: _("hasta el once"),
         ),
