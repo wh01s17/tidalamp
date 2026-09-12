@@ -10,6 +10,7 @@ from app_helpers import (
     a_cover,
     isolate_config,
     isolate_runtime,
+    settle,
     use_theme,
 )
 from rich.cells import cell_len
@@ -403,5 +404,43 @@ def test_plain_lyrics_move_through_the_track_in_the_split_pane(monkeypatch, tmp_
             mpv.position = 200.0
             await pilot.pause(0.5)
             assert "verso 99" in shown()
+
+    asyncio.run(scenario())
+
+
+def test_the_lyrics_window_follows_a_track_changed_by_the_media_keys(monkeypatch):
+    """With `y` open the app's keys do not reach the player, but MPRIS does:
+    the window used to keep the lyrics of the track it opened on."""
+    from tidalamp.lyrics import parse_lyrics
+
+    isolate_runtime(monkeypatch)
+
+    def lyrics_for(self, entry):
+        return parse_lyrics(text=f"letra de {entry.title}")
+
+    monkeypatch.setattr(TidalAmp, "_lyrics_for", lyrics_for)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(120, 36)) as pilot:
+            application.queue.replace(
+                [
+                    Entry(id=1, title="Schism", artist="TOOL", duration=60),
+                    Entry(id=2, title="Parabola", artist="TOOL", duration=60),
+                ],
+                start=0,
+            )
+            await pilot.pause()
+            await pilot.press("y")
+
+            def body() -> str:
+                return str(application.screen.query_one("#lyrics-body", Static).render())
+
+            await settle(pilot, lambda: "letra de Schism" in body())
+
+            application.mpris_next()
+            await settle(pilot, lambda: "letra de Parabola" in body())
+            title = str(application.screen.query_one("#lyrics-title", Static).render())
+            assert "Parabola" in title
 
     asyncio.run(scenario())

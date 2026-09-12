@@ -15,6 +15,7 @@ from textual.widgets import Static
 
 from ..i18n import _
 from ..lyrics import LyricsDocument
+from ..queue import Entry
 from ..theme import palette_for
 from ..widgets import Spinner
 
@@ -23,7 +24,12 @@ if TYPE_CHECKING:  # The screens report back to the app; the app owns them.
 
 
 class LyricsScreen(ModalScreen[None]):
-    """Lyrics for one track, synchronized to the player when LRC is present."""
+    """Lyrics for the playing track, synchronized to the player when LRC is present.
+
+    It follows the track rather than keeping the one it opened on: while it
+    is in front the app's keys do not reach the player, but the media keys
+    (MPRIS) and the end of a song still move the queue on.
+    """
 
     BINDINGS = [
         Binding("escape,y", "close", _("cerrar")),
@@ -35,14 +41,17 @@ class LyricsScreen(ModalScreen[None]):
 
     def __init__(
         self,
-        title: str,
-        loader: Callable[[], LyricsDocument],
+        current: Callable[[], Entry | None],
+        loader: Callable[[Entry], LyricsDocument],
         position: Callable[[], float],
     ) -> None:
         super().__init__()
-        self._track_title = title
+        self._current = current
         self._loader = loader
         self._position = position
+        entry = current()
+        self._entry_id = entry.id if entry is not None else None
+        self._track_title = entry.label if entry is not None else ""
         self._document: LyricsDocument | None = None
         self._plain_offset = 0
 
@@ -59,20 +68,50 @@ class LyricsScreen(ModalScreen[None]):
             yield Static(_(" ↑↓ desplazar   y/esc cerrar"), id="lyrics-hint")
 
     def on_mount(self) -> None:
+        self._start()
+        self.set_interval(1 / 4, self._tick)
+
+    def _start(self) -> None:
+        """Ask for the lyrics of the track the window is on, from scratch."""
+        self._document = None
+        self._plain_offset = 0
+        self.query_one("#lyrics-title", Static).update(
+            _("▓ LETRA ▓  {title}").format(title=self._track_title)
+        )
+        entry = self._current()
+        if entry is None or entry.id != self._entry_id:
+            self.query_one("#lyrics-body", Static).update(
+                "  " + _("no hay una pista reproduciéndose")
+            )
+            return
+        self.query_one("#lyrics-body", Static).update("  " + _("cargando…"))
         self.query_one(Spinner).start(_("buscando la letra…"))
-        self._load()
-        self.set_interval(1 / 4, self._refresh_lyrics)
+        self._load(entry)
+
+    def _tick(self) -> None:
+        entry = self._current()
+        wanted = entry.id if entry is not None else None
+        if wanted != self._entry_id:
+            self._entry_id = wanted
+            self._track_title = entry.label if entry is not None else ""
+            self.query_one(Spinner).stop()
+            self._start()
+            return
+        self._refresh_lyrics()
 
     @work(thread=True, exclusive=True)
-    def _load(self) -> None:
+    def _load(self, entry: Entry) -> None:
         try:
-            document = self._loader()
+            document = self._loader(entry)
         except Exception as exc:
-            self.app.call_from_thread(self._failed, exc)
+            self.app.call_from_thread(self._failed, entry.id, exc)
             return
-        self.app.call_from_thread(self._loaded, document)
+        self.app.call_from_thread(self._loaded, entry.id, document)
 
-    def _loaded(self, document: LyricsDocument) -> None:
+    def _loaded(self, entry_id: int, document: LyricsDocument) -> None:
+        # The track moved on while its lyrics were in flight.
+        if entry_id != self._entry_id:
+            return
         self.query_one(Spinner).stop()
         self._document = document
         mode = _("sincronizada") if document.synced else _("texto")
@@ -84,7 +123,9 @@ class LyricsScreen(ModalScreen[None]):
         )
         self._refresh_lyrics()
 
-    def _failed(self, exc: Exception) -> None:
+    def _failed(self, entry_id: int, exc: Exception) -> None:
+        if entry_id != self._entry_id:
+            return
         self.query_one(Spinner).stop()
         self.query_one("#lyrics-body", Static).update(f"  {exc}")
 

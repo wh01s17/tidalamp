@@ -2241,14 +2241,13 @@ class TidalAmp(App):
         self.query_one(LyricsPane).show(document, message)
 
     def action_lyrics(self) -> None:
-        entry = self.queue.current
-        if entry is None:
+        if self.queue.current is None:
             self.status = _("no hay una pista reproduciéndose")
             return
         self.push_screen(
             LyricsScreen(
-                entry.label,
-                lambda: self._lyrics_for(entry),
+                lambda: self.queue.current,
+                self._lyrics_for,
                 lambda: self.mpv.position,
             )
         )

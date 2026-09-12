@@ -74,6 +74,11 @@ versioning is [semantic](https://semver.org/).
   with the browser's keys alone; the footer that tried to list them all dropped half
   of them on any terminal narrower than the list.
 
+### Fixed
+
+- The lyrics window (`y`) follows the track. With it open, a track changed by the media
+  keys or the end of a song left the lyrics of the one it had opened on.
+
 ## [0.7.0] - 2026-09-11
 
 ### Added
