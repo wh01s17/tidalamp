@@ -63,6 +63,10 @@ from .widgets import (
     TimeDisplay,
 )
 
+# What `_resolving` holds after a stop: an entry no resolve is ever for, so
+# whatever comes back late is dropped instead of starting to play.
+_STOPPED = Entry(id=-1, title="", artist="")
+
 
 def _track_path(entry: Entry) -> str:
     """The D-Bus object path for one queue row.
@@ -1681,6 +1685,11 @@ class TidalAmp(App):
 
     def action_stop(self) -> None:
         self._autoplaying = False
+        if self._resolving is not None and self._resolving is not _STOPPED:
+            # A resolve on its way: its spinner goes, and so does its track
+            # when it comes back.
+            self.query_one("#busy", Spinner).stop()
+        self._resolving = _STOPPED
         self.mpv.stop()
         self.queue.playing = -1
         # The tick reads "mpv went idle" as "the track ended" and moves on.
@@ -2083,14 +2092,16 @@ class TidalAmp(App):
     def _resolve_failed(self, message: str, entry: Entry | None = None) -> None:
         if self._stale(entry):
             return
+        self._resolving = None
         self.query_one("#busy", Spinner).stop()
         self.status = message
 
     def _start(self, entry: Entry, playable: Playable) -> None:
         if self._stale(entry):
             # «Next» was pressed again while this one resolved; the spinner
-            # belongs to the newer resolve, still on its way.
+            # belongs to the newer resolve, still on its way. Or stop was.
             return
+        self._resolving = None
         self.query_one("#busy", Spinner).stop()
         self.mpv.load(playable.url)
         self._was_idle = False

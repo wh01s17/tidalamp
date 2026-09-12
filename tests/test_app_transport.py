@@ -816,3 +816,41 @@ def test_a_resolve_that_comes_back_late_does_not_start_an_older_track(monkeypatc
             assert not busy.busy
 
     asyncio.run(scenario())
+
+
+def test_a_resolve_that_comes_back_after_stop_does_not_play(monkeypatch):
+    isolate_runtime(monkeypatch)
+    monkeypatch.setattr(TidalAmp, "_resolve_worker", lambda self, entry: None)
+
+    class Playable:
+        url = "https://cdn/schism"
+        kbps = "16-bit"
+        khz = "44.1"
+        quality = "LOSSLESS"
+        codec = "flac"
+
+    async def scenario() -> None:
+        mpv = FakeMpv()
+        application = TidalAmp(object(), mpv)
+        async with application.run_test(size=(100, 40)) as pilot:
+            await pilot.pause()
+            entry = Entry(id=1, title="Schism", artist="TOOL")
+            application.queue.append([entry])
+            application._sync_queue()
+            busy = application.query_one("#busy", Spinner)
+
+            application._play_index(0)
+            assert busy.busy
+            application.action_stop()
+            assert not busy.busy, "detener se lleva el indicador"
+
+            application._start(entry, Playable())
+            assert mpv.loaded is None, "detenido sigue detenido"
+            assert application.status == "detenido"
+
+            # Playing again afterwards works as ever.
+            application._play_index(0)
+            application._start(entry, Playable())
+            assert mpv.loaded == "https://cdn/schism"
+
+    asyncio.run(scenario())
