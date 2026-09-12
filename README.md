@@ -251,10 +251,12 @@ queue as a TIDAL playlist, in queue order rather than shuffle order. Large queue
 sent in batches; if TIDAL stops accepting them part-way through, the partial playlist
 is kept and the status line says exactly how many tracks made it.
 
-- `↵` on a track plays it **and queues the entire level**, so the rest of the album or
-  playlist follows it.
+- `↵` on a track opens the [track menu](#the-track-menu); its **Play now** queues the
+  entire level, so the rest of the album or playlist follows it.
+- `m` opens the same menu, and on an album, an artist or a playlist it offers the same
+  verbs over everything inside it.
 - `a` appends an item without interrupting the current track. On a playlist or album,
-  it appends all of its contents.
+  it appends all of its contents, every page of it.
 - `A` appends every track in the current level.
 
 Modal windows — the library, search, settings, lyrics, help — take a share of the

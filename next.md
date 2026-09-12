@@ -5,7 +5,7 @@ hacer, por qué, las trampas que ya se conocen y cómo se comprueba, para que se
 retomar sin releer el hilo en el que se decidió.
 
 **Cómo se usa este fichero.** Cuando algo de aquí queda hecho, **se borra de aquí** y
-pasa a dos sitios: la línea de usuario a `CHANGELOG.md`, bajo `[Sin publicar]`, y el
+pasa a dos sitios: la línea de usuario a `CHANGELOG.md`, bajo `[Unreleased]`, y el
 detalle de diseño y las decisiones a la sección que le corresponda de `plan.md`. Un
 fichero que acumula entradas tachadas deja de decir qué falta, que es lo único para lo
 que existe. Si algo se descarta, no se borra sin más: baja a «Descartado por ahora» con

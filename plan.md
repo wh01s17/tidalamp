@@ -6,7 +6,9 @@ retomar el trabajo sin contexto previo.
 
 **Última actualización:** 2026-09-11, versión `0.8.0` preparada (`s` ordena la
 biblioteca y el orden persiste, `d` quita de favoritos o de una playlist y `?` trae
-su ayuda; `w`, la pantalla completa con la cola al lado; reproducción automática; la
+su ayuda; `m` abre el menú de un álbum, artista o playlist entero, y `a` sobre uno
+trae todas sus páginas; la ventana de la letra sigue a la pista que suena; `q` pregunta
+antes de salir; `w`, la pantalla completa con la cola al lado; reproducción automática; la
 velocidad también por MPRIS; `rounded`; la carátula más nítida en `blocks` y mucho más
 ligera en kitty y sixel; calidad, ritmos y reiniciar PipeWire, desde una lista. En
 `0.7.0`: el décimo tema temático, `bosque`; marcos más finos en los temáticos; la
@@ -1020,6 +1022,16 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
       duplicada en la cola. Una estación que sólo trae la semilla cuenta como `NoRadio`.
 - [x] `↵` sobre un álbum, artista o playlist sigue abriendo el nivel. El menú es para
       pistas, que son las que admiten más de una cosa razonable.
+- [x] `m` en el navegador (0.8.0) abre el menú sobre la fila: el de la pista en una
+      pista y, en un álbum, artista o playlist, `CONTAINER_ACTIONS`: reproducir todo
+      ahora, a continuación, favoritos (el contenedor mismo, por su clave) y añadir
+      todo a una playlist. Sin radio: nace de una pista y TIDAL no la da para un álbum.
+      `TrackActionsScreen` recibe la lista de acciones; las letras son las mismas y
+      una que el menú no enseña no hace nada.
+- [x] El contenedor se carga entero con `library.all_entries()`, que sigue los «más…»
+      hasta el final, y en el orden elegido con `s` (`_level_of`). Antes `a` sobre un
+      contenedor se quedaba en la primera página, cien pistas. En un artista, «todo»
+      son sus pistas más escuchadas, el mismo nivel que abre `↵`.
 - [x] El menú vale también en la biblioteca, no sólo en la búsqueda: es la misma
       `BrowserScreen`, y separarlas habría pedido una bandera para empeorar un lado.
 
@@ -1507,6 +1519,8 @@ Distinguir esto importa: parte del código nunca se ha ejecutado contra TIDAL re
 | Quitar de favoritos o de una playlist | **VERIFICADO CONTRA TIDAL REAL** | Tests: la pista se encuentra más allá de la primera página y se quita por índice; una playlist ajena no se toca; una pista que ya no está lo dice sin quitar nada; quitar un favorito tira su nivel en todos los órdenes; en la app, `d` pregunta en «cancelar», confirmado la fila sale, y en la raíz avisa. Quitar de una playlist propia, probado por el mantenedor contra TIDAL real (2026-09-11). |
 | Reproducción automática | **VERIFICADO CONTRA TIDAL REAL** | Tests: encendida, la radio de la última pista va al final sin la semilla ni repetidas y suena la primera nueva, y un segundo «siguiente» mientras llega no pide otra; apagada, el final de la cola se detiene sin pedir nada; una radio sin nada nuevo se detiene y lo dice. Oída por el mantenedor contra TIDAL real (2026-09-11). |
 | Pantalla completa | **VERIFICADO POR EL USUARIO** | Tests: `w` abre y `esc` vuelve con la cola y la reproducción intactas; `tab` abre y cierra la cola y ↵ reproduce desde ella; los controles responden al clic; la carátula kitty se queda en la vista, pasa del tope de 20 filas y se esconde bajo una ventana abierta encima; todas las disposiciones caben en el mínimo. Vista por el mantenedor en su terminal 4K con kitty, sixel y `blocks`, ya fluida, y sin la imagen kitty pegada al cerrarla tras activar la transparencia (2026-09-11). |
+| Menú de álbum, artista o playlist (`m`) | **CUBIERTO POR TESTS** | Siete tests en la app headless con un álbum de dos páginas: `a` reproduce las tres pistas, `c` las mete detrás de la que suena y el aviso dice cuántas, `l` manda las tres a la playlist elegida, `v` marca el álbum por su clave, el menú no ofrece radio y su `d` no hace nada, `m` sobre una pista abre el menú de siempre, y `a` fuera del menú también trae las dos páginas. Falta probarlo contra TIDAL real con una playlist de más de cien pistas. |
+| Ventana de la letra al cambiar de pista | **CUBIERTO POR TESTS** | Con `y` abierta, un «siguiente» por MPRIS cambia título y letra; la de una pista anterior que llegue tarde se descarta. Falta verlo con las teclas multimedia reales. |
 | Dos columnas (`split`)              | **Verificado en headless y a mano** | Cuatro tests: mismos objetos (cola, carátula, transporte) y cursor al cambiar de forma, vuelta sola a apilada por ancho y por alto, las trece disposiciones caben en el umbral con el transporte bajo las dos columnas, y la letra se carga una vez por pista y sigue la línea. Capturas SVG de las trece. El mantenedor lo usó en su terminal con audio real y letra. |
 | Barras clicables                    | **Verificado**                    | Cuatro pruebas con `pilot.click`: seek a mitad, seek parado sin llamada a mpv, volumen al extremo y balance en cero exacto pese al padding. |
 | Ayuda en dos pestañas              | **Verificado**                    | Dos unitarias en la app headless: `→` lleva a «Acerca de» y dibuja el repositorio, `←` vuelve a los atajos con el desplazamiento donde se dejó, y ninguna de las dos flechas se sale por los extremos. Render a 100x30 de las dos pestañas, con la activa marcada en la barra de título. |
