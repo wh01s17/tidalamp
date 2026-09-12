@@ -17,7 +17,34 @@ Lo de aquí no bloquea publicar. `plan.md` §5 y §6 mandan sobre el estado gene
 
 ## Para la próxima versión
 
-Vacío. Lo de la 0.9.0 (mpv sin congelar la interfaz, sin corte entre pistas, volumen
+- **Ir al artista y al álbum desde el menú de la pista.** Dos entradas más en el menú
+  que abren `m` y `↵` en todos sus sitios (navegador, búsqueda, cola y la cola de la
+  pantalla completa): «ir al artista» e «ir al álbum», que abren el navegador en ese
+  nivel. Hoy, desde una pista de la cola, no hay forma de llegar a su disco o a su
+  artista sin buscarlos a mano. Trampas: `Entry` guarda `album_id` pero **no el id
+  del artista**, sólo su nombre; hay que añadir `artist_id`, y una cola guardada antes
+  no lo trae, así que sale de `entry.resolve()` (el `Track` de tidalapi lleva
+  `artist.id`), en un worker, porque es una petición. Una pista con varios artistas:
+  ir al principal o preguntar cuál, por decidir. Desde la cola y la pantalla completa
+  el navegador no está abierto: tiene que abrirse con ese nivel ya apilado, y `⌫`
+  volver a la raíz de la biblioteca en vez de cerrar. Se comprueba con una sesión
+  simulada: el menú ofrece las dos entradas en los cuatro sitios, y cada una abre el
+  nivel correcto, también desde una cola restaurada sin `artist_id`.
+- **Un artista con sus discos, no sólo sus canciones sugeridas.** Hoy abrir un artista
+  trae sus pistas más escuchadas (`get_top_tracks`). Que abra a secciones: populares,
+  álbumes, EPs y sencillos, y otros (recopilatorios y en los que aparece), cada una un
+  nivel paginado como los demás y cada disco un nivel de pistas como el álbum de
+  siempre. tidalapi da `get_albums`, `get_ep_singles` y `get_other`. Trampas: **los
+  discos en vivo no son una categoría de la API**, TIDAL los mete entre los álbumes;
+  separarlos por el título («Live», «En vivo», «Unplugged») es adivinar, y adivinar
+  mal esconde un disco. **Por confirmar** si `artist.page()`, la página del cliente
+  oficial, trae una sección propia de directos. Una sección vacía (un artista sin
+  EPs) no aparece. `s` tiene que seguir ordenando donde TIDAL ordene, y `m` sobre un
+  artista hoy reproduce las populares: decidir si sigue así. Se comprueba con una
+  sesión simulada con álbumes, EPs y nada en «otros»: salen tres secciones y no
+  cuatro, y abrir un disco trae sus pistas.
+
+Lo de la 0.9.0 (mpv sin congelar la interfaz, sin corte entre pistas, volumen
 normalizado, tus mixes, la insignia `RG`, la carátula y la letra de la siguiente por
 adelantado, y el segundo recordado tras un reinicio de mpv y al salir, que estaba
 descartado y se retomó) está hecho, probado a mano contra TIDAL real y cerrado en `CHANGELOG.md`
