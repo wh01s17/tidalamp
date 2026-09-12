@@ -1,6 +1,6 @@
 # Maintainer: wh01s17 <joja.perezo@gmail.com>
 pkgname=tidalamp
-pkgver=0.8.0
+pkgver=0.8.1
 pkgrel=1
 pkgdesc="Terminal TIDAL client with a retro interface and hi-res playback"
 arch=('any')

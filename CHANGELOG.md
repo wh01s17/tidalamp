@@ -5,6 +5,8 @@ versioning is [semantic](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.8.1] - 2026-09-11
+
 ### Fixed
 
 - A request TIDAL does not answer gives up after 20 seconds, and 5 to connect, instead
@@ -18,7 +20,8 @@ versioning is [semantic](https://semver.org/).
   are written all at once. A quit, a crash or a full disk halfway through used to
   leave half a file behind, and the next start lost it.
 - Pressing `next` quickly no longer lets an older track start over the newer one, when
-  the older one took longer to resolve.
+  the older one took longer to resolve; and stopping while a track resolves keeps the
+  player stopped, instead of starting it when the resolve comes back.
 
 ## [0.8.0] - 2026-09-11
 

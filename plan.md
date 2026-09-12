@@ -4,7 +4,9 @@ Documento de traspaso. Describe qué existe, qué está verificado, qué falta y
 criterio se tomaron las decisiones, para que cualquiera (humano o modelo) pueda
 retomar el trabajo sin contexto previo.
 
-**Última actualización:** 2026-09-11, versión `0.8.0` preparada (`s` ordena la
+**Última actualización:** 2026-09-11, versión `0.8.1` preparada (timeouts reales para
+TIDAL, escrituras de playlists que no se duplican, el estado escrito de forma
+atómica y una resolución vieja descartada al pasar de pista o detener. En `0.8.0`: `s` ordena la
 biblioteca y el orden persiste, `d` quita de favoritos o de una playlist y `?` trae
 su ayuda; `m` abre el menú de un álbum, artista o playlist entero, y `a` sobre uno
 trae todas sus páginas; la ventana de la letra sigue a la pista que suena; `q` pregunta

@@ -302,6 +302,18 @@ ENGLISH: dict[str, str] = {
     "«{label}» sonará a continuación": "“{label}” will play next",
     "{count} pistas sonarán a continuación": "{count} tracks will play next",
     "reproducir todo ahora": "play all now",
+    "Las peticiones a TIDAL ya no esperan para siempre.": (
+        "Requests to TIDAL no longer wait forever."
+    ),
+    "Guardar en una playlist no la crea ni la llena dos veces.": (
+        "Saving to a playlist never creates or fills it twice."
+    ),
+    "La cola y los ajustes se guardan sin quedar a medias.": (
+        "The queue and the settings are never saved halfway."
+    ),
+    "Una pista vieja no suena tras «siguiente» o detener.": (
+        "An older track no longer plays after “next” or stop."
+    ),
     "m: el menú de un álbum, artista o playlist entero.": (
         "m: the menu of a whole album, artist or playlist."
     ),

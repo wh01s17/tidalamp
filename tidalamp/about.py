@@ -50,6 +50,16 @@ def releases() -> tuple[Release, ...]:
     """Newest first. Translated at call time, not at import time."""
     return (
         Release(
+            "0.8.1",
+            "2026-09-11",
+            (
+                _("Las peticiones a TIDAL ya no esperan para siempre."),
+                _("Guardar en una playlist no la crea ni la llena dos veces."),
+                _("La cola y los ajustes se guardan sin quedar a medias."),
+                _("Una pista vieja no suena tras «siguiente» o detener."),
+            ),
+        ),
+        Release(
             "0.8.0",
             "2026-09-11",
             (
