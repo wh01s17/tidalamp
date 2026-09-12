@@ -65,6 +65,14 @@ bajo `[0.9.0]`; el detalle, en `plan.md` §4 y §5.
 
 No se borran: quedan escritos con el motivo para no volver a discutirlos desde cero.
 
+- **Distribuir por pacman mientras el AUR siga cerrado** (2026-09-12). Los repos
+  oficiales no son una opción: los mantienen los Package Maintainers de Arch, y la vía
+  para entrar pasa por el AUR. Quedaban dos caminos, los dos viables porque todas las
+  dependencias están en `extra`: adjuntar el `.pkg.tar.zst` a cada GitHub Release
+  (`pacman -U`, sin actualizaciones) o un repositorio propio firmado con `repo-add`
+  (actualiza con `-Syu`, pero pide una clave de firma en los secretos de Actions y que
+  el usuario confíe en ella). El mantenedor prefirió quedarse en PyPI. Cuando reabra el
+  AUR, el PKGBUILD está listo.
 - **Radio de un artista o de una playlist** (2026-09-11), para completar el menú de la
   `m`, que no tiene radio porque la de TIDAL nace de una pista. Al mantenedor no le
   interesó: la radio de pista ya cubre lo que busca.
