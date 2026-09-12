@@ -34,12 +34,11 @@ Lo de aquí no bloquea publicar. `plan.md` §5 y §6 mandan sobre el estado gene
   trae sus pistas más escuchadas (`get_top_tracks`). Que abra a secciones: populares,
   álbumes, EPs y sencillos, y otros (recopilatorios y en los que aparece), cada una un
   nivel paginado como los demás y cada disco un nivel de pistas como el álbum de
-  siempre. tidalapi da `get_albums`, `get_ep_singles` y `get_other`. Trampas: **los
-  discos en vivo no son una categoría de la API**, TIDAL los mete entre los álbumes;
-  separarlos por el título («Live», «En vivo», «Unplugged») es adivinar, y adivinar
-  mal esconde un disco. **Por confirmar** si `artist.page()`, la página del cliente
-  oficial, trae una sección propia de directos. Una sección vacía (un artista sin
-  EPs) no aparece. `s` tiene que seguir ordenando donde TIDAL ordene, y `m` sobre un
+  siempre. Las secciones son las que trae la API y ninguna más: tidalapi da
+  `get_albums`, `get_ep_singles` y `get_other`, y los discos en vivo van donde TIDAL
+  los ponga, entre los álbumes (decidido por el mantenedor el 2026-09-12: separarlos
+  por el título sería adivinar). Trampas: una sección vacía (un artista sin EPs) no
+  aparece. `s` tiene que seguir ordenando donde TIDAL ordene, y `m` sobre un
   artista hoy reproduce las populares: decidir si sigue así. Se comprueba con una
   sesión simulada con álbumes, EPs y nada en «otros»: salen tres secciones y no
   cuatro, y abrir un disco trae sus pistas.
