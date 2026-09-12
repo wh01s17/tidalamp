@@ -194,6 +194,7 @@ ENGLISH: dict[str, str] = {
     "reproducción automática: {error}": "autoplay: {error}",
     "reproducción automática activada": "autoplay on",
     "reproducción automática desactivada": "autoplay off",
+    "Mis mixes": "My mixes",
     "volver": "back",
     "pantalla completa": "full screen",
     "la pantalla completa necesita al menos {width}×{height}": (

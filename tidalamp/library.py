@@ -507,6 +507,58 @@ def _artist_rows(artists: Iterable[tidalapi.Artist]) -> list[Row]:
     return rows
 
 
+def _is_mix(item: object) -> bool:
+    """Whether a page item is a mix. The page of your mixes can carry other
+    things besides them, and TIDAL rearranges it more often than favourites."""
+    return getattr(item, "mix_type", None) is not None and callable(
+        getattr(item, "items", None)
+    )
+
+
+def _mix_level(mix: Any) -> Callable[[], list[Row]]:
+    """A mix's tracks. One page, as TIDAL makes them, and no order but its
+    own: a mix is not sorted and not edited, so its rows offer neither."""
+
+    def level() -> list[Row]:
+        try:
+            items = with_retries(mix.items)
+        except ValueError:
+            # tidalapi's word for a mix that came back with nothing in it.
+            return []
+        return _tracks_to_rows(
+            item for item in items if not isinstance(item, tidalapi.media.Video)
+        )
+
+    return level
+
+
+def _mixes_level(session: tidalapi.Session) -> Callable[[], list[Row]]:
+    """Your mixes: the daily ones, discovery, new releases, and the rest of
+    what TIDAL makes for the account, each opening like a playlist.
+
+    `session.mixes()` is the page the official client shows as My Mixes.
+    `user.mixes()` is another thing, the mixes someone saved as favourites.
+    """
+
+    def level() -> list[Row]:
+        # Iterating a tidalapi Page yields its items, typed as callables.
+        page: Any = with_retries(session.mixes)
+        rows = []
+        for mix in (item for item in page if _is_mix(item)):
+            key = f"mix:{mix.id}"
+            rows.append(
+                Row(
+                    label=mix.title or "",
+                    detail=mix.sub_title or "",
+                    key=key,
+                    loader=cached(key, _mix_level(mix)),
+                )
+            )
+        return rows
+
+    return level
+
+
 def root(session: tidalapi.Session) -> list[Row]:
     """The top level of the browser."""
     favorites = _me(session).favorites
@@ -565,6 +617,15 @@ def root(session: tidalapi.Session) -> list[Row]:
                     count=favorites.get_artists_count,
                 ),
             ),
+        ),
+        # Last, not next to the playlists: the four above are what the
+        # account holds, and the tests and the muscle memory both count on
+        # where they are.
+        Row(
+            _("Mis mixes"),
+            "",
+            key="mixes",
+            loader=cached("mixes", _mixes_level(session)),
         ),
     ]
 
