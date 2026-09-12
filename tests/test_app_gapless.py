@@ -8,9 +8,10 @@ import asyncio
 from app_helpers import FakeMpv, isolate_runtime, settle
 
 from tidalamp import app as app_module
+from tidalamp import artwork
 from tidalamp.app import TidalAmp
 from tidalamp.queue import Entry, Repeat
-from tidalamp.widgets import Marquee
+from tidalamp.widgets import Glide, Marquee
 
 
 class Playable:
@@ -42,7 +43,7 @@ def isolate(monkeypatch) -> tuple[list[Entry], list[Entry]]:
     prefetches: list[Entry] = []
     monkeypatch.setattr(TidalAmp, "_resolve_worker", lambda self, e: resolves.append(e))
     monkeypatch.setattr(
-        TidalAmp, "_prefetch_worker", lambda self, e: prefetches.append(e)
+        TidalAmp, "_prefetch_worker", lambda self, e, *rest: prefetches.append(e)
     )
     return resolves, prefetches
 
@@ -311,5 +312,93 @@ def test_the_gain_reaching_mpv_follows_the_mode_and_goes_when_off(monkeypatch):
             assert mpv.gain == 0.0, "apagado, la pista vuelve a como vino"
             assert mpv.queued == [], "la preparada llevaba la ganancia vieja"
             assert application.status == "volumen normalizado: off"
+
+    asyncio.run(scenario())
+
+
+def test_the_badge_line_says_the_gain_being_applied(monkeypatch):
+    """Normalised, a track can sound quieter than the one before with
+    nothing on screen saying why. It is also how the maintainer reads the
+    values TIDAL really sends."""
+    isolate(monkeypatch)
+    monkeypatch.setattr(app_module.config, "REPLAYGAIN", "track")
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(100, 40)) as pilot:
+            await pilot.pause()
+            entries = three()
+            application.queue.append(entries)
+            application._sync_queue()
+            badges = application.query_one("#badges", Glide)
+
+            application._play_index(0)
+            application._start(entries[0], Playable("https://cdn/1", -7.5, 0.9))
+            assert "RG -7.5 dB" in str(badges.content)
+
+            application._play_index(1)
+            application._start(entries[1], Playable("https://cdn/2", 6.0, 0.8))
+            assert "RG +1.9 dB" in str(badges.content), "la aplicada, con el tope"
+
+            application._play_index(2)
+            application._start(entries[2], Playable("https://cdn/3"))
+            assert "RG —" in str(badges.content), "sin datos no es 0 dB"
+
+            monkeypatch.setattr(app_module.config, "REPLAYGAIN", "off")
+            application._setting_changed("replaygain")
+            assert "RG" not in str(badges.content)
+
+    asyncio.run(scenario())
+
+
+def test_the_next_cover_and_lyrics_are_fetched_with_its_stream(monkeypatch):
+    isolate_runtime(monkeypatch)
+    monkeypatch.setattr(TidalAmp, "_resolve_worker", lambda self, e: None)
+    fetched: list[str] = []
+    lyrics_for: list[str] = []
+    monkeypatch.setattr(app_module, "ensure_fresh", lambda session: False)
+    monkeypatch.setattr(Entry, "resolve", lambda self, session: f"track-{self.id}")
+    monkeypatch.setattr(
+        app_module, "resolve", lambda track: Playable(f"https://cdn/{track}")
+    )
+    monkeypatch.setattr(
+        app_module.artwork, "fetch", lambda url: fetched.append(url) or b""
+    )
+    monkeypatch.setattr(
+        app_module, "load_lyrics", lambda track: lyrics_for.append(track) or "letra"
+    )
+
+    async def scenario() -> None:
+        mpv = FakeMpv()
+        application = TidalAmp(object(), mpv)
+        async with application.run_test(size=(100, 40)) as pilot:
+            await pilot.pause()
+            application.art_protocol = artwork.Protocol.BLOCKS
+            entries = [
+                Entry(id=1, title="Schism", artist="TOOL", duration=200),
+                Entry(
+                    id=2,
+                    title="Parabol",
+                    artist="TOOL",
+                    duration=200,
+                    art_url="https://img/2.jpg",
+                ),
+            ]
+            await playing_first(application, mpv, pilot, entries)
+
+            application._prefetching = entries[1]
+            application._prefetch_worker(entries[1], True)
+            await settle(pilot, lambda: bool(lyrics_for))
+
+            assert mpv.queued == [("https://cdn/track-2", 0.0)], "el audio, primero"
+            assert fetched == ["https://img/2.jpg"]
+            assert lyrics_for == ["track-2"]
+            assert application._lyrics_cache[2] == "letra"
+
+            # Without anything on screen following the lyrics, not asked for.
+            application._warm(entries[1], "track-2", False)
+            del application._lyrics_cache[2]
+            application._warm(entries[1], "track-2", False)
+            assert lyrics_for == ["track-2"]
 
     asyncio.run(scenario())

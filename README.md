@@ -248,7 +248,8 @@ your account). Enter a level with `↵` and go back with `⌫`. A mix opens like
 playlist, but it cannot be sorted or edited, so `s` and `d` do nothing there.
 
 Tracks play one into the next with no gap: the next one is fetched from TIDAL shortly
-before the current one ends and handed to mpv ahead of time.
+before the current one ends and handed to mpv ahead of time, along with its cover (and
+its lyrics, when the split view or the lyrics window is showing them).
 
 `g` brings the queue cursor back to the track that is playing. If the queue search is
 hiding it, the search is cleared first. `p` asks for a name and saves a snapshot of the
@@ -565,7 +566,9 @@ writes `~/.config/tidalamp/config.toml`, so a change made once stays made.
 
 Normalised volume uses the ReplayGain TIDAL sends with every stream: `track` evens
 out every track, `album` keeps the loud and quiet songs of one record as the record
-has them. A track is never raised past its own peak, so nothing clips.
+has them. A track is never raised past its own peak, so nothing clips. While it is on,
+the badge line under the clock says the gain applied to the track playing, such as
+`RG -7.5 dB`, or `RG —` when TIDAL sent no gain for it.
 
 Quality, Hi-res rates in PipeWire and Restart PipeWire do not change with the arrows,
 since a stray press on any of them costs more than a colour: Enter opens a list to

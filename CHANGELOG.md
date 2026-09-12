@@ -11,11 +11,14 @@ versioning is [semantic](https://semver.org/).
   before this one ends and handed to mpv, which goes straight on to it. It used to be
   asked for only once the last one had ended, and on a live or a concept album the
   silence in between was that request. Shuffle, repeat or an edit to the queue in the
-  meantime drop what was prepared, and the right track is fetched instead.
+  meantime drop what was prepared, and the right track is fetched instead. Its cover
+  comes ahead too, and so do its lyrics when the split view or the lyrics window is
+  showing them, so they no longer arrive a moment after the sound.
 - Normalised volume (`replaygain`, Normalised volume in the settings window, off by
   default): `track` plays every track at TIDAL's ReplayGain for it and `album` at its
   album's, so a playlist no longer jumps in volume from one song to the next. A quiet
-  track is never raised past its own peak, so nothing clips.
+  track is never raised past its own peak, so nothing clips. The badge line says the
+  gain applied to the track playing (`RG -7.5 dB`), or `RG —` when TIDAL sent none.
 - Your mixes in the library: `My mixes` lists what TIDAL makes for your account, the
   daily ones, discovery and new arrivals among them, and each opens like a playlist. A
   mix cannot be sorted or edited, so `s` and `d` say so.

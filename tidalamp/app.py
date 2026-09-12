@@ -2042,10 +2042,15 @@ class TidalAmp(App):
                 return
             self._drop_prepared()
         self._prefetching = entry
-        self._prefetch_worker(entry)
+        # The lyrics only when something on screen follows the playing track
+        # with them: otherwise it is a request per track nobody reads.
+        lyrics = self.split or any(
+            isinstance(screen, LyricsScreen) for screen in self.screen_stack
+        )
+        self._prefetch_worker(entry, lyrics)
 
     @work(thread=True, exclusive=True, group="prefetch")
-    def _prefetch_worker(self, entry: Entry) -> None:
+    def _prefetch_worker(self, entry: Entry, lyrics: bool = False) -> None:
         try:
             ensure_fresh(self.session)
             track = with_retries(lambda: entry.resolve(self.session))
@@ -2057,6 +2062,24 @@ class TidalAmp(App):
             self.call_from_thread(self._prefetch_gave_up, entry)
             return
         self.call_from_thread(self._prefetched, entry, playable)
+        self._warm(entry, track, lyrics)
+
+    def _warm(self, entry: Entry, track: object, lyrics: bool) -> None:
+        """Fetch the next track's cover, and its lyrics if asked, into their
+        caches. The sound starts with no gap, and without this the cover and
+        the lyrics then came in a moment after it, off the network.
+
+        After the audio is queued, never before: this is decoration. Only the
+        download is done ahead; drawing depends on the box and the look at
+        the time, and from the disk cache it is quick. Failures are silent,
+        and the track's own turn fetches again and says why.
+        """
+        if entry.art_url and self.art_protocol is not artwork.Protocol.NONE:
+            with contextlib.suppress(Exception):
+                artwork.fetch(entry.art_url)
+        if lyrics and entry.id not in self._lyrics_cache:
+            with contextlib.suppress(Exception):
+                self._lyrics_cache[entry.id] = load_lyrics(track)
 
     def _prefetched(self, entry: Entry, playable: Playable) -> None:
         """Queue what came back, if it is still the track that comes next.
@@ -2126,6 +2149,23 @@ class TidalAmp(App):
             self._prefetching = None
         if self._prepared is not None and self._prepared.entry is not wanted:
             self._drop_prepared()
+
+    def _gain_badge(self, playable: Playable) -> str:
+        """The gain on the badge line while the volume is normalised.
+
+        The gain applied, peak cap included, since that is what is heard. A
+        track TIDAL sent no gain for says so instead of «0 dB», which would
+        read as measured and found neutral. Nothing at all when off.
+        """
+        if config.REPLAYGAIN not in ("track", "album"):
+            return ""
+        sent = any(
+            getattr(playable, name, None) is not None
+            for name in ("track_gain", "album_gain")
+        )
+        if not sent:
+            return " · RG —"
+        return f" · RG {self._gain_for(playable):+.1f} dB"
 
     def _gain_for(self, playable: Playable | None) -> float:
         """The ReplayGain to play ``playable`` at, for the mode chosen."""
@@ -2424,6 +2464,7 @@ class TidalAmp(App):
                 f"{playable.khz} kHz · {quality} · {analyzer.source} · "
                 f"{self._playback_label()}"
             )
+            source += self._gain_badge(playable)
         self.query_one("#badges", Glide).update(source)
         self._refresh_output_line()
 
@@ -2657,6 +2698,7 @@ class TidalAmp(App):
             # The track queued for a gapless start carries the old gain as
             # its own option; it is resolved and queued again at the new one.
             self._drop_prepared()
+            self._refresh_readout()
             self.status = _("volumen normalizado: {value}").format(
                 value=config.REPLAYGAIN
             )

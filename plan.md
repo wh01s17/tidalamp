@@ -1516,6 +1516,13 @@ fichero en sí.
 - [x] `_play_index` se partió en `_announce` (marcador, cursor, título, carátula) y la
       resolución; `_start`, en la carga y `_now_playing`. Las dos mitades sirven para
       las dos formas de empezar una pista.
+- [x] **La carátula y la letra, también por adelantado.** El sonido pasaba sin corte y
+      la carátula llegaba un momento después, de la red. `_warm` baja la carátula a su
+      caché de disco y, si algo en pantalla sigue la letra (split o la ventana de `y`),
+      la letra a `_lyrics_cache`. Va **después** de encolar el audio, porque es
+      decoración, y sus fallos no dicen nada. Sólo se adelanta la descarga: dibujarla
+      depende del recuadro y del aspecto de ese momento, y desde el disco es rápido. La
+      letra no se pide si nada la enseña: sería una petición por pista que nadie lee.
 
 ### Volumen normalizado - `settings.py`, `stream.py`, `player.py`, `app.py`
 
@@ -1543,6 +1550,12 @@ fichero en sí.
       así que se reintenta sin la opción: mejor sonar sin normalizar que no sonar.
 - [x] Cambiar el modo en la ventana de `o` fija `volume-gain` en la pista que suena y
       quita la preparada, que llevaba la ganancia vieja como opción.
+- [x] **La insignia lo dice.** Con el volumen normalizado, la línea de insignias acaba
+      en `RG -7.5 dB`: la ganancia aplicada, con el tope del pico incluido, porque es la
+      que se oye. Una pista sin ganancia de TIDAL dice `RG —` y no `0 dB`, que se leería
+      como medida y neutra. Apagado, no aparece. Sin ella, una pista podía sonar más
+      baja que la anterior sin que nada en pantalla explicara por qué; y es la forma de
+      leer los valores reales que manda TIDAL sin abrir el registro.
 
 ### Mis mixes - `library.py`
 
@@ -1642,7 +1655,7 @@ Distinguir esto importa: parte del código nunca se ha ejecutado contra TIDAL re
 | Reinicio de mpv                    | **Verificado**                    | SIGKILL a mpv con la app corriendo: el tick lo relanza con otro PID y la pista vuelve a sonar. Desde la 0.9.0 el reinicio va en un worker; eso está cubierto por tests y no se ha repetido el SIGKILL a mano. |
 | mpv que no contesta (0.9.0)        | **CUBIERTO POR TESTS**            | Contra el mpv falso por el socket de verdad: un mpv colgado cuesta una espera y no más, un sondeo lo despeja, el EOF se lee como muerte, las respuestas partidas de tres en tres bytes se recomponen. En la app: el atasco se dice en la línea de estado y se sondea fuera del hilo, un mpv muerto se reinicia en un worker y recarga la pista, un reinicio fallido espera. Nunca se ha visto colgarse a un mpv real. |
 | Sin corte entre pistas (0.9.0)     | **CUBIERTO POR TESTS**            | La siguiente se prepara a 20 s del final y no antes, mpv pasa a ella sin volver a resolver, una cola editada o un repeat cambiado quitan lo preparado y se prepara la correcta, un resultado tardío no se encola, lo caducado se vuelve a pedir. Contra el mpv falso: `append`, `playlist-clear` y `playlist-pos`. **Falta oírlo** con mpv y TIDAL reales, sobre todo en un disco en vivo, y ver que la URL aguanta los 20 s. |
-| Volumen normalizado (0.9.0)        | **CUBIERTO POR TESTS**            | Los tres modos, el pico como techo, la caída de disco a pista, el 1.0 de relleno de tidalapi, la ganancia como opción por fichero y el reintento sin ella. En la app: la ganancia que llega a mpv cambia con el modo, la preparada lleva la suya, y al apagarlo vuelve a 0. **Falta oírlo** y leer valores reales de TIDAL. |
+| Volumen normalizado (0.9.0)        | **CUBIERTO POR TESTS**            | Los tres modos, el pico como techo, la caída de disco a pista, el 1.0 de relleno de tidalapi, la ganancia como opción por fichero y el reintento sin ella. En la app: la ganancia que llega a mpv cambia con el modo, la preparada lleva la suya, y al apagarlo vuelve a 0; la insignia `RG` enseña la aplicada, y `RG —` sin datos. **Falta oírlo**; los valores reales de TIDAL se leen ahora en la propia insignia. |
 | Mis mixes (0.9.0)                  | **CUBIERTO POR TESTS**            | Sesión simulada con dos mixes y un enlace entre ellos: la sección lista los dos, cada uno se pide al abrirlo, abrirlo trae sus pistas, un mix vacío es un nivel vacío, y en la app `s` y `d` se niegan. **Falta verlo contra la cuenta real**: la forma de la página de mixes es la parte de TIDAL que más cambia. |
 | Espectro con cava                  | **VERIFICADO CON AUDIO REAL**     | El usuario instaló cava 0.10.7 y reprodujo Thriller: la insignia dice `FFT` y las bandas dibujan un espectro con forma, graves y agudos por separado. `pgrep` confirma `cava -p ~/.cache/tidalamp/cava.conf` vivo junto al mpv de la app. |
 | Balance y ecualizador              | **Verificado**                    | Grafos validados con `ffmpeg -af` de verdad; en la app real los filtros llegan a mpv, se guardan, y se reaplican tras reiniciar mpv.                                            |
