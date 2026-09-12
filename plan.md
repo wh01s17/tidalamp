@@ -4,7 +4,11 @@ Documento de traspaso. Describe qué existe, qué está verificado, qué falta y
 criterio se tomaron las decisiones, para que cualquiera (humano o modelo) pueda
 retomar el trabajo sin contexto previo.
 
-**Última actualización:** 2026-09-11, versión `0.8.1` preparada (timeouts reales para
+**Última actualización:** 2026-09-12, lo de la `0.9.0` hecho y sin publicar: mpv que
+no contesta ya no congela la pantalla (espera de 1 s una vez, sondeo y reinicio en
+workers, EOF leído como muerte), la pista siguiente preparada en mpv para que no haya
+corte, volumen normalizado con el ReplayGain de TIDAL y «Mis mixes» en la biblioteca.
+Antes, 2026-09-11, versión `0.8.1` preparada (timeouts reales para
 TIDAL, escrituras de playlists que no se duplican, el estado escrito de forma
 atómica y una resolución vieja descartada al pasar de pista o detener. En `0.8.0`: `s` ordena la
 biblioteca y el orden persiste, `d` quita de favoritos o de una playlist y `?` trae
@@ -1454,6 +1458,108 @@ fichero en sí.
 - [x] Colores de la paleta; el marco se copia del `#main` del reproductor, así que
       cada tema viste también esta vista.
 
+### mpv que no contesta - `player.py`, `app.py`
+
+- [x] **Tres fallos distintos, y se distinguen.** `_request` separa un socket que ya no
+      está (EOF o un `send` que falla), una respuesta que no llega a tiempo y una
+      respuesta con error. Antes los tres volvían como `None`, y un mpv muerto por EOF
+      se leía como volumen 0 y posición 0 sin que nadie lo reiniciara. Ahora el EOF
+      suelta el socket, `alive` pasa a False y el tick lo reinicia.
+- [x] **Una espera, no una por propiedad.** `TIMEOUT` es 1 s (eran 2). El primer
+      comando que no recibe respuesta deja el reproductor `stalled`, y desde ese
+      momento todos los comandos se rinden al instante. Sin eso, un mpv vivo pero
+      colgado costaba la espera entera en cada propiedad que leen los ticks, varias
+      por tick, para siempre.
+- [x] **El sondeo y el reinicio, en workers.** Mientras está atascado, el tick lento
+      escribe «mpv no contesta» y lanza `_probe_mpv_worker`, que es el único comando al
+      que el atasco deja esperar el timeout completo. Si contesta, se sigue. Si pasan
+      `STALL_LIMIT` (5 s), `_recover_mpv` lo reinicia en `_restart_mpv_worker`. Los
+      ticks no hacen nada mientras `_recovering`. Un reinicio que falla espera
+      `MPV_RETRY` (5 s) antes del siguiente intento; antes se reintentaba cuatro veces
+      por segundo.
+- [x] `restart()` sólo sujeta el lock para quitar el socket viejo. Matar el proceso y
+      esperar el socket nuevo tardan segundos, y un comando del hilo de la interfaz
+      tiene que encontrar el socket vacío y rendirse, no hacer cola detrás.
+- [x] Una respuesta que llega después de su plazo se descarta como un evento más: su
+      `request_id` es uno viejo. Una línea partida en varias lecturas se recompone en
+      `_buf`. Los dos casos están en `tests/test_player.py` con el mpv falso, que ahora
+      sabe colgarse (`FAKE_MPV_HANG_ON`), cerrar el socket (`FAKE_MPV_EOF_ON`) y mandar
+      las respuestas de tres en tres bytes (`FAKE_MPV_SPLIT`).
+
+### Sin corte entre pistas - `app.py`, `player.py`
+
+- [x] **La siguiente se resuelve antes de que haga falta.** A `PREFETCH_LEAD` (20 s)
+      del final, el tick lento pide la siguiente a TIDAL en `_prefetch_worker` y
+      `_prefetched` la pone en la playlist de mpv con `loadfile … append`. Con
+      `--prefetch-playlist=yes` mpv la abre antes de terminar la actual, y con el
+      `gapless-audio=weak` que trae por defecto pasa a ella sin cortar. No antes de 20
+      s: la URL del stream caduca.
+- [x] **El avance se detecta por `playlist-pos`.** mpv no pasa por idle entre las dos,
+      así que el `_was_idle` de siempre no se entera. Lo que suena está siempre en la
+      posición 0 y lo preparado en la 1; cuando `playlist_pos` vale 1,
+      `_advance_to_prepared` hace `playlist-clear` (queda sólo lo que suena, otra vez
+      en la 0) y `_announce` + `_now_playing` ponen la pantalla al día sin cargar nada.
+      Se eligió la posición y no la URL porque repetir una pista puede traer la misma.
+- [x] **Sólo se guarda lo que la cola dice que va después.** `_check_prepared` corre
+      en cada `_sync_queue`, que es por donde pasa toda edición de la cola, y al cambiar
+      shuffle o repeat. Si la siguiente ya no es la preparada, sale de mpv
+      (`drop_queued`). Un resultado que vuelve para una pista que ya no es la siguiente
+      se descarta en `_prefetched`, con el mismo cuidado que `_resolving`.
+- [x] `_play_index` quita lo preparado antes de resolver: la pista vieja sigue sonando
+      mientras la nueva resuelve y, si terminara en ese hueco, mpv pasaría a la
+      preparada y no a la pedida. `stop` y el reinicio de mpv ya vacían su playlist,
+      así que sólo olvidan (`_forget_prepared`).
+- [x] Lo preparado caduca a los `PREPARED_TTL` (5 min): una pista en pausa cerca del
+      final volvería a una URL muerta. Un fallo al preparar no dice nada y no se
+      reintenta en cada tick (`_prefetch_failed`): cuando le toque se resuelve como
+      siempre, y ese fallo sí se enseña.
+- [x] `_play_index` se partió en `_announce` (marcador, cursor, título, carátula) y la
+      resolución; `_start`, en la carga y `_now_playing`. Las dos mitades sirven para
+      las dos formas de empezar una pista.
+
+### Volumen normalizado - `settings.py`, `stream.py`, `player.py`, `app.py`
+
+- [x] **Confirmado que viene gratis.** `Track.get_stream()` de tidalapi parsea
+      `trackReplayGain`, `trackPeakAmplitude`, `albumReplayGain` y
+      `albumPeakAmplitude` de la misma respuesta (`playbackinfopostpaywall`) que trae
+      el manifiesto. `stream._loudness` los pasa a `Playable`.
+- [x] **tidalapi rellena con 1.0 lo que falta**, ganancia y pico. Un 1.0 de ganancia es
+      +1 dB de verdad, así que una ganancia y un pico que valen exactamente 1.0 los dos
+      se toman por ausentes: ninguna pista masterizada mide eso.
+- [x] `settings.replaygain(mode, track, album)` es puro: `off` da 0, `album` sin
+      ganancia de disco cae a la de pista, y **el pico es el techo**: una ganancia que
+      sube se recorta a `-20·log10(pico)`, lo que lleva ese pico a 1.0 justo. Una que
+      baja no se recorta nunca.
+- [x] **`volume-gain`, no un filtro.** next.md proponía un filtro de volumen junto al
+      balance y el ecualizador, y habría roto lo anterior: cambiar un filtro reinicia
+      la cadena, y eso es un hueco audible justo en el cambio de pista. mpv tiene una
+      propiedad de ganancia en dB aparte del volumen, y se pasa como opción por
+      fichero en el `loadfile` (`options=volume-gain=…`), así que la pista preparada
+      entra con la suya desde la primera muestra y la anterior conserva la suya hasta
+      la última.
+- [x] `loadfile` va con argumentos con nombre: mpv 0.38 metió un índice entre las
+      banderas y las opciones, y por posición la misma línea significa cosas distintas
+      según la versión. Un mpv que no conozca `volume-gain` rechaza el comando entero,
+      así que se reintenta sin la opción: mejor sonar sin normalizar que no sonar.
+- [x] Cambiar el modo en la ventana de `o` fija `volume-gain` en la pista que suena y
+      quita la preparada, que llevaba la ganancia vieja como opción.
+
+### Mis mixes - `library.py`
+
+- [x] `session.mixes()` es la página que el cliente oficial llama My Mixes (diario,
+      descubrimiento, novedades…). **No** es `user.mixes()`, que son los mixes que
+      alguien guardó como favoritos. La página puede traer otras cosas además de
+      mixes; `_is_mix` se queda con lo que tiene `mix_type` e `items()`.
+- [x] Cada mix se pide al abrirlo (`Mix.items()` pide la página del mix), se cachea con
+      la clave `mix:<id>` y deja fuera los vídeos. tidalapi lanza `ValueError` para un
+      mix vacío, y eso es un nivel vacío.
+- [x] **Sin `s` ni `d` sin tocar el navegador.** La fila no trae `orders` ni `sort`, así
+      que `s` dice «este nivel no se puede ordenar»; y `d` sólo sabe quitar de claves
+      `fav:` y `playlist:`, así que dentro de `mix:` dice «aquí no hay de dónde
+      quitar».
+- [x] La fila va la última de la raíz y no junto a «Mis playlists»: las cuatro de antes
+      son lo que la cuenta guarda, y hay tests que las encuentran por su posición.
+
 ### Revisión antes de la 0.8.0 (2026-09-11)
 
 Leído todo lo nuevo desde la `0.7.0` buscando lo que los tests no cubrían. Cuatro
@@ -1533,7 +1639,11 @@ Distinguir esto importa: parte del código nunca se ha ejecutado contra TIDAL re
 | Favoritos (escritura)              | **VERIFICADO CONTRA TIDAL REAL**  | Añadir y quitar una pista que no estaba en favoritos: el contador de la cuenta subió a 767 y volvió a 766. Saldo neto cero. Unitarias para pista, álbum, artista, playlist y para las filas que no son favoritables. |
 | Configuración y teclas             | **Verificado**                    | `tidalamp config` sobre un XDG temporal crea la plantilla, y con `quality`, `artwork` y dos teclas cambiadas la app arranca con `HIGH`, `Protocol.BLOCKS` y `play→p`, `quit→ctrl+q`; la acción inventada sale avisada. 13 unitarias de precedencia, TOML roto y plantilla. |
 | Reordenar la cola                  | **Verificado**                    | Unitarias de `Queue.move` (bordes, cursor, shuffle intacto) y `alt+↓` en la app real.                                                                                           |
-| Reinicio de mpv                    | **Verificado**                    | SIGKILL a mpv con la app corriendo: el tick lo relanza con otro PID y la pista vuelve a sonar.                                                                                  |
+| Reinicio de mpv                    | **Verificado**                    | SIGKILL a mpv con la app corriendo: el tick lo relanza con otro PID y la pista vuelve a sonar. Desde la 0.9.0 el reinicio va en un worker; eso está cubierto por tests y no se ha repetido el SIGKILL a mano. |
+| mpv que no contesta (0.9.0)        | **CUBIERTO POR TESTS**            | Contra el mpv falso por el socket de verdad: un mpv colgado cuesta una espera y no más, un sondeo lo despeja, el EOF se lee como muerte, las respuestas partidas de tres en tres bytes se recomponen. En la app: el atasco se dice en la línea de estado y se sondea fuera del hilo, un mpv muerto se reinicia en un worker y recarga la pista, un reinicio fallido espera. Nunca se ha visto colgarse a un mpv real. |
+| Sin corte entre pistas (0.9.0)     | **CUBIERTO POR TESTS**            | La siguiente se prepara a 20 s del final y no antes, mpv pasa a ella sin volver a resolver, una cola editada o un repeat cambiado quitan lo preparado y se prepara la correcta, un resultado tardío no se encola, lo caducado se vuelve a pedir. Contra el mpv falso: `append`, `playlist-clear` y `playlist-pos`. **Falta oírlo** con mpv y TIDAL reales, sobre todo en un disco en vivo, y ver que la URL aguanta los 20 s. |
+| Volumen normalizado (0.9.0)        | **CUBIERTO POR TESTS**            | Los tres modos, el pico como techo, la caída de disco a pista, el 1.0 de relleno de tidalapi, la ganancia como opción por fichero y el reintento sin ella. En la app: la ganancia que llega a mpv cambia con el modo, la preparada lleva la suya, y al apagarlo vuelve a 0. **Falta oírlo** y leer valores reales de TIDAL. |
+| Mis mixes (0.9.0)                  | **CUBIERTO POR TESTS**            | Sesión simulada con dos mixes y un enlace entre ellos: la sección lista los dos, cada uno se pide al abrirlo, abrirlo trae sus pistas, un mix vacío es un nivel vacío, y en la app `s` y `d` se niegan. **Falta verlo contra la cuenta real**: la forma de la página de mixes es la parte de TIDAL que más cambia. |
 | Espectro con cava                  | **VERIFICADO CON AUDIO REAL**     | El usuario instaló cava 0.10.7 y reprodujo Thriller: la insignia dice `FFT` y las bandas dibujan un espectro con forma, graves y agudos por separado. `pgrep` confirma `cava -p ~/.cache/tidalamp/cava.conf` vivo junto al mpv de la app. |
 | Balance y ecualizador              | **Verificado**                    | Grafos validados con `ffmpeg -af` de verdad; en la app real los filtros llegan a mpv, se guardan, y se reaplican tras reiniciar mpv.                                            |
 | Reintentos de red                  | **Verificado**                    | Unitarias: reintenta conexión/timeout/503 y `TooManyRequests`; el 429 respeta `retry_after`, cae al backoff con `-1` y abandona sin dormir por encima del tope. No reintenta 404 y se rinde al tercer intento. |
@@ -1846,6 +1956,19 @@ Cosas que ya costaron tiempo una vez:
 - **Textual captura stdout mientras la app corre**: un `print` dentro de `run_test()`
   no aparece hasta que el bloque termina. Para sacar datos de una app que sigue viva,
   escribe a un fichero.
+- **Un mpv sin corte no pasa por idle.** Con una pista en cola (`loadfile … append`),
+  mpv va de una a otra sin que `idle-active` se encienda, así que el `_was_idle` que
+  detecta el final no se entera. El avance se lee en `playlist-pos`.
+- **`loadfile` cambió de forma en mpv 0.38**: entró un índice entre las banderas y las
+  opciones. Por posición, las opciones de una versión son el índice de la otra; con
+  argumentos con nombre (`{"name": "loadfile", "url": …, "options": …}`) no importa.
+- **Un filtro nuevo en mpv es un hueco.** Por eso el ReplayGain no es un filtro:
+  cambiarlo en cada pista rompía justo lo que el cambio sin corte arregla.
+  `volume-gain` es un volumen y se pasa por fichero.
+- **tidalapi rellena con 1.0 la ganancia y el pico que TIDAL no manda.** Una ganancia
+  de 1.0 son +1 dB reales; los dos a 1.0 a la vez se tratan como ausentes.
+- **`session.mixes()` y `user.mixes()` no son lo mismo.** El primero es la página de
+  mixes que TIDAL hace para la cuenta; el segundo, los mixes marcados como favoritos.
 
 ## 8. Entorno
 

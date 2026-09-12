@@ -5,6 +5,29 @@ versioning is [semantic](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- No gap between tracks. The next track is fetched from TIDAL about twenty seconds
+  before this one ends and handed to mpv, which goes straight on to it. It used to be
+  asked for only once the last one had ended, and on a live or a concept album the
+  silence in between was that request. Shuffle, repeat or an edit to the queue in the
+  meantime drop what was prepared, and the right track is fetched instead.
+- Normalised volume (`replaygain`, Normalised volume in the settings window, off by
+  default): `track` plays every track at TIDAL's ReplayGain for it and `album` at its
+  album's, so a playlist no longer jumps in volume from one song to the next. A quiet
+  track is never raised past its own peak, so nothing clips.
+- Your mixes in the library: `My mixes` lists what TIDAL makes for your account, the
+  daily ones, discovery and new arrivals among them, and each opens like a playlist. A
+  mix cannot be sorted or edited, so `s` and `d` say so.
+
+### Fixed
+
+- An mpv that stops answering no longer freezes the screen. One command waits a
+  second at most, and after that the player says mpv is not answering and keeps
+  drawing while it is asked again in the background; after five seconds it is
+  restarted, also in the background. mpv closing its socket now reads as mpv dying and
+  is restarted, where it used to leave the player reading zeros off a dead connection.
+
 ## [0.8.1] - 2026-09-11
 
 ### Fixed

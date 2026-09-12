@@ -242,8 +242,13 @@ work in it as they do everywhere.
 `/` searches for tracks and displays them directly, with albums, artists and playlists
 in three category rows above; a category is fetched only when opened.
 
-Press `l` to open the library browser: playlists, favourite tracks, albums, and
-artists. Enter a level with `↵` and go back with `⌫`.
+Press `l` to open the library browser: playlists, favourite tracks, albums, artists,
+and your mixes (the daily ones, discovery, new arrivals and the rest TIDAL makes for
+your account). Enter a level with `↵` and go back with `⌫`. A mix opens like a
+playlist, but it cannot be sorted or edited, so `s` and `d` do nothing there.
+
+Tracks play one into the next with no gap: the next one is fetched from TIDAL shortly
+before the current one ends and handed to mpv ahead of time.
 
 `g` brings the queue cursor back to the track that is playing. If the queue search is
 hiding it, the search is cleared first. `p` asks for a name and saves a snapshot of the
@@ -555,7 +560,12 @@ writes `~/.config/tidalamp/config.toml`, so a change made once stays made.
 | Language  | `auto` `es` `en`                          | on restart     |
 | Visualizer | `bars` `mirror` `curve` `fine`            | immediately   |
 | Autoplay  | on / off                                  | immediately    |
+| Normalised volume | `off` `track` `album`             | immediately    |
 | Debug log | on / off                                  | immediately    |
+
+Normalised volume uses the ReplayGain TIDAL sends with every stream: `track` evens
+out every track, `album` keeps the loud and quiet songs of one record as the record
+has them. A track is never raised past its own peak, so nothing clips.
 
 Quality, Hi-res rates in PipeWire and Restart PipeWire do not change with the arrows,
 since a stray press on any of them costs more than a colour: Enter opens a list to
@@ -576,6 +586,7 @@ arrangement = "stacked"       # stacked, or split: the queue in a column on the 
 backdrop = "auto"             # the picture behind the queue: auto, none, or a themed look
 visualizer = "bars"           # analyzer shape: bars, mirror, curve, or fine
 autoplay = false              # when the queue ends, carry on with the last track's radio
+replaygain = "off"            # normalised volume: off, track, or album
 debug = false                 # log to ~/.local/state/tidalamp/tidalamp.log
 
 [keys]

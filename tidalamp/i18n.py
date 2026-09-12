@@ -194,6 +194,16 @@ ENGLISH: dict[str, str] = {
     "reproducción automática: {error}": "autoplay: {error}",
     "reproducción automática activada": "autoplay on",
     "reproducción automática desactivada": "autoplay off",
+    "Volumen normalizado": "Normalised volume",
+    "ReplayGain de TIDAL: por pista o por disco; sin recortar": (
+        "TIDAL's ReplayGain: per track or per album; never clipped"
+    ),
+    "volumen normalizado: {value}": "normalised volume: {value}",
+    "mpv no contesta": "mpv is not answering",
+    "mpv cerró la conexión": "mpv closed the connection",
+    "mpv no contesta; esperando a que vuelva…": "mpv is not answering; waiting for it…",
+    "mpv vuelve a contestar": "mpv is answering again",
+    "mpv no responde; reiniciándolo…": "mpv is not responding; restarting it…",
     "Mis mixes": "My mixes",
     "volver": "back",
     "pantalla completa": "full screen",
@@ -838,6 +848,9 @@ ENGLISH: dict[str, str] = {
     "# Reproducción automática: al terminar la cola, sigue con la radio de\n"
     "# TIDAL de la última pista.\n"
     "autoplay = false\n\n"
+    "# Volumen normalizado con el ReplayGain de TIDAL: off, track (por pista) o\n"
+    "# album (por disco). Nunca sube una pista más allá de su pico.\n"
+    'replaygain = "off"\n\n'
     "# Teclas. La izquierda es la acción, la derecha la tecla; varias se separan con\n"
     "# comas. Las de navegación (flechas, RePág/AvPág, Enter, Esc) no se cambian.\n"
     "[keys]\n"
@@ -890,6 +903,9 @@ ENGLISH: dict[str, str] = {
         "# Autoplay: when the queue ends, carry on with TIDAL's radio for the\n"
         "# last track.\n"
         "autoplay = false\n\n"
+        "# Normalised volume with TIDAL's ReplayGain: off, track, or album. A\n"
+        "# track is never raised past its peak.\n"
+        'replaygain = "off"\n\n'
         "# Keys. The action is on the left and the key on the right; separate multiple\n"
         "# keys with commas. Navigation keys (arrows, Page Up/Down, Enter, Esc) "
         "are fixed.\n"
@@ -1023,6 +1039,9 @@ def config_template() -> str:
         "# Reproducción automática: al terminar la cola, sigue con la radio de\n"
         "# TIDAL de la última pista.\n"
         "autoplay = false\n\n"
+        "# Volumen normalizado con el ReplayGain de TIDAL: off, track (por pista) o\n"
+        "# album (por disco). Nunca sube una pista más allá de su pico.\n"
+        'replaygain = "off"\n\n'
         "# Teclas. La izquierda es la acción, la derecha la tecla; varias se "
         "separan con\n"
         "# comas. Las de navegación (flechas, RePág/AvPág, Enter, Esc) no se cambian.\n"

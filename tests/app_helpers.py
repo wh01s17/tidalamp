@@ -32,16 +32,24 @@ async def settle(pilot, done, tries: int = 100) -> None:
 
 class FakeMpv:
     alive = True
+    stalled = False
+    failure = ""
     position = 0.0
     duration = 0.0
     paused = False
     idle = True
     speed = 1.0
+    # mpv's own playlist: 0 is what `load` started, 1 what `append` queued.
+    playlist_pos = 0
+    gain = 0.0
 
     def __init__(self) -> None:
         self.filter_calls: list[tuple[str, str | None]] = []
         self.seek_calls: list[tuple[float, str]] = []
         self.loaded: str | None = None
+        self.queued: list[tuple[str, float]] = []
+        self.restarts = 0
+        self.probes = 0
         self._volume = 100
 
     @property
@@ -53,8 +61,30 @@ class FakeMpv:
         # Same ceiling as the real player: the app relies on it to clamp.
         self._volume = max(0, min(Mpv.VOLUME_MAX, value))
 
-    def load(self, url: str) -> None:
+    def load(self, url: str, gain: float = 0.0) -> None:
         self.loaded = url
+        self.gain = gain
+        self.queued = []
+        self.playlist_pos = 0
+
+    def append(self, url: str, gain: float = 0.0) -> None:
+        self.queued.append((url, gain))
+
+    def drop_queued(self) -> None:
+        self.queued = []
+        self.playlist_pos = 0
+
+    def stalled_for(self) -> float:
+        return 0.0
+
+    def probe(self) -> bool:
+        self.probes += 1
+        return not self.stalled
+
+    def restart(self) -> None:
+        self.restarts += 1
+        self.alive = True
+        self.stalled = False
 
     def toggle_pause(self) -> None:
         self.paused = not self.paused
@@ -63,6 +93,7 @@ class FakeMpv:
         self.paused = False
         self.idle = True
         self.loaded = None
+        self.queued = []
 
     def seek(self, seconds: float, mode: str = "absolute") -> None:
         self.seek_calls.append((seconds, mode))

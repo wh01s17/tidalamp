@@ -44,6 +44,10 @@ _PROTOCOL_OPTION = f"protocol_whitelist=%{len(_PROTOCOLS)}%{_PROTOCOLS}"
 # Asking for the cache explicitly took the same track to 29.8 s buffered.
 _CACHE_SECONDS = 20
 
+# What `_readline` hands back when the wait ran out, as opposed to None for a
+# socket that is gone: the first means mpv is slow, the second that it is dead.
+_TIMED_OUT = b""
+
 
 class MpvNotFound(RuntimeError):
     pass
@@ -57,6 +61,13 @@ class Mpv:
     # A quarter to double, in quarters. mpv takes any speed above zero; these
     # are the ones the speed window offers, and 1 is the track as recorded.
     SPEEDS = (0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0)
+    # How long one command waits for its reply. The ticks call from the UI
+    # thread, so this is how long a hung mpv can freeze the screen, once:
+    # after a timeout the player is stalled and every command fails at once
+    # until a probe from a worker gets an answer again.
+    TIMEOUT = 1.0
+    # How long a stalled mpv is given before the app restarts it.
+    STALL_LIMIT = 5.0
 
     def __init__(self) -> None:
         if shutil.which("mpv") is None:
@@ -70,6 +81,10 @@ class Mpv:
         # than mpv's default. The speed likewise.
         self._volume = 100
         self._speed = 1.0
+        # When mpv first failed to answer in time; None while it answers.
+        self._stalled_since: float | None = None
+        # What went wrong last, for the status line. Empty while all is well.
+        self.failure = ""
         self._proc = self._spawn()
         self._connect()
 
@@ -92,6 +107,10 @@ class Mpv:
                 f"--demuxer-lavf-o={_PROTOCOL_OPTION}",
                 "--cache=yes",
                 f"--demuxer-readahead-secs={_CACHE_SECONDS}",
+                # The next track is appended while this one plays (see
+                # `append`); this has mpv open it before the end, so the
+                # network is not what the gap between them waits on.
+                "--prefetch-playlist=yes",
             ],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
@@ -104,7 +123,7 @@ class Mpv:
                 try:
                     sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
                     sock.connect(str(IPC_SOCKET))
-                    sock.settimeout(2.0)
+                    sock.settimeout(self.TIMEOUT)
                     self._sock = sock
                     return
                 except OSError:
@@ -118,18 +137,45 @@ class Mpv:
         polling a dead socket and simply freeze at the last known position."""
         return self._proc.poll() is None and self._sock is not None
 
+    @property
+    def stalled(self) -> bool:
+        """True while mpv is alive but has stopped answering in time."""
+        return self._stalled_since is not None
+
+    def stalled_for(self) -> float:
+        """Seconds since mpv last failed to answer, 0 while it answers."""
+        if self._stalled_since is None:
+            return 0.0
+        return time.monotonic() - self._stalled_since
+
+    def probe(self) -> bool:
+        """Ask a stalled mpv whether it is back, waiting the full timeout.
+
+        For a worker thread: it is the one command a stall lets through, and
+        its wait is exactly the freeze the stall exists to keep off the UI.
+        """
+        self._request(("get_property", "idle-active"), probe=True)
+        return self.alive and not self.stalled
+
     def restart(self) -> None:
         """Bring mpv back after a crash. Playback does not resume by itself:
-        the caller decides whether to reload the current track."""
+        the caller decides whether to reload the current track.
+
+        The lock is held only to take the old socket away: killing and
+        spawning take seconds, and a command from the UI thread meanwhile has
+        to find no socket and give up, not queue behind them.
+        """
         with self._lock:
             if self._sock is not None:
                 self._sock.close()
                 self._sock = None
             self._buf = b""
-            if self._proc.poll() is None:
-                self._proc.kill()
-                self._proc.wait(timeout=2)
-            self._proc = self._spawn()
+            self._stalled_since = None
+            self.failure = ""
+        if self._proc.poll() is None:
+            self._proc.kill()
+            self._proc.wait(timeout=2)
+        self._proc = self._spawn()
         self._connect()
         log.warning("mpv reiniciado (pid %s)", self._proc.pid)
         self.set("volume", self._volume)
@@ -139,45 +185,100 @@ class Mpv:
     # ------------------------------------------------------------------- IPC
 
     def _command(self, *args: Any) -> Any:
-        """Send a command and wait for the reply carrying our request_id."""
+        """Send a command and return its data, or None when it failed."""
+        return self._request(args)[1]
+
+    def _request(self, command: tuple | dict, probe: bool = False) -> tuple[bool, Any]:
+        """Send a command and wait for the reply carrying our request_id.
+
+        Answers whether mpv said "success", and the data. ``command`` is a
+        list of positional arguments or a dict of named ones.
+
+        Three ways for it to go wrong, and they are told apart on purpose:
+        a socket that is gone (EOF, a failed send) means mpv is dead, and the
+        socket is dropped so `alive` says so; a reply that does not come in
+        time means mpv is stuck, and the player stalls; a reply with an error
+        is just a command mpv refused.
+        """
         if self._sock is None:
-            return None
+            return False, None
+        if self._stalled_since is not None and not probe:
+            return False, None
         with self._lock:
+            if self._sock is None:
+                return False, None
             self._request_id += 1
             rid = self._request_id
-            payload = json.dumps({"command": list(args), "request_id": rid}) + "\n"
+            body = dict(command) if isinstance(command, dict) else list(command)
+            payload = json.dumps({"command": body, "request_id": rid}) + "\n"
             try:
                 self._sock.sendall(payload.encode())
-            except OSError:
-                return None
+            except OSError as exc:
+                self._lose(f"send: {exc}")
+                return False, None
 
-            deadline = time.monotonic() + 2.0
-            while time.monotonic() < deadline:
-                line = self._readline()
+            deadline = time.monotonic() + self.TIMEOUT
+            while True:
+                line = self._readline(deadline - time.monotonic())
                 if line is None:
-                    return None
+                    self._lose("EOF")
+                    return False, None
+                if line == _TIMED_OUT:
+                    self._stall(body)
+                    return False, None
                 try:
                     message = json.loads(line)
                 except json.JSONDecodeError:
                     continue
                 # Async events share the stream; skip anything that is not ours.
+                # A reply that missed its own deadline lands here later and is
+                # skipped the same way: its request_id is an older one.
                 if message.get("request_id") == rid:
-                    return (
-                        message.get("data") if message.get("error") == "success" else None
-                    )
-            return None
+                    if self._stalled_since is not None:
+                        log.warning("mpv vuelve a contestar")
+                    self._stalled_since = None
+                    self.failure = ""
+                    ok = message.get("error") == "success"
+                    return ok, message.get("data") if ok else None
 
-    def _readline(self) -> bytes | None:
+    def _readline(self, timeout: float) -> bytes | None:
+        """One line off the socket: None when the socket is gone, `_TIMED_OUT`
+        when nothing complete arrived in ``timeout``. A line split across
+        several reads is put back together in `_buf`."""
+        sock = self._sock
         while b"\n" not in self._buf:
+            if sock is None or timeout <= 0:
+                return None if sock is None else _TIMED_OUT
             try:
-                chunk = self._sock.recv(65536)  # type: ignore[union-attr]
-            except (TimeoutError, OSError):
+                sock.settimeout(timeout)
+                chunk = sock.recv(65536)
+            except TimeoutError:
+                return _TIMED_OUT
+            except OSError:
                 return None
             if not chunk:
                 return None
             self._buf += chunk
         line, self._buf = self._buf.split(b"\n", 1)
-        return line
+        # An empty line would read as `_TIMED_OUT`; mpv never sends one, but
+        # a blank is not a timeout either.
+        return line or b" "
+
+    def _lose(self, reason: str) -> None:
+        """The socket is gone: drop it, so `alive` turns False and the app
+        restarts mpv instead of polling a corpse. Called with the lock held."""
+        log.warning("mpv perdió el socket (%s)", reason)
+        if self._sock is not None:
+            self._sock.close()
+            self._sock = None
+        self._buf = b""
+        self.failure = _("mpv cerró la conexión")
+
+    def _stall(self, command: Any) -> None:
+        if self._stalled_since is None:
+            log.warning("mpv no contestó a %s en %.1f s", command, self.TIMEOUT)
+            self._stalled_since = time.monotonic()
+        self.failure = _("mpv no contesta")
 
     def get(self, prop: str) -> Any:
         return self._command("get_property", prop)
@@ -202,9 +303,60 @@ class Mpv:
 
     # -------------------------------------------------------------- transport
 
-    def load(self, url: str) -> None:
-        self._command("loadfile", url, "replace")
+    def load(self, url: str, gain: float = 0.0) -> None:
+        """Play ``url`` now, dropping whatever was playing or queued."""
+        self._loadfile(url, "replace", gain)
         self.set("pause", False)
+
+    def append(self, url: str, gain: float = 0.0) -> None:
+        """Queue ``url`` after the current track, so mpv goes on to it with
+        no gap. `playlist_pos` turning 1 is how the caller learns it did."""
+        self._loadfile(url, "append", gain)
+
+    def drop_queued(self) -> None:
+        """Forget what `append` queued, keeping the track that plays. The one
+        playing is left alone at position 0."""
+        self._command("playlist-clear")
+
+    @property
+    def playlist_pos(self) -> int:
+        """Where in mpv's own playlist we are: 0 is the track `load` started,
+        1 the one `append` queued after it, -1 nothing."""
+        pos = self.get("playlist-pos")
+        return pos if isinstance(pos, int) else -1
+
+    def _loadfile(self, url: str, flags: str, gain: float) -> None:
+        """``loadfile`` with the track's ReplayGain as a per-file option.
+
+        Per file and not a property set after the fact, so a track appended
+        for a gapless start comes in at its own level from its first sample,
+        and the one before keeps its own to its last. ``volume-gain`` is a
+        volume and not a filter, which also matters: a filter change
+        reinitialises the chain, and that is the gap this is here to avoid.
+
+        Named arguments rather than positional, because mpv 0.38 put an index
+        between the flags and the options. And an mpv too old to know
+        ``volume-gain`` refuses the whole command, so it is tried once more
+        without it: playing at the wrong level beats not playing.
+        """
+        command: dict[str, Any] = {"name": "loadfile", "url": url, "flags": flags}
+        if gain:
+            command["options"] = f"volume-gain={gain:g}"
+        ok, _data = self._request(command)
+        if not ok and gain and not self.stalled and self.alive:
+            log.warning("mpv no aceptó volume-gain; se carga sin normalizar")
+            self._request({"name": "loadfile", "url": url, "flags": flags})
+
+    @property
+    def gain(self) -> float:
+        """The ReplayGain on the track that plays, in dB."""
+        value = self.get("volume-gain")
+        return float(value) if isinstance(value, int | float) else 0.0
+
+    @gain.setter
+    def gain(self, value: float) -> None:
+        """Change it for the rest of this track, as a mode change does."""
+        self.set("volume-gain", value)
 
     def toggle_pause(self) -> None:
         self._command("cycle", "pause")

@@ -18,6 +18,7 @@ from textual.widgets import Static
 from .. import artwork, audio, columns, config
 from ..i18n import _
 from ..layouts import BACKDROPS, label
+from ..settings import REPLAYGAIN_MODES
 from ..theme import LAYOUTS, available_palettes, paired_palette, palette_for
 from ..widgets import Analyzer
 from .choice import ChoiceScreen
@@ -123,6 +124,13 @@ class ConfigScreen(ModalScreen[None]):
                 key="autoplay",
                 choices=self.SWITCH,
                 note=_("al terminar la cola sigue con la radio de la última pista"),
+                group=audio,
+            ),
+            Option(
+                _("Volumen normalizado"),
+                key="replaygain",
+                choices=REPLAYGAIN_MODES,
+                note=_("ReplayGain de TIDAL: por pista o por disco; sin recortar"),
                 group=audio,
             ),
             Option(_("Ritmos hi-res en PipeWire"), action="rates", group=audio),
@@ -628,4 +636,5 @@ _ATTRIBUTES = {
     "debug": "DEBUG",
     "transparency": "TRANSPARENCY",
     "autoplay": "AUTOPLAY",
+    "replaygain": "REPLAYGAIN",
 }

@@ -83,6 +83,7 @@ ENV_VARS: dict[str, str] = {
     "debug": "TIDALAMP_DEBUG",
     "transparency": "TIDALAMP_TRANSPARENCY",
     "autoplay": "TIDALAMP_AUTOPLAY",
+    "replaygain": "TIDALAMP_REPLAYGAIN",
 }
 
 
@@ -197,6 +198,10 @@ TRANSPARENCY = flag("transparency", "TIDALAMP_TRANSPARENCY")
 # instead of stopping. Off by default: it changes what the end of a queue does.
 AUTOPLAY = flag("autoplay", "TIDALAMP_AUTOPLAY")
 
+# Normalised volume: off, track or album (see `settings.replaygain`). Off by
+# default: it changes how loud everything plays.
+REPLAYGAIN = setting("replaygain", "TIDALAMP_REPLAYGAIN", "off")
+
 # Key overrides, action name to key. Empty means "the defaults in app.py".
 KEYS: dict[str, str] = {
     str(action): str(key) for action, key in (FILE.get("keys") or {}).items()
@@ -270,7 +275,7 @@ def reload() -> None:
     """
     global FILE, DEFAULT_QUALITY, ARTWORK, LANGUAGE, THEME, PALETTE, COLUMNS
     global DEBUG, TRANSPARENCY, KEYS, VISUALIZER, ARRANGEMENT, BACKDROP, COVER_SHAPE
-    global AUTOPLAY
+    global AUTOPLAY, REPLAYGAIN
     FILE = read_file()
     DEFAULT_QUALITY = setting("quality", "TIDALAMP_QUALITY", "HI_RES_LOSSLESS")
     ARTWORK = setting("artwork", "TIDALAMP_ART", "auto")
@@ -285,6 +290,7 @@ def reload() -> None:
     DEBUG = flag("debug", "TIDALAMP_DEBUG")
     TRANSPARENCY = flag("transparency", "TIDALAMP_TRANSPARENCY")
     AUTOPLAY = flag("autoplay", "TIDALAMP_AUTOPLAY")
+    REPLAYGAIN = setting("replaygain", "TIDALAMP_REPLAYGAIN", "off")
     KEYS = {str(action): str(key) for action, key in (FILE.get("keys") or {}).items()}
 
 

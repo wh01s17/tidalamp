@@ -5,7 +5,7 @@ from __future__ import annotations
 import contextlib
 import functools
 import time
-from typing import cast
+from typing import NamedTuple, cast
 
 import tidalapi
 from rich.cells import cell_len
@@ -47,7 +47,7 @@ from .screens import (
     favourite_message,
     speed_text,
 )
-from .settings import Settings
+from .settings import Settings, replaygain
 from .spectrum import Cava, SpectrumUnavailable
 from .stream import Playable, StreamUnavailable, cleanup_playlists, resolve
 from .theme import LAYOUTS, ThemePalette, load_palette
@@ -66,6 +66,15 @@ from .widgets import (
 # What `_resolving` holds after a stop: an entry no resolve is ever for, so
 # whatever comes back late is dropped instead of starting to play.
 _STOPPED = Entry(id=-1, title="", artist="")
+
+
+class _Prepared(NamedTuple):
+    """The next track, resolved ahead and already queued in mpv."""
+
+    entry: Entry
+    playable: Playable
+    # When it was resolved: its URL expires, so it is not kept forever.
+    at: float
 
 
 def _track_path(entry: Entry) -> str:
@@ -330,6 +339,18 @@ class TidalAmp(App):
         # the tick fetches once per track rather than four times a second.
         self._pane_entry: int | None = None
         self._was_idle = True
+        # The next track, while it resolves ahead and once it is queued in
+        # mpv; and the one whose resolve ahead failed, so the tick does not
+        # ask again four times a second. Only the entry the queue says is
+        # next is ever kept: `_check_prepared` drops anything else.
+        self._prefetching: Entry | None = None
+        self._prepared: _Prepared | None = None
+        self._prefetch_failed: Entry | None = None
+        # mpv being restarted, or asked whether it is back, from a worker:
+        # both wait seconds, and on the UI thread that was a frozen screen.
+        self._recovering = False
+        self._probing = False
+        self._mpv_retry_at = 0.0
         self.mpris = MprisService(self)
         self._mpris_ready = False
         # How this terminal can draw a cover, decided once from the environment.
@@ -836,6 +857,10 @@ class TidalAmp(App):
 
     @_quiet_after_teardown
     def _tick_fast(self) -> None:
+        # Nothing to read off an mpv being restarted or not answering; the
+        # slow tick says so on the status line.
+        if self._recovering or self.mpv.stalled:
+            return
         playing = not self.mpv.paused and not self.mpv.idle
         # The play/pause button follows the state, but only redraw it when the
         # state actually turns over: this runs ten times a second. It happens
@@ -869,8 +894,18 @@ class TidalAmp(App):
 
     @_quiet_after_teardown
     def _tick_slow(self) -> None:
-        if not self.mpv.alive:
+        if self._recovering:
+            return
+        if not self.mpv.alive or self.mpv.stalled_for() > Mpv.STALL_LIMIT:
             self._recover_mpv()
+            return
+        if self.mpv.stalled:
+            # Alive but not answering. Every command gives up at once while
+            # it is like this, so the screen keeps moving; a worker asks it
+            # whether it is back, and past STALL_LIMIT it is restarted.
+            self.status = _("mpv no contesta; esperando a que vuelva…")
+            self._refresh_status()
+            self._probe_mpv()
             return
 
         position, duration = self.mpv.position, self.mpv.duration
@@ -895,11 +930,19 @@ class TidalAmp(App):
         # same, which four times a second they almost always are.
         self._refresh_status()
 
+        # mpv went on by itself to the track queued after this one: the gap
+        # that is not there. It never goes idle in between, so it has to be
+        # looked for here.
+        if self._prepared is not None and self.mpv.playlist_pos > 0:
+            self._advance_to_prepared()
+
         # mpv going idle after having played something means the track ended.
         idle = self.mpv.idle
         if idle and not self._was_idle:
             self.action_next()
         self._was_idle = idle
+        if not idle:
+            self._prefetch_next(position, duration)
 
         if self._art_hidden and len(self.screen_stack) == 1:
             self._restore_art()
@@ -920,16 +963,42 @@ class TidalAmp(App):
         self._status_line = line
         self.query_one("#status", Static).update(line)
 
+    # How long to wait before trying again after a restart that failed.
+    MPV_RETRY = 5.0
+
     def _recover_mpv(self) -> None:
-        """mpv died under us. Respawn it instead of freezing the UI on a dead
-        socket, and put the current track back where it was."""
+        """mpv died under us, or stopped answering for good. Respawn it
+        instead of freezing the UI on a dead socket, and put the current
+        track back where it was.
+
+        In a worker: killing the old process and waiting for the new one's
+        socket take seconds, and on the UI thread that was the whole screen
+        frozen for them. The ticks stand still until it is back.
+        """
+        if self._recovering or time.monotonic() < self._mpv_retry_at:
+            return
+        self._recovering = True
+        # A new process starts with an empty playlist: nothing is queued.
+        self._forget_prepared()
+        self.status = _("mpv no responde; reiniciándolo…")
+        self._restart_mpv_worker()
+
+    @work(thread=True, exclusive=True, group="mpv-restart")
+    def _restart_mpv_worker(self) -> None:
         try:
             self.mpv.restart()
         except Exception as exc:
-            self.status = _("mpv murió y no se pudo reiniciar ({error})").format(
-                error=exc
-            )
+            self.call_from_thread(self._mpv_restart_failed, str(exc))
             return
+        self.call_from_thread(self._mpv_restarted)
+
+    def _mpv_restart_failed(self, error: str) -> None:
+        self._recovering = False
+        self._mpv_retry_at = time.monotonic() + self.MPV_RETRY
+        self.status = _("mpv murió y no se pudo reiniciar ({error})").format(error=error)
+
+    def _mpv_restarted(self) -> None:
+        self._recovering = False
         self._was_idle = True
         self._apply_audio()
         index = self.queue.playing
@@ -938,6 +1007,23 @@ class TidalAmp(App):
             self._play_index(index)
         else:
             self.status = _("mpv se reinició")
+
+    def _probe_mpv(self) -> None:
+        """Ask a stalled mpv whether it is back, off the UI thread."""
+        if self._probing:
+            return
+        self._probing = True
+        self._probe_mpv_worker()
+
+    @work(thread=True, exclusive=True, group="mpv-probe")
+    def _probe_mpv_worker(self) -> None:
+        answered = self.mpv.probe()
+        self.call_from_thread(self._mpv_probed, answered)
+
+    def _mpv_probed(self, answered: bool) -> None:
+        self._probing = False
+        if answered:
+            self.status = _("mpv vuelve a contestar")
 
     # A middle dot in the muted colour, not a full box-drawing bar: the menu
     # is a list of small things, and a solid rule between each one shouts
@@ -1308,6 +1394,9 @@ class TidalAmp(App):
         playlist.marked = self._row_at(self.queue.playing)
         playlist.refresh()
         self._render_queue_filter()
+        # Every edit to the queue comes through here, and any of them can
+        # change which track is next.
+        self._check_prepared()
         self.queue.save()
         self._fill_years()
         fullscreen = self._fullscreen()
@@ -1690,6 +1779,8 @@ class TidalAmp(App):
             # when it comes back.
             self.query_one("#busy", Spinner).stop()
         self._resolving = _STOPPED
+        # `stop` empties mpv's playlist, the track queued after this one too.
+        self._forget_prepared()
         self.mpv.stop()
         self.queue.playing = -1
         # The tick reads "mpv went idle" as "the track ended" and moves on.
@@ -1851,6 +1942,7 @@ class TidalAmp(App):
     def action_shuffle(self) -> None:
         self.queue.shuffle = not self.queue.shuffle
         self.queue.save()
+        self._check_prepared()
         self._refresh_modes()
         self.status = (
             _("shuffle activado") if self.queue.shuffle else _("shuffle desactivado")
@@ -1859,6 +1951,7 @@ class TidalAmp(App):
     def action_repeat(self) -> None:
         self.queue.repeat = self.queue.repeat.next()
         self.queue.save()
+        self._check_prepared()
         self._refresh_modes()
         names = {
             Repeat.NONE: _("sin repetición"),
@@ -1871,8 +1964,27 @@ class TidalAmp(App):
         self._autoplaying = False
         if not 0 <= index < len(self.queue):
             return
+        # Whatever was resolved ahead was for the track after the old one,
+        # and the old one goes on playing until this resolves: were it to end
+        # meanwhile, mpv would go on to the queued track, not to this.
+        self._drop_prepared()
+        entry = self._announce(index)
+        # The spinner carries the message while we wait; repeating it in the
+        # status text next to it would just say the same thing twice.
+        self.status = ""
+        self.query_one("#busy", Spinner).start(
+            _("resolviendo «{title}»…").format(title=entry.title)
+        )
+        self._resolving = entry
+        self._resolve_worker(entry)
+
+    def _announce(self, index: int) -> Entry:
+        """Show ``index`` as the track playing: the queue's marker and cursor,
+        the title, the details and the cover. Not the sound: either a resolve
+        brings it, or mpv already went on to it by itself."""
         entry = self.queue[index]
         self.queue.playing = index
+        self._prefetch_failed = None
         playlist = self.query_one("#playlist", RowList)
         row = self._row_at(index)
         # A track started from outside the filter — «next», the radio, MPRIS —
@@ -1884,16 +1996,152 @@ class TidalAmp(App):
         playlist.refresh()
         self.query_one(Marquee).text = f"{index + 1}. {entry.title}"
         self._refresh_track_meta()
-        # The spinner carries the message while we wait; repeating it in the
-        # status text next to it would just say the same thing twice.
-        self.status = ""
-        self.query_one("#busy", Spinner).start(
-            _("resolviendo «{title}»…").format(title=entry.title)
-        )
         self.queue.save()
         self._load_art(entry)
-        self._resolving = entry
-        self._resolve_worker(entry)
+        return entry
+
+    # ----------------------------------------------------- the next, ahead
+
+    # How long before the end the next track is resolved. The URL TIDAL hands
+    # out expires, so not as soon as a track starts; twenty seconds is room
+    # for a slow answer and a retry, and for mpv to open it ahead.
+    PREFETCH_LEAD = 20.0
+    # How long a resolved track may wait, queued, before it is resolved
+    # again: a track paused near its end would otherwise go on to a URL that
+    # expired while nobody listened.
+    PREPARED_TTL = 300.0
+
+    def _next_entry(self) -> Entry | None:
+        index = self.queue.next_index()
+        return None if index is None else self.queue[index]
+
+    def _prefetch_next(self, position: float, duration: float) -> None:
+        """Resolve the next track while this one plays, and queue it in mpv.
+
+        Without it, the next track was only asked of TIDAL once this one had
+        ended, and the silence between the two songs was that request: on a
+        live album or a concept record, a gap where the record has none.
+        """
+        if (
+            self._prefetching is not None
+            or self._resolving is not None
+            or self.queue.playing < 0
+            or duration <= 0
+            or duration - position > self.PREFETCH_LEAD
+        ):
+            return
+        entry = self._next_entry()
+        if entry is None or entry is self._prefetch_failed:
+            return
+        prepared = self._prepared
+        if prepared is not None:
+            if (
+                prepared.entry is entry
+                and time.monotonic() - prepared.at < self.PREPARED_TTL
+            ):
+                return
+            self._drop_prepared()
+        self._prefetching = entry
+        self._prefetch_worker(entry)
+
+    @work(thread=True, exclusive=True, group="prefetch")
+    def _prefetch_worker(self, entry: Entry) -> None:
+        try:
+            ensure_fresh(self.session)
+            track = with_retries(lambda: entry.resolve(self.session))
+            playable = resolve(track)
+        except Exception:
+            # Quietly: the track after this one is not what the user is
+            # listening to. When its turn comes it is resolved as ever, and
+            # a failure then says why.
+            self.call_from_thread(self._prefetch_gave_up, entry)
+            return
+        self.call_from_thread(self._prefetched, entry, playable)
+
+    def _prefetched(self, entry: Entry, playable: Playable) -> None:
+        """Queue what came back, if it is still the track that comes next.
+
+        The same care as `_resolving`: a result for a track the queue no
+        longer puts next (shuffle, repeat or an edit moved it meanwhile)
+        must not play.
+        """
+        if entry is not self._prefetching:
+            return
+        self._prefetching = None
+        if (
+            self.queue.playing < 0
+            or self._resolving is not None
+            or self._next_entry() is not entry
+        ):
+            return
+        self.mpv.append(playable.url, self._gain_for(playable))
+        self._prepared = _Prepared(entry, playable, time.monotonic())
+
+    def _prefetch_gave_up(self, entry: Entry) -> None:
+        if entry is self._prefetching:
+            self._prefetching = None
+            self._prefetch_failed = entry
+
+    def _advance_to_prepared(self) -> None:
+        """mpv went on to the track `_prefetched` queued: follow it."""
+        prepared = self._prepared
+        assert prepared is not None
+        self._prepared = None
+        # Keep only what plays now, back at position 0, so that the next one
+        # queued is position 1 again.
+        self.mpv.drop_queued()
+        index = self.queue.next_index()
+        if index is None or self.queue[index] is not prepared.entry:
+            # Every change to the queue checks what is prepared, so this is
+            # not expected; if it happens, the queue is what gets played.
+            if index is None:
+                self.action_stop()
+            else:
+                self._play_index(index)
+            return
+        self._announce(index)
+        self._now_playing(prepared.entry, prepared.playable)
+
+    def _forget_prepared(self) -> None:
+        """Forget the track resolved ahead, and one on its way, without
+        telling mpv: for callers whose next command to it empties its
+        playlist anyway (`load`, `stop`, a restart)."""
+        self._prefetching = None
+        self._prepared = None
+
+    def _drop_prepared(self) -> None:
+        """Forget the track resolved ahead, and take it out of mpv's playlist."""
+        queued = self._prepared is not None
+        self._forget_prepared()
+        if queued:
+            self.mpv.drop_queued()
+
+    def _check_prepared(self) -> None:
+        """After the queue changed: keep what was prepared only if it is
+        still the track that comes next."""
+        wanted = self._next_entry() if self.queue.playing >= 0 else None
+        self._prefetch_failed = None
+        if self._prefetching is not None and self._prefetching is not wanted:
+            # Its result is dropped when it lands.
+            self._prefetching = None
+        if self._prepared is not None and self._prepared.entry is not wanted:
+            self._drop_prepared()
+
+    def _gain_for(self, playable: Playable | None) -> float:
+        """The ReplayGain to play ``playable`` at, for the mode chosen."""
+        if playable is None:
+            return 0.0
+        return replaygain(
+            config.REPLAYGAIN,
+            (
+                getattr(playable, "track_gain", None),
+                getattr(playable, "track_peak", None),
+            ),
+            (
+                getattr(playable, "album_gain", None),
+                getattr(playable, "album_peak", None),
+            ),
+        )
 
     # ----------------------------------------------------------------- artwork
 
@@ -2103,8 +2351,13 @@ class TidalAmp(App):
             return
         self._resolving = None
         self.query_one("#busy", Spinner).stop()
-        self.mpv.load(playable.url)
+        self.mpv.load(playable.url, self._gain_for(playable))
         self._was_idle = False
+        self._now_playing(entry, playable)
+
+    def _now_playing(self, entry: Entry, playable: Playable) -> None:
+        """What changes once a track sounds, whether a resolve started it or
+        mpv went on to it by itself."""
         self._playable = playable
         self._refresh_readout()
         # PipeWire can switch graph rate when playback starts. Query it off
@@ -2398,6 +2651,15 @@ class TidalAmp(App):
                 for widget in screen.query(RowList):
                     widget.refresh()
             self.status = _("columnas: {count}").format(count=len(config.COLUMNS))
+        elif name == "replaygain":
+            if self._playable is not None and self.queue.current is not None:
+                self.mpv.gain = self._gain_for(self._playable)
+            # The track queued for a gapless start carries the old gain as
+            # its own option; it is resolved and queued again at the new one.
+            self._drop_prepared()
+            self.status = _("volumen normalizado: {value}").format(
+                value=config.REPLAYGAIN
+            )
         elif name == "autoplay":
             self.status = (
                 _("reproducción automática activada")
