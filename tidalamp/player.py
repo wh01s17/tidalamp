@@ -303,9 +303,10 @@ class Mpv:
 
     # -------------------------------------------------------------- transport
 
-    def load(self, url: str, gain: float = 0.0) -> None:
-        """Play ``url`` now, dropping whatever was playing or queued."""
-        self._loadfile(url, "replace", gain)
+    def load(self, url: str, gain: float = 0.0, start: float = 0.0) -> None:
+        """Play ``url`` now, dropping whatever was playing or queued, from
+        ``start`` seconds in."""
+        self._loadfile(url, "replace", gain, start)
         self.set("pause", False)
 
     def append(self, url: str, gain: float = 0.0) -> None:
@@ -325,8 +326,13 @@ class Mpv:
         pos = self.get("playlist-pos")
         return pos if isinstance(pos, int) else -1
 
-    def _loadfile(self, url: str, flags: str, gain: float) -> None:
-        """``loadfile`` with the track's ReplayGain as a per-file option.
+    def _loadfile(self, url: str, flags: str, gain: float, start: float = 0.0) -> None:
+        """``loadfile`` with the track's ReplayGain as a per-file option, and
+        the second to start at as another.
+
+        ``start`` is how a track goes back where it was after mpv restarts.
+        As an option of the load itself rather than a seek afterwards: a seek
+        has to wait for the stream to open, and nothing says when it has.
 
         Per file and not a property set after the fact, so a track appended
         for a gapless start comes in at its own level from its first sample,
@@ -339,13 +345,18 @@ class Mpv:
         ``volume-gain`` refuses the whole command, so it is tried once more
         without it: playing at the wrong level beats not playing.
         """
-        command: dict[str, Any] = {"name": "loadfile", "url": url, "flags": flags}
-        if gain:
-            command["options"] = f"volume-gain={gain:g}"
-        ok, _data = self._request(command)
-        if not ok and gain and not self.stalled and self.alive:
+        base = [f"start={start:g}"] if start > 0 else []
+        options = base + ([f"volume-gain={gain:g}"] if gain else [])
+
+        def loadfile(options: list[str]) -> bool:
+            command: dict[str, Any] = {"name": "loadfile", "url": url, "flags": flags}
+            if options:
+                command["options"] = ",".join(options)
+            return self._request(command)[0]
+
+        if not loadfile(options) and gain and not self.stalled and self.alive:
             log.warning("mpv no aceptó volume-gain; se carga sin normalizar")
-            self._request({"name": "loadfile", "url": url, "flags": flags})
+            loadfile(base)
 
     @property
     def gain(self) -> float:

@@ -320,3 +320,27 @@ def test_an_mpv_that_refuses_the_gain_still_plays(mpv, monkeypatch):
 
     assert mpv.idle is False
     assert [item["url"] for item in playlist(mpv)] == ["https://cdn/a"]
+
+
+def test_a_load_can_start_part_way_in(mpv):
+    """How a track goes back where it was after mpv restarts: an option of
+    the load, not a seek that would have to wait for the stream."""
+    mpv.load("https://cdn/a", gain=-2.0, start=95.5)
+
+    assert playlist(mpv)[0]["options"] == "start=95.5,volume-gain=-2"
+    assert mpv.position == 95.5
+
+
+def test_the_retry_without_the_gain_keeps_the_start(mpv, monkeypatch):
+    original = Mpv._request
+
+    def refuse_the_gain(self, command, probe=False):
+        if isinstance(command, dict) and "volume-gain" in command.get("options", ""):
+            return False, None
+        return original(self, command, probe)
+
+    monkeypatch.setattr(Mpv, "_request", refuse_the_gain)
+    mpv.load("https://cdn/a", gain=-2.0, start=40.0)
+
+    assert playlist(mpv)[0]["options"] == "start=40"
+    assert mpv.position == 40.0

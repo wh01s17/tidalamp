@@ -402,3 +402,57 @@ def test_the_next_cover_and_lyrics_are_fetched_with_its_stream(monkeypatch):
             assert lyrics_for == ["track-2"]
 
     asyncio.run(scenario())
+
+
+def test_a_restarted_mpv_picks_the_track_up_where_it_was(monkeypatch):
+    """It went back to 0:00: the maintainer killed mpv at the middle of a
+    song and heard it start over."""
+    resolves, _prefetches = isolate(monkeypatch)
+
+    async def scenario() -> None:
+        mpv = FakeMpv()
+        application = TidalAmp(object(), mpv)
+        async with application.run_test(size=(100, 40)) as pilot:
+            await pilot.pause()
+            entries = three()
+            await playing_first(application, mpv, pilot, entries)
+            mpv.position = 95.0
+            await pilot.pause(0.3)
+            resolves.clear()
+
+            mpv.alive = False
+            await settle(pilot, lambda: bool(resolves))
+            assert resolves == [entries[0]], "la misma pista, otra vez"
+            application._start(entries[0], Playable("https://cdn/1b"))
+            assert mpv.loaded == "https://cdn/1b"
+            assert mpv.started_at == 95.0
+
+            # Only that reload: playing the track again starts at the top.
+            application._play_index(0)
+            application._start(entries[0], Playable("https://cdn/1c"))
+            assert mpv.started_at == 0.0
+
+    asyncio.run(scenario())
+
+
+def test_next_pressed_during_the_reload_starts_the_next_at_the_top(monkeypatch):
+    resolves, _prefetches = isolate(monkeypatch)
+
+    async def scenario() -> None:
+        mpv = FakeMpv()
+        application = TidalAmp(object(), mpv)
+        async with application.run_test(size=(100, 40)) as pilot:
+            await pilot.pause()
+            entries = three()
+            await playing_first(application, mpv, pilot, entries)
+            mpv.position = 95.0
+            await pilot.pause(0.3)
+            resolves.clear()
+
+            mpv.alive = False
+            await settle(pilot, lambda: bool(resolves))
+            application._play_index(1)
+            application._start(entries[1], Playable("https://cdn/2"))
+            assert mpv.started_at == 0.0
+
+    asyncio.run(scenario())

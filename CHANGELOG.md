@@ -24,6 +24,10 @@ versioning is [semantic](https://semver.org/).
 - Your mixes in the library: `My mixes` lists what TIDAL makes for your account, the
   daily ones, discovery and new arrivals among them, and each opens like a playlist. A
   mix cannot be sorted or edited, so `s` and `d` say so.
+- The second a track was on survives quitting. The next start restores the queue as
+  ever, the status line says where that track will resume, and playing it picks up
+  there; playing any other track first starts that one at the top as usual. It is
+  written once, on the way out, so a crash keeps the second of the last clean quit.
 
 ### Fixed
 
@@ -32,6 +36,7 @@ versioning is [semantic](https://semver.org/).
   drawing while it is asked again in the background; after five seconds it is
   restarted, also in the background. mpv closing its socket now reads as mpv dying and
   is restarted, where it used to leave the player reading zeros off a dead connection.
+  After a restart the track picks up at the second it was on, instead of starting over.
 
 ## [0.8.1] - 2026-09-11
 

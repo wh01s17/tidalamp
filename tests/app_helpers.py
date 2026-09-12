@@ -61,9 +61,10 @@ class FakeMpv:
         # Same ceiling as the real player: the app relies on it to clamp.
         self._volume = max(0, min(Mpv.VOLUME_MAX, value))
 
-    def load(self, url: str, gain: float = 0.0) -> None:
+    def load(self, url: str, gain: float = 0.0, start: float = 0.0) -> None:
         self.loaded = url
         self.gain = gain
+        self.started_at = start
         self.queued = []
         self.playlist_pos = 0
 

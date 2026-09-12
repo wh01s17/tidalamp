@@ -18,8 +18,9 @@ Lo de aquí no bloquea publicar. `plan.md` §5 y §6 mandan sobre el estado gene
 ## Para la próxima versión
 
 Vacío. Lo de la 0.9.0 (mpv sin congelar la interfaz, sin corte entre pistas, volumen
-normalizado, tus mixes, la insignia `RG` y la carátula y la letra de la siguiente por
-adelantado) está hecho, probado a mano contra TIDAL real y cerrado en `CHANGELOG.md`
+normalizado, tus mixes, la insignia `RG`, la carátula y la letra de la siguiente por
+adelantado, y el segundo recordado tras un reinicio de mpv y al salir, que estaba
+descartado y se retomó) está hecho, probado a mano contra TIDAL real y cerrado en `CHANGELOG.md`
 bajo `[0.9.0]`; el detalle, en `plan.md` §4 y §5.
 
 ## Sin fecha
@@ -41,13 +42,6 @@ No se borran: quedan escritos con el motivo para no volver a discutirlos desde c
 - **Radio de un artista o de una playlist** (2026-09-11), para completar el menú de la
   `m`, que no tiene radio porque la de TIDAL nace de una pista. Al mantenedor no le
   interesó: la radio de pista ya cubre lo que busca.
-- **Recordar el segundo de la pista al salir.** `queue.json` guarda el índice pero no la
-  posición, así que cerrar a mitad de una canción devuelve a 0:00. **Decidido que no**
-  (2026-09-10): ni el cliente oficial de TIDAL lo hace, así que no es una expectativa
-  que este reproductor esté defraudando. Si alguna vez se retoma, las trampas son que el
-  seek va después de que resuelva el stream, que `_was_idle` lee un mpv en idle como «la
-  pista terminó», y que guardar en cada tick reescribiría el fichero diez veces por
-  segundo.
 - **Temporizador de apagado.** Un `set_timer` que llame a `action_stop` y un indicador
   en el transporte. Barato, pero no lo pidió nadie todavía.
 - **Enrutar mpv a un sink propio de PipeWire** para que cava no oiga el resto del

@@ -251,6 +251,10 @@ Tracks play one into the next with no gap: the next one is fetched from TIDAL sh
 before the current one ends and handed to mpv ahead of time, along with its cover (and
 its lyrics, when the split view or the lyrics window is showing them).
 
+Quitting keeps your place: the queue comes back on the next start with the cursor on
+the track you were hearing, the status line says the second it will resume at, and
+playing that track picks up there.
+
 `g` brings the queue cursor back to the track that is playing. If the queue search is
 hiding it, the search is cleared first. `p` asks for a name and saves a snapshot of the
 queue as a TIDAL playlist, in queue order rather than shuffle order. Large queues are

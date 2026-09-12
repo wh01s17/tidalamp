@@ -339,6 +339,11 @@ class TidalAmp(App):
         # the tick fetches once per track rather than four times a second.
         self._pane_entry: int | None = None
         self._was_idle = True
+        # Where the track was on the last tick, and the track and second a
+        # restarted mpv has to pick up at. A dead or stuck mpv cannot be
+        # asked where it was, so the tick's own reading is what is kept.
+        self._last_position = 0.0
+        self._resume: tuple[Entry, float] | None = None
         # The next track, while it resolves ahead and once it is queued in
         # mpv; and the one whose resolve ahead failed, so the tick does not
         # ask again four times a second. Only the entry the queue says is
@@ -769,6 +774,7 @@ class TidalAmp(App):
             self.status = _("cola restaurada ({count} pistas)").format(
                 count=len(self.queue)
             )
+            self._restore_position()
         self._refresh_modes()
         self._refresh_playlist_title()
         # Last, so it wins over the queue-restore message: without Pillow the
@@ -909,6 +915,7 @@ class TidalAmp(App):
             return
 
         position, duration = self.mpv.position, self.mpv.duration
+        self._last_position = position
         # The same rule as the fast tick: a player nobody is looking at does
         # not redraw itself. Four times a second, a moving clock behind a
         # modal costs a repaint of the player *and* a blend of the whole
@@ -978,6 +985,11 @@ class TidalAmp(App):
         if self._recovering or time.monotonic() < self._mpv_retry_at:
             return
         self._recovering = True
+        # The track goes back where it was, not to 0:00. The second is the
+        # last tick's: the one before the stall or the death.
+        current = self.queue.current
+        if current is not None and self._last_position > 1:
+            self._resume = (current, self._last_position)
         # A new process starts with an empty playlist: nothing is queued.
         self._forget_prepared()
         self.status = _("mpv no responde; reiniciándolo…")
@@ -1781,6 +1793,7 @@ class TidalAmp(App):
         self._resolving = _STOPPED
         # `stop` empties mpv's playlist, the track queued after this one too.
         self._forget_prepared()
+        self._resume = None
         self.mpv.stop()
         self.queue.playing = -1
         # The tick reads "mpv went idle" as "the track ended" and moves on.
@@ -2391,7 +2404,11 @@ class TidalAmp(App):
             return
         self._resolving = None
         self.query_one("#busy", Spinner).stop()
-        self.mpv.load(playable.url, self._gain_for(playable))
+        # Only the reload after a restart starts part way in, and only for the
+        # track it was taken for: «next» meanwhile starts the next at 0:00.
+        resume, self._resume = self._resume, None
+        start = resume[1] if resume is not None and resume[0] is entry else 0.0
+        self.mpv.load(playable.url, self._gain_for(playable), start=start)
         self._was_idle = False
         self._now_playing(entry, playable)
 
@@ -2842,6 +2859,55 @@ class TidalAmp(App):
         # mpv and dropping off the bus are things to finish, not to fire off.
         await self._close_player()
 
+    def _remember_position(self) -> None:
+        """Where the track was, for the next session to pick up at.
+
+        Written once, on the way out: from the tick it would rewrite the
+        queue ten times a second. A crash therefore keeps the second of the
+        last clean quit, not of the crash. A track restored and never played
+        this session keeps the second it was restored with.
+        """
+        self.queue.position = 0.0
+        current = self.queue.current
+        if current is not None:
+            seconds = self._last_position
+            # Quit while it reloads, after a restart or a play on a restored
+            # track: mpv says 0:00 because it has not opened it yet, and the
+            # second it is on its way to is the one worth keeping.
+            if seconds <= 1 and self._resume is not None and self._resume[0] is current:
+                seconds = self._resume[1]
+            if seconds > 1:
+                self.queue.position = seconds
+            return
+        if self._resume is None:
+            return
+        entry, seconds = self._resume
+        index = next((i for i, row in enumerate(self.queue) if row is entry), -1)
+        if index >= 0:
+            self.queue.playing = index
+            self.queue.position = seconds
+
+    def _restore_position(self) -> None:
+        """Pick up the second the last session quit at, once that track plays.
+
+        Not at once: a restored queue never starts playing by itself, and an
+        idle mpv read as a track that ended would move the queue on. The
+        second waits in `_resume` for `_start`, the same way a restarted mpv
+        goes back to its track, and anything else played first drops it.
+        """
+        index, seconds = self.queue.resume_at, self.queue.resume_position
+        if not 0 <= index < len(self.queue) or seconds <= 1:
+            return
+        entry = self.queue[index]
+        self._resume = (entry, seconds)
+        self.status = _(
+            "cola restaurada ({count} pistas); «{title}» sigue en {time}"
+        ).format(
+            count=len(self.queue),
+            title=entry.title,
+            time=f"{int(seconds) // 60}:{int(seconds) % 60:02d}",
+        )
+
     async def _close_player(self) -> None:
         """Save, let go of mpv and the bus, and exit.
 
@@ -2849,6 +2915,7 @@ class TidalAmp(App):
         and the driver once the app exits, and a method of that name here
         replaced it rather than running before it.
         """
+        self._remember_position()
         self.queue.save()
         self.settings.save()
         if self._mpris_ready:

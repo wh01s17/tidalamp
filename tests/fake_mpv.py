@@ -58,9 +58,12 @@ def _start(item):
     gain = 0.0
     for option in filter(None, (item.get("options") or "").split(",")):
         name, value = option.split("=", 1)
-        if name != "volume-gain":
+        if name == "start":
+            props["time-pos"] = float(value)
+        elif name == "volume-gain":
+            gain = float(value)
+        else:
             return "error"
-        gain = float(value)
     props["volume-gain"] = gain
     return "success"
 

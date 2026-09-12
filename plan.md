@@ -1486,6 +1486,35 @@ fichero en sí.
       `_buf`. Los dos casos están en `tests/test_player.py` con el mpv falso, que ahora
       sabe colgarse (`FAKE_MPV_HANG_ON`), cerrar el socket (`FAKE_MPV_EOF_ON`) y mandar
       las respuestas de tres en tres bytes (`FAKE_MPV_SPLIT`).
+- [x] **La pista vuelve donde iba, no a 0:00.** Salía del principio tras cada
+      reinicio, y el mantenedor lo oyó en las dos pruebas a mano. A un mpv muerto o
+      atascado ya no se le puede preguntar la posición, así que el tick guarda la suya
+      (`_last_position`); `_recover_mpv` la deja en `_resume` con la pista, y `_start`
+      carga esa pista con la opción por fichero `start=<segundos>` en el propio
+      `loadfile`, como `volume-gain`. No un `seek` después: tendría que esperar a que el
+      stream abra, y nada dice cuándo. Sólo esa recarga y sólo esa pista: un
+      «siguiente» mientras resuelve arranca la otra desde el principio.
+
+### Recordar el segundo al salir - `queue.py`, `app.py`
+
+Estaba en «Descartado» (2026-09-10) porque ni el cliente oficial de TIDAL lo hace. Se
+retomó el 2026-09-12, a petición del mantenedor, cuando el `start=` de arriba dejó sin
+efecto las tres trampas que lo hacían caro:
+
+- [x] **El seek tras resolver** ya no existe: el segundo va como opción del `loadfile`.
+- [x] **Guardar en cada tick** reescribiría `queue.json` diez veces por segundo. Se
+      guarda una vez, en `_close_player` (`_remember_position`), que es por donde salen
+      `q` y `ctrl+c`. El precio: un cuelgue conserva el segundo de la última salida
+      limpia, no el del cuelgue.
+- [x] **`_was_idle` lee un mpv en idle como «la pista terminó»**, y por eso nada se pone
+      a sonar solo al arrancar: `_restore_position` deja el segundo en `_resume`, la
+      barra de estado dice ««Título» sigue en 1:23», y se aplica cuando esa pista
+      suena, por el mismo camino que la recarga tras un reinicio. Otra pista antes lo
+      descarta.
+- [x] `queue.json` lleva `position` junto a `playing`. Una cola de antes, o con basura
+      en el campo, arranca en 0:00. Salir sin haber tocado la pista restaurada conserva
+      su segundo, y salir mientras se recarga guarda el segundo al que iba y no el 0:00
+      que marca mpv mientras abre el stream.
 
 ### Sin corte entre pistas - `app.py`, `player.py`
 
@@ -1653,8 +1682,8 @@ Distinguir esto importa: parte del código nunca se ha ejecutado contra TIDAL re
 | Favoritos (escritura)              | **VERIFICADO CONTRA TIDAL REAL**  | Añadir y quitar una pista que no estaba en favoritos: el contador de la cuenta subió a 767 y volvió a 766. Saldo neto cero. Unitarias para pista, álbum, artista, playlist y para las filas que no son favoritables. |
 | Configuración y teclas             | **Verificado**                    | `tidalamp config` sobre un XDG temporal crea la plantilla, y con `quality`, `artwork` y dos teclas cambiadas la app arranca con `HIGH`, `Protocol.BLOCKS` y `play→p`, `quit→ctrl+q`; la acción inventada sale avisada. 13 unitarias de precedencia, TOML roto y plantilla. |
 | Reordenar la cola                  | **Verificado**                    | Unitarias de `Queue.move` (bordes, cursor, shuffle intacto) y `alt+↓` en la app real.                                                                                           |
-| Reinicio de mpv                    | **Verificado**                    | SIGKILL a mpv con la app corriendo: el tick lo relanza con otro PID y la pista vuelve a sonar. Desde la 0.9.0 el reinicio va en un worker, y el SIGKILL se repitió a mano con él (2026-09-12): mpv nuevo al instante, sin la espera de 5 s de un atasco, y la pista otra vez sonando desde 0:00. |
-| mpv que no contesta (0.9.0)        | **VERIFICADO POR EL USUARIO**     | El mantenedor congeló el mpv de la app con `kill -STOP` mientras sonaba (2026-09-12): la pantalla siguió dibujándose, a los 5 s se levantó un mpv nuevo y la pista volvió a sonar, desde 0:00. En tests: contra el mpv falso por el socket de verdad: un mpv colgado cuesta una espera y no más, un sondeo lo despeja, el EOF se lee como muerte, las respuestas partidas de tres en tres bytes se recomponen. En la app: el atasco se dice en la línea de estado y se sondea fuera del hilo, un mpv muerto se reinicia en un worker y recarga la pista, un reinicio fallido espera. Queda sin ver a mano el otro camino, descongelarlo antes de los 5 s (`kill -CONT`) y que diga «mpv vuelve a contestar»; está cubierto por tests. |
+| Reinicio de mpv                    | **Verificado**                    | SIGKILL a mpv con la app corriendo: el tick lo relanza con otro PID y la pista vuelve a sonar. Desde la 0.9.0 el reinicio va en un worker, y el SIGKILL se repitió a mano con él (2026-09-12): mpv nuevo al instante, sin la espera de 5 s de un atasco, y la pista otra vez sonando desde 0:00. Ahora vuelve al segundo donde iba (opción `start=` del `loadfile`, comprobada contra mpv 0.41); **pendiente de repetir el SIGKILL a mano**. |
+| mpv que no contesta (0.9.0)        | **VERIFICADO POR EL USUARIO**     | El mantenedor congeló el mpv de la app con `kill -STOP` mientras sonaba (2026-09-12): la pantalla siguió dibujándose, a los 5 s se levantó un mpv nuevo y la pista volvió a sonar, desde 0:00; desde entonces vuelve al segundo donde iba, cubierto por tests y **pendiente de repetir a mano**. En tests: contra el mpv falso por el socket de verdad: un mpv colgado cuesta una espera y no más, un sondeo lo despeja, el EOF se lee como muerte, las respuestas partidas de tres en tres bytes se recomponen. En la app: el atasco se dice en la línea de estado y se sondea fuera del hilo, un mpv muerto se reinicia en un worker y recarga la pista, un reinicio fallido espera. Queda sin ver a mano el otro camino, descongelarlo antes de los 5 s (`kill -CONT`) y que diga «mpv vuelve a contestar»; está cubierto por tests. |
 | Sin corte entre pistas (0.9.0)     | **VERIFICADO POR EL USUARIO**     | Oído por el mantenedor contra TIDAL real en un disco en vivo, sin corte (2026-09-12); que suene así dice también que la URL resuelta 20 s antes aguantó. También probado a mano: quitar o barajar la siguiente en los últimos 20 s hace sonar la que dice la cola, y la carátula y la letra de la siguiente llegan con el sonido. En tests: la siguiente se prepara a 20 s del final y no antes, mpv pasa a ella sin volver a resolver, una cola editada o un repeat cambiado quitan lo preparado y se prepara la correcta, un resultado tardío no se encola, lo caducado se vuelve a pedir. Contra el mpv falso: `append`, `playlist-clear` y `playlist-pos`. |
 | Volumen normalizado (0.9.0)        | **VERIFICADO POR EL USUARIO**     | Oído por el mantenedor contra TIDAL real, con la insignia `RG` enseñando los valores de cada pista (2026-09-12). En tests: | Los tres modos, el pico como techo, la caída de disco a pista, el 1.0 de relleno de tidalapi, la ganancia como opción por fichero y el reintento sin ella. En la app: la ganancia que llega a mpv cambia con el modo, la preparada lleva la suya, y al apagarlo vuelve a 0; la insignia `RG` enseña la aplicada, y `RG —` sin datos. **Falta oírlo**; los valores reales de TIDAL se leen ahora en la propia insignia. |
 | Mis mixes (0.9.0)                  | **VERIFICADO CONTRA TIDAL REAL**  | La página real de mixes, vista por el mantenedor en su cuenta (2026-09-12). En tests: sesión simulada con dos mixes y un enlace entre ellos: la sección lista los dos, cada uno se pide al abrirlo, abrirlo trae sus pistas, un mix vacío es un nivel vacío, y en la app `s` y `d` se niegan. Si deja de funcionar, mirar primero la página: es la parte de TIDAL que más cambia. |

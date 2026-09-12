@@ -205,6 +205,9 @@ ENGLISH: dict[str, str] = {
     "mpv vuelve a contestar": "mpv is answering again",
     "mpv no responde; reiniciándolo…": "mpv is not responding; restarting it…",
     "Mis mixes": "My mixes",
+    "cola restaurada ({count} pistas); «{title}» sigue en {time}": (
+        "queue restored ({count} tracks); “{title}” resumes at {time}"
+    ),
     "volver": "back",
     "pantalla completa": "full screen",
     "la pantalla completa necesita al menos {width}×{height}": (

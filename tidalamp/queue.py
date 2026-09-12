@@ -188,8 +188,13 @@ class Queue:
         self.repeat: Repeat = Repeat.NONE
         self._shuffle: bool = False
         self._order: list[int] = []
-        # Where the previous session left off, filled in by load().
+        # Where the previous session left off, filled in by load(): the row,
+        # and the second into it.
         self.resume_at: int = -1
+        self.resume_position: float = 0.0
+        # The second into the playing track that save() writes. The app sets
+        # it once, on the way out; every other save is of a track at its start.
+        self.position: float = 0.0
 
     # ----------------------------------------------------------------- basics
 
@@ -354,6 +359,7 @@ class Queue:
                     {
                         "entries": [e.to_dict() for e in self.entries],
                         "playing": self.playing,
+                        "position": round(self.position, 1),
                         "repeat": self.repeat.value,
                         "shuffle": self._shuffle,
                     },
@@ -384,4 +390,10 @@ class Queue:
 
         # Remember where the user left off so the cursor lands there.
         self.resume_at = int(raw.get("playing", -1))
+        # And the second into that track. A queue saved before this existed
+        # has none, and a hand-edited one may hold junk: both start at 0:00.
+        try:
+            self.resume_position = max(0.0, float(raw.get("position", 0.0)))
+        except (TypeError, ValueError):
+            self.resume_position = 0.0
         return bool(self.entries)
