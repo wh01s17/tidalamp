@@ -42,6 +42,25 @@ Lo de aquí no bloquea publicar. `plan.md` §5 y §6 mandan sobre el estado gene
   artista hoy reproduce las populares: decidir si sigue así. Se comprueba con una
   sesión simulada con álbumes, EPs y nada en «otros»: salen tres secciones y no
   cuatro, y abrir un disco trae sus pistas.
+- **El socket de mpv con una ruta larga.** Las rutas de socket Unix se cortan en unos
+  108 bytes (`plan.md` §7). La fixture de `tests/test_player.py` crea el socket en el
+  `tmp_path` de pytest, que en un sandbox es largo: el mpv falso no puede crearlo,
+  `Mpv` espera 5 s y falla con «mpv no abrió el socket IPC a tiempo», 5 s por test,
+  y la suite parece colgada. Le pasó a Codex (2026-09-12); se reproduce con
+  `--basetemp` en una ruta larga. Arreglo: el socket en un `mkdtemp()` corto, como los
+  scripts de prueba. En la app, `~/.cache/tidalamp/mpv.sock` mide 38 caracteres aquí,
+  pero un `XDG_CACHE_HOME` muy largo daría el mismo mensaje engañoso: comprobar el
+  largo antes de lanzar mpv y decir la causa. Se comprueba con la misma `--basetemp`
+  larga: la suite pasa, y un `IPC_SOCKET` de más de 107 bytes da el mensaje nuevo.
+- **Avisar cuando un guardado falla.** La cola (`queue.py`), los ajustes
+  (`settings.py`) y los órdenes de la biblioteca (`library.py`) se tragan un
+  `OSError` con `pass`. Que no sea fatal está bien; que no lo diga nadie, no: con el
+  disco lleno se pierde la cola sin rastro. Un `log.warning` y un aviso en la línea
+  de estado, una vez por sesión y no en cada guardado (la cola se guarda en cada
+  cambio de pista). Trampa: los tres módulos no conocen Textual, así que el aviso lo
+  da la app a partir de lo que devuelvan, no ellos. Se comprueba con un directorio
+  de sólo lectura: el guardado sigue sin romper nada y la línea de estado lo dice
+  una vez.
 
 Lo de la 0.9.0 (mpv sin congelar la interfaz, sin corte entre pistas, volumen
 normalizado, tus mixes, la insignia `RG`, la carátula y la letra de la siguiente por
@@ -57,6 +76,16 @@ bajo `[0.9.0]`; el detalle, en `plan.md` §4 y §5.
   aplicación de ajustes, dejando `TidalAmp` como raíz de composición. Es un rediseño
   grande que no arregla ningún fallo, así que solo cuando haya tiempo para hacerlo
   bien.
+
+- **Una guarda común para los workers al cerrar.** Un worker de hilo que termina
+  después de salir llama a `call_from_thread` contra un loop que se cierra: en la app
+  cuesta una excepción dentro de ese hilo, sin efecto visible, y en los tests es la
+  carrera por la que `app_helpers.isolate_runtime` desactiva el worker del sink.
+  Señalado por Codex (2026-09-12). Razonable y pequeño, pero sin un fallo que lo
+  pida: cuando aparezca uno.
+- La separación de `TidalAmp` (arriba) la señaló también Codex (2026-09-12), con la
+  misma conclusión: objetos con diseño propio. Vigilar además que `Mpv._request` (53
+  líneas, cada rama con su test) no crezca hasta ser otro núcleo.
 
 - **Seleccionar varias pistas en la cola** para quitarlas o moverlas juntas; hoy se
   hace de a una. Interesa, pero sin versión decidida.
