@@ -9,6 +9,8 @@ from __future__ import annotations
 
 import json
 import logging
+import os
+from pathlib import Path
 
 import tidalapi
 
@@ -79,8 +81,32 @@ def _revive(session: tidalapi.Session) -> None:
     _save(session)
 
 
+def _tighten(path: Path) -> None:
+    """The session for its owner alone: the file 0600, its directory 0700.
+
+    It holds the access and the refresh token, and tidalapi writes it with a
+    plain ``open("w")``, so under the usual umask 022 it came out 0644:
+    readable by every user on the machine.
+    """
+    os.chmod(path.parent, 0o700)
+    if path.exists():
+        os.chmod(path, 0o600)
+
+
+def _private(path: Path) -> None:
+    """Make the file 0600 *before* tidalapi writes the tokens into it.
+
+    Its ``open("w")`` keeps the mode of a file that already exists, so the
+    tokens are never on disk readable by others, not even for a moment.
+    """
+    path.parent.mkdir(parents=True, exist_ok=True)
+    os.close(os.open(path, os.O_WRONLY | os.O_CREAT, 0o600))
+    _tighten(path)
+
+
 def _save(session: tidalapi.Session) -> None:
     try:
+        _private(SESSION_FILE)
         session.save_session_to_file(SESSION_FILE)
     except OSError:
         # A read-only config dir must not stop playback: the in-memory session
@@ -101,6 +127,11 @@ def load_session() -> tidalapi.Session:
     """
     if not SESSION_FILE.exists():
         raise NotLoggedIn(_("No hay sesión guardada. Ejecuta: tidalamp login"))
+    try:
+        # A session saved by an older version is 0644; close it on the way in.
+        _tighten(SESSION_FILE)
+    except OSError:
+        log.warning("no se pudieron ajustar los permisos de %s", SESSION_FILE)
 
     session = _new_session()
     try:
@@ -145,5 +176,6 @@ def login(on_link) -> tidalapi.Session:
     link, future = session.login_oauth()
     on_link(f"https://{link.verification_uri_complete}", link.expires_in)
     future.result()  # blocks until approved or the code expires
+    _private(SESSION_FILE)
     session.save_session_to_file(SESSION_FILE)
     return session

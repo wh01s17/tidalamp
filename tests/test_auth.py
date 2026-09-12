@@ -162,3 +162,43 @@ def test_a_read_only_config_dir_does_not_stop_playback(session_file, monkeypatch
             raise OSError("read-only")
 
     assert ensure_fresh(Unwritable(valid=False)) is True
+
+
+class WritingSession(FakeSession):
+    """Writes the way tidalapi does: a plain open("w"), under the umask."""
+
+    def save_session_to_file(self, path):
+        super().save_session_to_file(path)
+        with open(path, "w") as handle:
+            handle.write('{"refresh_token": {"data": "secret"}}')
+
+
+def mode(path) -> int:
+    return path.stat().st_mode & 0o777
+
+
+def test_a_saved_session_is_readable_by_its_owner_alone(session_file, monkeypatch):
+    import os
+
+    old = os.umask(0o022)
+    try:
+        assert ensure_fresh(WritingSession(valid=False)) is True
+    finally:
+        os.umask(old)
+
+    assert mode(session_file) == 0o600
+    assert mode(session_file.parent) == 0o700
+
+
+def test_a_session_left_readable_by_an_older_version_is_closed_on_load(
+    session_file, monkeypatch
+):
+    session_file.write_text("{}", encoding="utf-8")
+    session_file.chmod(0o644)
+    session_file.parent.chmod(0o755)
+    install(monkeypatch, FakeSession())
+
+    load_session()
+
+    assert mode(session_file) == 0o600
+    assert mode(session_file.parent) == 0o700

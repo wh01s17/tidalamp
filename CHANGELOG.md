@@ -86,6 +86,13 @@ versioning is [semantic](https://semver.org/).
 - The lyrics window (`y`) follows the track. With it open, a track changed by the media
   keys or the end of a song left the lyrics of the one it had opened on.
 
+### Security
+
+- The TIDAL session (`~/.config/tidalamp/session.json`), which holds the access and the
+  refresh token, is readable by its owner alone: the file `0600` and its directory
+  `0700`. It used to come out `0644` under the usual umask, readable by every user on
+  the machine. A session saved by an older version is closed the next time it loads.
+
 ## [0.7.0] - 2026-09-11
 
 ### Added
