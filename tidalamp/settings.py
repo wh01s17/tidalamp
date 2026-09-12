@@ -9,6 +9,7 @@ starts anyway.
 from __future__ import annotations
 
 import json
+import math
 from dataclasses import dataclass, field
 
 from .config import STATE_DIR, ensure_dirs, write_atomically
@@ -40,6 +41,38 @@ PRESETS: tuple[tuple[str, tuple[float, ...]], ...] = (
 # What the window shows when the gains match no preset, which is the state
 # anyone who has moved a band is in.
 MANUAL = "manual"
+
+# The `replaygain` setting: off, the track's own gain, or its album's, which
+# keeps the loud and quiet songs of one record as the record has them.
+REPLAYGAIN_MODES = ("off", "track", "album")
+
+
+def replaygain(
+    mode: str,
+    track: tuple[float | None, float | None],
+    album: tuple[float | None, float | None],
+) -> float:
+    """The gain in dB to play a track at, for ``mode``.
+
+    ``track`` and ``album`` are (gain, peak) as TIDAL gives them, peak on a
+    scale where 1.0 is full scale. An album mode with no album gain falls
+    back to the track's; no gain at all is 0 dB, the track as it came.
+
+    **The peak is the ceiling.** A quiet track is raised, and raising one
+    whose loudest sample already sits near full scale would clip it: the
+    gain is cut to what takes that peak to exactly 1.0 and no further. A
+    gain that lowers the level is never cut.
+    """
+    if mode not in ("track", "album"):
+        return 0.0
+    gain, peak = album if mode == "album" else track
+    if gain is None:
+        gain, peak = track
+    if gain is None:
+        return 0.0
+    if peak is not None and peak > 0:
+        gain = min(gain, -20 * math.log10(peak))
+    return round(gain, 2)
 
 
 @dataclass

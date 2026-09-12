@@ -56,6 +56,12 @@ class Playable:
     manifest: str = "BTS"
     # What we asked TIDAL for, which is not always what it sends.
     requested: str = ""
+    # ReplayGain in dB and peak amplitude (1.0 is full scale), for the track
+    # and for its album. None when TIDAL did not send them.
+    track_gain: float | None = None
+    track_peak: float | None = None
+    album_gain: float | None = None
+    album_peak: float | None = None
 
     @property
     def khz(self) -> str:
@@ -137,6 +143,26 @@ def _write_hls(playlist: str, track_id: int) -> str:
     return str(path)
 
 
+def _loudness(stream: object, which: str) -> tuple[float | None, float | None]:
+    """The ReplayGain and peak of ``which`` ("track" or "album"), or Nones.
+
+    They come in the same answer as the manifest, so they cost nothing to
+    ask for. tidalapi fills in 1.0 for both when TIDAL leaves them out, which
+    reads as a real +1 dB: a gain and a peak that are both exactly 1.0 are
+    taken for missing, since no mastered track measures that way.
+    """
+    gain = getattr(stream, f"{which}_replay_gain", None)
+    peak = getattr(stream, f"{which}_peak_amplitude", None)
+    try:
+        gain = None if gain is None else float(gain)
+        peak = None if peak is None else float(peak)
+    except (TypeError, ValueError):
+        return None, None
+    if gain == 1.0 and peak == 1.0:
+        return None, None
+    return gain, peak
+
+
 def resolve(track: tidalapi.Track) -> Playable:
     """Resolve ``track`` to a playable URL or local playlist path."""
     try:
@@ -181,6 +207,8 @@ def resolve(track: tidalapi.Track) -> Playable:
         stream.bit_depth,
     )
 
+    track_gain, track_peak = _loudness(stream, "track")
+    album_gain, album_peak = _loudness(stream, "album")
     return Playable(
         url=url,
         quality=stream.audio_quality,
@@ -189,6 +217,10 @@ def resolve(track: tidalapi.Track) -> Playable:
         codec=manifest.get_codecs(),
         manifest=kind,
         requested=config.DEFAULT_QUALITY,
+        track_gain=track_gain,
+        track_peak=track_peak,
+        album_gain=album_gain,
+        album_peak=album_peak,
     )
 
 
