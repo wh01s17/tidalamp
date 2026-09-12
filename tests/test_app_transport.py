@@ -749,3 +749,28 @@ def test_q_asks_before_quitting_and_ctrl_c_does_not(monkeypatch):
             await settle(pilot, lambda: closed == ["closed", "closed", "closed"])
 
     asyncio.run(scenario())
+
+
+def test_a_tick_after_teardown_finds_no_screen_quietly():
+    """CI caught `_tick_slow` asking for `app.screen` once the stack was empty.
+
+    After exit that is nothing to report; while running it is a real fault.
+    """
+    import pytest
+    from textual.app import ScreenStackError
+
+    from tidalamp.app import _quiet_after_teardown
+
+    class Stub:
+        _running = False
+
+        @_quiet_after_teardown
+        def tick(self):
+            raise ScreenStackError("No screens on stack")
+
+    stub = Stub()
+    assert stub.tick() is None
+
+    stub._running = True
+    with pytest.raises(ScreenStackError):
+        stub.tick()

@@ -11,7 +11,7 @@ import tidalapi
 from rich.cells import cell_len
 from rich.text import Text
 from textual import events, on, work
-from textual.app import App, ComposeResult
+from textual.app import App, ComposeResult, ScreenStackError
 from textual.binding import Binding
 from textual.containers import Horizontal, Vertical
 from textual.css.query import NoMatches
@@ -143,15 +143,16 @@ def _quiet_after_teardown(method):
 
     Textual's own shutdown tears the screens down, and a tick or a resize
     already queued can still run after that and look for widgets that are
-    gone. There is nothing left to update then. While the app is running the
-    error goes through: a widget missing then is a real fault.
+    gone, or even for a screen when the stack is already empty. There is
+    nothing left to update then. While the app is running the error goes
+    through: a widget or a screen missing then is a real fault.
     """
 
     @functools.wraps(method)
     def guarded(self, *args, **kwargs):
         try:
             return method(self, *args, **kwargs)
-        except NoMatches:
+        except (NoMatches, ScreenStackError):
             if getattr(self, "_running", True):
                 raise
             return None
