@@ -1730,8 +1730,8 @@ reproductor sirva, sino acabado, distribución y confirmar contra TIDAL real cos
 probadas sólo con dobles.
 
 **Orden propuesto (2026-09-11):** ~~P5 empaquetado~~ y ~~carátula~~ ✅ hechos. Cada
-versión se publica siguiendo `publish.md`; la última publicada es la `0.8.1`
-(2026-09-11), en PyPI y en GitHub, y la `0.9.0` está preparada (2026-09-12). Lo que queda abierto aquí pide credenciales tuyas o un par de ojos.
+versión se publica siguiendo `publish.md`; la última publicada es la `0.9.0`
+(2026-09-12), en PyPI y en GitHub, con el checksum del tarball ya en el PKGBUILD. Lo que queda abierto aquí pide credenciales tuyas o un par de ojos.
 
 1. Publicar en el AUR cuando vuelva a abrir el registro de cuentas nuevas. El paquete
    está preparado y se puede probar localmente, pero el alta final depende del
