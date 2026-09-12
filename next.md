@@ -15,44 +15,6 @@ Lo de aquí no bloquea publicar. `plan.md` §5 y §6 mandan sobre el estado gene
 
 ---
 
-## Para la 0.8.1
-
-Salen de una revisión externa (Codex) contrastada con el código el 2026-09-11. Son
-baratas y se apoyan unas en otras: los timeouts hacen más probable el caso de las
-escrituras duplicadas, así que conviene hacer las dos juntas.
-
-- **Timeouts reales para TIDAL.** Ni tidalamp ni tidalapi ponen `timeout` a las
-  peticiones: una petición que TIDAL no contesta deja el worker colgado para siempre y
-  `with_retries` (`net.py`) nunca llega a reintentar. Poner uno por defecto (conexión
-  y lectura) en `session.request_session` al crear la sesión (`auth._new_session`).
-  Trampa: el stream y la resolución de manifiestos pueden tardar más que una lectura
-  de la API; medir antes de elegir el número. Se comprueba con un servidor local que
-  acepta y no contesta: la llamada tiene que fallar dentro del plazo y reintentar.
-- **No reintentar escrituras que no son idempotentes.** `save_queue_playlist` y
-  `add_to_playlist` (`library.py`) pasan `create_playlist` y cada lote de
-  `playlist.add` por `with_retries`. Si TIDAL aplica la escritura y la respuesta se
-  pierde por un timeout, el reintento crea otra playlist o duplica el lote. La misma
-  regla que ya sigue quitar de una playlist: la escritura no se reintenta, y el error
-  dice cuántas pistas entraron (`PlaylistSaveFailed` ya lo lleva). Las lecturas siguen
-  reintentándose. Se comprueba con un doble que aplica la escritura y luego lanza un
-  timeout: una sola playlist, sin lotes repetidos.
-- **Escritura atómica del estado.** Cola (`queue.py`), ajustes (`settings.py`),
-  órdenes de la biblioteca (`library.py`), configuración (`config.py`) y ritmos de
-  PipeWire (`audio.py`) usan `write_text` directo, y cola y ajustes además callan el
-  `OSError`. Un corte a mitad deja el JSON truncado y se pierde el estado anterior. Un
-  helper que escriba a un temporal en la misma carpeta y lo cambie con `os.replace`.
-  Trampa: el temporal tiene que estar en el mismo sistema de ficheros para que el
-  reemplazo sea atómico. Se comprueba simulando un fallo durante la escritura: el
-  fichero anterior queda intacto.
-- **`_resolve_worker` no pisa una pista más nueva.** Es un worker de hilo exclusivo,
-  pero Textual cancela la tarea que espera al hilo, no el hilo: con «siguiente»
-  apretado rápido, la resolución de una pista vieja puede terminar después y ponerse a
-  sonar. Al volver del hilo, comprobar que la pista pedida sigue siendo la que toca
-  (como ya hacen `_pane_loaded` y la ventana de la letra) y descartarla si no. No hace
-  falta tocar los otros veinte workers: casi todos cierran su propia pantalla. Se
-  comprueba con un resolve bloqueado a propósito, un segundo «siguiente» y soltar el
-  primero: suena la segunda.
-
 ## Para la 0.9.0
 
 - **mpv sin congelar la interfaz.** El IPC (`player.py`) espera hasta 2 s por comando,

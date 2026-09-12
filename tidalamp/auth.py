@@ -17,6 +17,7 @@ import tidalapi
 from . import config as settings
 from .config import SESSION_FILE, ensure_dirs
 from .i18n import _
+from .net import TimeoutSession
 
 log = logging.getLogger("tidalamp.auth")
 
@@ -27,7 +28,11 @@ class NotLoggedIn(RuntimeError):
 
 def _new_session() -> tidalapi.Session:
     config = tidalapi.Config(quality=tidalapi.Quality(settings.DEFAULT_QUALITY))
-    return tidalapi.Session(config)
+    session = tidalapi.Session(config)
+    # tidalapi's own requests session waits forever for an answer; every
+    # request, the login's included, goes through this one instead.
+    session.request_session = TimeoutSession()
+    return session
 
 
 def _stored_refresh_token() -> str:

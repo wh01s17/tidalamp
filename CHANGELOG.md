@@ -5,6 +5,21 @@ versioning is [semantic](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- A request TIDAL does not answer gives up after 20 seconds, and 5 to connect, instead
+  of holding its worker for good. It used to leave a spinner turning forever, and no
+  retry ever came.
+- Saving the queue as a playlist, or adding to one, never creates a playlist twice or
+  doubles a batch of tracks. A write whose answer got lost used to be sent again,
+  although TIDAL may have applied it already; it is now retried only when TIDAL
+  surely did not see it, and otherwise says how many tracks went in.
+- The queue, the settings, the library's sort orders, `config.toml` and PipeWire's rates
+  are written all at once. A quit, a crash or a full disk halfway through used to
+  leave half a file behind, and the next start lost it.
+- Pressing `next` quickly no longer lets an older track start over the newer one, when
+  the older one took longer to resolve.
+
 ## [0.8.0] - 2026-09-11
 
 ### Added

@@ -11,7 +11,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass, field
 
-from .config import STATE_DIR, ensure_dirs
+from .config import STATE_DIR, ensure_dirs, write_atomically
 
 SETTINGS_FILE = STATE_DIR / "settings.json"
 
@@ -117,9 +117,8 @@ class Settings:
         """Failures are non-fatal, as with the queue."""
         try:
             ensure_dirs()
-            SETTINGS_FILE.write_text(
-                json.dumps({"balance": self.balance, "gains": self.gains}),
-                encoding="utf-8",
+            write_atomically(
+                SETTINGS_FILE, json.dumps({"balance": self.balance, "gains": self.gains})
             )
         except OSError:
             pass

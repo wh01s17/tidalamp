@@ -308,3 +308,29 @@ def test_an_unknown_column_name_costs_that_column_and_nothing_else(monkeypatch):
     monkeypatch.setenv("TIDALAMP_COLUMNS", "artist,inventada,year,artist")
 
     assert config.columns() == ("artist", "year")
+
+
+def test_a_write_that_fails_halfway_leaves_the_old_file_whole(tmp_path, monkeypatch):
+    import os
+
+    from tidalamp.config import write_atomically
+
+    path = tmp_path / "queue.json"
+    path.write_text('{"entries": ["la de antes"]}', encoding="utf-8")
+    path.chmod(0o640)
+
+    def broken(source, target):
+        raise OSError("disco lleno")
+
+    monkeypatch.setattr(os, "replace", broken)
+    with pytest.raises(OSError):
+        write_atomically(path, '{"entries": ["la nue')
+    monkeypatch.undo()
+
+    assert path.read_text(encoding="utf-8") == '{"entries": ["la de antes"]}'
+    assert [p.name for p in tmp_path.iterdir()] == ["queue.json"], "sin temporales"
+
+    write_atomically(path, '{"entries": []}')
+    assert path.read_text(encoding="utf-8") == '{"entries": []}'
+    assert path.stat().st_mode & 0o777 == 0o640, "conserva sus permisos"
+    assert [p.name for p in tmp_path.iterdir()] == ["queue.json"]

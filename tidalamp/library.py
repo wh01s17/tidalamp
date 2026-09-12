@@ -19,7 +19,7 @@ from typing import Any, cast
 import tidalapi
 from tidalapi.types import AlbumOrder, ArtistOrder, ItemOrder, OrderDirection
 
-from .config import STATE_DIR
+from .config import STATE_DIR, write_atomically
 from .i18n import _
 from .net import with_retries
 from .queue import Entry
@@ -218,7 +218,7 @@ def remember(row: Row, order: Order | None) -> None:
         orders[row.key] = order.code
     try:
         ORDERS_FILE.parent.mkdir(parents=True, exist_ok=True)
-        ORDERS_FILE.write_text(json.dumps(orders, ensure_ascii=False), encoding="utf-8")
+        write_atomically(ORDERS_FILE, json.dumps(orders, ensure_ascii=False))
     except OSError:
         pass
 
@@ -746,7 +746,10 @@ def save_queue_playlist(
         raise ValueError("batch_size must be positive")
 
     media_ids = [str(entry.id) for entry in entries]
-    playlist = with_retries(lambda: _me(session).create_playlist(title, ""))
+    # Not retried on a lost answer: that would be a second playlist.
+    playlist = with_retries(
+        lambda: _me(session).create_playlist(title, ""), idempotent=False
+    )
     # A partially filled playlist is still a new playlist and must appear the
     # next time the user opens this level.
     forget("playlists")
@@ -764,7 +767,8 @@ def save_queue_playlist(
             )
 
         try:
-            result = with_retries(add_batch)
+            # Nor a batch: TIDAL may have added it already.
+            result = with_retries(add_batch, idempotent=False)
         except Exception as exc:
             raise PlaylistSaveFailed(title, added, len(media_ids), exc) from exc
         added += len(result)
@@ -888,7 +892,8 @@ def add_to_playlist(
             )
 
         try:
-            result = with_retries(add_batch)
+            # Nor a batch: TIDAL may have added it already.
+            result = with_retries(add_batch, idempotent=False)
         except Exception as exc:
             raise PlaylistSaveFailed(title, added, len(media_ids), exc) from exc
         added += len(result)

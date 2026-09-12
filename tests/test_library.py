@@ -989,3 +989,40 @@ def test_a_gap_in_the_page_does_not_delete_the_neighbour():
 
     assert playlist.removed == [7]
     assert 7 not in playlist.ids and 6 in playlist.ids
+
+
+def test_a_playlist_whose_creation_answer_is_lost_is_not_created_twice(monkeypatch):
+    import requests
+
+    monkeypatch.setattr("tidalamp.net.time.sleep", lambda _: None)
+
+    class LostAnswer(PlaylistOwner):
+        def create_playlist(self, title, description):
+            super().create_playlist(title, description)
+            raise requests.ReadTimeout()
+
+    owner = LostAnswer(WritablePlaylist())
+    with pytest.raises(requests.ReadTimeout):
+        library.save_queue_playlist(
+            SimpleNamespace(user=owner), "Viaje", queue_entries(3)
+        )
+
+    assert len(owner.calls) == 1, "un reintento sería una segunda playlist"
+
+
+def test_a_batch_whose_answer_is_lost_is_not_sent_twice(monkeypatch):
+    import requests
+
+    monkeypatch.setattr("tidalamp.net.time.sleep", lambda _: None)
+
+    class LostBatch(FakeUserPlaylist):
+        def add(self, items, **kwargs):
+            self.batches.append(list(items))
+            raise requests.ReadTimeout()
+
+    playlist = LostBatch()
+    with pytest.raises(library.PlaylistSaveFailed) as caught:
+        library.add_to_playlist(FakePlaylistSession(playlist), "7", entries(50))
+
+    assert len(playlist.batches) == 1, "un reintento duplicaría el lote"
+    assert caught.value.added == 0

@@ -202,3 +202,9 @@ def test_a_session_left_readable_by_an_older_version_is_closed_on_load(
 
     assert mode(session_file) == 0o600
     assert mode(session_file.parent) == 0o700
+
+
+def test_the_tidal_session_waits_for_an_answer_only_so_long():
+    from tidalamp.net import TimeoutSession
+
+    assert isinstance(auth._new_session().request_session, TimeoutSession)

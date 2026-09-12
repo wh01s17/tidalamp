@@ -20,7 +20,7 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
-from .config import _xdg
+from .config import _xdg, write_atomically
 from .i18n import _
 
 log = logging.getLogger("tidalamp.audio")
@@ -163,7 +163,8 @@ def write_rates() -> Path:
     """Drop in the allowed-rates setting. Returns the file it wrote."""
     CONF_DIR.mkdir(parents=True, exist_ok=True)
     listed = " ".join(str(rate) for rate in RATES)
-    RATES_FILE.write_text(
+    write_atomically(
+        RATES_FILE,
         "# Written by tidalamp. Delete this file to undo it.\n"
         "#\n"
         "# Without it PipeWire runs its graph at one rate and resamples\n"
@@ -174,7 +175,6 @@ def write_rates() -> Path:
         "    default.clock.rate          = 48000\n"
         f"    default.clock.allowed-rates = [ {listed} ]\n"
         "}\n",
-        encoding="utf-8",
     )
     return RATES_FILE
 

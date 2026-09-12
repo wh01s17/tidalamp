@@ -318,6 +318,10 @@ class TidalAmp(App):
         self.queue = Queue()
         self.settings = Settings.load()
         self._lyrics_cache: dict[int, LyricsDocument] = {}
+        # The entry the last resolve was started for. A worker's thread is not
+        # cancelled with it: an older resolve can finish after a newer one was
+        # asked for, and must not start its track over the newer one.
+        self._resolving: Entry | None = None
         # Which track the split view's lyrics pane was last asked to show, so
         # the tick fetches once per track rather than four times a second.
         self._pane_entry: int | None = None
@@ -1879,6 +1883,7 @@ class TidalAmp(App):
         )
         self.queue.save()
         self._load_art(entry)
+        self._resolving = entry
         self._resolve_worker(entry)
 
     # ----------------------------------------------------------------- artwork
@@ -2055,23 +2060,37 @@ class TidalAmp(App):
             track = with_retries(lambda: entry.resolve(self.session))
             playable = resolve(track)
         except NotLoggedIn as exc:
-            self.call_from_thread(self._resolve_failed, str(exc))
+            self.call_from_thread(self._resolve_failed, str(exc), entry)
             return
         except StreamUnavailable as exc:
-            self.call_from_thread(self._resolve_failed, str(exc))
+            self.call_from_thread(self._resolve_failed, str(exc), entry)
             return
         except Exception as exc:
             self.call_from_thread(
-                self._resolve_failed, _("error: {error}").format(error=exc)
+                self._resolve_failed, _("error: {error}").format(error=exc), entry
             )
             return
         self.call_from_thread(self._start, entry, playable)
 
-    def _resolve_failed(self, message: str) -> None:
+    def _stale(self, entry: Entry | None) -> bool:
+        """Whether a resolve that just came back is for a track no longer wanted."""
+        return (
+            entry is not None
+            and self._resolving is not None
+            and entry is not self._resolving
+        )
+
+    def _resolve_failed(self, message: str, entry: Entry | None = None) -> None:
+        if self._stale(entry):
+            return
         self.query_one("#busy", Spinner).stop()
         self.status = message
 
     def _start(self, entry: Entry, playable: Playable) -> None:
+        if self._stale(entry):
+            # «Next» was pressed again while this one resolved; the spinner
+            # belongs to the newer resolve, still on its way.
+            return
         self.query_one("#busy", Spinner).stop()
         self.mpv.load(playable.url)
         self._was_idle = False

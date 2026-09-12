@@ -118,3 +118,50 @@ def test_an_excessive_retry_after_is_reported_without_sleeping(monkeypatch):
         with_retries(limited)
     assert len(calls) == 1
     assert sleeps == []
+
+
+def test_a_write_is_not_retried_when_its_answer_is_lost(monkeypatch):
+    """TIDAL may have applied it: a retry would be a second playlist."""
+    monkeypatch.setattr("tidalamp.net.time.sleep", lambda _: None)
+    for lost in (requests.ReadTimeout(), requests.ConnectionError("cortada")):
+        calls = []
+
+        def write(error=lost, calls=calls):
+            calls.append(1)
+            raise error
+
+        with pytest.raises(type(lost)):
+            with_retries(write, idempotent=False)
+        assert len(calls) == 1, type(lost).__name__
+
+
+def test_a_write_that_never_reached_tidal_is_retried(monkeypatch):
+    monkeypatch.setattr("tidalamp.net.time.sleep", lambda _: None)
+    for refusal in (requests.ConnectTimeout(), TooManyRequests(retry_after=-1)):
+        calls = []
+
+        def write(error=refusal, calls=calls):
+            calls.append(1)
+            if len(calls) == 1:
+                raise error
+            return "ok"
+
+        assert with_retries(write, idempotent=False) == "ok"
+        assert len(calls) == 2, type(refusal).__name__
+
+
+def test_every_request_gets_a_timeout_unless_it_brings_its_own(monkeypatch):
+    from tidalamp.net import TIMEOUT, TimeoutSession
+
+    seen: list[object] = []
+
+    def request(self, method, url, *args, **kwargs):
+        seen.append(kwargs.get("timeout"))
+
+    monkeypatch.setattr(requests.Session, "request", request)
+    session = TimeoutSession()
+    session.request("GET", "https://example.invalid")
+    session.post("https://example.invalid", {})
+    session.request("GET", "https://example.invalid", timeout=3)
+
+    assert seen == [TIMEOUT, TIMEOUT, 3]

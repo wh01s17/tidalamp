@@ -19,9 +19,11 @@ a screen that showed a value the app is not using would be lying.
 
 from __future__ import annotations
 
+import contextlib
 import logging
 import os
 import re
+import tempfile
 import tomllib
 from pathlib import Path
 
@@ -211,7 +213,7 @@ def write_template(path: Path | None = None) -> Path:
         return path
     path.parent.mkdir(parents=True, exist_ok=True)
     keys = "\n".join(f'# {action} = "{key}"' for action, key in DEFAULT_KEYS.items())
-    path.write_text(config_template() % {"keys": keys}, encoding="utf-8")
+    write_atomically(path, config_template() % {"keys": keys})
     return path
 
 
@@ -252,7 +254,7 @@ def set_option(name: str, value: object, path: Path | None = None) -> Path:
     else:
         lines.append(written)
 
-    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    write_atomically(path, "\n".join(lines) + "\n")
     if path == CONFIG_FILE:
         reload()
     return path
@@ -284,6 +286,36 @@ def reload() -> None:
     TRANSPARENCY = flag("transparency", "TIDALAMP_TRANSPARENCY")
     AUTOPLAY = flag("autoplay", "TIDALAMP_AUTOPLAY")
     KEYS = {str(action): str(key) for action, key in (FILE.get("keys") or {}).items()}
+
+
+def write_atomically(path: Path, text: str) -> None:
+    """Write ``text`` to ``path`` all at once, or leave the old file as it was.
+
+    A plain ``write_text`` truncates first and writes after: a quit, a crash or
+    a full disk in between left half a JSON behind, and the next start lost the
+    queue or the settings along with it. The text goes to a temporary file in
+    the same directory, reaches the disk, and replaces the old one in a single
+    ``os.replace``. The file keeps its mode, and a new one is 0644.
+    """
+    path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        mode = path.stat().st_mode & 0o777
+    except FileNotFoundError:
+        mode = 0o644
+    handle, temporary = tempfile.mkstemp(
+        dir=path.parent, prefix=f".{path.name}.", suffix=".tmp"
+    )
+    try:
+        with os.fdopen(handle, "w", encoding="utf-8") as stream:
+            stream.write(text)
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.chmod(temporary, mode)
+        os.replace(temporary, path)
+    except BaseException:
+        with contextlib.suppress(OSError):
+            os.unlink(temporary)
+        raise
 
 
 def ensure_dirs() -> None:

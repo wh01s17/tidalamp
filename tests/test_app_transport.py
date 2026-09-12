@@ -774,3 +774,45 @@ def test_a_tick_after_teardown_finds_no_screen_quietly():
     stub._running = True
     with pytest.raises(ScreenStackError):
         stub.tick()
+
+
+def test_a_resolve_that_comes_back_late_does_not_start_an_older_track(monkeypatch):
+    """A worker's thread is not cancelled with it: «next» pressed twice quickly
+    could see the first track's resolve land after the second was asked for."""
+    isolate_runtime(monkeypatch)
+    monkeypatch.setattr(TidalAmp, "_resolve_worker", lambda self, entry: None)
+
+    class Playable:
+        kbps = "16-bit"
+        khz = "44.1"
+        quality = "LOSSLESS"
+        codec = "flac"
+
+        def __init__(self, url: str) -> None:
+            self.url = url
+
+    async def scenario() -> None:
+        mpv = FakeMpv()
+        application = TidalAmp(object(), mpv)
+        async with application.run_test(size=(100, 40)) as pilot:
+            await pilot.pause()
+            first = Entry(id=1, title="Schism", artist="TOOL")
+            second = Entry(id=2, title="Parabola", artist="TOOL")
+            application.queue.append([first, second])
+            application._sync_queue()
+            busy = application.query_one("#busy", Spinner)
+
+            application._play_index(0)
+            application._play_index(1)
+
+            application._start(first, Playable("https://cdn/schism"))
+            assert mpv.loaded is None, "la vieja no se pone a sonar"
+            assert busy.busy, "la nueva sigue resolviéndose"
+            application._resolve_failed("error: sin red", first)
+            assert busy.busy and application.status != "error: sin red"
+
+            application._start(second, Playable("https://cdn/parabola"))
+            assert mpv.loaded == "https://cdn/parabola"
+            assert not busy.busy
+
+    asyncio.run(scenario())

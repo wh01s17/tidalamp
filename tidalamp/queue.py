@@ -17,7 +17,7 @@ from typing import Any
 
 import tidalapi
 
-from .config import QUEUE_FILE, ensure_dirs
+from .config import QUEUE_FILE, ensure_dirs, write_atomically
 
 # Queue rows need an identity of their own: the same song can sit in the queue
 # twice, MPRIS TrackList addresses rows by id, and those ids have to survive a
@@ -348,7 +348,8 @@ class Queue:
         """Write the queue to disk. Failures are non-fatal by design."""
         try:
             ensure_dirs()
-            QUEUE_FILE.write_text(
+            write_atomically(
+                QUEUE_FILE,
                 json.dumps(
                     {
                         "entries": [e.to_dict() for e in self.entries],
@@ -358,7 +359,6 @@ class Queue:
                     },
                     ensure_ascii=False,
                 ),
-                encoding="utf-8",
             )
         except OSError:
             pass
