@@ -4,7 +4,8 @@ Documento de traspaso. Describe qué existe, qué está verificado, qué falta y
 criterio se tomaron las decisiones, para que cualquiera (humano o modelo) pueda
 retomar el trabajo sin contexto previo.
 
-**Última actualización:** 2026-09-12, lo de la `0.9.0` hecho y sin publicar: mpv que
+**Última actualización:** 2026-09-12, versión `0.9.0` preparada, lo nuevo probado
+a mano por el mantenedor contra TIDAL real: mpv que
 no contesta ya no congela la pantalla (espera de 1 s una vez, sondeo y reinicio en
 workers, EOF leído como muerte), la pista siguiente preparada en mpv para que no haya
 corte, volumen normalizado con el ReplayGain de TIDAL y «Mis mixes» en la biblioteca.
@@ -1654,8 +1655,8 @@ Distinguir esto importa: parte del código nunca se ha ejecutado contra TIDAL re
 | Reordenar la cola                  | **Verificado**                    | Unitarias de `Queue.move` (bordes, cursor, shuffle intacto) y `alt+↓` en la app real.                                                                                           |
 | Reinicio de mpv                    | **Verificado**                    | SIGKILL a mpv con la app corriendo: el tick lo relanza con otro PID y la pista vuelve a sonar. Desde la 0.9.0 el reinicio va en un worker; eso está cubierto por tests y no se ha repetido el SIGKILL a mano. |
 | mpv que no contesta (0.9.0)        | **VERIFICADO POR EL USUARIO**     | El mantenedor congeló el mpv de la app con `kill -STOP` mientras sonaba (2026-09-12): la pantalla siguió dibujándose, a los 5 s se levantó un mpv nuevo y la pista volvió a sonar, desde 0:00. En tests: contra el mpv falso por el socket de verdad: un mpv colgado cuesta una espera y no más, un sondeo lo despeja, el EOF se lee como muerte, las respuestas partidas de tres en tres bytes se recomponen. En la app: el atasco se dice en la línea de estado y se sondea fuera del hilo, un mpv muerto se reinicia en un worker y recarga la pista, un reinicio fallido espera. Queda sin ver a mano el otro camino, descongelarlo antes de los 5 s (`kill -CONT`) y que diga «mpv vuelve a contestar»; está cubierto por tests. |
-| Sin corte entre pistas (0.9.0)     | **VERIFICADO POR EL USUARIO**     | Oído por el mantenedor contra TIDAL real en un disco en vivo, sin corte (2026-09-12); que suene así dice también que la URL resuelta 20 s antes aguantó. En tests: la siguiente se prepara a 20 s del final y no antes, mpv pasa a ella sin volver a resolver, una cola editada o un repeat cambiado quitan lo preparado y se prepara la correcta, un resultado tardío no se encola, lo caducado se vuelve a pedir. Contra el mpv falso: `append`, `playlist-clear` y `playlist-pos`. |
-| Volumen normalizado (0.9.0)        | **CUBIERTO POR TESTS**            | Los tres modos, el pico como techo, la caída de disco a pista, el 1.0 de relleno de tidalapi, la ganancia como opción por fichero y el reintento sin ella. En la app: la ganancia que llega a mpv cambia con el modo, la preparada lleva la suya, y al apagarlo vuelve a 0; la insignia `RG` enseña la aplicada, y `RG —` sin datos. **Falta oírlo**; los valores reales de TIDAL se leen ahora en la propia insignia. |
+| Sin corte entre pistas (0.9.0)     | **VERIFICADO POR EL USUARIO**     | Oído por el mantenedor contra TIDAL real en un disco en vivo, sin corte (2026-09-12); que suene así dice también que la URL resuelta 20 s antes aguantó. También probado a mano: quitar o barajar la siguiente en los últimos 20 s hace sonar la que dice la cola, y la carátula y la letra de la siguiente llegan con el sonido. En tests: la siguiente se prepara a 20 s del final y no antes, mpv pasa a ella sin volver a resolver, una cola editada o un repeat cambiado quitan lo preparado y se prepara la correcta, un resultado tardío no se encola, lo caducado se vuelve a pedir. Contra el mpv falso: `append`, `playlist-clear` y `playlist-pos`. |
+| Volumen normalizado (0.9.0)        | **VERIFICADO POR EL USUARIO**     | Oído por el mantenedor contra TIDAL real, con la insignia `RG` enseñando los valores de cada pista (2026-09-12). En tests: | Los tres modos, el pico como techo, la caída de disco a pista, el 1.0 de relleno de tidalapi, la ganancia como opción por fichero y el reintento sin ella. En la app: la ganancia que llega a mpv cambia con el modo, la preparada lleva la suya, y al apagarlo vuelve a 0; la insignia `RG` enseña la aplicada, y `RG —` sin datos. **Falta oírlo**; los valores reales de TIDAL se leen ahora en la propia insignia. |
 | Mis mixes (0.9.0)                  | **VERIFICADO CONTRA TIDAL REAL**  | La página real de mixes, vista por el mantenedor en su cuenta (2026-09-12). En tests: sesión simulada con dos mixes y un enlace entre ellos: la sección lista los dos, cada uno se pide al abrirlo, abrirlo trae sus pistas, un mix vacío es un nivel vacío, y en la app `s` y `d` se niegan. Si deja de funcionar, mirar primero la página: es la parte de TIDAL que más cambia. |
 | Espectro con cava                  | **VERIFICADO CON AUDIO REAL**     | El usuario instaló cava 0.10.7 y reprodujo Thriller: la insignia dice `FFT` y las bandas dibujan un espectro con forma, graves y agudos por separado. `pgrep` confirma `cava -p ~/.cache/tidalamp/cava.conf` vivo junto al mpv de la app. |
 | Balance y ecualizador              | **Verificado**                    | Grafos validados con `ffmpeg -af` de verdad; en la app real los filtros llegan a mpv, se guardan, y se reaplican tras reiniciar mpv.                                            |
@@ -1690,9 +1691,8 @@ una pista en cada calidad y leer `~/.local/state/tidalamp/tidalamp.log`.
 
 > [!NOTE]
 > La funcionalidad comprometida para la próxima versión vive en
-> [next.md](./next.md), con sus trampas y su forma de comprobarse. Tras la `0.7.0`
-> quedan allí la velocidad por MPRIS, más formas de carátula y la reproducción
-> automática. Esta sección sigue siendo el estado general y aquella, la cola de
+> [next.md](./next.md), con sus trampas y su forma de comprobarse. Tras la `0.9.0`
+> está vacía. Esta sección sigue siendo el estado general y aquella, la cola de
 > trabajo.
 
 P1–P4 están cerradas: lo que queda no es funcionalidad que falte para que el
@@ -1700,8 +1700,8 @@ reproductor sirva, sino acabado, distribución y confirmar contra TIDAL real cos
 probadas sólo con dobles.
 
 **Orden propuesto (2026-09-11):** ~~P5 empaquetado~~ y ~~carátula~~ ✅ hechos. Cada
-versión se publica siguiendo `publish.md`; la última es la `0.7.0` (2026-09-11), en
-PyPI y en GitHub. Lo que queda abierto aquí pide credenciales tuyas o un par de ojos.
+versión se publica siguiendo `publish.md`; la última publicada es la `0.8.1`
+(2026-09-11), en PyPI y en GitHub, y la `0.9.0` está preparada (2026-09-12). Lo que queda abierto aquí pide credenciales tuyas o un par de ojos.
 
 1. Publicar en el AUR cuando vuelva a abrir el registro de cuentas nuevas. El paquete
    está preparado y se puede probar localmente, pero el alta final depende del

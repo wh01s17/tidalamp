@@ -1,6 +1,6 @@
 pkgbase = tidalamp
 	pkgdesc = Terminal TIDAL client with a retro interface and hi-res playback
-	pkgver = 0.8.1
+	pkgver = 0.9.0
 	pkgrel = 1
 	url = https://github.com/wh01s17/tidalamp
 	arch = any
@@ -19,7 +19,7 @@ pkgbase = tidalamp
 	depends = mpv
 	optdepends = cava: real spectrum analyzer instead of the RMS meter
 	optdepends = python-pillow: album cover art in the display
-	source = tidalamp-0.8.1.tar.gz::https://github.com/wh01s17/tidalamp/archive/refs/tags/v0.8.1.tar.gz
+	source = tidalamp-0.9.0.tar.gz::https://github.com/wh01s17/tidalamp/archive/refs/tags/v0.9.0.tar.gz
 	sha256sums = SKIP
 
 pkgname = tidalamp

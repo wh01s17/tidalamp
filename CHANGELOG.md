@@ -5,6 +5,8 @@ versioning is [semantic](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-09-12
+
 ### Added
 
 - No gap between tracks. The next track is fetched from TIDAL about twenty seconds

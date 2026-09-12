@@ -15,11 +15,12 @@ Lo de aquí no bloquea publicar. `plan.md` §5 y §6 mandan sobre el estado gene
 
 ---
 
-## Para la 0.9.0
+## Para la próxima versión
 
-Vacío: lo que había (mpv sin congelar la interfaz, sin corte entre pistas, volumen
-normalizado y tus mixes) está hecho, en `CHANGELOG.md` bajo `[Unreleased]` y en
-`plan.md` §4. Queda oírlo contra TIDAL real antes de publicar; ver `plan.md` §5.
+Vacío. Lo de la 0.9.0 (mpv sin congelar la interfaz, sin corte entre pistas, volumen
+normalizado, tus mixes, la insignia `RG` y la carátula y la letra de la siguiente por
+adelantado) está hecho, probado a mano contra TIDAL real y cerrado en `CHANGELOG.md`
+bajo `[0.9.0]`; el detalle, en `plan.md` §4 y §5.
 
 ## Sin fecha
 

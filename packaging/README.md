@@ -5,7 +5,7 @@ dependencia real y `cava` como opcional, y PyPI para el resto de distribuciones 
 donde no se puede. Windows no es compatible y macOS no está soportado ni probado.
 
 > [!IMPORTANT]
-> **PyPI está en marcha:** todas las versiones hasta `0.7.0` se publicaron mediante
+> **PyPI está en marcha:** todas las versiones hasta `0.8.1` se publicaron mediante
 > Trusted Publishing, sin ningún token de larga vida. El `PKGBUILD` del AUR
 > sigue preparado y sin publicar, porque
 > [el registro de cuentas nuevas sigue cerrado](https://lists.archlinux.org/archives/list/aur-general%40lists.archlinux.org/message/2IJD5MFHSLXARQTOP4FH64CJLW2BIIGC/)

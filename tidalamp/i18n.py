@@ -400,6 +400,17 @@ ENGLISH: dict[str, str] = {
     ),
     "buscar en la ayuda…": "search the help…",
     "Acerca de": "About",
+    # --- notas de versión 0.9.0
+    "Sin corte entre pistas; la siguiente llega con su carátula.": (
+        "No gap between tracks; the next one arrives with its cover."
+    ),
+    "Volumen normalizado con el ReplayGain de TIDAL.": (
+        "Normalised volume with TIDAL's ReplayGain."
+    ),
+    "Mis mixes, en la biblioteca.": "My mixes, in the library.",
+    "Un mpv que no contesta ya no congela la pantalla.": (
+        "An mpv that stops answering no longer freezes the screen."
+    ),
     # --- notas de versión 0.8.0
     "s ordena la biblioteca y d quita; ? con su propia ayuda.": (
         "s sorts the library and d removes; ? with its own help."
