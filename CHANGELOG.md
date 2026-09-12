@@ -37,6 +37,11 @@ versioning is [semantic](https://semver.org/).
   The row leaves the list at once, and so does a favourite removed with `F` from
   its own level. Only your own playlists can be changed; a track is found by its
   id, so a playlist shown sorted loses the right one.
+- A menu for albums, artists and playlists: `m` in the search and the library opens
+  the track menu on a track, and on an album, an artist or a playlist the same verbs
+  over everything inside it: play it all now, play it all next, add it to your
+  favourites, or add it all to a playlist. Every page comes along, not only the first
+  hundred tracks the level opens on, and in the order picked for it with `s`.
 
 ### Changed
 
@@ -76,6 +81,8 @@ versioning is [semantic](https://semver.org/).
 
 ### Fixed
 
+- `a` and `A` on an album, an artist or a playlist add every track in it. They used to
+  stop at the first page, a hundred tracks, so a long playlist came in cut short.
 - The lyrics window (`y`) follows the track. With it open, a track changed by the media
   keys or the end of a song left the lyrics of the one it had opened on.
 

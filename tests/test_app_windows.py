@@ -29,6 +29,7 @@ from tidalamp.app import BrowserScreen, HelpScreen, RowList, TidalAmp
 from tidalamp.library import Row
 from tidalamp.queue import Entry
 from tidalamp.screens import (
+    CONTAINER_ACTIONS,
     TRACK_ACTIONS,
     PlaylistNameScreen,
     TrackActionsScreen,
@@ -1600,5 +1601,186 @@ def test_question_mark_in_the_browser_shows_only_its_keys(monkeypatch):
             await pilot.press("escape")
             await pilot.pause()
             assert application.screen is browser
+
+    asyncio.run(scenario())
+
+
+# ------------------------------------------------------------- container menu
+
+
+def two_page_album() -> list[Row]:
+    """An album whose tracks come in two pages, the second behind a «más…»."""
+    first, second, third = track_rows()
+    more = Row(label="más…", more=lambda: [third])
+    return [Row(label="Lateralus", key="album:9", loader=lambda: [first, second, more])]
+
+
+def test_m_on_an_album_plays_every_page_of_it(monkeypatch):
+    isolate_runtime(monkeypatch)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(100, 30)) as pilot:
+            open_menu_on_b(application, two_page_album())
+            await pilot.pause()
+            await pilot.press("m")
+            await pilot.pause()
+            assert isinstance(application.screen, TrackActionsScreen)
+            await pilot.press("a")
+            await settle(pilot, lambda: len(application.queue) == 3)
+
+            assert [e.title for e in application.queue] == ["A", "B", "C"]
+            assert application.queue.playing == 0
+
+    asyncio.run(scenario())
+
+
+def test_m_on_an_album_queues_it_next(monkeypatch):
+    isolate_runtime(monkeypatch)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(100, 30)) as pilot:
+            await pilot.pause()
+            application.queue.replace([Entry(id=8, title="sonando", artist="x")], start=0)
+            application.queue.append([Entry(id=9, title="después", artist="x")])
+            open_menu_on_b(application, two_page_album())
+            await pilot.pause()
+            await pilot.press("m")
+            await pilot.pause()
+            await pilot.press("c")
+            await settle(pilot, lambda: len(application.queue) == 5)
+
+            titles = [e.title for e in application.queue]
+            assert titles == ["sonando", "A", "B", "C", "después"]
+            assert "3" in application.status
+
+    asyncio.run(scenario())
+
+
+def test_m_on_an_album_adds_all_of_it_to_a_playlist(monkeypatch):
+    isolate_runtime(monkeypatch)
+    monkeypatch.setattr("tidalamp.app.ensure_fresh", lambda session: False)
+    sent: list[tuple[str, list[str]]] = []
+
+    def add(session, playlist_id, tracks, batch_size=100):
+        titles = [t.title for t in tracks]
+        sent.append((playlist_id, titles))
+        return len(titles)
+
+    monkeypatch.setattr(library, "add_to_playlist", add)
+    monkeypatch.setattr(
+        library,
+        "playlist_rows",
+        lambda session: [Row(label="Mis rolas", detail="12 pistas", key="playlist:42")],
+    )
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(100, 30)) as pilot:
+            open_menu_on_b(application, two_page_album())
+            await pilot.pause()
+            await pilot.press("m")
+            await pilot.pause()
+            await pilot.press("l")
+            await settle(pilot, lambda: application.screen.query("#picker-list"))
+            await pilot.press("enter")
+            await settle(pilot, lambda: bool(sent))
+
+            assert sent == [("42", ["A", "B", "C"])]
+            assert len(application.queue) == 0
+
+    asyncio.run(scenario())
+
+
+def test_m_on_an_album_can_favourite_the_album_itself(monkeypatch):
+    isolate_runtime(monkeypatch)
+    monkeypatch.setattr("tidalamp.screens.browser.ensure_fresh", lambda session: False)
+    added: list[tuple[str, bool]] = []
+
+    def favourite(session, row, add=True):
+        added.append((row.key, add))
+        return row.label
+
+    monkeypatch.setattr("tidalamp.library.favourite", favourite)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(100, 30)) as pilot:
+            open_menu_on_b(application, two_page_album())
+            await pilot.pause()
+            await pilot.press("m")
+            await pilot.pause()
+            await pilot.press("v")
+            await settle(pilot, lambda: bool(added))
+
+            assert added == [("album:9", True)]
+            assert isinstance(application.screen, BrowserScreen), "sigue en el nivel"
+
+    asyncio.run(scenario())
+
+
+def test_the_container_menu_offers_no_radio(monkeypatch):
+    isolate_runtime(monkeypatch)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(100, 30)) as pilot:
+            open_menu_on_b(application, two_page_album())
+            await pilot.pause()
+            await pilot.press("m")
+            await pilot.pause()
+            menu = application.screen
+            drawn = menu.query_one("#actions-list").render_line
+            lines = [drawn(y).text for y in range(len(CONTAINER_ACTIONS) + 1)]
+            assert not any("radio" in line for line in lines)
+
+            await pilot.press("d")
+            await pilot.pause()
+            assert application.screen is menu, "la d de la radio no hace nada aquí"
+
+            await pilot.press("up")
+            await pilot.pause()
+            assert menu.cursor == len(CONTAINER_ACTIONS) - 1
+
+    asyncio.run(scenario())
+
+
+def test_m_on_a_track_opens_the_track_menu(monkeypatch):
+    isolate_runtime(monkeypatch)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(100, 30)) as pilot:
+            open_menu_on_b(application, track_rows())
+            await pilot.pause()
+            await pilot.press("m")
+            await pilot.pause()
+
+            menu = application.screen
+            assert isinstance(menu, TrackActionsScreen)
+            drawn = menu.query_one("#actions-list").render_line
+            lines = [drawn(y).text for y in range(len(TRACK_ACTIONS))]
+            assert any("radio" in line for line in lines), "la pista sí tiene radio"
+
+            await pilot.press("escape")
+            await pilot.pause()
+            assert isinstance(application.screen, BrowserScreen)
+
+    asyncio.run(scenario())
+
+
+def test_a_on_an_album_appends_every_page_of_it(monkeypatch):
+    isolate_runtime(monkeypatch)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(100, 30)) as pilot:
+            open_menu_on_b(application, two_page_album())
+            await pilot.pause()
+            await pilot.press("a")
+            await settle(pilot, lambda: len(application.queue) == 3)
+
+            assert [e.title for e in application.queue] == ["A", "B", "C"]
 
     asyncio.run(scenario())

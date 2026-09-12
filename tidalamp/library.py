@@ -357,6 +357,22 @@ def _paged(
     return level
 
 
+def all_entries(loader: Callable[[], list[Row]]) -> list[Entry]:
+    """Every track a level holds, following its "más…" rows to the end.
+
+    Opening a level shows one page; playing or adding a whole album or
+    playlist means all of it, not the first hundred tracks.
+    """
+    entries: list[Entry] = []
+    rows = loader()
+    while True:
+        entries.extend(row.entry for row in rows if row.entry is not None)
+        more = next((row.more for row in rows if row.more is not None), None)
+        if more is None:
+            return entries
+        rows = more()
+
+
 def _tracks_to_rows(tracks: Iterable[tidalapi.Track]) -> list[Row]:
     rows = []
     for track in tracks:

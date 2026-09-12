@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
+from functools import partial
 from typing import TYPE_CHECKING, cast
 
 from rich.cells import cell_len
@@ -20,7 +22,7 @@ from ..widgets import Spinner
 from .choice import ChoiceScreen
 from .help import HelpScreen
 from .rowlist import RowList
-from .tracks import TrackActionsScreen
+from .tracks import CONTAINER_ACTIONS, TrackActionsScreen
 
 if TYPE_CHECKING:  # The screens report back to the app; the app owns them.
     from ..app import TidalAmp
@@ -88,6 +90,7 @@ class BrowserScreen(ModalScreen[tuple | None]):
         Binding("backspace,left", "back", _("atrás"), show=False),
         Binding("a", "append_one", _("añadir"), show=False),
         Binding("A", "append_all", _("añadir todo"), show=False),
+        Binding("m", "menu", _("menú"), show=False),
         Binding("R", "reload", _("recargar"), show=False),
         Binding("s", "sort", _("ordenar"), show=False),
         Binding("d,delete", "remove", _("quitar"), show=False),
@@ -468,17 +471,56 @@ class BrowserScreen(ModalScreen[tuple | None]):
             self._empty = _("cargando…")
             widget.empty_text = self._empty
             self._busy(_("abriendo {label}…").format(label=row.label))
-            # In the order last picked for this level, if one was.
-            order = library.chosen(row)
-            if order is not None and row.sort is not None:
-                key, loader = row.sort(order)
-                self._load(row.label, loader, key, row)
-            else:
-                self._load(row.label, row.loader, row.key, row)
+            key, loader = self._level_of(row)
+            self._load(row.label, loader, key, row)
             return
         # A track offers more than one thing worth doing, so ask instead of
         # assuming. `a` still means what ↵ used to do on its own.
         self.app.push_screen(TrackActionsScreen(row.label), self._act_on_track)
+
+    @staticmethod
+    def _level_of(row: Row) -> tuple[str, Callable[[], list[Row]]]:
+        """The cache key and loader a container opens to, in the order last
+        picked for it, if one was."""
+        order = library.chosen(row)
+        if order is not None and row.sort is not None:
+            return row.sort(order)
+        assert row.loader is not None
+        return row.key, row.loader
+
+    def action_menu(self) -> None:
+        """`m`: the track's menu on a track, and on an album, an artist or a
+        playlist the same verbs over everything inside it."""
+        row = self.query_one(RowList).current
+        if row is None:
+            return
+        if row.entry is not None:
+            self.app.push_screen(TrackActionsScreen(row.label), self._act_on_track)
+        elif row.loader is not None:
+            self.app.push_screen(
+                TrackActionsScreen(row.label, CONTAINER_ACTIONS),
+                partial(self._act_on_container, row),
+            )
+
+    def _act_on_container(self, row: Row, action: str | None) -> None:
+        if action is None:
+            return
+        if action == "favourite":
+            self._busy(_("añadiendo a favoritos…"))
+            self._favourite_worker(row, True)
+            return
+        self._busy(_("cargando {label}…").format(label=row.label))
+        self._container_worker(row, action)
+
+    @work(thread=True, exclusive=True)
+    def _container_worker(self, row: Row, action: str) -> None:
+        _key, loader = self._level_of(row)
+        try:
+            entries = library.all_entries(loader)
+        except Exception as exc:
+            self.app.call_from_thread(self._failed, exc)
+            return
+        self.app.call_from_thread(self.dismiss, (action, entries, 0))
 
     def _act_on_track(self, action: str | None) -> None:
         """Turn the menu's answer into the tuple the app already understands."""
@@ -532,7 +574,7 @@ class BrowserScreen(ModalScreen[tuple | None]):
         elif row.loader is not None:
             # Appending a container means appending everything inside it.
             self._busy(_("añadiendo {label}…").format(label=row.label))
-            self._append_container(row.loader)
+            self._append_container(self._level_of(row)[1])
 
     def action_favourite(self) -> None:
         self._favourite(True)
@@ -584,11 +626,11 @@ class BrowserScreen(ModalScreen[tuple | None]):
     @work(thread=True, exclusive=True)
     def _append_container(self, loader) -> None:
         try:
-            rows = loader()
+            # All of it, not the first page the level would open on.
+            entries = library.all_entries(loader)
         except Exception as exc:
             self.app.call_from_thread(self._failed, exc)
             return
-        entries = [r.entry for r in rows if r.entry is not None]
         self.app.call_from_thread(self.dismiss, ("append", entries, 0))
 
     def action_append_all(self) -> None:

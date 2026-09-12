@@ -20,10 +20,16 @@ from .lyrics_window import LyricsScreen
 from .prompts import PlaylistNameScreen, SearchScreen
 from .rowlist import RowList, _hex, _Paint
 from .speed import SpeedScreen, speed_text
-from .tracks import TRACK_ACTIONS, PlaylistPickerScreen, TrackActionsScreen
+from .tracks import (
+    CONTAINER_ACTIONS,
+    TRACK_ACTIONS,
+    PlaylistPickerScreen,
+    TrackActionsScreen,
+)
 
 __all__ = [
     "BROWSER_HINTS",
+    "CONTAINER_ACTIONS",
     "HINT_GAP",
     "PRESET_LABELS",
     "TRACK_ACTIONS",

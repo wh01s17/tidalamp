@@ -300,6 +300,21 @@ ENGLISH: dict[str, str] = {
     "elegir": "choose",
     " ↑↓ elegir   ↵ aceptar   esc cancelar": " ↑↓ choose   ↵ accept   esc cancel",
     "«{label}» sonará a continuación": "“{label}” will play next",
+    "{count} pistas sonarán a continuación": "{count} tracks will play next",
+    "reproducir todo ahora": "play all now",
+    "m: el menú de un álbum, artista o playlist entero.": (
+        "m: the menu of a whole album, artist or playlist."
+    ),
+    "reproducir todo a continuación": "play all next",
+    "añadir todo a una playlist": "add all to a playlist",
+    "menú": "menu",
+    "cargando {label}…": "loading {label}…",
+    "menú de la pista, o del álbum, artista o playlist": (
+        "the track's menu, or the album's, artist's or playlist's"
+    ),
+    "Menú de un álbum, artista o playlist (m en la biblioteca)": (
+        "Album, artist or playlist menu (m in the library)"
+    ),
     "buscando la radio de «{label}»…": "looking for the radio of “{label}”…",
     "radio de «{label}»: {count} pistas": "radio of “{label}”: {count} tracks",
     "TIDAL no tiene radio para «{label}»": "TIDAL has no radio for “{label}”",
@@ -574,8 +589,8 @@ ENGLISH: dict[str, str] = {
     "no hay ningún vaciado que deshacer": "there is no clear to undo",
     "deshacer el último vaciado de la cola": "undo the last queue clear",
     "menú de la pista del cursor": "menu for the track under the cursor",
-    "Menú de la pista (↵ en la biblioteca, m en la cola)": (
-        "Track menu (↵ in the library, m in the queue)"
+    "Menú de la pista (↵ o m en la biblioteca, m en la cola)": (
+        "Track menu (↵ or m in the library, m in the queue)"
     ),
     "buscar en la cola: escribe y se estrecha": "search the queue: type and it narrows",
     "volver a la pista que suena": "go to the playing track",

@@ -54,6 +54,7 @@ def releases() -> tuple[Release, ...]:
             "2026-09-11",
             (
                 _("s ordena la biblioteca y d quita; ? con su propia ayuda."),
+                _("m: el menú de un álbum, artista o playlist entero."),
                 _("w: pantalla completa, con la cola al lado."),
                 _("Reproducción automática; la velocidad, también por MPRIS."),
                 _("Carátula más nítida en blocks y más ligera en kitty y sixel."),
@@ -308,6 +309,7 @@ def shortcuts(keys) -> tuple[Section, ...]:
                 ("← / ⌫", _("volver al nivel anterior")),
                 ("a", _("añadir a la cola")),
                 ("A", _("añadir el nivel entero")),
+                ("m", _("menú de la pista, o del álbum, artista o playlist")),
                 ("/", _("filtrar el nivel: escribe y la lista se estrecha")),
                 ("R", _("recargar, ignorando la caché")),
                 ("s", _("ordenar el nivel: fecha, nombre, artista o álbum")),
@@ -318,13 +320,23 @@ def shortcuts(keys) -> tuple[Section, ...]:
             name="browser",
         ),
         Section(
-            _("Menú de la pista (↵ en la biblioteca, m en la cola)"),
+            _("Menú de la pista (↵ o m en la biblioteca, m en la cola)"),
             (
                 ("a", _("reproducir ahora")),
                 ("c", _("reproducir a continuación")),
                 ("d", _("reproducir la radio de la pista")),
                 ("v", _("añadir a favoritos")),
                 ("↑ / ↓ / ↵", _("elegir con el cursor")),
+                ("esc", _("cancelar")),
+            ),
+        ),
+        Section(
+            _("Menú de un álbum, artista o playlist (m en la biblioteca)"),
+            (
+                ("a", _("reproducir todo ahora")),
+                ("c", _("reproducir todo a continuación")),
+                ("v", _("añadir a favoritos")),
+                ("l", _("añadir todo a una playlist")),
                 ("esc", _("cancelar")),
             ),
         ),

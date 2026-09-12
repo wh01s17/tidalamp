@@ -190,6 +190,7 @@ show the key that actually works.
 | `R`             | reload the level, bypassing the cache              |
 | `s`             | inside the browser, sort the level you are on      |
 | `d`             | inside the browser, remove from favourites or from the open playlist |
+| `m`             | inside the browser, open the menu of a track, album, artist or playlist |
 | `y`             | show lyrics for the current track                  |
 | `s` `r`         | shuffle (`⇄`) / repeat (`↻`), on the transport row |
 | `d`             | remove from the queue                              |
@@ -365,8 +366,8 @@ of its own to go to.
 ## The track menu
 
 `↵` on a song — in search results or in the library — opens a small menu instead of
-assuming what you meant. `m` opens the same menu on the queue row under the cursor,
-where `↵` already plays it:
+assuming what you meant. `m` opens the same menu, in the browser and on the queue row
+under the cursor, where `↵` already plays it:
 
 |     | Action            | Key | What it does                                                                     |
 | --- | ----------------- | --- | -------------------------------------------------------------------------------- |
@@ -378,6 +379,13 @@ where `↵` already plays it:
 
 `↑` `↓` and `↵` pick, `Esc` backs out. `↵` on an album, artist or playlist still opens
 it: a level has one obvious thing to do.
+
+`m` on an album, an artist or a playlist opens the same menu for everything inside it:
+**play it all now** (`a`), **play it all next** (`c`), **add it to your favourites**
+(`v`) or **add it all to a playlist** (`l`). The whole of it comes along, every page
+and not only the first hundred tracks, in the order you picked for it with `s`. There
+is no radio in this one: a station grows from a single track. For an artist, "all" is
+their top tracks, the level `↵` opens.
 
 Not every track has a radio station — TIDAL simply has none for some obscure releases
 — and when it does not, the status line says so and nothing is queued.

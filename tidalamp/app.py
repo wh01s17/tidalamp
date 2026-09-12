@@ -1587,8 +1587,10 @@ class TidalAmp(App):
         elif action == "next":
             self.queue.insert_next(entries)
             self._sync_queue()
-            self.status = _("«{label}» sonará a continuación").format(
-                label=entries[0].label
+            self.status = (
+                _("«{label}» sonará a continuación").format(label=entries[0].label)
+                if len(entries) == 1
+                else _("{count} pistas sonarán a continuación").format(count=len(entries))
             )
         elif action == "playlist":
             self._pending_playlist = list(entries)

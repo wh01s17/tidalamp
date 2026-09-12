@@ -36,6 +36,16 @@ TRACK_ACTIONS: tuple[tuple[str, str, str, str], ...] = (
     ("playlist", "≡", "l", _("añadir a una playlist")),
 )
 
+# What `m` offers on an album, an artist or a playlist: the same verbs, over
+# every track inside it, with the same letters. No radio: it grows from one
+# track, and TIDAL has no radio for an album.
+CONTAINER_ACTIONS: tuple[tuple[str, str, str, str], ...] = (
+    ("play", "▶", "a", _("reproducir todo ahora")),
+    ("next", "↳", "c", _("reproducir todo a continuación")),
+    ("favourite", "♥", "v", _("añadir a favoritos")),
+    ("playlist", "≡", "l", _("añadir todo a una playlist")),
+)
+
 
 class PlaylistPickerScreen(ModalScreen[str | None]):
     """Which playlist to add to. Dismisses with its cache key, or None.
@@ -122,16 +132,19 @@ class TrackActionsScreen(ModalScreen[str | None]):
         Binding("down", "down", _("abajo"), show=False),
         Binding("enter", "choose", _("elegir"), show=False),
         *[
-            Binding(letter, f"pick_{action}", "", show=False)
+            Binding(letter, f"pick('{action}')", "", show=False)
             for action, _icon, letter, _label in TRACK_ACTIONS
         ],
     ]
 
     cursor = reactive(0)
 
-    def __init__(self, label: str) -> None:
+    def __init__(
+        self, label: str, actions: tuple[tuple[str, str, str, str], ...] = TRACK_ACTIONS
+    ) -> None:
         super().__init__()
         self._label = label
+        self._actions = actions
 
     def compose(self) -> ComposeResult:
         with Vertical(id="actions-box"):
@@ -150,7 +163,7 @@ class TrackActionsScreen(ModalScreen[str | None]):
     def _render_list(self) -> None:
         palette = palette_for(self)
         rendered = Text()
-        for index, (_action, icon, letter, label) in enumerate(TRACK_ACTIONS):
+        for index, (_action, icon, letter, label) in enumerate(self._actions):
             selected = index == self.cursor
             # «›», not the «▶» the playlist uses: one of the icons is itself a
             # «▶», and two of them side by side read as one smudge.
@@ -162,33 +175,24 @@ class TrackActionsScreen(ModalScreen[str | None]):
             )
             line = f" {marker} {icon}  {label}  [{letter}]"
             rendered.append(line, style=style)
-            if index < len(TRACK_ACTIONS) - 1:
+            if index < len(self._actions) - 1:
                 rendered.append("\n")
         self.query_one("#actions-list", Static).update(rendered)
 
     def action_up(self) -> None:
-        self.cursor = (self.cursor - 1) % len(TRACK_ACTIONS)
+        self.cursor = (self.cursor - 1) % len(self._actions)
 
     def action_down(self) -> None:
-        self.cursor = (self.cursor + 1) % len(TRACK_ACTIONS)
+        self.cursor = (self.cursor + 1) % len(self._actions)
 
     def action_choose(self) -> None:
-        self.dismiss(TRACK_ACTIONS[self.cursor][0])
+        self.dismiss(self._actions[self.cursor][0])
 
     def action_close(self) -> None:
         self.dismiss(None)
 
-    def action_pick_play(self) -> None:
-        self.dismiss("play")
-
-    def action_pick_next(self) -> None:
-        self.dismiss("next")
-
-    def action_pick_radio(self) -> None:
-        self.dismiss("radio")
-
-    def action_pick_favourite(self) -> None:
-        self.dismiss("favourite")
-
-    def action_pick_playlist(self) -> None:
-        self.dismiss("playlist")
+    def action_pick(self, action: str) -> None:
+        # The bindings cover every letter of the track menu; a container's
+        # menu offers fewer, and a letter it does not show does nothing.
+        if any(name == action for name, _icon, _letter, _label in self._actions):
+            self.dismiss(action)
