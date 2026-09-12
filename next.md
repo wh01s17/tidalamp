@@ -24,6 +24,30 @@ Lo de aquí no bloquea publicar. `plan.md` §5 y §6 mandan sobre el estado gene
   cero. Llevar la recuperación a un worker, añadir un estado degradado visible y tests
   de timeout, EOF y líneas partidas del socket. No se ha visto pasar en la práctica.
 
+- **Sin corte entre pistas.** Hoy la pista siguiente se resuelve cuando termina la
+  anterior (`_play_index` llama a `_resolve_worker`), así que entre canciones queda el
+  silencio de pedir el stream a TIDAL. Resolverla por adelantado mientras suena la
+  actual y dejársela preparada a mpv; en discos en vivo o conceptuales el corte se
+  nota. Trampas: la URL del stream caduca, así que no se puede resolver con demasiada
+  antelación; shuffle, repeat y la cola editada cambian cuál es «la siguiente», y un
+  resultado preparado para otra pista no debe sonar (el mismo cuidado que
+  `_resolving`). Se comprueba con un mpv falso: al terminar una pista, la siguiente
+  arranca sin volver a resolver, y si la cola cambió en medio se resuelve la correcta.
+- **Volumen normalizado (ReplayGain).** Un ajuste con tres modos, apagado, por pista y
+  por disco, para que una playlist no salte de volumen entre canciones. TIDAL publica
+  la ganancia de cada pista y de su disco; **por confirmar** que tidalapi la expone en
+  lo que ya pedimos al resolver el stream (`stream.py`), y en qué forma. mpv la aplica
+  como un filtro de volumen más, junto al balance y el ecualizador (`settings.py`,
+  `_apply_audio`). Trampa: no recortar si la ganancia sube una pista ya fuerte; el
+  pico, si TIDAL lo da, marca el límite. Se comprueba con valores fijados: el filtro
+  que llega a mpv cambia con el modo y desaparece al apagarlo.
+- **Tus Mixes de TIDAL en la biblioteca.** Una sección con los mixes personales, como
+  el diario y el de descubrimiento, que se abren como una playlist más. **Por
+  confirmar** qué ofrece tidalapi y lo estable que es: esa parte de TIDAL cambia más
+  que favoritos o playlists. Trampa: un mix no se ordena ni se modifica, así que no
+  debe ofrecer `s` ni `d`. Se comprueba con una sesión simulada que devuelve dos
+  mixes: la sección los lista y abrir uno trae sus pistas.
+
 ## Sin fecha
 
 - **Sacar objetos de verdad de `TidalAmp`.** 2635 líneas y 182 métodos en `app.py`;
@@ -33,10 +57,16 @@ Lo de aquí no bloquea publicar. `plan.md` §5 y §6 mandan sobre el estado gene
   grande que no arregla ningún fallo, así que solo cuando haya tiempo para hacerlo
   bien.
 
+- **Seleccionar varias pistas en la cola** para quitarlas o moverlas juntas; hoy se
+  hace de a una. Interesa, pero sin versión decidida.
+
 ## Descartado por ahora
 
 No se borran: quedan escritos con el motivo para no volver a discutirlos desde cero.
 
+- **Radio de un artista o de una playlist** (2026-09-11), para completar el menú de la
+  `m`, que no tiene radio porque la de TIDAL nace de una pista. Al mantenedor no le
+  interesó: la radio de pista ya cubre lo que busca.
 - **Recordar el segundo de la pista al salir.** `queue.json` guarda el índice pero no la
   posición, así que cerrar a mitad de una canción devuelve a 0:00. **Decidido que no**
   (2026-09-10): ni el cliente oficial de TIDAL lo hace, así que no es una expectativa
