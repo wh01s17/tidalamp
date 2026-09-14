@@ -19,12 +19,6 @@ Lo de aquí no bloquea publicar. `plan.md` §5 y §6 mandan sobre el estado gene
 
 Nada comprometido todavía: lo de abajo no tiene versión.
 
-Lo de la 0.9.0 (mpv sin congelar la interfaz, sin corte entre pistas, volumen
-normalizado, tus mixes, la insignia `RG`, la carátula y la letra de la siguiente por
-adelantado, y el segundo recordado tras un reinicio de mpv y al salir, que estaba
-descartado y se retomó) está hecho, probado a mano contra TIDAL real y cerrado en `CHANGELOG.md`
-bajo `[0.9.0]`; el detalle, en `plan.md` §4 y §5.
-
 ## Sin fecha
 
 - **Sacar objetos de verdad de `TidalAmp`.** 2635 líneas y 182 métodos en `app.py`;
