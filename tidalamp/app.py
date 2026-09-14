@@ -973,6 +973,12 @@ class TidalAmp(App):
         """Write the status line, and only when it changed: `Static.update()`
         repaints whether or not the words moved."""
         line = f" {self.status}"
+        # A failed save is said once in full, and the very next message (the
+        # track that starts, the repeat mode) wrote over it before anyone
+        # could read it. The mark stays for the session: nothing is being
+        # saved, and that stays true until the app is restarted.
+        if self._save_warned:
+            line += "  " + _("· sin guardar en disco")
         if line == self._status_line:
             return
         self._status_line = line

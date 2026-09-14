@@ -67,6 +67,25 @@ def test_a_failed_save_is_said_once_and_not_on_every_track(monkeypatch):
             application._saved(application.settings.save())
             assert application.status == "reproduciendo"
 
+            # The next message wrote over the warning at once, and the
+            # maintainer never saw it: the line keeps a mark instead.
+            application._refresh_status()
+            assert application._status_line == (" reproduciendo  · sin guardar en disco")
+
+    asyncio.run(scenario())
+
+
+def test_the_status_line_carries_no_mark_while_saves_work(monkeypatch):
+    isolate_runtime(monkeypatch)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(160, 26)) as pilot:
+            await pilot.pause()
+            application.status = "reproduciendo"
+            application._refresh_status()
+            assert application._status_line == " reproduciendo"
+
     asyncio.run(scenario())
 
 

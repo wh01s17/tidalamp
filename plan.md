@@ -508,7 +508,12 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
       módulos no conocen Textual, así que es `TidalAmp._saved()` quien lo registra con
       `log.warning` y lo pone en la línea de estado, sólo la primera vez de la sesión
       (`_save_warned`): la cola se guarda en cada cambio de pista y con el disco lleno
-      se comería la línea. Sigue sin ser fatal; un orden que no se pudo escribir vale
+      se comería la línea. **Pero una vez no basta**: el mantenedor lo probó con la
+      carpeta de estado en solo lectura (2026-09-14) y no llegó a verlo, porque el
+      mensaje siguiente (la pista que empieza, el modo de repetición) lo pisa en el
+      mismo instante. Así que, desde el primer fallo, `_refresh_status` añade «· sin
+      guardar en disco» detrás de lo que diga la línea, hasta cerrar la app: se ve
+      siempre, no se repite y es verdad mientras dure. Sigue sin ser fatal; un orden que no se pudo escribir vale
       igual para esta sesión.
 - [x] **Una ruta de socket demasiado larga se dice antes de lanzar mpv.** `sun_path`
       son 108 bytes con el NUL, así que `Mpv._spawn` mira `SOCKET_PATH_MAX = 107` y

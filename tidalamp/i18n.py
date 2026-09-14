@@ -792,6 +792,7 @@ ENGLISH: dict[str, str] = {
         "mpv's socket path is too long ({length} bytes, at most {limit}): {path}"
     ),
     "no se pudo guardar en disco ({error})": "could not save to disk ({error})",
+    "· sin guardar en disco": "· not saving to disk",
     "TIDAL no devolvió stream para «{name}»: {error}": (
         "TIDAL returned no stream for “{name}”: {error}"
     ),

@@ -18,8 +18,9 @@ versioning is [semantic](https://semver.org/).
 ### Fixed
 
 - A save that fails (a full disk, a read-only state directory) is now reported on the
-  status line, once per session, instead of losing the queue, the equaliser or a
-  library order without a trace.
+  status line, instead of losing the queue, the equaliser or a library order without
+  a trace: the error once, and a short «not saving to disk» mark after whatever the
+  line says for the rest of the session.
 - A socket path too long for a Unix socket (a very long `XDG_CACHE_HOME`) now says so
   at once, instead of waiting five seconds and blaming mpv for not opening it.
 
