@@ -4,7 +4,14 @@ Documento de traspaso. Describe qué existe, qué está verificado, qué falta y
 criterio se tomaron las decisiones, para que cualquiera (humano o modelo) pueda
 retomar el trabajo sin contexto previo.
 
-**Última actualización:** 2026-09-12, versión `0.9.0` preparada, lo nuevo probado
+**Última actualización:** 2026-09-14, versión `0.10.0` preparada y validada en local
+(`febbbff`), pendiente del tag. Lo nuevo, probado a mano por el mantenedor contra TIDAL
+real: un artista abre a sus secciones (populares, álbumes, EPs y sencillos, otros) y
+no sólo a sus pistas más escuchadas; «ir al artista» (`t`) e «ir al álbum» (`b`) en
+el menú de la pista, desde el navegador, la búsqueda y la cola, preguntando cuál
+cuando la pista tiene varios artistas; un guardado que falla se dice en la línea de
+estado y deja la marca «· sin guardar en disco»; una ruta de socket demasiado larga
+se dice al instante. Antes, 2026-09-12, versión `0.9.0` preparada, lo nuevo probado
 a mano por el mantenedor contra TIDAL real: mpv que
 no contesta ya no congela la pantalla (espera de 1 s una vez, sondeo y reinicio en
 workers, EOF leído como muerte), la pista siguiente preparada en mpv para que no haya
@@ -1782,7 +1789,7 @@ una pista en cada calidad y leer `~/.local/state/tidalamp/tidalamp.log`.
 
 > [!NOTE]
 > La funcionalidad comprometida para la próxima versión vive en
-> [next.md](./next.md), con sus trampas y su forma de comprobarse. Tras la `0.9.0`
+> [next.md](./next.md), con sus trampas y su forma de comprobarse. Tras la `0.10.0`
 > está vacía. Esta sección sigue siendo el estado general y aquella, la cola de
 > trabajo.
 
@@ -1792,7 +1799,9 @@ probadas sólo con dobles.
 
 **Orden propuesto (2026-09-11):** ~~P5 empaquetado~~ y ~~carátula~~ ✅ hechos. Cada
 versión se publica siguiendo `publish.md`; la última publicada es la `0.9.0`
-(2026-09-12), en PyPI y en GitHub, con el checksum del tarball ya en el PKGBUILD. Lo que queda abierto aquí pide credenciales tuyas o un par de ojos.
+(2026-09-12), en PyPI y en GitHub. La `0.10.0` está preparada y validada en local
+(2026-09-14, `febbbff`), pendiente del tag; su `sha256sums` está en `SKIP` hasta que
+exista el tarball, y se fija después como en `7ee2f72` para la `0.9.0`. Lo que queda abierto aquí pide credenciales tuyas o un par de ojos.
 
 1. Publicar en el AUR cuando vuelva a abrir el registro de cuentas nuevas. El paquete
    está preparado y se puede probar localmente, pero el alta final depende del
