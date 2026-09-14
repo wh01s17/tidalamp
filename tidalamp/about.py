@@ -346,6 +346,7 @@ def shortcuts(keys) -> tuple[Section, ...]:
                 ("c", _("reproducir a continuación")),
                 ("d", _("reproducir la radio de la pista")),
                 ("v", _("añadir a favoritos")),
+                ("l", _("añadir a una playlist")),
                 ("t", _("ir al artista")),
                 ("b", _("ir al álbum")),
                 ("↑ / ↓ / ↵", _("elegir con el cursor")),
