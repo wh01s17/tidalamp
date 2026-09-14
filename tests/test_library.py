@@ -977,6 +977,136 @@ def test_an_order_that_cannot_be_written_still_holds_and_says_why(tmp_path, monk
         locked.chmod(0o700)
 
 
+def a_disc(ident: int, name: str) -> SimpleNamespace:
+    return SimpleNamespace(
+        id=ident,
+        name=name,
+        year=2001,
+        artist=SimpleNamespace(name="TOOL"),
+        num_tracks=2,
+        tracks=lambda limit=50, offset=0, **order: [
+            FakeTrack(ident * 10 + i) for i in range(2)
+        ][offset : offset + limit],
+    )
+
+
+def an_artist(albums, singles, other) -> SimpleNamespace:
+    def listing(items):
+        return lambda limit=None, offset=0: items[offset : offset + (limit or 50)]
+
+    return SimpleNamespace(
+        id=7,
+        name="TOOL",
+        get_top_tracks=listing([FakeTrack(1), FakeTrack(2)]),
+        get_albums=listing(albums),
+        get_ep_singles=listing(singles),
+        get_other=listing(other),
+    )
+
+
+def test_an_artist_opens_to_its_discs_and_leaves_out_an_empty_section():
+    """It used to open to its top tracks and nothing else: no way to reach a
+    record from the artist. An artist with no «other» discs shows three
+    sections, not four with one of them empty."""
+    artist = an_artist(
+        albums=[a_disc(1, "Lateralus"), a_disc(2, "Ænima")],
+        singles=[a_disc(3, "Schism")],
+        other=[],
+    )
+    row = library._artist_rows([artist])[0]
+    assert row.key == "artist:7"  # what favourites read the artist's id from
+
+    sections = row.loader()
+    assert [s.label for s in sections] == ["Populares", "Álbumes", "EPs y sencillos"]
+
+    albums = sections[1].loader()
+    assert [a.label for a in albums] == ["TOOL - Lateralus", "TOOL - Ænima"]
+    assert [r.entry.id for r in albums[0].loader() if r.entry] == [10, 11]
+
+    # The popular tracks can still be sorted here, since TIDAL does not.
+    assert sections[0].sort is not None
+
+
+def test_m_on_an_artist_still_plays_its_popular_tracks():
+    """The discs are there to be opened; `m` and `a` keep playing what they
+    played when the popular tracks were the whole level."""
+    artist = an_artist(albums=[a_disc(1, "Lateralus")], singles=[], other=[])
+    row = library._artist_rows([artist])[0]
+
+    assert row.tracks is not None
+    assert [e.id for e in library.all_entries(row.tracks)] == [1, 2]
+
+
+def a_linked_session(asked: list[str]) -> SimpleNamespace:
+    """A session that knows track 5 is TOOL's, on Lateralus."""
+    track = FakeTrack(5)
+    track.artist.id = 7
+    track.album = SimpleNamespace(id=1)
+
+    def record(what, value):
+        def call(ident):
+            asked.append(f"{what}:{ident}")
+            return value
+
+        return call
+
+    return SimpleNamespace(
+        track=record("track", track),
+        artist=record("artist", an_artist(albums=[], singles=[], other=[])),
+        album=record("album", a_disc(1, "Lateralus")),
+    )
+
+
+def test_go_to_the_artist_asks_for_it_by_the_id_the_entry_carries():
+    asked: list[str] = []
+    entry = Entry(id=5, title="Schism", artist="TOOL", artist_id=7)
+
+    row = library.go_to(a_linked_session(asked), entry, "artist")
+
+    assert asked == ["artist:7"]
+    assert row.key == "artist:7" and row.label == "TOOL"
+
+
+def test_go_to_from_a_queue_saved_before_the_artist_id_resolves_the_track():
+    """A queue saved before `artist_id` existed restores without it. The
+    track knows its artist, so it is asked once, and the id is kept."""
+    asked: list[str] = []
+    entry = Entry.from_dict({"id": 5, "title": "Schism", "artist": "TOOL"})
+    assert entry.artist_id == 0
+
+    row = library.go_to(a_linked_session(asked), entry, "artist")
+
+    assert asked == ["track:5", "artist:7"]
+    assert entry.artist_id == 7
+    assert row.key == "artist:7"
+
+
+def test_go_to_the_album_opens_to_its_tracks():
+    asked: list[str] = []
+    entry = Entry.from_dict({"id": 5, "title": "Schism", "artist": "TOOL"})
+
+    row = library.go_to(a_linked_session(asked), entry, "album")
+
+    assert asked == ["track:5", "album:1"]
+    assert row.key == "album:1"
+    assert [r.entry.id for r in row.loader() if r.entry] == [10, 11]
+
+
+def test_a_track_that_says_nothing_of_its_artist_explains_itself():
+    track = FakeTrack(5)
+    track.artist = None
+    session = SimpleNamespace(track=lambda ident: track)
+    entry = Entry(id=5, title="x", artist="")
+
+    with pytest.raises(library.NotLinked):
+        library.go_to(session, entry, "artist")
+
+
+def test_the_artist_id_survives_a_save_and_a_restore():
+    entry = Entry(id=5, title="Schism", artist="TOOL", artist_id=7)
+    assert Entry.from_dict(entry.to_dict()).artist_id == 7
+
+
 def test_a_broken_orders_file_is_no_orders_at_all():
     library.ORDERS_FILE.write_text("{esto no es json", encoding="utf-8")
     tracks = next(row for row in library.root(FakeSession()) if row.key == "fav:tracks")

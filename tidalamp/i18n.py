@@ -669,6 +669,20 @@ ENGLISH: dict[str, str] = {
     "{label} con «{query}»": "{label} matching “{query}”",
     "Álbumes": "Albums",
     "Artistas": "Artists",
+    "Populares": "Popular",
+    "EPs y sencillos": "EPs and singles",
+    "Otros: recopilatorios y colaboraciones": "Other: compilations and appearances",
+    "ir al artista": "go to the artist",
+    "ir al álbum": "go to the album",
+    "TIDAL no dice de qué álbum es esta pista": (
+        "TIDAL does not say which album this track is on"
+    ),
+    "TIDAL no dice de qué artista es esta pista": (
+        "TIDAL does not say whose track this is"
+    ),
+    "buscando el artista…": "looking up the artist…",
+    "buscando el álbum…": "looking up the album…",
+    "no se pudo abrir: {error}": "could not open it: {error}",
     "Playlists": "Playlists",
     "abrir": "open",
     "artista": "artist",

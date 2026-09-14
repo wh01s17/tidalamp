@@ -456,6 +456,83 @@ def test_a_track_with_no_radio_says_so_and_leaves_the_queue_alone(monkeypatch):
     asyncio.run(scenario())
 
 
+def _a_place(label: str, key: str, inside: str) -> library.Row:
+    return library.Row(label=label, key=key, loader=lambda: [library.Row(label=inside)])
+
+
+def test_go_to_the_artist_from_the_queue_opens_the_browser_there(monkeypatch):
+    """From the queue there was no way to reach a track's record or artist
+    short of searching for them. The browser opens at that level, and ⌫
+    goes back to the root of the library instead of closing."""
+    from tidalamp.screens import BrowserScreen
+
+    isolate_runtime(monkeypatch)
+    monkeypatch.setattr(library, "root", lambda session: [library.Row(label="Favoritos")])
+    went: list[tuple[str, str]] = []
+
+    def go_to(session, entry, kind):
+        went.append((entry.title, kind))
+        return _a_place("TOOL", "artist:7", "Populares")
+
+    monkeypatch.setattr(library, "go_to", go_to)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(100, 30)) as pilot:
+            a_queue(application, "Schism", "Parabola")
+            await pilot.pause()
+            application.action_track_menu()
+            await pilot.pause()
+            await pilot.press("t")
+            await settle(
+                pilot,
+                lambda: (
+                    isinstance(application.screen, BrowserScreen)
+                    and len(application.screen._stack) == 2
+                ),
+            )
+
+            browser = application.screen
+            assert went == [("Schism", "artist")]
+            assert [level[0] for level in browser._stack] == ["MI BIBLIOTECA", "TOOL"]
+            assert [r.label for r in browser._level()] == ["Populares"]
+
+            browser.action_back()
+            await pilot.pause()
+            assert application.screen is browser
+            assert [r.label for r in browser._level()] == ["Favoritos"]
+
+    asyncio.run(scenario())
+
+
+def test_go_to_the_album_from_a_search_opens_it_on_top_of_the_results(monkeypatch):
+    isolate_runtime(monkeypatch)
+    monkeypatch.setattr(
+        library,
+        "go_to",
+        lambda session, entry, kind: _a_place("Lateralus", "album:1", "01"),
+    )
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(100, 30)) as pilot:
+            open_menu_on_b(application, track_rows())
+            await pilot.pause()
+            browser = application.screen
+            await pilot.press("enter")
+            await pilot.pause()
+            await pilot.press("b")
+            await settle(pilot, lambda: len(browser._stack) == 2)
+
+            assert application.screen is browser
+            assert browser._stack[-1][0] == "Lateralus"
+            browser.action_back()
+            await pilot.pause()
+            assert browser._stack[-1][0] == "BUSCAR: x"
+
+    asyncio.run(scenario())
+
+
 def _two_tracks_playing_the_last(application) -> None:
     application.queue.replace(
         [Entry(id=1, title="A", artist="x"), Entry(id=2, title="B", artist="x")],

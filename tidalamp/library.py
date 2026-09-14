@@ -310,6 +310,9 @@ class Row:
     # offers no order for it, as for the root and for search results' tracks.
     orders: tuple[Order | None, ...] = ()
     sort: Callable[[Order | None], tuple[str, Callable[[], list[Row]]]] | None = None
+    # What `m` and `a` play when the level this row opens is not the tracks
+    # themselves: an artist opens to its sections, and plays its popular ones.
+    tracks: Callable[[], list[Row]] | None = None
 
     @property
     def is_playable(self) -> bool:
@@ -492,19 +495,79 @@ def _album_rows(albums: Iterable[tidalapi.Album]) -> list[Row]:
     return rows
 
 
+def _discs_of(method: str) -> Callable[[Any, int, int], list]:
+    """One of an artist's disc listings, paged the way `_paged` asks."""
+
+    def fetch(artist: Any, offset: int, limit: int) -> list:
+        return getattr(artist, method)(limit=limit, offset=offset)
+
+    return fetch
+
+
+# The sections an artist opens to, in the order they are shown: exactly the
+# ones the API has and no more. A live record goes where TIDAL puts it, among
+# the albums; telling it apart by its title would be guessing.
+_ARTIST_SECTIONS: tuple[tuple[str, str, str], ...] = (
+    ("albums", "get_albums", _("Álbumes")),
+    ("singles", "get_ep_singles", _("EPs y sencillos")),
+    ("other", "get_other", _("Otros: recopilatorios y colaboraciones")),
+)
+
+
+def _artist_sections(artist: Any) -> Callable[[], list[Row]]:
+    """The level an artist opens to: its popular tracks, then its discs.
+
+    Each section is a paged level of its own, and each disc in it opens to
+    its tracks like any album. A section with nothing in it is left out,
+    which costs one small request per section to find out.
+    """
+    key = f"artist:{artist.id}"
+
+    def level() -> list[Row]:
+        rows = []
+        if with_retries(lambda: _top_tracks_of(artist, 0, 1)):
+            rows.append(
+                Row(
+                    label=_("Populares"),
+                    **_sortable(
+                        f"{key}:top",
+                        ARTIST_TRACK_BY,
+                        partial(_artist_level, artist),
+                        local=True,
+                    ),
+                )
+            )
+        for name, method, label in _ARTIST_SECTIONS:
+            fetch = partial(_discs_of(method), artist)
+            if not with_retries(partial(fetch, 0, 1)):
+                continue
+            section = f"{key}:{name}"
+            rows.append(
+                Row(
+                    label=label,
+                    key=section,
+                    loader=cached(section, _paged(fetch, _album_rows)),
+                )
+            )
+        return rows
+
+    return level
+
+
 def _artist_rows(artists: Iterable[tidalapi.Artist]) -> list[Row]:
     rows = []
     for artist in artists:
+        key = f"artist:{artist.id}"
         rows.append(
             Row(
                 label=artist.name or "",
                 detail=_("artista"),
-                **_sortable(
-                    f"artist:{artist.id}",
-                    ARTIST_TRACK_BY,
-                    partial(_artist_level, artist),
-                    local=True,
-                ),
+                key=key,
+                loader=cached(key, _artist_sections(artist)),
+                # `m` and `a` on an artist play its popular tracks, as they
+                # did when that was the whole level: the discs are there to
+                # be opened, not to be queued all at once.
+                tracks=cached(f"{key}:top", _artist_level(artist, None)),
             )
         )
     return rows
@@ -754,6 +817,36 @@ def track_radio(session: tidalapi.Session, entry: Entry, limit: int = 100) -> li
     if not entries:
         raise NoRadio(_("TIDAL no tiene radio para «{label}»").format(label=entry.label))
     return entries
+
+
+class NotLinked(RuntimeError):
+    """The track does not say which artist or album it belongs to."""
+
+
+def go_to(session: tidalapi.Session, entry: Entry, kind: str) -> Row:
+    """The row for the artist or the album of ``entry``, for the browser to
+    open. For «ir al artista» and «ir al álbum» in the track menu.
+
+    Network, so for a worker: one request for the artist or the album, and
+    one more to resolve the track when the entry does not carry the id, as
+    in a queue saved before `artist_id` existed. A track with several
+    artists goes to the main one, the one TIDAL lists first.
+    """
+    if kind == "album":
+        if not entry.album_id:
+            track = with_retries(lambda: entry.resolve(session))
+            entry.album_id = int(getattr(getattr(track, "album", None), "id", 0) or 0)
+        if not entry.album_id:
+            raise NotLinked(_("TIDAL no dice de qué álbum es esta pista"))
+        album = with_retries(lambda: session.album(str(entry.album_id)))
+        return _album_rows([album])[0]
+    if not entry.artist_id:
+        track = with_retries(lambda: entry.resolve(session))
+        entry.artist_id = int(getattr(getattr(track, "artist", None), "id", 0) or 0)
+    if not entry.artist_id:
+        raise NotLinked(_("TIDAL no dice de qué artista es esta pista"))
+    artist = with_retries(lambda: session.artist(str(entry.artist_id)))
+    return _artist_rows([artist])[0]
 
 
 def favourite(session: tidalapi.Session, row: Row, add: bool = True) -> str:

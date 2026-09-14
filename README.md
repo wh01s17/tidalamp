@@ -247,6 +247,11 @@ and your mixes (the daily ones, discovery, new arrivals and the rest TIDAL makes
 your account). Enter a level with `↵` and go back with `⌫`. A mix opens like a
 playlist, but it cannot be sorted or edited, so `s` and `d` do nothing there.
 
+An artist opens to its sections: popular tracks, albums, EPs and singles, and other
+(compilations and appearances), each disc opening to its tracks. They are the
+sections TIDAL has, in its own order, and one with nothing in it is left out. `m` and
+`a` on an artist still play its popular tracks.
+
 Tracks play one into the next with no gap: the next one is fetched from TIDAL shortly
 before the current one ends and handed to mpv ahead of time, along with its cover (and
 its lyrics, when the split view or the lyrics window is showing them).
@@ -388,16 +393,22 @@ under the cursor, where `↵` already plays it:
 | `≈` | Track radio       | `d` | Plays TIDAL's station for this track: the seed first, then the similar songs.    |
 | `♥` | Add to favourites | `v` | Adds it to your TIDAL favourites, leaving the queue alone.                       |
 | `≡` | Add to a playlist | `l` | Picks one of the playlists you created and appends the track to it.             |
+| `◉` | Go to the artist  | `t` | Opens the browser on the track's artist, its main one when there are several.   |
+| `◎` | Go to the album   | `b` | Opens the browser on the track's album.                                          |
 
 `↑` `↓` and `↵` pick, `Esc` backs out. `↵` on an album, artist or playlist still opens
 it: a level has one obvious thing to do.
+
+Going to the artist or the album from the browser opens it on top of the level you
+were on, and `⌫` comes back to it. From the queue, the browser opens right there, and
+`⌫` goes back to the root of the library instead of closing it.
 
 `m` on an album, an artist or a playlist opens the same menu for everything inside it:
 **play it all now** (`a`), **play it all next** (`c`), **add it to your favourites**
 (`v`) or **add it all to a playlist** (`l`). The whole of it comes along, every page
 and not only the first hundred tracks, in the order you picked for it with `s`. There
 is no radio in this one: a station grows from a single track. For an artist, "all" is
-their top tracks, the level `↵` opens.
+their popular tracks, not every disc in their sections.
 
 Not every track has a radio station — TIDAL simply has none for some obscure releases
 — and when it does not, the status line says so and nothing is queued.

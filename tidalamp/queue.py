@@ -63,6 +63,10 @@ class Entry:
     # in a track listing and has to be asked for once per album; without the
     # id there is nothing to ask about. See `library.album_year`.
     album_id: int = 0
+    # The main artist's id, for «ir al artista». Out of equality: a queue
+    # saved before it existed restores with 0, and those rows are still the
+    # same tracks. `library.go_to` fills it from the track when it is missing.
+    artist_id: int = field(default=0, compare=False)
     duration: int = 0
     art_url: str = ""
     # Everything below is only ever drawn in an optional queue column. All of
@@ -94,6 +98,7 @@ class Entry:
             id=track.id,
             title=track.name,
             artist=getattr(getattr(track, "artist", None), "name", "") or "",
+            artist_id=int(getattr(getattr(track, "artist", None), "id", 0) or 0),
             album=getattr(album, "name", "") or "",
             # tidalapi works the year out of whichever release date it has,
             # and returns None when the album carries neither.
@@ -136,6 +141,7 @@ class Entry:
             "album": self.album,
             "year": self.year,
             "album_id": self.album_id,
+            "artist_id": self.artist_id,
             "duration": self.duration,
             "art_url": self.art_url,
             "version": self.version,
@@ -160,6 +166,8 @@ class Entry:
             # And one written before this field cannot be filled in later:
             # there is no id to ask TIDAL about. It fills on the next reload.
             album_id=int(raw.get("album_id", 0) or 0),
+            # Likewise; `library.go_to` resolves the track when it needs it.
+            artist_id=int(raw.get("artist_id", 0) or 0),
             duration=int(raw.get("duration", 0)),
             art_url=raw.get("art_url", ""),
             version=raw.get("version", "") or "",

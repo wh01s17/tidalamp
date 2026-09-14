@@ -34,6 +34,8 @@ TRACK_ACTIONS: tuple[tuple[str, str, str, str], ...] = (
     ("radio", "≈", "d", _("reproducir la radio de la pista")),
     ("favourite", "♥", "v", _("añadir a favoritos")),
     ("playlist", "≡", "l", _("añadir a una playlist")),
+    ("artist", "◉", "t", _("ir al artista")),
+    ("album", "◎", "b", _("ir al álbum")),
 )
 
 # What `m` offers on an album, an artist or a playlist: the same verbs, over

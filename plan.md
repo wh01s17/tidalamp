@@ -1052,9 +1052,33 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
 - [x] El contenedor se carga entero con `library.all_entries()`, que sigue los «más…»
       hasta el final, y en el orden elegido con `s` (`_level_of`). Antes `a` sobre un
       contenedor se quedaba en la primera página, cien pistas. En un artista, «todo»
-      son sus pistas más escuchadas, el mismo nivel que abre `↵`.
+      son sus pistas más escuchadas: `Row.tracks`, porque `↵` ya no abre a ellas sino
+      a sus secciones (abajo). `BrowserScreen._tracks_of` lo mira antes que el nivel.
 - [x] El menú vale también en la biblioteca, no sólo en la búsqueda: es la misma
       `BrowserScreen`, y separarlas habría pedido una bandera para empeorar un lado.
+- [x] **Un artista abre a sus discos.** `_artist_sections`: populares, álbumes, EPs y
+      sencillos, y otros, cada una un nivel paginado y cada disco un nivel de pistas
+      como el álbum de siempre. Son las secciones que da tidalapi (`get_top_tracks`,
+      `get_albums`, `get_ep_singles`, `get_other`) y ninguna más: los discos en vivo
+      van entre los álbumes, donde los pone TIDAL (decidido por el mantenedor el
+      2026-09-12; separarlos por el título sería adivinar). Una sección vacía no sale,
+      y saberlo cuesta una petición de un elemento por sección al abrir el artista.
+      `s` ordena las populares, en local como antes; las listas de discos no, porque
+      TIDAL no las ordena. La clave del artista sigue siendo `artist:<id>`, que es de
+      donde lee el id `favourite()`; las populares pasan a `artist:<id>:top`, así que
+      un orden recordado para ellas antes de esto se pierde una vez.
+- [x] **«Ir al artista» e «ir al álbum»** (`t` y `b`) en el menú de la pista, desde el
+      navegador, la búsqueda y la cola. `library.go_to` hace la petición en un worker
+      y devuelve la fila del artista o del álbum. Una pista con varios artistas va al
+      principal, el que TIDAL da primero en `track.artist`: preguntar cuál sería un
+      paso más para el caso raro. `Entry` guarda ahora `artist_id`, fuera de la
+      igualdad; una cola guardada antes no lo trae y `go_to` lo saca de
+      `entry.resolve()`, una petición más, y lo deja puesto. Desde el navegador el
+      nivel se apila sobre el que se ve y `⌫` vuelve a él. Desde la cola el
+      navegador no está abierto: `BrowserScreen(goto=...)` carga la raíz y el nivel en
+      el mismo worker, para que caiga encima y no debajo, y `⌫` vuelve a la raíz. La
+      pantalla completa no tiene menú de la pista (sólo `↵` para reproducir), así que
+      ahí no hay estas entradas.
 
 ### Añadir a una playlist existente — `library.py`, `screens/browser.py`
 

@@ -5,6 +5,16 @@ versioning is [semantic](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- An artist opens to its discs, not only to its popular tracks: popular, albums, EPs
+  and singles, and other (compilations and appearances), each one paged, and each disc
+  opening to its tracks. A section with nothing in it is left out. `m` and `a` on an
+  artist still play its popular tracks.
+- «Go to the artist» and «go to the album» in the track menu, from the browser, a
+  search and the queue. From the queue the browser opens at that level, and `⌫` goes
+  back to the root of the library instead of closing.
+
 ### Fixed
 
 - A save that fails (a full disk, a read-only state directory) is now reported on the

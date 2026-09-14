@@ -1466,6 +1466,20 @@ class TidalAmp(App):
         if action == "play":
             self._play_index(index)
             return
+        if action in ("artist", "album"):
+            # The browser is not open here: it opens at the library's root
+            # with that level already on top, so ⌫ goes back to the root.
+            self.push_screen(
+                BrowserScreen(
+                    _("MI BIBLIOTECA"),
+                    lambda: library.root(self.session),
+                    goto=functools.partial(
+                        library.go_to, self.session, self.queue[index], action
+                    ),
+                ),
+                self._browser_result,
+            )
+            return
         self._browser_result((action, [self.queue[index]], 0))
 
     def _playlist_chosen(self, key: str | None) -> None:

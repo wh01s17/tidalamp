@@ -104,11 +104,17 @@ class BrowserScreen(ModalScreen[tuple | None]):
         """The app this screen belongs to. Textual only types it as ``App``."""
         return cast("TidalAmp", self.app)
 
-    def __init__(self, title: str, loader, key: str = "") -> None:
+    def __init__(
+        self, title: str, loader, key: str = "", goto: Callable[[], Row] | None = None
+    ) -> None:
         super().__init__()
         self._root_title = title
         self._root_loader = loader
         self._root_key = key
+        # A level to open on top of the root as soon as it loads: «ir al
+        # artista» from the queue lands there, and ⌫ goes back to the root
+        # instead of closing the window.
+        self._goto = goto
         # Stack of (title, rows, key, loader, source) so backspace can walk
         # back up, `R` can refetch the level it is looking at, and `s` can ask
         # the row that opened it (`source`) how else it can be ordered.
@@ -143,7 +149,44 @@ class BrowserScreen(ModalScreen[tuple | None]):
         self.query_one(RowList).empty_text = self._empty
         self._render_hint()
         self._busy(_("cargando {level}…").format(level=self._root_title.lower()))
+        if self._goto is not None:
+            self._open_at(self._goto)
+            return
         self._load(self._root_title, self._root_loader, self._root_key)
+
+    @work(thread=True, exclusive=True)
+    def _open_at(self, goto: Callable[[], Row]) -> None:
+        """The root, and then the level ``goto`` finds, in one worker: the
+        level has to land on top of the root, never under it."""
+        try:
+            rows = self._root_loader()
+        except Exception as exc:
+            self.app.call_from_thread(self._failed, exc)
+            return
+        self.app.call_from_thread(
+            self._push, self._root_title, rows, self._root_key, self._root_loader
+        )
+        self._go(goto)
+
+    @work(thread=True, exclusive=True)
+    def _go_worker(self, goto: Callable[[], Row]) -> None:
+        self._go(goto)
+
+    def _go(self, goto: Callable[[], Row]) -> None:
+        """Find the row and open its level on top of the one on screen. From
+        a worker; a failure leaves that level where it is and says why."""
+        try:
+            row = goto()
+            key, loader = self._level_of(row)
+            rows = loader()
+        except Exception as exc:
+            self.app.call_from_thread(self._not_there, exc)
+            return
+        self.app.call_from_thread(self._push, row.label, rows, key, loader, row)
+
+    def _not_there(self, exc: Exception) -> None:
+        self._idle()
+        self.player.status = _("no se pudo abrir: {error}").format(error=exc)
 
     def on_resize(self, event) -> None:
         self._render_hint()
@@ -488,6 +531,14 @@ class BrowserScreen(ModalScreen[tuple | None]):
         assert row.loader is not None
         return row.key, row.loader
 
+    @classmethod
+    def _tracks_of(cls, row: Row) -> Callable[[], list[Row]]:
+        """What `m` and `a` play from a container: its level, unless that
+        level is sections and not tracks, as an artist's is."""
+        if row.tracks is not None:
+            return row.tracks
+        return cls._level_of(row)[1]
+
     def action_menu(self) -> None:
         """`m`: the track's menu on a track, and on an album, an artist or a
         playlist the same verbs over everything inside it."""
@@ -514,7 +565,7 @@ class BrowserScreen(ModalScreen[tuple | None]):
 
     @work(thread=True, exclusive=True)
     def _container_worker(self, row: Row, action: str) -> None:
-        _key, loader = self._level_of(row)
+        loader = self._tracks_of(row)
         try:
             entries = library.all_entries(loader)
         except Exception as exc:
@@ -529,6 +580,17 @@ class BrowserScreen(ModalScreen[tuple | None]):
         widget = self.query_one(RowList)
         row = widget.current
         if row is None or row.entry is None:
+            return
+        if action in ("artist", "album"):
+            # Opened here, on top of this level: ⌫ comes back to it.
+            self._busy(
+                _("buscando el artista…")
+                if action == "artist"
+                else _("buscando el álbum…")
+            )
+            self._go_worker(
+                partial(library.go_to, self.player.session, row.entry, action)
+            )
             return
         if action == "play":
             # The whole level goes into the queue, so the rest follows on —
@@ -574,7 +636,7 @@ class BrowserScreen(ModalScreen[tuple | None]):
         elif row.loader is not None:
             # Appending a container means appending everything inside it.
             self._busy(_("añadiendo {label}…").format(label=row.label))
-            self._append_container(self._level_of(row)[1])
+            self._append_container(self._tracks_of(row))
 
     def action_favourite(self) -> None:
         self._favourite(True)
