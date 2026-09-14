@@ -1817,7 +1817,10 @@ versión se publica siguiendo `publish.md`; la última publicada es la `0.10.0`
 
 1. Publicar en el AUR cuando vuelva a abrir el registro de cuentas nuevas. El paquete
    está preparado y se puede probar localmente, pero el alta final depende del
-   servicio externo y no tiene fecha anunciada.
+   servicio externo y no tiene fecha anunciada. **Todo lo del AUR queda pendiente**
+   (decidido por el mantenedor el 2026-09-14): de la `0.10.0` sólo está hecho el
+   checksum (`publish.md` §8.1 y §8.3, en `0dde123`); §8.2 (`makepkg -Csi`,
+   `namcap`) no se ha ejecutado para esta versión, y §8.4 a §8.6 esperan al registro.
 2. ~~Mirar `retro` y `ascii` en un terminal de verdad~~ ✅ hecho el 2026-09-10; ver §9.5.
    Queda el extremo pequeño: la disposición compacta no se ha visto nunca.
 3. ~~Una letra real de TIDAL~~ ✅ probada por el mantenedor el 2026-09-11; era lo
