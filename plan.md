@@ -4,9 +4,9 @@ Documento de traspaso. Describe qué existe, qué está verificado, qué falta y
 criterio se tomaron las decisiones, para que cualquiera (humano o modelo) pueda
 retomar el trabajo sin contexto previo.
 
-**Última actualización:** 2026-09-14, versión `0.10.0` preparada y validada en local,
-pendiente del tag, que va sobre el commit que arregla el `⌫` durante una carga (lo
-cazó CI después de preparar la versión). Lo nuevo, probado a mano por el mantenedor contra TIDAL
+**Última actualización:** 2026-09-14, versión `0.10.0` publicada en PyPI y en GitHub,
+con el tag `v0.10.0` sobre `f11ce4a`, el commit que arregla el `⌫` durante una carga
+(lo cazó CI después de preparar la versión). Lo nuevo, probado a mano por el mantenedor contra TIDAL
 real: un artista abre a sus secciones (populares, álbumes, EPs y sencillos, otros) y
 no sólo a sus pistas más escuchadas; «ir al artista» (`t`) e «ir al álbum» (`b`) en
 el menú de la pista, desde el navegador, la búsqueda y la cola, preguntando cuál
@@ -1811,10 +1811,9 @@ reproductor sirva, sino acabado, distribución y confirmar contra TIDAL real cos
 probadas sólo con dobles.
 
 **Orden propuesto (2026-09-11):** ~~P5 empaquetado~~ y ~~carátula~~ ✅ hechos. Cada
-versión se publica siguiendo `publish.md`; la última publicada es la `0.9.0`
-(2026-09-12), en PyPI y en GitHub. La `0.10.0` está preparada y validada en local
-(2026-09-14), pendiente del tag; su `sha256sums` está en `SKIP` hasta que
-exista el tarball, y se fija después como en `7ee2f72` para la `0.9.0`. Lo que queda abierto aquí pide credenciales tuyas o un par de ojos.
+versión se publica siguiendo `publish.md`; la última publicada es la `0.10.0`
+(2026-09-14), en PyPI y en GitHub, con el checksum del tarball ya en el PKGBUILD
+(`0dde123`). Lo que queda abierto aquí pide credenciales tuyas o un par de ojos.
 
 1. Publicar en el AUR cuando vuelva a abrir el registro de cuentas nuevas. El paquete
    está preparado y se puede probar localmente, pero el alta final depende del
