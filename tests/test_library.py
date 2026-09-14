@@ -1107,6 +1107,39 @@ def test_the_artist_id_survives_a_save_and_a_restore():
     assert Entry.from_dict(entry.to_dict()).artist_id == 7
 
 
+def test_the_artists_of_a_track_come_main_first_and_once_each():
+    """For «ir al artista» with several artists: the list to pick from. The
+    main one leads, and TIDAL lists it again inside `artists`."""
+    track = FakeTrack(5)
+    track.artist = SimpleNamespace(id=7, name="TOOL")
+    track.artists = [
+        SimpleNamespace(id=7, name="TOOL"),
+        SimpleNamespace(id=9, name="Tori Amos"),
+    ]
+    entry = Entry(id=5, title="Schism", artist="TOOL", _track=track)
+
+    assert library.track_artists(object(), entry) == [(7, "TOOL"), (9, "Tori Amos")]
+    assert entry.artist_id == 7
+
+
+def test_a_track_with_no_artist_ids_cannot_list_them():
+    track = FakeTrack(5)
+    track.artist = None
+    entry = Entry(id=5, title="x", artist="", _track=track)
+
+    with pytest.raises(library.NotLinked):
+        library.track_artists(object(), entry)
+
+
+def test_go_to_the_artist_that_was_picked_asks_for_that_one():
+    asked: list[str] = []
+    entry = Entry(id=5, title="Schism", artist="TOOL", artist_id=7)
+
+    library.go_to(a_linked_session(asked), entry, "artist", artist_id=9)
+
+    assert asked == ["artist:9"]
+
+
 def test_a_broken_orders_file_is_no_orders_at_all():
     library.ORDERS_FILE.write_text("{esto no es json", encoding="utf-8")
     tracks = next(row for row in library.root(FakeSession()) if row.key == "fav:tracks")

@@ -683,6 +683,7 @@ ENGLISH: dict[str, str] = {
     "buscando el artista…": "looking up the artist…",
     "buscando el álbum…": "looking up the album…",
     "no se pudo abrir: {error}": "could not open it: {error}",
+    "¿QUÉ ARTISTA?": "WHICH ARTIST?",
     "Playlists": "Playlists",
     "abrir": "open",
     "artista": "artist",

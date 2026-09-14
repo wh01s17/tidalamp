@@ -26,6 +26,7 @@ from .tracks import CONTAINER_ACTIONS, TrackActionsScreen
 
 if TYPE_CHECKING:  # The screens report back to the app; the app owns them.
     from ..app import TidalAmp
+    from ..queue import Entry
 
 
 # The browser's footer: key, what it does, and how early it goes when the
@@ -598,16 +599,17 @@ class BrowserScreen(ModalScreen[tuple | None]):
         row = widget.current
         if row is None or row.entry is None:
             return
-        if action in ("artist", "album"):
-            # Opened here, on top of this level: ⌫ comes back to it.
-            self._busy(
-                _("buscando el artista…")
-                if action == "artist"
-                else _("buscando el álbum…")
+        # Either one opens here, on top of this level: ⌫ comes back to it.
+        if action == "artist":
+            entry = row.entry
+            self.player.choose_artist(
+                entry,
+                self.query_one(Spinner),
+                lambda ident: self._go_to(entry, "artist", ident),
             )
-            self._go_worker(
-                partial(library.go_to, self.player.session, row.entry, action)
-            )
+            return
+        if action == "album":
+            self._go_to(row.entry, "album")
             return
         if action == "play":
             # The whole level goes into the queue, so the rest follows on —
@@ -617,6 +619,15 @@ class BrowserScreen(ModalScreen[tuple | None]):
             self.dismiss(("play", entries, index))
             return
         self.dismiss((action, [row.entry], 0))
+
+    def _go_to(self, entry: Entry, kind: str, artist_id: int = 0) -> None:
+        """Open the track's artist or album on top of this level."""
+        self._busy(
+            _("buscando el artista…") if kind == "artist" else _("buscando el álbum…")
+        )
+        self._go_worker(
+            partial(library.go_to, self.player.session, entry, kind, artist_id)
+        )
 
     @work(thread=True, exclusive=True)
     def _load_more(self, marker: Row, more) -> None:

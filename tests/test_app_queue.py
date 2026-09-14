@@ -468,9 +468,10 @@ def test_go_to_the_artist_from_the_queue_opens_the_browser_there(monkeypatch):
 
     isolate_runtime(monkeypatch)
     monkeypatch.setattr(library, "root", lambda session: [library.Row(label="Favoritos")])
+    monkeypatch.setattr(library, "track_artists", lambda session, entry: [(7, "TOOL")])
     went: list[tuple[str, str]] = []
 
-    def go_to(session, entry, kind):
+    def go_to(session, entry, kind, artist_id=0):
         went.append((entry.title, kind))
         return _a_place("TOOL", "artist:7", "Populares")
 
@@ -510,7 +511,7 @@ def test_go_to_the_album_from_a_search_opens_it_on_top_of_the_results(monkeypatc
     monkeypatch.setattr(
         library,
         "go_to",
-        lambda session, entry, kind: _a_place("Lateralus", "album:1", "01"),
+        lambda session, entry, kind, artist_id=0: _a_place("Lateralus", "album:1", "01"),
     )
 
     async def scenario() -> None:
@@ -533,6 +534,60 @@ def test_go_to_the_album_from_a_search_opens_it_on_top_of_the_results(monkeypatc
     asyncio.run(scenario())
 
 
+def test_a_track_with_several_artists_asks_which_one(monkeypatch):
+    """It went to the main one, and the others could not be reached from the
+    track at all. Now they are listed, the main one first, and the one
+    picked is the one that opens; esc opens none."""
+    from tidalamp.screens import BrowserScreen, ChoiceScreen
+
+    isolate_runtime(monkeypatch)
+    monkeypatch.setattr(library, "root", lambda session: [library.Row(label="Favoritos")])
+    monkeypatch.setattr(
+        library,
+        "track_artists",
+        lambda session, entry: [(7, "TOOL"), (9, "Tori Amos")],
+    )
+    went: list[int] = []
+
+    def go_to(session, entry, kind, artist_id=0):
+        went.append(artist_id)
+        return _a_place("Tori Amos", f"artist:{artist_id}", "Populares")
+
+    monkeypatch.setattr(library, "go_to", go_to)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(100, 30)) as pilot:
+            a_queue(application, "Schism")
+            await pilot.pause()
+
+            application.action_track_menu()
+            await pilot.pause()
+            await pilot.press("t")
+            await settle(pilot, lambda: isinstance(application.screen, ChoiceScreen))
+            await pilot.press("escape")
+            await pilot.pause()
+            assert went == []
+            assert not isinstance(application.screen, BrowserScreen)
+
+            application.action_track_menu()
+            await pilot.pause()
+            await pilot.press("t")
+            await settle(pilot, lambda: isinstance(application.screen, ChoiceScreen))
+            await pilot.press("down", "enter")
+            await settle(
+                pilot,
+                lambda: (
+                    isinstance(application.screen, BrowserScreen)
+                    and len(application.screen._stack) == 2
+                ),
+            )
+            assert went == [9]
+            assert application.screen._stack[-1][0] == "Tori Amos"
+
+    asyncio.run(scenario())
+
+
 def test_while_the_artist_is_on_its_way_the_library_is_not_shown(monkeypatch):
     """The root used to be pushed first: the library sat there, spinner off,
     for as long as TIDAL took to answer, as if `l` had been pressed. Now the
@@ -541,13 +596,14 @@ def test_while_the_artist_is_on_its_way_the_library_is_not_shown(monkeypatch):
 
     isolate_runtime(monkeypatch)
     monkeypatch.setattr(library, "root", lambda session: [library.Row(label="Favoritos")])
+    monkeypatch.setattr(library, "track_artists", lambda session, entry: [(7, "TOOL")])
     # What the window looked like while TIDAL was being asked. Taken from
     # inside the lookup, in the worker: the pilot waits for workers, so a
     # lookup held open would be waited out before any assert could look.
     seen: list[tuple[int, str]] = []
     holder: list[TidalAmp] = []
 
-    def go_to(session, entry, kind):
+    def go_to(session, entry, kind, artist_id=0):
         browser = holder[0].screen
         assert isinstance(browser, BrowserScreen)
         seen.append((len(browser._stack), browser.query_one(Spinner).label))

@@ -393,7 +393,7 @@ under the cursor, where `↵` already plays it:
 | `≈` | Track radio       | `d` | Plays TIDAL's station for this track: the seed first, then the similar songs.    |
 | `♥` | Add to favourites | `v` | Adds it to your TIDAL favourites, leaving the queue alone.                       |
 | `≡` | Add to a playlist | `l` | Picks one of the playlists you created and appends the track to it.             |
-| `◉` | Go to the artist  | `t` | Opens the browser on the track's artist, its main one when there are several.   |
+| `◉` | Go to the artist  | `t` | Opens the browser on the track's artist; with several, asks which one.          |
 | `◎` | Go to the album   | `b` | Opens the browser on the track's album.                                          |
 
 `↑` `↓` and `↵` pick, `Esc` backs out. `↵` on an album, artist or playlist still opens

@@ -823,15 +823,40 @@ class NotLinked(RuntimeError):
     """The track does not say which artist or album it belongs to."""
 
 
-def go_to(session: tidalapi.Session, entry: Entry, kind: str) -> Row:
+def track_artists(session: tidalapi.Session, entry: Entry) -> list[tuple[int, str]]:
+    """Every artist on ``entry``'s track as ``(id, name)``, the main one first.
+
+    For «ir al artista», which asks which one when there are several. The
+    track is resolved, which costs a request only on an entry restored from
+    disk: one from a listing already carries it. Keeps the main one's id in
+    `artist_id`, as `go_to` would.
+    """
+    track = with_retries(lambda: entry.resolve(session))
+    main = getattr(track, "artist", None)
+    found: list[tuple[int, str]] = []
+    for artist in [main, *(getattr(track, "artists", None) or [])]:
+        ident = int(getattr(artist, "id", 0) or 0)
+        if ident and all(ident != known for known, _name in found):
+            found.append((ident, getattr(artist, "name", "") or ""))
+    if not found:
+        raise NotLinked(_("TIDAL no dice de qué artista es esta pista"))
+    entry.artist_id = found[0][0]
+    return found
+
+
+def go_to(session: tidalapi.Session, entry: Entry, kind: str, artist_id: int = 0) -> Row:
     """The row for the artist or the album of ``entry``, for the browser to
     open. For «ir al artista» and «ir al álbum» in the track menu.
 
     Network, so for a worker: one request for the artist or the album, and
     one more to resolve the track when the entry does not carry the id, as
-    in a queue saved before `artist_id` existed. A track with several
-    artists goes to the main one, the one TIDAL lists first.
+    in a queue saved before `artist_id` existed. ``artist_id`` is the one
+    picked when the track has several (see `track_artists`); without it,
+    the main one.
     """
+    if kind == "artist" and artist_id:
+        artist = with_retries(lambda: session.artist(str(artist_id)))
+        return _artist_rows([artist])[0]
     if kind == "album":
         if not entry.album_id:
             track = with_retries(lambda: entry.resolve(session))

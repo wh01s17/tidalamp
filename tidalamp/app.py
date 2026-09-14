@@ -6,6 +6,7 @@ import contextlib
 import functools
 import logging
 import time
+from collections.abc import Callable
 from typing import NamedTuple, cast
 
 import tidalapi
@@ -1466,26 +1467,79 @@ class TidalAmp(App):
         if action == "play":
             self._play_index(index)
             return
-        if action in ("artist", "album"):
-            # The browser is not open here: it opens at the library's root
-            # with that level already on top, so ⌫ goes back to the root.
-            self.push_screen(
-                BrowserScreen(
-                    _("MI BIBLIOTECA"),
-                    lambda: library.root(self.session),
-                    goto=functools.partial(
-                        library.go_to, self.session, self.queue[index], action
-                    ),
-                    busy=(
-                        _("buscando el artista…")
-                        if action == "artist"
-                        else _("buscando el álbum…")
-                    ),
-                ),
-                self._browser_result,
+        entry = self.queue[index]
+        if action == "artist":
+            self.choose_artist(
+                entry,
+                self.query_one("#busy", Spinner),
+                functools.partial(self._open_browser_at, entry, "artist"),
             )
             return
-        self._browser_result((action, [self.queue[index]], 0))
+        if action == "album":
+            self._open_browser_at(entry, "album")
+            return
+        self._browser_result((action, [entry], 0))
+
+    def _open_browser_at(self, entry: Entry, kind: str, artist_id: int = 0) -> None:
+        """The browser is not open from the queue: it opens at the library's
+        root with that level already on top, so ⌫ goes back to the root."""
+        self.push_screen(
+            BrowserScreen(
+                _("MI BIBLIOTECA"),
+                lambda: library.root(self.session),
+                goto=functools.partial(
+                    library.go_to, self.session, entry, kind, artist_id
+                ),
+                busy=(
+                    _("buscando el artista…")
+                    if kind == "artist"
+                    else _("buscando el álbum…")
+                ),
+            ),
+            self._browser_result,
+        )
+
+    def choose_artist(
+        self, entry: Entry, spinner: Spinner, then: Callable[[int], None]
+    ) -> None:
+        """Which of the track's artists «ir al artista» goes to, then ``then``.
+
+        One artist goes straight there. Several are listed to pick from: going
+        to the main one left the others out of reach. Shared by the queue and
+        the browser; ``spinner`` is whichever of the two is on screen.
+        """
+        spinner.start(_("buscando el artista…"))
+        self._artists_worker(entry, spinner, then)
+
+    @work(thread=True, exclusive=True, group="artists")
+    def _artists_worker(
+        self, entry: Entry, spinner: Spinner, then: Callable[[int], None]
+    ) -> None:
+        try:
+            artists = library.track_artists(self.session, entry)
+        except Exception as exc:
+            self.call_from_thread(self._artists_failed, spinner, exc)
+            return
+        self.call_from_thread(self._artists_found, artists, spinner, then)
+
+    def _artists_found(
+        self,
+        artists: list[tuple[int, str]],
+        spinner: Spinner,
+        then: Callable[[int], None],
+    ) -> None:
+        spinner.stop()
+        if len(artists) == 1:
+            then(artists[0][0])
+            return
+        self.push_screen(
+            ChoiceScreen(_("¿QUÉ ARTISTA?"), artists, artists[0][0]),
+            lambda ident: then(cast(int, ident)) if ident else None,
+        )
+
+    def _artists_failed(self, spinner: Spinner, exc: Exception) -> None:
+        spinner.stop()
+        self.status = _("no se pudo abrir: {error}").format(error=exc)
 
     def _playlist_chosen(self, key: str | None) -> None:
         entries, self._pending_playlist = self._pending_playlist, []

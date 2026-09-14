@@ -1069,9 +1069,14 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
       un orden recordado para ellas antes de esto se pierde una vez.
 - [x] **«Ir al artista» e «ir al álbum»** (`t` y `b`) en el menú de la pista, desde el
       navegador, la búsqueda y la cola. `library.go_to` hace la petición en un worker
-      y devuelve la fila del artista o del álbum. Una pista con varios artistas va al
-      principal, el que TIDAL da primero en `track.artist`: preguntar cuál sería un
-      paso más para el caso raro. `Entry` guarda ahora `artist_id`, fuera de la
+      y devuelve la fila del artista o del álbum. **Una pista con varios artistas
+      pregunta cuál**: `TidalAmp.choose_artist` saca la lista con
+      `library.track_artists` en un worker (el principal primero, sin repetir: TIDAL
+      lo da en `track.artist` y otra vez dentro de `track.artists`), y con uno solo va
+      directo; con varios abre un `ChoiceScreen` y `go_to(..., artist_id)` abre el
+      elegido. Al principio iba siempre al principal, y el mantenedor pidió poder
+      elegir (2026-09-14): los demás quedaban sin forma de alcanzarse desde la pista.
+      La cola y el navegador comparten `choose_artist`, cada uno con su spinner. `Entry` guarda ahora `artist_id`, fuera de la
       igualdad; una cola guardada antes no lo trae y `go_to` lo saca de
       `entry.resolve()`, una petición más, y lo deja puesto. Desde el navegador el
       nivel se apila sobre el que se ve y `⌫` vuelve a él. Desde la cola el
@@ -1753,7 +1758,7 @@ Distinguir esto importa: parte del código nunca se ha ejecutado contra TIDAL re
 | Indicador de carga y barra de estado | **Verificado**                  | Unitarias del `Spinner` y de los tres momentos del navegador (raíz, abrir un nivel, volver atrás) con un loader bloqueado a propósito; la app real bajo pty midió `#statusbar` dentro de la pantalla y pintó `⠦ resolviendo «Schism»…` en la última fila. |
 | «Mis playlists» y caché de niveles | **Verificado contra TIDAL real**  | cProfile sobre la cuenta del usuario localizó las 111 peticiones; tras el cambio, la app real bajo un pty abre «Mis playlists» en 0,39 s (antes 19,87 s) y en 0,13 s la segunda vez. Unitarias: una petición por página, paginación, claves de caché y `R`. |
 | Secciones del artista              | **VERIFICADO CONTRA TIDAL REAL**  | El mantenedor lo probó a mano (2026-09-14) con varios artistas: uno grande, uno pequeño sin EPs (bôa, sin «Otros») y uno con recopilatorios. Salen las secciones esperadas y ninguna vacía; álbumes y EPs traen sus pistas; «más…» aparece en un artista con más de 100 discos; el tiempo de apertura con las cuatro peticiones de sondeo es aceptable. `m` y `a` sobre el artista añaden sus populares, `s` ordena las populares y no hace nada en los discos, y `f` lo añade a favoritos. En tests: sesión simulada con álbumes, EPs y nada en «otros». |
-| Ir al artista y al álbum (`t`, `b`) | **VERIFICADO CONTRA TIDAL REAL** | El mantenedor lo probó a mano (2026-09-14) desde la búsqueda, la biblioteca y la cola; `⌫` vuelve a la raíz desde la cola y al nivel anterior desde el navegador. Una pista con varios artistas va al principal. Una cola guardada antes de `artist_id` funciona y la segunda vez no tarda más: el id queda puesto. El spinner se vio en la terminal real en inglés y en español. En tests: `go_to` con y sin `artist_id`, la app desde la cola y desde la búsqueda, y el spinner mientras se busca. |
+| Ir al artista y al álbum (`t`, `b`) | **VERIFICADO CONTRA TIDAL REAL** | El mantenedor lo probó a mano (2026-09-14) desde la búsqueda, la biblioteca y la cola; `⌫` vuelve a la raíz desde la cola y al nivel anterior desde el navegador. Una pista con varios artistas iba al principal; ahora pregunta cuál (2026-09-14), y **eso falta verlo a mano**. Una cola guardada antes de `artist_id` funciona y la segunda vez no tarda más: el id queda puesto. El spinner se vio en la terminal real en inglés y en español. En tests: `go_to` con y sin `artist_id`, la app desde la cola y desde la búsqueda, y el spinner mientras se busca. |
 
 **Sobre la sesión:** `~/.config/tidalamp/session.json` **existe** (comprobado el
 2026-09-08, después de que el usuario reprodujera hi-res con ella). Si desaparece,

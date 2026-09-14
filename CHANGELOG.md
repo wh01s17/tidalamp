@@ -12,7 +12,7 @@ versioning is [semantic](https://semver.org/).
   opening to its tracks. A section with nothing in it is left out. `m` and `a` on an
   artist still play its popular tracks.
 - «Go to the artist» and «go to the album» in the track menu, from the browser, a
-  search and the queue. From the queue the browser opens at that level, and `⌫` goes
+  search and the queue. A track with several artists asks which one to go to. From the queue the browser opens at that level, and `⌫` goes
   back to the root of the library instead of closing.
 
 ### Fixed
