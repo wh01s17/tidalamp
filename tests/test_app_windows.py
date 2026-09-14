@@ -1229,6 +1229,17 @@ def test_going_back_stops_a_spinner_for_a_level_nobody_is_waiting_for(monkeypatc
             assert not spinner.busy
             release.set()
 
+            # ⌫ took the user from A back to the root while B was loading. B
+            # arrives now, and it used to be pushed anyway, over the root the
+            # user had gone back to; and when the app was closing, it landed
+            # on a screen with no widgets and raised, which is what failed on
+            # CI (Python 3.14, 2026-09-14). Waited for here so the answer
+            # lands while the window is still up.
+            await settle(pilot, lambda: all(w.is_finished for w in application.workers))
+            await pilot.pause()
+            assert [level[0] for level in screen._stack] == ["MI BIBLIOTECA"]
+            assert not spinner.busy
+
     asyncio.run(scenario())
 
 

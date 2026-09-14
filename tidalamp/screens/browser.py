@@ -133,6 +133,9 @@ class BrowserScreen(ModalScreen[tuple | None]):
         # What the list says when it has no rows to show, which is not the same
         # sentence while loading, after an error, and under a filter.
         self._empty = _("cargando…")
+        # How many times ⌫ has been pressed. A worker notes it when it starts,
+        # and its answer is dropped if it moved: that level has been left.
+        self._left = 0
 
     def compose(self) -> ComposeResult:
         with Vertical(id="browser-box"):
@@ -169,32 +172,45 @@ class BrowserScreen(ModalScreen[tuple | None]):
         are in. Pushing the root first showed the library, with no spinner,
         for as long as the artist took to arrive: it looked like the wrong
         window had opened."""
+        left = self._left
         try:
             rows = self._root_loader()
         except Exception as exc:
-            self.app.call_from_thread(self._failed, exc)
+            self.app.call_from_thread(self._if_current, left, self._failed, exc)
             return
         root = (self._root_title, rows, self._root_key, self._root_loader)
         try:
             found = self._find(goto)
         except Exception as exc:
             # The root is still somewhere to be, and the status says why.
-            self.app.call_from_thread(self._push, *root)
-            self.app.call_from_thread(self._not_there, exc)
+            self.app.call_from_thread(self._if_current, left, self._push, *root)
+            self.app.call_from_thread(self._if_current, left, self._not_there, exc)
             return
-        self.app.call_from_thread(self._push, *root)
-        self.app.call_from_thread(self._push, *found)
+        self.app.call_from_thread(self._if_current, left, self._push, *root)
+        self.app.call_from_thread(self._if_current, left, self._push, *found)
 
     @work(thread=True, exclusive=True)
     def _go_worker(self, goto: Callable[[], Row]) -> None:
         """Open the level ``goto`` finds on top of the one on screen; a
         failure leaves that level where it is and says why."""
+        left = self._left
         try:
             found = self._find(goto)
         except Exception as exc:
-            self.app.call_from_thread(self._not_there, exc)
+            self.app.call_from_thread(self._if_current, left, self._not_there, exc)
             return
-        self.app.call_from_thread(self._push, *found)
+        self.app.call_from_thread(self._if_current, left, self._push, *found)
+
+    def _if_current(self, left: int, then: Callable[..., None], *args: object) -> None:
+        """Land a worker's answer, unless nobody is waiting for it any more.
+
+        ⌫ on a level still loading used to stop the spinner and nothing else:
+        the level arrived a moment later and was pushed anyway, back over the
+        one the user had gone back to. And a worker that finished as the
+        window closed landed on a screen with no widgets left, which raised.
+        """
+        if self.is_mounted and left == self._left:
+            then(*args)
 
     def _find(self, goto: Callable[[], Row]) -> tuple[str, list[Row], str, object, Row]:
         """The row ``goto`` finds and its level, loaded. Network: a worker's."""
@@ -217,12 +233,15 @@ class BrowserScreen(ModalScreen[tuple | None]):
 
     @work(thread=True, exclusive=True)
     def _load(self, title: str, loader, key: str = "", source: Row | None = None) -> None:
+        left = self._left
         try:
             rows = loader()
         except Exception as exc:
-            self.app.call_from_thread(self._failed, exc)
+            self.app.call_from_thread(self._if_current, left, self._failed, exc)
             return
-        self.app.call_from_thread(self._push, title, rows, key, loader, source)
+        self.app.call_from_thread(
+            self._if_current, left, self._push, title, rows, key, loader, source
+        )
 
     def _failed(self, exc: Exception) -> None:
         self._idle()
@@ -363,7 +382,8 @@ class BrowserScreen(ModalScreen[tuple | None]):
             self.dismiss(None)
             return
         # Going back while a level is still loading: the answer, when it
-        # lands, is for a level the user has left.
+        # lands, is for a level the user has left, and `_if_current` drops it.
+        self._left += 1
         self._idle()
         self._stack.pop()
         title, _rows, _key, _loader, source = self._stack[-1]
@@ -631,12 +651,13 @@ class BrowserScreen(ModalScreen[tuple | None]):
 
     @work(thread=True, exclusive=True)
     def _load_more(self, marker: Row, more) -> None:
+        left = self._left
         try:
             rows = more()
         except Exception as exc:
-            self.app.call_from_thread(self._failed, exc)
+            self.app.call_from_thread(self._if_current, left, self._failed, exc)
             return
-        self.app.call_from_thread(self._merge, marker, rows)
+        self.app.call_from_thread(self._if_current, left, self._merge, marker, rows)
 
     def _merge(self, marker: Row, rows: list[Row]) -> None:
         """Turn the «más…» row into the page it just fetched, in place.

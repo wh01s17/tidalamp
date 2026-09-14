@@ -26,6 +26,8 @@ versioning is [semantic](https://semver.org/).
 - A socket path too long for a Unix socket (a very long `XDG_CACHE_HOME`) now says so
   at once, instead of waiting five seconds and blaming mpv for not opening it.
 - The help lists `l` (add to a playlist) in the track menu, which it had left out.
+- Going back with `⌫` while a level is still loading no longer has that level pop up
+  a moment later over the one you went back to.
 
 ## [0.9.0] - 2026-09-12
 

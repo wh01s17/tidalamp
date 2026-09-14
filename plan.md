@@ -4,8 +4,9 @@ Documento de traspaso. Describe qué existe, qué está verificado, qué falta y
 criterio se tomaron las decisiones, para que cualquiera (humano o modelo) pueda
 retomar el trabajo sin contexto previo.
 
-**Última actualización:** 2026-09-14, versión `0.10.0` preparada y validada en local
-(`febbbff`), pendiente del tag. Lo nuevo, probado a mano por el mantenedor contra TIDAL
+**Última actualización:** 2026-09-14, versión `0.10.0` preparada y validada en local,
+pendiente del tag, que va sobre el commit que arregla el `⌫` durante una carga (lo
+cazó CI después de preparar la versión). Lo nuevo, probado a mano por el mantenedor contra TIDAL
 real: un artista abre a sus secciones (populares, álbumes, EPs y sencillos, otros) y
 no sólo a sus pistas más escuchadas; «ir al artista» (`t`) e «ir al álbum» (`b`) en
 el menú de la pista, desde el navegador, la búsqueda y la cola, preguntando cuál
@@ -529,6 +530,18 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
       corto, no en `tmp_path`: en un sandbox el `tmp_path` pasaba del límite, cada test
       esperaba 5 s y la suite parecía colgada (le pasó a Codex, 2026-09-12). Se
       comprueba con `--basetemp` en una ruta larga: pasa en 3 s.
+- [x] **Un nivel del que se volvió no aparece después.** `⌫` sobre un nivel que aún
+      cargaba paraba el spinner y nada más: la respuesta llegaba un momento después y
+      se apilaba igual, encima de donde el usuario había vuelto. Y un worker que
+      terminaba mientras la ventana se cerraba aterrizaba en una pantalla sin widgets
+      (`NoMatches` de `query_one(Spinner)`). Lo cazó CI en Python 3.14 (2026-09-14),
+      en `test_going_back_stops_a_spinner_for_a_level_nobody_is_waiting_for`, que
+      aquí pasaba por suerte de tiempos. Ahora `BrowserScreen._left` cuenta los `⌫`;
+      cada worker del navegador lo anota al empezar y aterriza por `_if_current`, que
+      no hace nada si cambió o si la pantalla ya no está montada. Trampa del test: al
+      pulsar `⌫` con B cargando, en pantalla sigue A, así que se vuelve a la raíz, no
+      a A; y hay que esperar a que el worker termine antes de salir de `run_test`, o
+      la respuesta cae durante el cierre y el test vuelve a depender del reloj.
 - [x] Instrumentación de la rama de manifiesto: `stream.resolve()` registra si tomó
       `BTS` o `MPD`, y `Playable.manifest` lo expone.
 
@@ -1800,7 +1813,7 @@ probadas sólo con dobles.
 **Orden propuesto (2026-09-11):** ~~P5 empaquetado~~ y ~~carátula~~ ✅ hechos. Cada
 versión se publica siguiendo `publish.md`; la última publicada es la `0.9.0`
 (2026-09-12), en PyPI y en GitHub. La `0.10.0` está preparada y validada en local
-(2026-09-14, `febbbff`), pendiente del tag; su `sha256sums` está en `SKIP` hasta que
+(2026-09-14), pendiente del tag; su `sha256sums` está en `SKIP` hasta que
 exista el tarball, y se fija después como en `7ee2f72` para la `0.9.0`. Lo que queda abierto aquí pide credenciales tuyas o un par de ojos.
 
 1. Publicar en el AUR cuando vuelva a abrir el registro de cuentas nuevas. El paquete
