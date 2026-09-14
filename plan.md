@@ -1076,7 +1076,15 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
       `entry.resolve()`, una petición más, y lo deja puesto. Desde el navegador el
       nivel se apila sobre el que se ve y `⌫` vuelve a él. Desde la cola el
       navegador no está abierto: `BrowserScreen(goto=...)` carga la raíz y el nivel en
-      el mismo worker, para que caiga encima y no debajo, y `⌫` vuelve a la raíz. La
+      el mismo worker y **los apila juntos** cuando están los dos, y `⌫` vuelve a la
+      raíz. Al principio apilaba la raíz en cuanto llegaba: `_push` paraba el
+      spinner y la biblioteca se quedaba a la vista, quieta, mientras TIDAL
+      contestaba, como si se hubiera pulsado `l` (lo vio el mantenedor, 2026-09-14).
+      Ahora el spinner dice «buscando el artista…» (`busy=`) hasta que cae el nivel;
+      si la búsqueda falla, se apila la raíz y la línea de estado dice por qué. Trampa
+      para el test: el pilot de Textual espera a los workers, así que un `go_to` que
+      se queda esperando se espera entero antes de que ningún assert mire. El test
+      mira desde dentro de `go_to`, que es cuando importa. La
       pantalla completa no tiene menú de la pista (sólo `↵` para reproducir), así que
       ahí no hay estas entradas.
 

@@ -105,7 +105,12 @@ class BrowserScreen(ModalScreen[tuple | None]):
         return cast("TidalAmp", self.app)
 
     def __init__(
-        self, title: str, loader, key: str = "", goto: Callable[[], Row] | None = None
+        self,
+        title: str,
+        loader,
+        key: str = "",
+        goto: Callable[[], Row] | None = None,
+        busy: str = "",
     ) -> None:
         super().__init__()
         self._root_title = title
@@ -113,8 +118,10 @@ class BrowserScreen(ModalScreen[tuple | None]):
         self._root_key = key
         # A level to open on top of the root as soon as it loads: «ir al
         # artista» from the queue lands there, and ⌫ goes back to the root
-        # instead of closing the window.
+        # instead of closing the window. `busy` is what the spinner says
+        # meanwhile, which is not «cargando mi biblioteca».
         self._goto = goto
+        self._goto_busy = busy
         # Stack of (title, rows, key, loader, source) so backspace can walk
         # back up, `R` can refetch the level it is looking at, and `s` can ask
         # the row that opened it (`source`) how else it can be ordered.
@@ -148,41 +155,51 @@ class BrowserScreen(ModalScreen[tuple | None]):
         self.query_one("#browser-filter-bar", Horizontal).display = False
         self.query_one(RowList).empty_text = self._empty
         self._render_hint()
-        self._busy(_("cargando {level}…").format(level=self._root_title.lower()))
         if self._goto is not None:
+            self._busy(self._goto_busy or _("cargando…"))
             self._open_at(self._goto)
             return
+        self._busy(_("cargando {level}…").format(level=self._root_title.lower()))
         self._load(self._root_title, self._root_loader, self._root_key)
 
     @work(thread=True, exclusive=True)
     def _open_at(self, goto: Callable[[], Row]) -> None:
-        """The root, and then the level ``goto`` finds, in one worker: the
-        level has to land on top of the root, never under it."""
+        """The root and the level ``goto`` finds, pushed together once both
+        are in. Pushing the root first showed the library, with no spinner,
+        for as long as the artist took to arrive: it looked like the wrong
+        window had opened."""
         try:
             rows = self._root_loader()
         except Exception as exc:
             self.app.call_from_thread(self._failed, exc)
             return
-        self.app.call_from_thread(
-            self._push, self._root_title, rows, self._root_key, self._root_loader
-        )
-        self._go(goto)
+        root = (self._root_title, rows, self._root_key, self._root_loader)
+        try:
+            found = self._find(goto)
+        except Exception as exc:
+            # The root is still somewhere to be, and the status says why.
+            self.app.call_from_thread(self._push, *root)
+            self.app.call_from_thread(self._not_there, exc)
+            return
+        self.app.call_from_thread(self._push, *root)
+        self.app.call_from_thread(self._push, *found)
 
     @work(thread=True, exclusive=True)
     def _go_worker(self, goto: Callable[[], Row]) -> None:
-        self._go(goto)
-
-    def _go(self, goto: Callable[[], Row]) -> None:
-        """Find the row and open its level on top of the one on screen. From
-        a worker; a failure leaves that level where it is and says why."""
+        """Open the level ``goto`` finds on top of the one on screen; a
+        failure leaves that level where it is and says why."""
         try:
-            row = goto()
-            key, loader = self._level_of(row)
-            rows = loader()
+            found = self._find(goto)
         except Exception as exc:
             self.app.call_from_thread(self._not_there, exc)
             return
-        self.app.call_from_thread(self._push, row.label, rows, key, loader, row)
+        self.app.call_from_thread(self._push, *found)
+
+    def _find(self, goto: Callable[[], Row]) -> tuple[str, list[Row], str, object, Row]:
+        """The row ``goto`` finds and its level, loaded. Network: a worker's."""
+        row = goto()
+        key, loader = self._level_of(row)
+        return row.label, loader(), key, loader, row
 
     def _not_there(self, exc: Exception) -> None:
         self._idle()

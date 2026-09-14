@@ -533,6 +533,54 @@ def test_go_to_the_album_from_a_search_opens_it_on_top_of_the_results(monkeypatc
     asyncio.run(scenario())
 
 
+def test_while_the_artist_is_on_its_way_the_library_is_not_shown(monkeypatch):
+    """The root used to be pushed first: the library sat there, spinner off,
+    for as long as TIDAL took to answer, as if `l` had been pressed. Now the
+    spinner says what it is looking for and both levels land together."""
+    from tidalamp.screens import BrowserScreen
+
+    isolate_runtime(monkeypatch)
+    monkeypatch.setattr(library, "root", lambda session: [library.Row(label="Favoritos")])
+    # What the window looked like while TIDAL was being asked. Taken from
+    # inside the lookup, in the worker: the pilot waits for workers, so a
+    # lookup held open would be waited out before any assert could look.
+    seen: list[tuple[int, str]] = []
+    holder: list[TidalAmp] = []
+
+    def go_to(session, entry, kind):
+        browser = holder[0].screen
+        assert isinstance(browser, BrowserScreen)
+        seen.append((len(browser._stack), browser.query_one(Spinner).label))
+        return _a_place("TOOL", "artist:7", "Populares")
+
+    monkeypatch.setattr(library, "go_to", go_to)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        holder.append(application)
+        async with application.run_test(size=(100, 30)) as pilot:
+            a_queue(application, "Schism")
+            await pilot.pause()
+            application.action_track_menu()
+            await pilot.pause()
+            await pilot.press("t")
+            await settle(
+                pilot,
+                lambda: (
+                    isinstance(application.screen, BrowserScreen)
+                    and len(application.screen._stack) == 2
+                ),
+            )
+
+            # No level on screen yet, and the spinner saying what it waits for.
+            assert seen == [(0, "buscando el artista…")]
+            browser = application.screen
+            assert not browser.query_one(Spinner).busy
+            assert [level[0] for level in browser._stack] == ["MI BIBLIOTECA", "TOOL"]
+
+    asyncio.run(scenario())
+
+
 def _two_tracks_playing_the_last(application) -> None:
     application.queue.replace(
         [Entry(id=1, title="A", artist="x"), Entry(id=2, title="B", artist="x")],

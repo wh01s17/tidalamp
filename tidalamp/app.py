@@ -1476,6 +1476,11 @@ class TidalAmp(App):
                     goto=functools.partial(
                         library.go_to, self.session, self.queue[index], action
                     ),
+                    busy=(
+                        _("buscando el artista…")
+                        if action == "artist"
+                        else _("buscando el álbum…")
+                    ),
                 ),
                 self._browser_result,
             )
