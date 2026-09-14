@@ -684,6 +684,18 @@ ENGLISH: dict[str, str] = {
     "buscando el álbum…": "looking up the album…",
     "no se pudo abrir: {error}": "could not open it: {error}",
     "¿QUÉ ARTISTA?": "WHICH ARTIST?",
+    "Un artista abre a sus discos: álbumes, EPs, sencillos, otros.": (
+        "An artist opens to its discs: albums, EPs, singles, other."
+    ),
+    "t y b en el menú de la pista: ir al artista o al álbum.": (
+        "t and b in the track menu: go to the artist or the album."
+    ),
+    "Con varios artistas, se elige a cuál ir.": (
+        "With several artists, you pick which one."
+    ),
+    "Un guardado que falla se dice en la línea de estado.": (
+        "A save that fails is reported on the status line."
+    ),
     "Playlists": "Playlists",
     "abrir": "open",
     "artista": "artist",

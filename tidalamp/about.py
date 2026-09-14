@@ -50,6 +50,16 @@ def releases() -> tuple[Release, ...]:
     """Newest first. Translated at call time, not at import time."""
     return (
         Release(
+            "0.10.0",
+            "2026-09-14",
+            (
+                _("Un artista abre a sus discos: álbumes, EPs, sencillos, otros."),
+                _("t y b en el menú de la pista: ir al artista o al álbum."),
+                _("Con varios artistas, se elige a cuál ir."),
+                _("Un guardado que falla se dice en la línea de estado."),
+            ),
+        ),
+        Release(
             "0.9.0",
             "2026-09-12",
             (
