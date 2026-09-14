@@ -5,6 +5,14 @@ versioning is [semantic](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- A save that fails (a full disk, a read-only state directory) is now reported on the
+  status line, once per session, instead of losing the queue, the equaliser or a
+  library order without a trace.
+- A socket path too long for a Unix socket (a very long `XDG_CACHE_HOME`) now says so
+  at once, instead of waiting five seconds and blaming mpv for not opening it.
+
 ## [0.9.0] - 2026-09-12
 
 ### Added

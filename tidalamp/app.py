@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import contextlib
 import functools
+import logging
 import time
 from typing import NamedTuple, cast
 
@@ -62,6 +63,8 @@ from .widgets import (
     Spinner,
     TimeDisplay,
 )
+
+log = logging.getLogger("tidalamp.app")
 
 # What `_resolving` holds after a stop: an entry no resolve is ever for, so
 # whatever comes back late is dropped instead of starting to play.
@@ -379,6 +382,10 @@ class TidalAmp(App):
         self._transport_playing = False
         # What the status line already says, so writing it again is free.
         self._status_line = ""
+        # Whether a failed save has been reported already. Once a session:
+        # the queue is saved on every track change, and a full disk would
+        # otherwise take the status line over.
+        self._save_warned = False
         self._transport_hits: list[tuple[int, int, str]] = []
         self._playable: Playable | None = None
         self._sink = audio.Sink()
@@ -970,6 +977,20 @@ class TidalAmp(App):
         self._status_line = line
         self.query_one("#status", Static).update(line)
 
+    def _saved(self, error: OSError | None) -> None:
+        """Say that a save failed, once a session.
+
+        The queue, the settings and the library's orders are written by
+        modules that know nothing of Textual; they hand the error back and
+        this is where it is shown. Not fatal, but not silent either: with a
+        full disk the queue used to be lost without a trace.
+        """
+        if error is None or self._save_warned:
+            return
+        self._save_warned = True
+        log.warning("no se pudo guardar: %s", error)
+        self.status = _("no se pudo guardar en disco ({error})").format(error=error)
+
     # How long to wait before trying again after a restart that failed.
     MPV_RETRY = 5.0
 
@@ -1409,7 +1430,7 @@ class TidalAmp(App):
         # Every edit to the queue comes through here, and any of them can
         # change which track is next.
         self._check_prepared()
-        self.queue.save()
+        self._saved(self.queue.save())
         self._fill_years()
         fullscreen = self._fullscreen()
         if fullscreen is not None:
@@ -1518,7 +1539,7 @@ class TidalAmp(App):
         for entry in self.queue:
             if entry.year == 0:
                 entry.year = found.get(entry.album_id, 0)
-        self.queue.save()
+        self._saved(self.queue.save())
         self.query_one("#playlist", RowList).refresh()
         self._refresh_track_meta()
 
@@ -1954,7 +1975,7 @@ class TidalAmp(App):
 
     def action_shuffle(self) -> None:
         self.queue.shuffle = not self.queue.shuffle
-        self.queue.save()
+        self._saved(self.queue.save())
         self._check_prepared()
         self._refresh_modes()
         self.status = (
@@ -1963,7 +1984,7 @@ class TidalAmp(App):
 
     def action_repeat(self) -> None:
         self.queue.repeat = self.queue.repeat.next()
-        self.queue.save()
+        self._saved(self.queue.save())
         self._check_prepared()
         self._refresh_modes()
         names = {
@@ -2009,7 +2030,7 @@ class TidalAmp(App):
         playlist.refresh()
         self.query_one(Marquee).text = f"{index + 1}. {entry.title}"
         self._refresh_track_meta()
-        self.queue.save()
+        self._saved(self.queue.save())
         self._load_art(entry)
         return entry
 
@@ -2752,7 +2773,7 @@ class TidalAmp(App):
         self.push_screen(HelpScreen(keys_for))
 
     def _eq_closed(self, _result: None) -> None:
-        self.settings.save()
+        self._saved(self.settings.save())
         self.status = (
             _("ecualizador activo") if self.settings.eq_active else _("ecualizador plano")
         )
@@ -2763,7 +2784,7 @@ class TidalAmp(App):
     def _set_balance(self, requested: float) -> None:
         value = self.settings.set_balance(requested)
         self._apply_audio()
-        self.settings.save()
+        self._saved(self.settings.save())
         side = (
             _("centro")
             if value == 0
@@ -2916,8 +2937,8 @@ class TidalAmp(App):
         replaced it rather than running before it.
         """
         self._remember_position()
-        self.queue.save()
-        self.settings.save()
+        self._saved(self.queue.save())
+        self._saved(self.settings.save())
         if self._mpris_ready:
             await self.mpris.stop()
         self._stop_spectrum()
@@ -2989,7 +3010,7 @@ class TidalAmp(App):
             self.queue.repeat = Repeat(value)
         except ValueError:
             return
-        self.queue.save()
+        self._saved(self.queue.save())
         self._refresh_modes()
 
     def mpris_shuffle(self) -> bool:
@@ -2997,7 +3018,7 @@ class TidalAmp(App):
 
     def mpris_set_shuffle(self, value: bool) -> None:
         self.queue.shuffle = value
-        self.queue.save()
+        self._saved(self.queue.save())
         self._refresh_modes()
 
     def mpris_play(self) -> None:

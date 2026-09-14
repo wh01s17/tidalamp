@@ -772,6 +772,11 @@ ENGLISH: dict[str, str] = {
     "{package} no está instalado ({command})": ("{package} is not installed ({command})"),
     "{package} no está instalado": "{package} is not installed",
     "mpv no abrió el socket IPC a tiempo": "mpv did not open its IPC socket in time",
+    "la ruta del socket de mpv es demasiado larga "
+    "({length} bytes, máximo {limit}): {path}": (
+        "mpv's socket path is too long ({length} bytes, at most {limit}): {path}"
+    ),
+    "no se pudo guardar en disco ({error})": "could not save to disk ({error})",
     "TIDAL no devolvió stream para «{name}»: {error}": (
         "TIDAL returned no stream for “{name}”: {error}"
     ),

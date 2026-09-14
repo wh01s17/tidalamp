@@ -144,3 +144,19 @@ def test_flat_bands_are_the_flat_preset_and_not_manual():
     from tidalamp.settings import Settings
 
     assert Settings().preset == "flat"
+
+
+def test_a_failed_save_is_handed_back_not_swallowed(tmp_path, monkeypatch):
+    import os
+
+    if os.geteuid() == 0:
+        pytest.skip("root writes into a read-only directory")
+    locked = tmp_path / "locked"
+    locked.mkdir()
+    locked.chmod(0o500)
+    monkeypatch.setattr(settings_module, "SETTINGS_FILE", locked / "settings.json")
+    monkeypatch.setattr(settings_module, "ensure_dirs", lambda: None)
+    try:
+        assert isinstance(Settings().save(), OSError)
+    finally:
+        locked.chmod(0o700)

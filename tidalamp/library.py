@@ -209,8 +209,10 @@ def chosen(row: Row) -> Order | None:
     )
 
 
-def remember(row: Row, order: Order | None) -> None:
-    """Keep ``order`` for the level ``row`` opens. Failing to write is not fatal."""
+def remember(row: Row, order: Order | None) -> OSError | None:
+    """Keep ``order`` for the level ``row`` opens. Failing to write is not
+    fatal: the order still holds for this session, and the error comes back
+    so the app can say so."""
     orders = _orders()
     if order is None:
         orders.pop(row.key, None)
@@ -219,8 +221,9 @@ def remember(row: Row, order: Order | None) -> None:
     try:
         ORDERS_FILE.parent.mkdir(parents=True, exist_ok=True)
         write_atomically(ORDERS_FILE, json.dumps(orders, ensure_ascii=False))
-    except OSError:
-        pass
+    except OSError as exc:
+        return exc
+    return None
 
 
 def _tidal(order: Order | None, kind: Any) -> dict[str, Any]:

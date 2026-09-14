@@ -48,6 +48,9 @@ _CACHE_SECONDS = 20
 # socket that is gone: the first means mpv is slow, the second that it is dead.
 _TIMED_OUT = b""
 
+# The longest path a Unix socket takes: `sun_path` is 108 bytes and ends in NUL.
+SOCKET_PATH_MAX = 107
+
 
 class MpvNotFound(RuntimeError):
     pass
@@ -91,6 +94,17 @@ class Mpv:
     # ------------------------------------------------------------------ setup
 
     def _spawn(self) -> subprocess.Popen:
+        # A Unix socket path is cut at 108 bytes, NUL included. mpv cannot
+        # create one past that, and `_connect` would then wait its full
+        # timeout and blame mpv for being slow (plan.md §7).
+        length = len(bytes(IPC_SOCKET))
+        if length > SOCKET_PATH_MAX:
+            raise MpvNotFound(
+                _(
+                    "la ruta del socket de mpv es demasiado larga "
+                    "({length} bytes, máximo {limit}): {path}"
+                ).format(length=length, limit=SOCKET_PATH_MAX, path=IPC_SOCKET)
+            )
         IPC_SOCKET.unlink(missing_ok=True)
         return subprocess.Popen(
             [

@@ -503,6 +503,20 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
 - [x] Registro opcional: `TIDALAMP_DEBUG=1` escribe en
       `~/.local/state/tidalamp/tidalamp.log`. Sin él, un `NullHandler` en el paquete
       evita que el handler de último recurso de `logging` pinte sobre la TUI.
+- [x] **Un guardado que falla se dice, una vez.** `Queue.save`, `Settings.save` y
+      `library.remember` ya no se tragan el `OSError` con `pass`: lo devuelven. Esos
+      módulos no conocen Textual, así que es `TidalAmp._saved()` quien lo registra con
+      `log.warning` y lo pone en la línea de estado, sólo la primera vez de la sesión
+      (`_save_warned`): la cola se guarda en cada cambio de pista y con el disco lleno
+      se comería la línea. Sigue sin ser fatal; un orden que no se pudo escribir vale
+      igual para esta sesión.
+- [x] **Una ruta de socket demasiado larga se dice antes de lanzar mpv.** `sun_path`
+      son 108 bytes con el NUL, así que `Mpv._spawn` mira `SOCKET_PATH_MAX = 107` y
+      falla con la causa, en vez de esperar los 5 s de `_connect` y culpar a mpv. En
+      los tests, las fixtures de `test_player.py` crean el socket en un `mkdtemp()`
+      corto, no en `tmp_path`: en un sandbox el `tmp_path` pasaba del límite, cada test
+      esperaba 5 s y la suite parecía colgada (le pasó a Codex, 2026-09-12). Se
+      comprueba con `--basetemp` en una ruta larga: pasa en 3 s.
 - [x] Instrumentación de la rama de manifiesto: `stream.resolve()` registra si tomó
       `BTS` o `MPD`, y `Playable.manifest` lo expone.
 

@@ -146,15 +146,16 @@ class Settings:
 
     # ---------------------------------------------------------- persistence
 
-    def save(self) -> None:
-        """Failures are non-fatal, as with the queue."""
+    def save(self) -> OSError | None:
+        """Failures are non-fatal and come back to the caller, as with the queue."""
         try:
             ensure_dirs()
             write_atomically(
                 SETTINGS_FILE, json.dumps({"balance": self.balance, "gains": self.gains})
             )
-        except OSError:
-            pass
+        except OSError as exc:
+            return exc
+        return None
 
     @classmethod
     def load(cls) -> Settings:

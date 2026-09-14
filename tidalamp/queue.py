@@ -349,8 +349,9 @@ class Queue:
 
     # ------------------------------------------------------------ persistence
 
-    def save(self) -> None:
-        """Write the queue to disk. Failures are non-fatal by design."""
+    def save(self) -> OSError | None:
+        """Write the queue to disk. Failures are non-fatal by design, but not
+        silent: the error comes back so the app can say so."""
         try:
             ensure_dirs()
             write_atomically(
@@ -366,8 +367,9 @@ class Queue:
                     ensure_ascii=False,
                 ),
             )
-        except OSError:
-            pass
+        except OSError as exc:
+            return exc
+        return None
 
     def load(self) -> bool:
         """Restore a saved queue. Returns False when there is nothing to load."""

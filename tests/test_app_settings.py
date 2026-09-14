@@ -45,6 +45,31 @@ def test_the_menu_announces_the_settings_window(monkeypatch):
     asyncio.run(scenario())
 
 
+def test_a_failed_save_is_said_once_and_not_on_every_track(monkeypatch):
+    """The queue is saved on every track change. A full disk used to lose it
+    in silence; now the status line says so, but only the first time, or it
+    would take the line over for the rest of the session."""
+    isolate_runtime(monkeypatch)
+    monkeypatch.setattr(
+        app_module.Queue, "save", lambda self: PermissionError(13, "Permission denied")
+    )
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(160, 26)) as pilot:
+            await pilot.pause()
+            application._saved(application.queue.save())
+            assert "no se pudo guardar" in application.status
+            assert "Permission denied" in application.status
+
+            application.status = "reproduciendo"
+            application._saved(application.queue.save())
+            application._saved(application.settings.save())
+            assert application.status == "reproduciendo"
+
+    asyncio.run(scenario())
+
+
 def test_the_setting_changes_the_shape_without_moving_the_analyser(monkeypatch):
     """Every shape is drawn in the same place — beside the cover, under the
     track details — and all of them use the whole column."""

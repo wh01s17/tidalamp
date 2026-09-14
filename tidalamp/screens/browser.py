@@ -367,7 +367,7 @@ class BrowserScreen(ModalScreen[tuple | None]):
     def _sorted(self, source: Row, order: library.Order | None) -> None:
         if order == library.chosen(source) or source.sort is None:
             return
-        library.remember(source, order)
+        self.player._saved(library.remember(source, order))
         key, loader = source.sort(order)
         title = self._stack[-1][0]
         self._stack.pop()

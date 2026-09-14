@@ -4,33 +4,63 @@ from __future__ import annotations
 
 import contextlib
 import os
+import shutil
 import signal
 import sys
+import tempfile
 import time
 from pathlib import Path
 
 import pytest
 
 from tidalamp import player
-from tidalamp.player import Mpv
+from tidalamp.player import Mpv, MpvNotFound
 
 FAKE = Path(__file__).parent / "fake_mpv.py"
 
 
 @pytest.fixture
-def mpv(tmp_path, monkeypatch):
+def socket_path():
+    """The socket goes in a short temporary directory, not in `tmp_path`.
+
+    Under a sandbox, pytest's `tmp_path` can run past the 107 bytes a Unix
+    socket path takes: the fake mpv could not create it, and every test
+    waited out the 5 s connect timeout before failing, so the suite looked
+    hung.
+    """
+    directory = tempfile.mkdtemp(prefix="tidalamp-")
+    yield Path(directory) / "mpv.sock"
+    shutil.rmtree(directory, ignore_errors=True)
+
+
+@pytest.fixture
+def mpv(tmp_path, socket_path, monkeypatch):
     shim = tmp_path / "bin"
     shim.mkdir()
     (shim / "mpv").write_text(f'#!/bin/sh\nexec "{sys.executable}" "{FAKE}" "$@"\n')
     (shim / "mpv").chmod(0o755)
     monkeypatch.setenv("PATH", f"{shim}:{os.environ['PATH']}")
-    monkeypatch.setattr(player, "IPC_SOCKET", tmp_path / "mpv.sock")
+    monkeypatch.setattr(player, "IPC_SOCKET", socket_path)
     monkeypatch.setattr(player, "ensure_dirs", lambda: None)
 
     instance = Mpv()
     yield instance
     with contextlib.suppress(Exception):
         instance.close()
+
+
+def test_a_socket_path_too_long_says_so_instead_of_timing_out(monkeypatch):
+    """A long XDG_CACHE_HOME used to give «mpv did not open its IPC socket in
+    time» after five seconds, which blames mpv for a path it cannot bind."""
+    long_path = Path("/tmp") / ("x" * 120) / "mpv.sock"
+    monkeypatch.setattr(player, "IPC_SOCKET", long_path)
+    monkeypatch.setattr(player, "ensure_dirs", lambda: None)
+    monkeypatch.setattr(player.shutil, "which", lambda name: "/usr/bin/mpv")
+
+    started = time.monotonic()
+    with pytest.raises(MpvNotFound, match="demasiado larga"):
+        Mpv()
+    assert time.monotonic() - started < 1.0
 
 
 def test_properties_survive_the_async_event_noise(mpv):
@@ -165,14 +195,14 @@ def test_the_cache_is_asked_for_rather_than_left_to_auto(mpv):
 
 
 @pytest.fixture
-def unruly(tmp_path, monkeypatch):
+def unruly(tmp_path, socket_path, monkeypatch):
     """The same fake mpv, started with the environment a test gave it."""
     shim = tmp_path / "bin"
     shim.mkdir()
     (shim / "mpv").write_text(f'#!/bin/sh\nexec "{sys.executable}" "{FAKE}" "$@"\n')
     (shim / "mpv").chmod(0o755)
     monkeypatch.setenv("PATH", f"{shim}:{os.environ['PATH']}")
-    monkeypatch.setattr(player, "IPC_SOCKET", tmp_path / "mpv.sock")
+    monkeypatch.setattr(player, "IPC_SOCKET", socket_path)
     monkeypatch.setattr(player, "ensure_dirs", lambda: None)
     monkeypatch.setattr(Mpv, "TIMEOUT", 0.3)
     started: list[Mpv] = []
