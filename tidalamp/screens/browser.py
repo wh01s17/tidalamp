@@ -13,16 +13,19 @@ from textual.binding import Binding
 from textual.containers import Horizontal, Vertical
 from textual.screen import ModalScreen
 from textual.widgets import Input, Static
+from textual.worker import get_current_worker
 
-from .. import library
+from .. import config, library
 from ..auth import ensure_fresh
 from ..i18n import _
 from ..library import Row
 from ..widgets import Spinner
 from .choice import ChoiceScreen
+from .grid import GridList, cached_cells, cover_cells
 from .help import HelpScreen
+from .prompts import PlaylistNameScreen
 from .rowlist import RowList
-from .tracks import CONTAINER_ACTIONS, TrackActionsScreen
+from .tracks import CONTAINER_ACTIONS, PLAYLIST_ACTIONS, TrackActionsScreen
 
 if TYPE_CHECKING:  # The screens report back to the app; the app owns them.
     from ..app import TidalAmp
@@ -88,7 +91,13 @@ class BrowserScreen(ModalScreen[tuple | None]):
         Binding("pagedown", "page_down", "", show=False),
         Binding("enter", "choose", _("abrir/reproducir"), show=False),
         Binding("slash", "filter", _("filtrar"), show=False),
-        Binding("backspace,left", "back", _("atrás"), show=False),
+        Binding("backspace", "back", _("atrás"), show=False),
+        # ← goes back in the list and walks the grid; → only walks the grid.
+        Binding("left", "left", _("izquierda"), show=False),
+        Binding("right", "right", _("derecha"), show=False),
+        Binding("v", "view", _("vista"), show=False),
+        Binding("alt+up", "move_up", _("subir la pista"), show=False),
+        Binding("alt+down", "move_down", _("bajar la pista"), show=False),
         Binding("a", "append_one", _("añadir"), show=False),
         Binding("A", "append_all", _("añadir todo"), show=False),
         Binding("m", "menu", _("menú"), show=False),
@@ -136,6 +145,9 @@ class BrowserScreen(ModalScreen[tuple | None]):
         # How many times ⌫ has been pressed. A worker notes it when it starts,
         # and its answer is dropped if it moved: that level has been left.
         self._left = 0
+        # A move in a playlist on its way to TIDAL. A second one sent before
+        # the first lands would go by a position that is about to change.
+        self._moving = False
 
     def compose(self) -> ComposeResult:
         with Vertical(id="browser-box"):
@@ -145,6 +157,9 @@ class BrowserScreen(ModalScreen[tuple | None]):
                 yield Static(self._root_title, id="browser-title", markup=False)
                 yield Spinner(id="browser-spinner")
             yield RowList(id="browser-list")
+            # The same level, as covers. Hidden unless `library_view` asks for
+            # it and the level has covers to show (`_grid_fits`).
+            yield GridList(id="browser-grid")
             # The filter bar, Firefox-style: it opens at the foot of the window
             # without covering the level, so the list narrows under the eyes of
             # whoever is typing. Hidden until `/`.
@@ -157,7 +172,8 @@ class BrowserScreen(ModalScreen[tuple | None]):
 
     def on_mount(self) -> None:
         self.query_one("#browser-filter-bar", Horizontal).display = False
-        self.query_one(RowList).empty_text = self._empty
+        self.query_one(GridList).display = False
+        self._list().empty_text = self._empty
         self._render_hint()
         if self._goto is not None:
             self._busy(self._goto_busy or _("cargando…"))
@@ -224,6 +240,8 @@ class BrowserScreen(ModalScreen[tuple | None]):
 
     def on_resize(self, event) -> None:
         self._render_hint()
+        # A wider window holds more tiles, and their covers are not in yet.
+        self._fetch_covers()
 
     def _busy(self, label: str) -> None:
         self.query_one(Spinner).start(label)
@@ -246,7 +264,7 @@ class BrowserScreen(ModalScreen[tuple | None]):
     def _failed(self, exc: Exception) -> None:
         self._idle()
         self._empty = _("error: {error}").format(error=exc)
-        widget = self.query_one(RowList)
+        widget = self._list()
         widget.empty_text = self._empty
         widget.refresh()
 
@@ -302,7 +320,12 @@ class BrowserScreen(ModalScreen[tuple | None]):
 
     def _show(self, cursor: int = 0) -> None:
         """Put the visible rows on screen with the cursor at ``cursor``."""
-        widget = self.query_one(RowList)
+        # Decided on the whole level, not on what the filter lets through:
+        # typing a word should not turn a grid into a list under the eyes.
+        grid = self._grid_fits(self._level())
+        self.query_one(RowList).display = not grid
+        self.query_one(GridList).display = grid
+        widget = self._list()
         rows = self._visible()
         widget.empty_text = (
             _("nada coincide con «{query}»").format(query=self._filter)
@@ -313,6 +336,61 @@ class BrowserScreen(ModalScreen[tuple | None]):
         widget.cursor = max(0, min(cursor, len(rows) - 1))
         widget.refresh()
         self._render_hint()
+        self._fetch_covers()
+
+    def _list(self) -> RowList | GridList:
+        """Whichever of the two is showing the level: both answer to the same
+        ``rows``, ``cursor``, ``current`` and ``move``."""
+        grid = self.query_one(GridList)
+        return grid if grid.display else self.query_one(RowList)
+
+    @staticmethod
+    def _grid_fits(rows: list[Row]) -> bool:
+        """Whether this level is drawn as a grid: asked for, and a level of
+        things with covers. Tracks stay a list, and so does a level of
+        headings, as the root and an artist's sections are."""
+        items = [row for row in rows if row.more is None]
+        return (
+            config.LIBRARY_VIEW == "grid"
+            and bool(items)
+            and all(row.entry is None for row in items)
+            and any(row.art for row in items)
+        )
+
+    def _fetch_covers(self) -> None:
+        """Ask for the covers of the tiles on screen that are not in yet."""
+        grid = self.query_one(GridList)
+        if not grid.display:
+            return
+        wanted = [
+            row.art
+            for row in grid.shown_rows()
+            if row.art and cached_cells(row.art) is None and row.art not in grid.failed
+        ]
+        if wanted:
+            self._covers_worker(wanted)
+
+    # Exclusive in a group of its own: scrolling on cancels the covers of the
+    # tiles that left the screen, and leaves the level loading next door alone.
+    @work(thread=True, exclusive=True, group="covers")
+    def _covers_worker(self, urls: list[str]) -> None:
+        worker = get_current_worker()
+        for url in urls:
+            if worker.is_cancelled:
+                return
+            try:
+                ok = cover_cells(url) is not None
+            except Exception:
+                ok = False
+            self.app.call_from_thread(self._cover_landed, url, ok)
+
+    def _cover_landed(self, url: str, ok: bool) -> None:
+        if not self.is_mounted:
+            return
+        grid = self.query_one(GridList)
+        if not ok:
+            grid.failed.add(url)
+        grid.refresh()
 
     def _render_hint(self) -> None:
         """The footer, and the match count next to the filter box."""
@@ -355,7 +433,7 @@ class BrowserScreen(ModalScreen[tuple | None]):
     def _clear_filter(self) -> None:
         """Drop the filter and close its bar, keeping the cursor on the row it
         was on: the whole point of narrowing a level is to reach a row in it."""
-        current = self.query_one(RowList).current
+        current = self._list().current
         self._filter = ""
         self.query_one("#browser-filter", Input).value = ""
         self.query_one("#browser-filter-bar", Horizontal).display = False
@@ -365,17 +443,71 @@ class BrowserScreen(ModalScreen[tuple | None]):
 
     # ------------------------------------------------------------------ keys
 
+    def _step(self, delta: int, *, lines: bool = False) -> None:
+        """Move the cursor: rows in the list; tiles, or lines of them, in the grid."""
+        widget = self._list()
+        if isinstance(widget, GridList):
+            if lines:
+                widget.move_lines(delta)
+            else:
+                widget.move(delta)
+            self._fetch_covers()
+        else:
+            widget.move(delta)
+
     def action_up(self) -> None:
-        self.query_one(RowList).move(-1)
+        self._step(-1, lines=True)
 
     def action_down(self) -> None:
-        self.query_one(RowList).move(1)
+        self._step(1, lines=True)
 
     def action_page_up(self) -> None:
-        self.query_one(RowList).move(-10)
+        widget = self._list()
+        if isinstance(widget, GridList):
+            self._step(-widget.per_screen, lines=True)
+        else:
+            widget.move(-10)
 
     def action_page_down(self) -> None:
-        self.query_one(RowList).move(10)
+        widget = self._list()
+        if isinstance(widget, GridList):
+            self._step(widget.per_screen, lines=True)
+        else:
+            widget.move(10)
+
+    def action_left(self) -> None:
+        """← walks the grid; in the list it goes back, as it always did."""
+        if isinstance(self._list(), GridList):
+            self._step(-1)
+        else:
+            self.action_back()
+
+    def action_right(self) -> None:
+        if isinstance(self._list(), GridList):
+            self._step(1)
+
+    def action_view(self) -> None:
+        """`v`: the level as a list, or as a grid of covers. Remembered in
+        `config.toml`, for every level that has covers to show."""
+        view = "list" if config.LIBRARY_VIEW == "grid" else "grid"
+        error: OSError | None = None
+        try:
+            config.set_option("library_view", view)
+        except OSError as exc:
+            # It holds for this session all the same.
+            config.LIBRARY_VIEW = view
+            error = exc
+        self.player._saved(error)
+        current = self._list().current
+        visible = self._visible()
+        self._show(next((i for i, row in enumerate(visible) if row is current), 0))
+        label = _("cuadrícula") if view == "grid" else _("listado")
+        if view == "grid" and not self._grid_fits(self._level()):
+            self.player.status = _("vista: {view}; este nivel sigue en listado").format(
+                view=label
+            )
+        else:
+            self.player.status = _("vista: {view}").format(view=label)
 
     def action_back(self) -> None:
         if len(self._stack) <= 1:
@@ -469,7 +601,7 @@ class BrowserScreen(ModalScreen[tuple | None]):
         Asked first, with the cursor on «cancel», like restarting PipeWire:
         adding a track back to a playlist does not put it back where it was.
         """
-        row = self.query_one(RowList).current
+        row = self._list().current
         source = self._stack[-1][4] if self._stack else None
         where = ""
         if row is not None and row.more is None and source is not None:
@@ -538,7 +670,7 @@ class BrowserScreen(ModalScreen[tuple | None]):
             self._drop(row)
 
     def action_choose(self) -> None:
-        widget = self.query_one(RowList)
+        widget = self._list()
         row = widget.current
         if row is None:
             return
@@ -580,19 +712,27 @@ class BrowserScreen(ModalScreen[tuple | None]):
     def action_menu(self) -> None:
         """`m`: the track's menu on a track, and on an album, an artist or a
         playlist the same verbs over everything inside it."""
-        row = self.query_one(RowList).current
+        row = self._list().current
         if row is None:
             return
         if row.entry is not None:
             self.app.push_screen(TrackActionsScreen(row.label), self._act_on_track)
         elif row.loader is not None:
+            # A playlist of yours can also be renamed, described and deleted.
+            actions = PLAYLIST_ACTIONS if row.editable else CONTAINER_ACTIONS
             self.app.push_screen(
-                TrackActionsScreen(row.label, CONTAINER_ACTIONS),
+                TrackActionsScreen(row.label, actions),
                 partial(self._act_on_container, row),
             )
 
     def _act_on_container(self, row: Row, action: str | None) -> None:
         if action is None:
+            return
+        if action in ("rename", "describe"):
+            self._ask_edit(row, rename=action == "rename")
+            return
+        if action == "delete":
+            self._ask_delete(row)
             return
         if action == "favourite":
             self._busy(_("añadiendo a favoritos…"))
@@ -600,6 +740,199 @@ class BrowserScreen(ModalScreen[tuple | None]):
             return
         self._busy(_("cargando {label}…").format(label=row.label))
         self._container_worker(row, action)
+
+    # ------------------------------------------------------ your playlists
+
+    def _ask_edit(self, row: Row, *, rename: bool) -> None:
+        """A new name, or a new description, typed over the one it has."""
+        self.app.push_screen(
+            PlaylistNameScreen(
+                title=_("RENOMBRAR PLAYLIST")
+                if rename
+                else _("DESCRIPCIÓN DE LA PLAYLIST"),
+                value=row.label if rename else row.description,
+                placeholder=_("nombre de la playlist…") if rename else _("descripción…"),
+            ),
+            lambda text: self._edit(row, rename, text),
+        )
+
+    def _edit(self, row: Row, rename: bool, text: str | None) -> None:
+        if text is None:
+            return
+        text = text.strip()
+        # A name cannot be empty; a description can, and that clears it.
+        if (rename and (not text or text == row.label)) or (
+            not rename and text == row.description
+        ):
+            return
+        self._busy(_("guardando…"))
+        self._edit_worker(row, rename, text)
+
+    @work(thread=True, exclusive=True, group="playlist-edit")
+    def _edit_worker(self, row: Row, rename: bool, text: str) -> None:
+        session = self.player.session
+        ident = row.key.partition(":")[2]
+        done: str | None = None
+        try:
+            ensure_fresh(session)
+            if rename:
+                library.edit_playlist(session, ident, title=text)
+                message = _("«{old}» ahora se llama «{new}»").format(
+                    old=row.label, new=text
+                )
+            else:
+                library.edit_playlist(session, ident, description=text)
+                message = _("descripción de «{title}» cambiada").format(title=row.label)
+            done = text
+        except library.PlaylistNotWritable:
+            message = _("«{title}» es de otra cuenta: no se puede cambiar").format(
+                title=row.label
+            )
+        except Exception as exc:
+            message = _("playlist: {error}").format(error=exc)
+        self.app.call_from_thread(self._edited, message, row, rename, done)
+
+    def _edited(self, message: str, row: Row, rename: bool, text: str | None) -> None:
+        self.player.status = message
+        if not self.is_mounted:
+            return
+        self._idle()
+        if text is None:
+            return
+        # The row on screen, in place: the cached listing is already dropped,
+        # and the next visit asks TIDAL again.
+        if rename:
+            row.label = text
+        else:
+            row.description = text
+        self._list().refresh()
+
+    def _ask_delete(self, row: Row) -> None:
+        """Asked first, with the cursor on «cancelar»: a deleted playlist
+        does not come back."""
+        self.app.push_screen(
+            ChoiceScreen(
+                _("BORRAR PLAYLIST"),
+                [
+                    ("delete", _("borrar «{title}» de TIDAL").format(title=row.label)),
+                    ("cancel", _("cancelar")),
+                ],
+                cursor=1,
+            ),
+            lambda answer: self._delete(row) if answer == "delete" else None,
+        )
+
+    def _delete(self, row: Row) -> None:
+        self._busy(_("borrando…"))
+        self._delete_worker(row)
+
+    @work(thread=True, exclusive=True, group="playlist-edit")
+    def _delete_worker(self, row: Row) -> None:
+        session = self.player.session
+        gone: Row | None = None
+        try:
+            ensure_fresh(session)
+            library.delete_playlist(session, row.key.partition(":")[2])
+            message = _("«{title}» borrada").format(title=row.label)
+            gone = row
+        except library.PlaylistNotWritable:
+            message = _("«{title}» es de otra cuenta: no se puede cambiar").format(
+                title=row.label
+            )
+        except Exception as exc:
+            message = _("playlist: {error}").format(error=exc)
+        self.app.call_from_thread(self._removed, message, gone)
+
+    def action_move_up(self) -> None:
+        self._move(-1)
+
+    def action_move_down(self) -> None:
+        self._move(1)
+
+    def _move(self, delta: int) -> None:
+        """`alt+↑` `alt+↓`: move a track inside a playlist of yours.
+
+        Only in the playlist's own order and with no filter: sorted or
+        narrowed, the row's place on screen is not its place in TIDAL, and
+        the move would land somewhere nobody asked for.
+        """
+        row = self._list().current
+        source = self._stack[-1][4] if self._stack else None
+        if (
+            row is None
+            or row.entry is None
+            or source is None
+            or not source.editable
+            or not source.key.startswith("playlist:")
+        ):
+            self.player.status = _("solo se reordenan las pistas de tus playlists")
+            return
+        if library.chosen(source) is not None or self._filter:
+            self.player.status = _(
+                "para mover una pista, la playlist tiene que estar en su orden "
+                "y sin filtro"
+            )
+            return
+        if self._moving:
+            return
+        level = self._level()
+        index = next((i for i, candidate in enumerate(level) if candidate is row), -1)
+        other = index + delta
+        if index < 0 or other < 0 or other >= len(level):
+            return
+        if level[other].entry is None:
+            # The next row is «más…»: the track that follows is not loaded.
+            self.player.status = _(
+                "carga la página siguiente con «más…» antes de bajarla"
+            )
+            return
+        self._moving = True
+        self._busy(_("moviendo…"))
+        self._move_worker(row, source, index, delta)
+
+    @work(thread=True, exclusive=True, group="playlist-move")
+    def _move_worker(self, row: Row, source: Row, index: int, delta: int) -> None:
+        session = self.player.session
+        assert row.entry is not None
+        moved = 0
+        try:
+            ensure_fresh(session)
+            library.move_in_playlist(
+                session, source.key.partition(":")[2], row.entry, index, delta
+            )
+            message = _("«{label}» movida").format(label=row.label)
+            moved = delta
+        except library.MoveNotConfirmed:
+            message = _(
+                "TIDAL no dejó «{label}» donde se pidió; R recarga la playlist"
+            ).format(label=row.label)
+        except library.TrackNotInPlaylist:
+            message = _("«{label}» ya no está en la playlist").format(label=row.label)
+        except library.PlaylistNotWritable:
+            message = _("«{title}» es de otra cuenta: no se puede cambiar").format(
+                title=source.label
+            )
+        except Exception as exc:
+            message = _("mover: {error}").format(error=exc)
+        self.app.call_from_thread(self._moved, message, row, moved)
+
+    def _moved(self, message: str, row: Row, delta: int) -> None:
+        self._moving = False
+        self.player.status = message
+        if not self.is_mounted:
+            return
+        self._idle()
+        if not delta:
+            return
+        # The two rows swap on screen, in the list the level is: TIDAL has
+        # them that way now, and asking again would only cost a request.
+        level = self._level()
+        index = next((i for i, candidate in enumerate(level) if candidate is row), -1)
+        other = index + delta
+        if index < 0 or not 0 <= other < len(level):
+            return
+        level[index], level[other] = level[other], level[index]
+        self._show(other)
 
     @work(thread=True, exclusive=True)
     def _container_worker(self, row: Row, action: str) -> None:
@@ -615,7 +948,7 @@ class BrowserScreen(ModalScreen[tuple | None]):
         """Turn the menu's answer into the tuple the app already understands."""
         if action is None:
             return
-        widget = self.query_one(RowList)
+        widget = self._list()
         row = widget.current
         if row is None or row.entry is None:
             return
@@ -672,12 +1005,12 @@ class BrowserScreen(ModalScreen[tuple | None]):
         index = next((i for i, row in enumerate(level) if row is marker), -1)
         if index < 0:
             return
-        cursor = self.query_one(RowList).cursor
+        cursor = self._list().cursor
         level[index : index + 1] = rows
         self._show(cursor)
 
     def action_append_one(self) -> None:
-        row = self.query_one(RowList).current
+        row = self._list().current
         if row is None:
             return
         if row.entry is not None:
@@ -694,7 +1027,7 @@ class BrowserScreen(ModalScreen[tuple | None]):
         self._favourite(False)
 
     def _favourite(self, add: bool) -> None:
-        row = self.query_one(RowList).current
+        row = self._list().current
         if row is None:
             return
         self._busy(_("añadiendo a favoritos…") if add else _("quitando de favoritos…"))
@@ -730,7 +1063,7 @@ class BrowserScreen(ModalScreen[tuple | None]):
         index = next((i for i, candidate in enumerate(level) if candidate is row), -1)
         if index < 0:
             return
-        cursor = self.query_one(RowList).cursor
+        cursor = self._list().cursor
         del level[index]
         self._show(cursor)
 
@@ -745,7 +1078,7 @@ class BrowserScreen(ModalScreen[tuple | None]):
         self.app.call_from_thread(self.dismiss, ("append", entries, 0))
 
     def action_append_all(self) -> None:
-        widget = self.query_one(RowList)
+        widget = self._list()
         entries = [r.entry for r in widget.rows if r.entry is not None]
         if entries:
             self.dismiss(("append", entries, 0))

@@ -216,6 +216,7 @@ def test_set_option_writes_each_type_the_way_toml_reads_it(tmp_path):
         "transparency": False,
         "autoplay": False,
         "replaygain": "off",
+        "library_view": "list",
         "keys": {},
     }
 

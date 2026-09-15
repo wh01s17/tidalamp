@@ -206,6 +206,13 @@ class ConfigScreen(ModalScreen[None]):
                 group=looks,
             ),
             Option(
+                _("Vista de la biblioteca"),
+                key="library_view",
+                choices=("list", "grid"),
+                note=_("grid muestra la carátula de cada álbum, playlist, artista o mix"),
+                group=looks,
+            ),
+            Option(
                 _("Idioma"),
                 key="language",
                 choices=self.LANGUAGES,
@@ -637,4 +644,5 @@ _ATTRIBUTES = {
     "transparency": "TRANSPARENCY",
     "autoplay": "AUTOPLAY",
     "replaygain": "REPLAYGAIN",
+    "library_view": "LIBRARY_VIEW",
 }

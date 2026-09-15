@@ -2819,6 +2819,11 @@ class TidalAmp(App):
             self.status = _("volumen normalizado: {value}").format(
                 value=config.REPLAYGAIN
             )
+        elif name == "library_view":
+            # The browser reads it when it shows a level: nothing to redraw.
+            self.status = _("vista de la biblioteca: {value}").format(
+                value=config.LIBRARY_VIEW
+            )
         elif name == "autoplay":
             self.status = (
                 _("reproducción automática activada")

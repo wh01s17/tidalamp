@@ -48,6 +48,15 @@ CONTAINER_ACTIONS: tuple[tuple[str, str, str, str], ...] = (
     ("playlist", "≡", "l", _("añadir todo a una playlist")),
 )
 
+# What `m` adds on a playlist this account made: the three changes only its
+# owner can make. Letters nothing else in either menu uses.
+PLAYLIST_EXTRA: tuple[tuple[str, str, str, str], ...] = (
+    ("rename", "✎", "n", _("renombrar")),
+    ("describe", "¶", "e", _("cambiar la descripción")),
+    ("delete", "✕", "x", _("borrar la playlist")),
+)
+PLAYLIST_ACTIONS = CONTAINER_ACTIONS + PLAYLIST_EXTRA
+
 
 class PlaylistPickerScreen(ModalScreen[str | None]):
     """Which playlist to add to. Dismisses with its cache key, or None.
@@ -135,7 +144,7 @@ class TrackActionsScreen(ModalScreen[str | None]):
         Binding("enter", "choose", _("elegir"), show=False),
         *[
             Binding(letter, f"pick('{action}')", "", show=False)
-            for action, _icon, letter, _label in TRACK_ACTIONS
+            for action, _icon, letter, _label in (*TRACK_ACTIONS, *PLAYLIST_EXTRA)
         ],
     ]
 

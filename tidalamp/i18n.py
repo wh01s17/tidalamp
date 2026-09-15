@@ -205,6 +205,81 @@ ENGLISH: dict[str, str] = {
     "mpv vuelve a contestar": "mpv is answering again",
     "mpv no responde; reiniciándolo…": "mpv is not responding; restarting it…",
     "Mis mixes": "My mixes",
+    # --- discover
+    "Descubrir": "Discover",
+    "Inicio": "Home",
+    "Para ti": "For you",
+    "Explorar": "Explore",
+    "Más": "More",
+    "página": "page",
+    "{count} elementos": "{count} items",
+    "1 elemento": "1 item",
+    # --- the library's grid
+    "Vista de la biblioteca": "Library view",
+    "grid muestra la carátula de cada álbum, playlist, artista o mix": (
+        "grid shows the cover of each album, playlist, artist or mix"
+    ),
+    "vista de la biblioteca: {value}": "library view: {value}",
+    "vista": "view",
+    "cuadrícula": "grid",
+    "listado": "list",
+    "vista: {view}": "view: {view}",
+    "vista: {view}; este nivel sigue en listado": (
+        "view: {view}; this level stays a list"
+    ),
+    "ver el nivel como listado o como cuadrícula de carátulas": (
+        "show the level as a list or as a grid of covers"
+    ),
+    "en la cuadrícula: moverse entre las carátulas": (
+        "in the grid: move between the covers"
+    ),
+    "volver al nivel anterior; ← también, en el listado": (
+        "back to the previous level; ← too, in the list"
+    ),
+    # --- your playlists
+    "renombrar": "rename",
+    "cambiar la descripción": "change the description",
+    "borrar la playlist": "delete the playlist",
+    "renombrar (solo tus playlists)": "rename (your playlists only)",
+    "cambiar la descripción (solo tus playlists)": (
+        "change the description (your playlists only)"
+    ),
+    "borrar la playlist (solo tus playlists)": (
+        "delete the playlist (your playlists only)"
+    ),
+    "RENOMBRAR PLAYLIST": "RENAME PLAYLIST",
+    "DESCRIPCIÓN DE LA PLAYLIST": "PLAYLIST DESCRIPTION",
+    "descripción…": "description…",
+    "guardando…": "saving…",
+    "«{old}» ahora se llama «{new}»": "“{old}” is now called “{new}”",
+    "descripción de «{title}» cambiada": "description of “{title}” changed",
+    "«{title}» es de otra cuenta: no se puede cambiar": (
+        "“{title}” belongs to another account: it cannot be changed"
+    ),
+    "playlist: {error}": "playlist: {error}",
+    "TIDAL no aceptó el cambio": "TIDAL did not accept the change",
+    "BORRAR PLAYLIST": "DELETE PLAYLIST",
+    "borrar «{title}» de TIDAL": "delete “{title}” from TIDAL",
+    "borrando…": "deleting…",
+    "«{title}» borrada": "“{title}” deleted",
+    "subir la pista": "move the track up",
+    "bajar la pista": "move the track down",
+    "mover la pista dentro de tu playlist": "move the track within your playlist",
+    "solo se reordenan las pistas de tus playlists": (
+        "only the tracks of your own playlists can be reordered"
+    ),
+    "para mover una pista, la playlist tiene que estar en su orden y sin filtro": (
+        "to move a track, the playlist has to be in its own order and unfiltered"
+    ),
+    "carga la página siguiente con «más…» antes de bajarla": (
+        "load the next page with “more…” before moving it down"
+    ),
+    "moviendo…": "moving…",
+    "«{label}» movida": "“{label}” moved",
+    "TIDAL no dejó «{label}» donde se pidió; R recarga la playlist": (
+        "TIDAL did not leave “{label}” where it was sent; R reloads the playlist"
+    ),
+    "mover: {error}": "move: {error}",
     "cola restaurada ({count} pistas); «{title}» sigue en {time}": (
         "queue restored ({count} tracks); “{title}” resumes at {time}"
     ),
@@ -381,7 +456,6 @@ ENGLISH: dict[str, str] = {
     "ayuda": "help",
     "añadir a favoritos de TIDAL": "add to your TIDAL favourites",
     "quitar de favoritos": "remove from favourites",
-    "volver al nivel anterior": "back to the previous level",
     "añadir a la cola": "add to the queue",
     "añadir el nivel entero": "add the whole level",
     "recargar, ignorando la caché": "reload, ignoring the cache",
@@ -898,6 +972,10 @@ ENGLISH: dict[str, str] = {
     "# Volumen normalizado con el ReplayGain de TIDAL: off, track (por pista) o\n"
     "# album (por disco). Nunca sube una pista más allá de su pico.\n"
     'replaygain = "off"\n\n'
+    "# Vista de la biblioteca: list (listado) o grid (cuadrícula con la carátula\n"
+    "# de cada álbum, playlist, artista o mix). Un nivel de pistas es siempre un\n"
+    "# listado.\n"
+    'library_view = "list"\n\n'
     "# Teclas. La izquierda es la acción, la derecha la tecla; varias se separan con\n"
     "# comas. Las de navegación (flechas, RePág/AvPág, Enter, Esc) no se cambian.\n"
     "[keys]\n"
@@ -953,6 +1031,9 @@ ENGLISH: dict[str, str] = {
         "# Normalised volume with TIDAL's ReplayGain: off, track, or album. A\n"
         "# track is never raised past its peak.\n"
         'replaygain = "off"\n\n'
+        "# Library view: list, or grid (tiles with the cover of each album,\n"
+        "# playlist, artist or mix). A level of tracks is always a list.\n"
+        'library_view = "list"\n\n'
         "# Keys. The action is on the left and the key on the right; separate multiple\n"
         "# keys with commas. Navigation keys (arrows, Page Up/Down, Enter, Esc) "
         "are fixed.\n"
@@ -1089,6 +1170,10 @@ def config_template() -> str:
         "# Volumen normalizado con el ReplayGain de TIDAL: off, track (por pista) o\n"
         "# album (por disco). Nunca sube una pista más allá de su pico.\n"
         'replaygain = "off"\n\n'
+        "# Vista de la biblioteca: list (listado) o grid (cuadrícula con la carátula\n"
+        "# de cada álbum, playlist, artista o mix). Un nivel de pistas es siempre un\n"
+        "# listado.\n"
+        'library_view = "list"\n\n'
         "# Teclas. La izquierda es la acción, la derecha la tecla; varias se "
         "separan con\n"
         "# comas. Las de navegación (flechas, RePág/AvPág, Enter, Esc) no se cambian.\n"

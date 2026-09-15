@@ -37,14 +37,25 @@ class SearchScreen(ModalScreen[str]):
 
 
 class PlaylistNameScreen(ModalScreen[str | None]):
-    """Ask for the name of a playlist that will receive the queue."""
+    """Ask for a line about a playlist: the name of the one the queue goes
+    to, or a new name or description for one of yours, typed over the one
+    it has."""
 
     BINDINGS = [Binding("escape", "dismiss_playlist", _("cancelar"))]
 
+    def __init__(self, title: str = "", value: str = "", placeholder: str = "") -> None:
+        super().__init__()
+        self._title = title or _("GUARDAR COLA COMO PLAYLIST")
+        self._value = value
+        self._placeholder = placeholder or _("nombre de la playlist…")
+
     def compose(self) -> ComposeResult:
         with Vertical(id="playlist-name-box"):
-            yield Static(_("GUARDAR COLA COMO PLAYLIST"), id="playlist-name-title")
-            yield Input(placeholder=_("nombre de la playlist…"), id="playlist-name-input")
+            # markup=False: a playlist's name can carry a «[».
+            yield Static(self._title, id="playlist-name-title", markup=False)
+            yield Input(
+                value=self._value, placeholder=self._placeholder, id="playlist-name-input"
+            )
 
     def on_mount(self) -> None:
         self.query_one(Input).focus()

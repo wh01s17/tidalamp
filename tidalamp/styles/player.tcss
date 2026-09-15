@@ -317,6 +317,13 @@
     padding: 0 1;
 }
 
+/* The same level as tiles of covers, in the list's place. */
+#browser-grid {
+    background: $tidalamp-display-background;
+    height: 1fr;
+    padding: 1 1 0 1;
+}
+
 /* The filter bar, at the foot of the browser and over nothing. */
 #browser-filter-bar {
     height: 1;

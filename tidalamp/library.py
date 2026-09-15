@@ -313,6 +313,19 @@ class Row:
     # What `m` and `a` play when the level this row opens is not the tracks
     # themselves: an artist opens to its sections, and plays its popular ones.
     tracks: Callable[[], list[Row]] | None = None
+    # The cover the grid draws for this row: an album's, a playlist's, an
+    # artist's picture or a mix's. Empty for tracks and for headings.
+    art: str = ""
+    # A playlist this account made, which can be renamed, described, deleted
+    # and reordered. Only the rows of «Mis playlists» are: a playlist found in
+    # a search or in Descubrir may be someone else's.
+    editable: bool = False
+    description: str = ""
+    # What a tile in the grid says, when it is not the label: an album's
+    # label is «artist - name», and sixteen cells of that keep only the
+    # artist. The name goes on the tile's first line and the artist under it.
+    caption: str = ""
+    byline: str = ""
 
     @property
     def is_playable(self) -> bool:
@@ -408,6 +421,23 @@ def _artist_level(artist: Any, order: Order | None) -> Callable[[], list[Row]]:
     return _paged(partial(_top_tracks_of, artist), _tracks_to_rows)
 
 
+def _art_of(item: Any, px: int = 160) -> str:
+    """The URL of ``item``'s picture at ``px``, or "" when it has none.
+
+    tidalapi raises rather than answering None when an album carries no cover
+    id or a playlist no square picture, and a tile without a cover is still a
+    tile: the grid draws a placeholder.
+    """
+    try:
+        if isinstance(item, tidalapi.Playlist):
+            # Not the wide banner a playlist may have instead: the grid's
+            # tiles are square.
+            return item.image(px, wide_fallback=False) or ""
+        return item.image(px) or ""
+    except Exception:
+        return ""
+
+
 def _playlist_rows(playlists: Iterable[tidalapi.Playlist]) -> list[Row]:
     rows = []
     for playlist in playlists:
@@ -416,6 +446,8 @@ def _playlist_rows(playlists: Iterable[tidalapi.Playlist]) -> list[Row]:
             Row(
                 label=playlist.name or "",
                 detail=_("{count} pistas").format(count=count),
+                art=_art_of(playlist),
+                description=getattr(playlist, "description", "") or "",
                 **_sortable(
                     f"playlist:{playlist.id}",
                     TRACK_BY,
@@ -423,6 +455,14 @@ def _playlist_rows(playlists: Iterable[tidalapi.Playlist]) -> list[Row]:
                 ),
             )
         )
+    return rows
+
+
+def _own_playlist_rows(playlists: Iterable[tidalapi.Playlist]) -> list[Row]:
+    """The rows of «Mis playlists»: every one of them can be edited."""
+    rows = _playlist_rows(playlists)
+    for row in rows:
+        row.editable = True
     return rows
 
 
@@ -435,9 +475,10 @@ def _playlists_level(
     each item runs it through ``Playlist.factory()``, which for a playlist you
     own builds a ``UserPlaylist``, and *that* constructor fetches the playlist
     again just to read its ETag. Measured on a real account: 110 playlists,
-    111 HTTP requests, twenty seconds. We never edit playlists, so we parse the
-    listing ourselves and skip the factory — one request, a quarter of a
-    second — and paginate it like every other level.
+    111 HTTP requests, twenty seconds. Showing a playlist needs none of that,
+    so we parse the listing ourselves and skip the factory — one request, a
+    quarter of a second — and paginate it like every other level. Editing one
+    builds the `UserPlaylist` then, for that playlist alone (`_writable`).
     """
 
     # The same order and direction names tidalapi sends for favourites.
@@ -473,7 +514,7 @@ def _playlists_level(
         )
         return response.json().get("totalNumberOfItems")
 
-    return _paged(fetch, _playlist_rows, count=count)
+    return _paged(fetch, _own_playlist_rows, count=count)
 
 
 def _album_rows(albums: Iterable[tidalapi.Album]) -> list[Row]:
@@ -484,6 +525,9 @@ def _album_rows(albums: Iterable[tidalapi.Album]) -> list[Row]:
             Row(
                 label=f"{artist} - {album.name}" if artist else (album.name or ""),
                 detail=str(getattr(album, "year", "") or ""),
+                art=_art_of(album),
+                caption=album.name or "",
+                byline=artist,
                 **_sortable(
                     f"album:{album.id}",
                     ALBUM_TRACK_BY,
@@ -562,6 +606,7 @@ def _artist_rows(artists: Iterable[tidalapi.Artist]) -> list[Row]:
             Row(
                 label=artist.name or "",
                 detail=_("artista"),
+                art=_art_of(artist),
                 key=key,
                 loader=cached(key, _artist_sections(artist)),
                 # `m` and `a` on an artist play its popular tracks, as they
@@ -581,13 +626,20 @@ def _is_mix(item: object) -> bool:
     )
 
 
-def _mix_level(mix: Any) -> Callable[[], list[Row]]:
+def _mix_level(mix: Any, session: Any = None) -> Callable[[], list[Row]]:
     """A mix's tracks. One page, as TIDAL makes them, and no order but its
-    own: a mix is not sorted and not edited, so its rows offer neither."""
+    own: a mix is not sorted and not edited, so its rows offer neither.
+
+    The mixes on the pages of Descubrir are `MixV2`, which say what they are
+    and not what they hold: that one is asked for in full when it is opened.
+    """
 
     def level() -> list[Row]:
+        full = mix
+        if not callable(getattr(full, "items", None)):
+            full = with_retries(lambda: session.mix(mix.id))
         try:
-            items = with_retries(mix.items)
+            items = with_retries(full.items)
         except ValueError:
             # tidalapi's word for a mix that came back with nothing in it.
             return []
@@ -596,6 +648,22 @@ def _mix_level(mix: Any) -> Callable[[], list[Row]]:
         )
 
     return level
+
+
+def _mix_rows(mixes: Iterable[Any], session: Any = None) -> list[Row]:
+    rows = []
+    for mix in mixes:
+        key = f"mix:{mix.id}"
+        rows.append(
+            Row(
+                label=mix.title or "",
+                detail=getattr(mix, "sub_title", "") or "",
+                key=key,
+                loader=cached(key, _mix_level(mix, session)),
+                art=_art_of(mix, 320),
+            )
+        )
+    return rows
 
 
 def _mixes_level(session: tidalapi.Session) -> Callable[[], list[Row]]:
@@ -609,20 +677,121 @@ def _mixes_level(session: tidalapi.Session) -> Callable[[], list[Row]]:
     def level() -> list[Row]:
         # Iterating a tidalapi Page yields its items, typed as callables.
         page: Any = with_retries(session.mixes)
-        rows = []
-        for mix in (item for item in page if _is_mix(item)):
-            key = f"mix:{mix.id}"
+        return _mix_rows((item for item in page if _is_mix(item)), session)
+
+    return level
+
+
+# ------------------------------------------------------------------ discover
+
+# The pages Descubrir opens to, as TIDAL's own client names them. Home is the
+# long one: what you played lately, albums and mixes made for you, new
+# tracks. Explore is links, by genre, mood and decade, each a page of its own.
+_DISCOVER_PAGES: tuple[tuple[str, str], ...] = (
+    ("home", _("Inicio")),
+    ("for_you", _("Para ti")),
+    ("explore", _("Explorar")),
+)
+
+
+def _page_link(item: object) -> bool:
+    """A link to another page of TIDAL's, as explore's genres are."""
+    return isinstance(getattr(item, "api_path", None), str) and hasattr(item, "title")
+
+
+def _item_rows(session: Any, items: Iterable[Any]) -> list[Row]:
+    """The rows for whatever a page's category holds, in the order it gives.
+
+    A category can mix kinds, as «Recently played» does. Anything the player
+    cannot play or open is left out: videos, TIDAL's featured banners, text,
+    and the items tidalapi could not parse, which it hands over as None.
+    """
+    rows: list[Row] = []
+    for item in items:
+        if item is None or isinstance(item, tidalapi.media.Video):
+            continue
+        if isinstance(item, tidalapi.Track):
+            rows.extend(_tracks_to_rows([item]))
+        elif isinstance(item, tidalapi.Album):
+            rows.extend(_album_rows([item]))
+        elif isinstance(item, tidalapi.Artist):
+            rows.extend(_artist_rows([item]))
+        elif isinstance(item, tidalapi.Playlist):
+            rows.extend(_playlist_rows([item]))
+        # By class and not by `mix_type`: the mixes on the home page come
+        # with none (seen on 2026-09-14), and whole categories of them fell out.
+        elif isinstance(item, tidalapi.mix.Mix | tidalapi.mix.MixV2):
+            rows.extend(_mix_rows([item], session))
+        elif _page_link(item):
+            path = cast(str, item.api_path)
+            key = f"page:{path}"
             rows.append(
                 Row(
-                    label=mix.title or "",
-                    detail=mix.sub_title or "",
+                    label=getattr(item, "title", "") or "",
+                    detail=_("página"),
                     key=key,
-                    loader=cached(key, _mix_level(mix)),
+                    loader=cached(
+                        key, _page_level(session, partial(_page_at, session, path))
+                    ),
+                )
+            )
+    return rows
+
+
+def _page_at(session: Any, path: str) -> Any:
+    """The page at ``path``, fetched into a page object of its own.
+
+    Not `PageLink.get`, which calls a `session.parse_page` tidalapi 0.8.11
+    does not have; and not `session.page`, which `Page.get` overwrites and
+    two levels loading at once would share.
+    """
+    from tidalapi.page import Page
+
+    return Page(session, "").get(path)
+
+
+def _page_level(session: Any, fetch: Callable[[], Any]) -> Callable[[], list[Row]]:
+    """A page of TIDAL's as a level: one row per category, each opening to
+    what it holds. A category with nothing playable in it is left out."""
+
+    def level() -> list[Row]:
+        page = with_retries(fetch)
+        rows = []
+        for category in getattr(page, "categories", None) or []:
+            inner = _item_rows(session, getattr(category, "items", None) or [])
+            if not inner:
+                continue
+            title = getattr(category, "title", "") or _("Más")
+            rows.append(
+                Row(
+                    label=title,
+                    detail=(
+                        _("1 elemento")
+                        if len(inner) == 1
+                        else _("{count} elementos").format(count=len(inner))
+                    ),
+                    # Not cached by key: a page's categories have no id, and
+                    # the page itself is, so its rows live as long as it does.
+                    loader=partial(list, inner),
                 )
             )
         return rows
 
     return level
+
+
+def _discover_rows(session: Any) -> list[Row]:
+    rows = []
+    for name, label in _DISCOVER_PAGES:
+        key = f"discover:{name}"
+        rows.append(
+            Row(
+                label=label,
+                key=key,
+                loader=cached(key, _page_level(session, getattr(session, name))),
+            )
+        )
+    return rows
 
 
 def root(session: tidalapi.Session) -> list[Row]:
@@ -692,6 +861,14 @@ def root(session: tidalapi.Session) -> list[Row]:
             "",
             key="mixes",
             loader=cached("mixes", _mixes_level(session)),
+        ),
+        # What TIDAL proposes rather than what you keep: its home page, the
+        # one made for you, and explore's genres, moods and decades.
+        Row(
+            _("Descubrir"),
+            "",
+            key="discover",
+            loader=cached("discover", partial(_discover_rows, session)),
         ),
     ]
 
@@ -1080,6 +1257,106 @@ def add_to_playlist(
             raise PlaylistSaveFailed(title, added, len(media_ids), exc) from exc
         added += len(result)
     return added
+
+
+class MoveNotConfirmed(RuntimeError):
+    """TIDAL answered the move, and the track is not where it was sent."""
+
+
+def _writable(session: tidalapi.Session, playlist_id: str) -> Any:
+    """The playlist as a `UserPlaylist`, the only kind that can be written.
+
+    One request, for this playlist alone: see `_playlists_level` for why the
+    listing does not build them.
+    """
+    playlist = with_retries(lambda: session.playlist(playlist_id))
+    if not hasattr(playlist, "remove_by_index"):
+        # A playlist someone else owns parses fine and cannot be written to.
+        raise PlaylistNotWritable(getattr(playlist, "name", "") or "")
+    return playlist
+
+
+def edit_playlist(
+    session: tidalapi.Session,
+    playlist_id: str,
+    title: str | None = None,
+    description: str | None = None,
+) -> str:
+    """Rename a playlist, or change its description. Returns its old name.
+
+    Not tidalapi's `edit`, which reads an empty description as «keep the one
+    it has», so a description could never be cleared. The same request, with
+    what was asked for. Retried like a read: sending the same name twice
+    leaves the same name.
+    """
+    playlist = _writable(session, playlist_id)
+    old = getattr(playlist, "name", "") or ""
+    data = {
+        "title": title if title else old,
+        "description": (
+            description
+            if description is not None
+            else getattr(playlist, "description", "") or ""
+        ),
+    }
+    response = with_retries(
+        lambda: playlist.request.request(
+            "POST", playlist._base_url % playlist.id, data=data
+        )
+    )
+    if not getattr(response, "ok", True):
+        raise RuntimeError(_("TIDAL no aceptó el cambio"))
+    forget_level("playlists")
+    return old
+
+
+def delete_playlist(session: tidalapi.Session, playlist_id: str) -> str:
+    """Delete a playlist this account made. Returns its name.
+
+    Not retried after a lost answer: the second DELETE would find nothing and
+    report a failure over a playlist that is gone.
+    """
+    playlist = _writable(session, playlist_id)
+    title = getattr(playlist, "name", "") or ""
+    if not with_retries(playlist.delete, idempotent=False):
+        raise RuntimeError(_("TIDAL no aceptó el cambio"))
+    forget_level("playlists")
+    forget_level(f"playlist:{playlist_id}")
+    return title
+
+
+def move_in_playlist(
+    session: tidalapi.Session, playlist_id: str, entry: Entry, index: int, delta: int
+) -> str:
+    """Move one track of a playlist ``delta`` places. Returns the playlist's name.
+
+    ``index`` is where the browser shows it, in the playlist's own order: the
+    caller refuses a playlist shown sorted, where the row's place is no
+    position at all. Checked before and after. Before, because TIDAL can
+    leave a track out of a page and every position after it is one short
+    (`_position_of`); after, because TIDAL's `toIndex` is where the track
+    ends, and a move that lands elsewhere must say so rather than leave the
+    list on screen lying.
+
+    Not retried: a second move after a lost answer moves it again.
+    """
+    playlist = _writable(session, playlist_id)
+    title = getattr(playlist, "name", "") or ""
+    wanted = str(entry.id)
+    at = _position_of(playlist, wanted, index, index - index % PAGE)
+    if at is None:
+        raise TrackNotInPlaylist(entry.label)
+    target = at + delta
+    total = _count_of(playlist)
+    if target < 0 or (total is not None and target >= total):
+        return title
+    with_retries(lambda: playlist.move_by_index(at, target), idempotent=False)
+    # Every sorted copy of it is stale, and so is the plain one: the browser
+    # keeps the list it has on screen and swaps the two rows itself.
+    forget_level(f"playlist:{playlist_id}")
+    if not _is_at(playlist, target, wanted):
+        raise MoveNotConfirmed(entry.label)
+    return title
 
 
 def playlist_rows(session: tidalapi.Session) -> list[Row]:

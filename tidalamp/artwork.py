@@ -366,6 +366,151 @@ def quadrant_cell(quad: tuple[Pixel, Pixel, Pixel, Pixel]) -> tuple[str, Pixel, 
     return best
 
 
+# ------------------------------------------------------------------- sextants
+
+# Six pixels a cell, two across and three down, from Unicode 13's Symbols for
+# Legacy Computing. A cell is about twice as tall as it is wide, so the four
+# quadrant pixels are tall slivers and a cover drawn with them steps in
+# thick rows; three rows of two make pixels nearly square, half again the
+# detail down the cell for the same two colours. Pixel ``i`` is bit ``i``,
+# row by row: 0 and 1 the top pair, 2 and 3 the middle, 4 and 5 the bottom.
+SEXTANT_BASE = 0x1FB00
+
+# The terminals that draw these glyphs themselves, as they do box drawing,
+# rather than asking the font: there they cannot come out as tofu.
+_SEXTANT_TERMS = ("xterm-kitty", "xterm-ghostty")
+
+
+def sextant_glyph(mask: int) -> str:
+    """The glyph that lights the pixels in ``mask`` and leaves the rest ground.
+
+    The range leaves out the four patterns older blocks already had: none,
+    the left half, the right half, and all six.
+    """
+    if mask == 0:
+        return " "
+    if mask == 63:
+        return "█"
+    if mask == 21:
+        return "▌"
+    if mask == 42:
+        return "▐"
+    return chr(SEXTANT_BASE + mask - 1 - (mask > 21) - (mask > 42))
+
+
+# Every way of splitting six pixels in two, as (mask, the glyph side, the
+# rest). Pixel 0 always stays on the ground side, as the quadrants' upper-left
+# does: a split and its mirror are one split. Mask 0 is the cell drawn flat.
+_SEXTANT_SPLITS = tuple(
+    (
+        mask,
+        tuple(i for i in range(6) if mask & (1 << i)),
+        tuple(i for i in range(6) if not mask & (1 << i)),
+    )
+    for mask in range(0, 64, 2)
+)
+
+
+def draws_sextants(env: Mapping[str, str] | None = None) -> bool:
+    """Whether this terminal draws the sextant glyphs itself.
+
+    kitty, ghostty, WezTerm and foot do; anywhere else they depend on the
+    font, and a missing one draws a box of tofu per cell, so the quadrants,
+    which every font has, stay. ``TIDALAMP_SEXTANTS`` settles it either way.
+    """
+    values: Mapping[str, str] = os.environ if env is None else env
+    forced = values.get("TIDALAMP_SEXTANTS", "").strip().lower()
+    if forced in {"0", "no", "false", "off"}:
+        return False
+    if forced in {"1", "yes", "true", "on"}:
+        return True
+    term = values.get("TERM", "")
+    return bool(
+        values.get("KITTY_WINDOW_ID")
+        or term in _SEXTANT_TERMS
+        or term.startswith("foot")
+        or values.get("TERM_PROGRAM", "") in _KITTY_PROGRAMS
+    )
+
+
+def sextant_cell(six: tuple[Pixel, ...]) -> tuple[str, Pixel, Pixel]:
+    """Turn six pixels into the glyph and two colours that best stand for them.
+
+    `quadrant_cell`'s rule over thirty-two splits instead of eight: each is
+    tried, the one whose two averages sit closest to the pixels wins, and the
+    lighter group is the glyph.
+    """
+    first = six[0]
+    if all(pixel == first for pixel in six):
+        return " ", first, first
+    wr, wg, wb = _WEIGHTS
+    best_error = -1.0
+    best: tuple[str, Pixel, Pixel] = (" ", first, first)
+    for mask, front_side, back_side in _SEXTANT_SPLITS:
+        means: list[Pixel] = []
+        error = 0.0
+        for side in (front_side, back_side):
+            if not side:
+                means.append((0, 0, 0))
+                continue
+            n = len(side)
+            sr = sg = sb = qr = qg = qb = 0
+            for i in side:
+                r, g, b = six[i]
+                sr += r
+                sg += g
+                sb += b
+                qr += r * r
+                qg += g * g
+                qb += b * b
+            error += (
+                wr * (qr - sr * sr / n)
+                + wg * (qg - sg * sg / n)
+                + wb * (qb - sb * sb / n)
+            )
+            means.append((sr // n, sg // n, sb // n))
+        if best_error >= 0 and error >= best_error:
+            continue
+        best_error = error
+        front, back = means
+        if not front_side:
+            best = (" ", back, back)
+        elif _luma(front) >= _luma(back):
+            best = (sextant_glyph(mask), front, back)
+        else:
+            best = (sextant_glyph(63 ^ mask), back, front)
+    return best
+
+
+def sextant_cells(
+    image, cols: int, rows: int
+) -> tuple[tuple[tuple[str, Pixel, Pixel], ...], ...]:
+    """A fitted image as ``rows`` lines of ``cols`` sextant cells.
+
+    Sampled down with LANCZOS to two pixels across and three down a cell, as
+    `blocks` samples two by two, and worked out where it is called: in a
+    worker, never on the interface's loop.
+    """
+    from PIL import Image
+
+    width, height = max(1, cols * 2), max(1, rows * 3)
+    raw = image.resize((width, height), Image.Resampling.LANCZOS).tobytes()
+
+    def pixel(x: int, y: int) -> Pixel:
+        i = (y * width + x) * 3
+        return (raw[i], raw[i + 1], raw[i + 2])
+
+    return tuple(
+        tuple(
+            sextant_cell(
+                tuple(pixel(x * 2 + dx, y * 3 + dy) for dy in range(3) for dx in range(2))
+            )
+            for x in range(cols)
+        )
+        for y in range(rows)
+    )
+
+
 def block_cells(matrix: Matrix) -> tuple[tuple[tuple[str, Pixel, Pixel], ...], ...]:
     """Every cell of a half-block cover, worked out once.
 

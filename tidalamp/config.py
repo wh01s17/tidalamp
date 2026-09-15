@@ -84,6 +84,7 @@ ENV_VARS: dict[str, str] = {
     "transparency": "TIDALAMP_TRANSPARENCY",
     "autoplay": "TIDALAMP_AUTOPLAY",
     "replaygain": "TIDALAMP_REPLAYGAIN",
+    "library_view": "TIDALAMP_LIBRARY_VIEW",
 }
 
 
@@ -202,6 +203,11 @@ AUTOPLAY = flag("autoplay", "TIDALAMP_AUTOPLAY")
 # default: it changes how loud everything plays.
 REPLAYGAIN = setting("replaygain", "TIDALAMP_REPLAYGAIN", "off")
 
+# How the library shows a level of albums, playlists, artists or mixes:
+# `list`, or `grid`, tiles with each one's cover. A level of tracks is always
+# a list. `v` in the browser switches it and writes it here.
+LIBRARY_VIEW = setting("library_view", "TIDALAMP_LIBRARY_VIEW", "list")
+
 # Key overrides, action name to key. Empty means "the defaults in app.py".
 KEYS: dict[str, str] = {
     str(action): str(key) for action, key in (FILE.get("keys") or {}).items()
@@ -275,7 +281,7 @@ def reload() -> None:
     """
     global FILE, DEFAULT_QUALITY, ARTWORK, LANGUAGE, THEME, PALETTE, COLUMNS
     global DEBUG, TRANSPARENCY, KEYS, VISUALIZER, ARRANGEMENT, BACKDROP, COVER_SHAPE
-    global AUTOPLAY, REPLAYGAIN
+    global AUTOPLAY, REPLAYGAIN, LIBRARY_VIEW
     FILE = read_file()
     DEFAULT_QUALITY = setting("quality", "TIDALAMP_QUALITY", "HI_RES_LOSSLESS")
     ARTWORK = setting("artwork", "TIDALAMP_ART", "auto")
@@ -291,6 +297,7 @@ def reload() -> None:
     TRANSPARENCY = flag("transparency", "TIDALAMP_TRANSPARENCY")
     AUTOPLAY = flag("autoplay", "TIDALAMP_AUTOPLAY")
     REPLAYGAIN = setting("replaygain", "TIDALAMP_REPLAYGAIN", "off")
+    LIBRARY_VIEW = setting("library_view", "TIDALAMP_LIBRARY_VIEW", "list")
     KEYS = {str(action): str(key) for action, key in (FILE.get("keys") or {}).items()}
 
 
