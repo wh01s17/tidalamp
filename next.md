@@ -17,8 +17,9 @@ Lo de aquí no bloquea publicar. `plan.md` §5 y §6 mandan sobre el estado gene
 
 ## Para la próxima versión
 
-Descubrir, la vista de cuadrícula y la gestión de playlists propias están hechas
-(2026-09-14): ver `CHANGELOG.md` y `plan.md` §4. Las escrituras en tus playlists
+Descubrir, la vista de cuadrícula, la gestión de playlists propias y las páginas que
+llegan solas están hechas y entran en la `0.11.0` (preparada el 2026-09-15): ver
+`CHANGELOG.md` y `plan.md` §4. Las escrituras en tus playlists
 se comprobaron contra TIDAL real ese mismo día. Queda por comprobar a mano:
 
 - **Ver la disposición compacta en un terminal real.** Por debajo de 80x26 la

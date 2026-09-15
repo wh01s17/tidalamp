@@ -4,7 +4,16 @@ Documento de traspaso. Describe qué existe, qué está verificado, qué falta y
 criterio se tomaron las decisiones, para que cualquiera (humano o modelo) pueda
 retomar el trabajo sin contexto previo.
 
-**Última actualización:** 2026-09-14, versión `0.10.0` publicada en PyPI y en GitHub,
+**Última actualización:** 2026-09-15, versión `0.11.0` preparada y validada en local,
+pendiente del tag. Lo nuevo: Descubrir, con la home de TIDAL, Para ti y Explorar,
+recorridos contra TIDAL real; la vista de cuadrícula de la biblioteca (`v`), con las
+carátulas en sextantes donde el terminal los dibuja solo; renombrar, describir,
+borrar y reordenar tus playlists, comprobado por el mantenedor contra TIDAL real; la
+página siguiente llega sola al acercarse al final, y el filtro de la biblioteca busca
+en todo el nivel. Y dos arreglos: la carátula del disco anterior volvía encima de la
+nueva al elegir otro desde el navegador, y el spinner parado dejaba un cuadradito
+oscuro delante de la línea de estado. Antes, 2026-09-14, versión `0.10.0` publicada
+en PyPI y en GitHub,
 con el tag `v0.10.0` sobre `f11ce4a`, el commit que arregla el `⌫` durante una carga
 (lo cazó CI después de preparar la versión). Lo nuevo, probado a mano por el mantenedor contra TIDAL
 real: un artista abre a sus secciones (populares, álbumes, EPs y sencillos, otros) y
@@ -1939,8 +1948,9 @@ una pista en cada calidad y leer `~/.local/state/tidalamp/tidalamp.log`.
 > [!NOTE]
 > La funcionalidad comprometida para la próxima versión vive en
 > [next.md](./next.md), con sus trampas y su forma de comprobarse. Descubrir, la
-> cuadrícula y la gestión de playlists ya están hechas (2026-09-14, sin publicar);
-> allí quedan las comprobaciones a mano. Esta sección sigue siendo el estado general
+> cuadrícula, la gestión de playlists y las páginas que llegan solas entran en la
+> `0.11.0`, preparada el 2026-09-15 y pendiente del tag; allí quedan las
+> comprobaciones a mano. Esta sección sigue siendo el estado general
 > y aquella, la cola de trabajo.
 
 P1–P4 están cerradas: lo que queda no es funcionalidad que falte para que el
@@ -1950,7 +1960,9 @@ probadas sólo con dobles.
 **Orden propuesto (2026-09-11):** ~~P5 empaquetado~~ y ~~carátula~~ ✅ hechos. Cada
 versión se publica siguiendo `publish.md`; la última publicada es la `0.10.0`
 (2026-09-14), en PyPI y en GitHub, con el checksum del tarball ya en el PKGBUILD
-(`0dde123`). Lo que queda abierto aquí pide credenciales tuyas o un par de ojos.
+(`0dde123`). La `0.11.0` está preparada y validada en local, pendiente del tag, con el
+checksum del PKGBUILD en `SKIP` hasta que exista. Lo que queda abierto aquí pide
+credenciales tuyas o un par de ojos.
 
 1. Publicar en el AUR cuando vuelva a abrir el registro de cuentas nuevas. El paquete
    está preparado y se puede probar localmente, pero el alta final depende del
