@@ -132,7 +132,12 @@ class GridList(Widget):
     @property
     def per_screen(self) -> int:
         """How many lines of tiles fit, at least one."""
-        return max(1, self.size.height // self.TILE_H)
+        # The last line of a tile is air, and the bottom of the widget is air
+        # enough: a tile missing only that one still counts as whole. What is
+        # left at the foot shows the top of the next line of covers, which
+        # `render_line` draws as far as it goes: with the foot empty, a grid
+        # read as if it had no more.
+        return max(1, (self.size.height + 1) // self.TILE_H)
 
     def move(self, delta: int) -> None:
         if self.rows:
