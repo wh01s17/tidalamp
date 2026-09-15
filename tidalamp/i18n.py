@@ -214,6 +214,11 @@ ENGLISH: dict[str, str] = {
     "página": "page",
     "{count} elementos": "{count} items",
     "1 elemento": "1 item",
+    # --- pages as the cursor nears the end
+    "cargando el resto del nivel…": "loading the rest of the level…",
+    "cargando el resto del nivel… {count}": "loading the rest of the level… {count}",
+    "no se pudo cargar el resto: {error}": "could not load the rest: {error}",
+    "no se pudo cargar más: {error}": "could not load more: {error}",
     # --- the library's grid
     "Vista de la biblioteca": "Library view",
     "grid muestra la carátula de cada álbum, playlist, artista o mix": (

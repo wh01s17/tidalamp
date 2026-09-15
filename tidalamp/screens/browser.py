@@ -121,9 +121,18 @@ class BrowserScreen(ModalScreen[tuple | None]):
         key: str = "",
         goto: Callable[[], Row] | None = None,
         busy: str = "",
+        search: bool = False,
     ) -> None:
         super().__init__()
         self._root_title = title
+        # A search has no useful end, so a filter over it narrows what came
+        # back and does not go and fetch every page of it.
+        self._search = search
+        # The «más…» row whose page is on its way, fetched as the cursor
+        # nears it: one page at a time, and not the same one twice.
+        self._paging: Row | None = None
+        # Every page of the level coming in, for the filter to be true.
+        self._resting = False
         self._root_loader = loader
         self._root_key = key
         # A level to open on top of the root as soon as it loads: «ir al
@@ -337,6 +346,49 @@ class BrowserScreen(ModalScreen[tuple | None]):
         widget.refresh()
         self._render_hint()
         self._fetch_covers()
+        # A level shorter than the screen asks for its next page at once.
+        self._page_on()
+
+    def _page_on(self) -> None:
+        """Fetch the next page when the cursor comes near the «más…» row.
+
+        Within a screen of it in the list, or a screen and a line of tiles in
+        the grid: the page comes in while the rows before it are still being
+        read, and nobody has to press ↵ on «más…» to go on. It used to take
+        that at every hundred.
+        """
+        if self._resting or not self._stack:
+            return
+        # A filtered search leaves «más…» to ↵: with nothing matching, the
+        # cursor sits on it, and paging on would pull the whole search in.
+        if self._search and self._filter:
+            return
+        if self._paging is not None:
+            if any(row is self._paging for row in self._level()):
+                return
+            # Its level was left: that page is nobody's any more.
+            self._paging = None
+        rows = self._visible()
+        marker = rows[-1] if rows and rows[-1].more is not None else None
+        if marker is None:
+            return
+        widget = self._list()
+        if isinstance(widget, GridList):
+            reach = widget.columns * (widget.per_screen + 1)
+        else:
+            reach = max(1, widget.size.height)
+        if len(rows) - 1 - widget.cursor <= reach:
+            self._page(marker)
+
+    def _page(self, marker: Row) -> None:
+        """Fetch the page behind ``marker``, unless one is already coming."""
+        if self._paging is not None or marker.more is None:
+            return
+        self._paging = marker
+        # The title stays put: losing it to say "loading" costs the user the
+        # one label that says where they are.
+        self._busy(_("cargando más…"))
+        self._load_more(marker, marker.more)
 
     def _list(self) -> RowList | GridList:
         """Whichever of the two is showing the level: both answer to the same
@@ -424,6 +476,60 @@ class BrowserScreen(ModalScreen[tuple | None]):
             return
         self._filter = value
         self._show()
+        if value:
+            self._load_rest()
+
+    def _load_rest(self) -> None:
+        """Bring in every page of the level, so the filter searches all of it.
+
+        A filter over the pages already loaded left out whatever was past
+        them, and «no matches» was a lie about a collection it had not read.
+        Not in a search, which has no end worth reaching.
+        """
+        if self._search or self._resting or not self._stack:
+            return
+        marker = next((row for row in self._level() if row.more is not None), None)
+        if marker is None or self._paging is not None:
+            return
+        self._resting = True
+        self._busy(_("cargando el resto del nivel…"))
+        self._rest_worker(marker)
+
+    @work(thread=True, exclusive=True, group="paging")
+    def _rest_worker(self, marker: Row) -> None:
+        left = self._left
+        loaded = sum(1 for row in self._level() if row.more is None)
+        current: Row | None = marker
+        while current is not None and current.more is not None:
+            try:
+                rows = current.more()
+            except Exception as exc:
+                self.app.call_from_thread(self._if_current, left, self._rest_failed, exc)
+                return
+            loaded += sum(1 for row in rows if row.more is None)
+            following = next((row for row in rows if row.more is not None), None)
+            self.app.call_from_thread(
+                self._if_current,
+                left,
+                self._rest_page,
+                current,
+                rows,
+                loaded,
+                following is None,
+            )
+            current = following
+
+    def _rest_page(self, marker: Row, rows: list[Row], loaded: int, last: bool) -> None:
+        self._merge(marker, rows)
+        if last:
+            self._resting = False
+            return
+        self._busy(_("cargando el resto del nivel… {count}").format(count=loaded))
+
+    def _rest_failed(self, exc: Exception) -> None:
+        self._resting = False
+        self._idle()
+        self.player.status = _("no se pudo cargar el resto: {error}").format(error=exc)
 
     def on_input_submitted(self, event: Input.Submitted) -> None:
         """↵ hands the keys back to the list and leaves the filter applied."""
@@ -454,6 +560,7 @@ class BrowserScreen(ModalScreen[tuple | None]):
             self._fetch_covers()
         else:
             widget.move(delta)
+        self._page_on()
 
     def action_up(self) -> None:
         self._step(-1, lines=True)
@@ -466,14 +573,14 @@ class BrowserScreen(ModalScreen[tuple | None]):
         if isinstance(widget, GridList):
             self._step(-widget.per_screen, lines=True)
         else:
-            widget.move(-10)
+            self._step(-10)
 
     def action_page_down(self) -> None:
         widget = self._list()
         if isinstance(widget, GridList):
             self._step(widget.per_screen, lines=True)
         else:
-            widget.move(10)
+            self._step(10)
 
     def action_left(self) -> None:
         """← walks the grid; in the list it goes back, as it always did."""
@@ -678,7 +785,7 @@ class BrowserScreen(ModalScreen[tuple | None]):
             # The title stays put: losing it to say "loading" costs the user
             # the one label that says where they are.
             self._busy(_("cargando más…"))
-            self._load_more(row, row.more)
+            self._page(row)
             return
         if row.loader is not None:
             self._empty = _("cargando…")
@@ -982,15 +1089,24 @@ class BrowserScreen(ModalScreen[tuple | None]):
             partial(library.go_to, self.player.session, entry, kind, artist_id)
         )
 
-    @work(thread=True, exclusive=True)
+    # A group of its own: exclusive in the default one, a page fetched as
+    # the cursor nears the end would cancel the level the user just opened.
+    @work(thread=True, exclusive=True, group="paging")
     def _load_more(self, marker: Row, more) -> None:
         left = self._left
         try:
             rows = more()
         except Exception as exc:
-            self.app.call_from_thread(self._if_current, left, self._failed, exc)
+            self.app.call_from_thread(self._if_current, left, self._page_failed, exc)
             return
         self.app.call_from_thread(self._if_current, left, self._merge, marker, rows)
+
+    def _page_failed(self, exc: Exception) -> None:
+        # Not `_failed`, which says the level failed: the rows are all there,
+        # and ↵ on «más…» asks for the page again.
+        self._paging = None
+        self._idle()
+        self.player.status = _("no se pudo cargar más: {error}").format(error=exc)
 
     def _merge(self, marker: Row, rows: list[Row]) -> None:
         """Turn the «más…» row into the page it just fetched, in place.
@@ -1000,7 +1116,10 @@ class BrowserScreen(ModalScreen[tuple | None]):
         the level list — the one the cache handed out — so the page stays put
         for the next visit, and then the filter is applied again over it.
         """
-        self._idle()
+        if self._paging is marker:
+            self._paging = None
+        if not self._resting:
+            self._idle()
         level = self._level()
         index = next((i for i, row in enumerate(level) if row is marker), -1)
         if index < 0:

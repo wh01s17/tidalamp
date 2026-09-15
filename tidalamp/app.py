@@ -1726,6 +1726,7 @@ class TidalAmp(App):
             BrowserScreen(
                 _("BUSCAR: {query}").format(query=query),
                 lambda: library.search_rows(self.session, query),
+                search=True,
             ),
             self._browser_result,
         )

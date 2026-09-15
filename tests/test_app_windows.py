@@ -290,13 +290,17 @@ def test_the_help_key_survives_on_a_narrow_terminal(monkeypatch):
 
 def test_slash_opens_a_filter_bar_and_leaves_the_level_on_screen(monkeypatch):
     """Like the bar at the foot of a browser: it narrows the list underneath
-    instead of covering it with a window of its own."""
+    instead of covering it with a window of its own. In a search, where the
+    filter leaves the pages still to come where they are."""
     isolate_runtime(monkeypatch)
 
     async def scenario() -> None:
         application = TidalAmp(object(), FakeMpv())
         async with application.run_test(size=(100, 30)) as pilot:
-            open_browser(application)
+            # The filter on its own: a level this short would page on at
+            # once, which test_paging covers.
+            monkeypatch.setattr(BrowserScreen, "_page_on", lambda self: None)
+            open_browser(application, search=True)
             await pilot.pause()
             screen = application.screen
             assert screen.query_one("#browser-filter-bar").display is False
@@ -320,7 +324,10 @@ def test_typing_narrows_the_level_and_says_how_much_is_left(monkeypatch):
     async def scenario() -> None:
         application = TidalAmp(object(), FakeMpv())
         async with application.run_test(size=(100, 30)) as pilot:
-            open_browser(application)
+            # The filter on its own: a level this short would page on at
+            # once, which test_paging covers.
+            monkeypatch.setattr(BrowserScreen, "_page_on", lambda self: None)
+            open_browser(application, search=True)
             await pilot.pause()
             screen = application.screen
             await pilot.press("slash")
@@ -342,7 +349,10 @@ def test_the_filter_reaches_what_the_line_does_not_show(monkeypatch):
     async def scenario() -> None:
         application = TidalAmp(object(), FakeMpv())
         async with application.run_test(size=(100, 30)) as pilot:
-            open_browser(application)
+            # The filter on its own: a level this short would page on at
+            # once, which test_paging covers.
+            monkeypatch.setattr(BrowserScreen, "_page_on", lambda self: None)
+            open_browser(application, search=True)
             await pilot.pause()
             screen = application.screen
             await pilot.press("slash")
@@ -357,14 +367,18 @@ def test_the_filter_reaches_what_the_line_does_not_show(monkeypatch):
 
 
 def test_the_more_row_survives_the_filter(monkeypatch):
-    """A level is one page deep until somebody asks for the rest. Hiding the
-    only way to ask would claim that what matched is all there is."""
+    """In a search, a level is one page deep until somebody asks for the
+    rest. Hiding the only way to ask would claim that what matched is all
+    there is. (In the library the filter brings the rest in: test_paging.)"""
     isolate_runtime(monkeypatch)
 
     async def scenario() -> None:
         application = TidalAmp(object(), FakeMpv())
         async with application.run_test(size=(100, 30)) as pilot:
-            open_browser(application)
+            # The filter on its own: a level this short would page on at
+            # once, which test_paging covers.
+            monkeypatch.setattr(BrowserScreen, "_page_on", lambda self: None)
+            open_browser(application, search=True)
             await pilot.pause()
             screen = application.screen
             await pilot.press("slash")

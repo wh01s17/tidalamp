@@ -198,9 +198,9 @@ def library_rows() -> list[Row]:
     ]
 
 
-def open_browser(application, rows=None):
+def open_browser(application, rows=None, search=False):
     level = rows if rows is not None else library_rows()
-    application.push_screen(BrowserScreen("MI BIBLIOTECA", lambda: level))
+    application.push_screen(BrowserScreen("MI BIBLIOTECA", lambda: level, search=search))
 
 
 async def type_into_filter(pilot, text: str) -> None:
