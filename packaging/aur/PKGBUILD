@@ -23,7 +23,7 @@ makedepends=('python-build' 'python-installer' 'python-wheel' 'python-hatchling'
 checkdepends=('python-pytest')
 source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
 # SKIP hasta que el tag exista; después, rellenar con `updpkgsums`.
-sha256sums=('SKIP')
+sha256sums=('f9962bb0ad08a5601775282499f6a3e95871b9d3756fbc44ad09fb5eafdab3ed')
 
 build() {
   cd "$srcdir/$pkgname-$pkgver"
