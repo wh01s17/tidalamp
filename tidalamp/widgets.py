@@ -202,6 +202,12 @@ class Spinner(Widget):
 
     def on_mount(self) -> None:
         self.set_interval(self.INTERVAL, self._advance)
+        self.set_class(not self.label, "-idle")
+
+    def watch_label(self, label: str) -> None:
+        # Idle it takes no room at all: its padding alone drew a two-cell
+        # block of its own ground at the head of the status line.
+        self.set_class(not label, "-idle")
 
     def _advance(self) -> None:
         # Idle costs nothing: with no label there is no repaint to trigger.

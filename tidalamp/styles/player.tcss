@@ -280,6 +280,12 @@
     padding: 0 1;
 }
 
+/* Stopped, it is nothing: the padding alone left a dark block before the
+   status line, in the terminal's ground where the line paints another. */
+#busy.-idle {
+    padding: 0;
+}
+
 #lyrics-head {
     background: $tidalamp-title-background;
     height: 1;
