@@ -5,6 +5,8 @@ versioning is [semantic](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-09-15
+
 ### Added
 
 - Discover, at the end of the library: TIDAL's home page, For you and Explore. Each

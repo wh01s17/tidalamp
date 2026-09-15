@@ -214,6 +214,19 @@ ENGLISH: dict[str, str] = {
     "página": "page",
     "{count} elementos": "{count} items",
     "1 elemento": "1 item",
+    # --- 0.11.0, in the help's list of changes
+    "Descubrir: la home de TIDAL, Para ti y Explorar.": (
+        "Discover: TIDAL's home, For you and Explore."
+    ),
+    "v en la biblioteca: una cuadrícula de carátulas.": (
+        "v in the library: a grid of covers."
+    ),
+    "Tus playlists: renombrar, describir, borrar, mover pistas.": (
+        "Your playlists: rename, describe, delete, move tracks."
+    ),
+    "La página siguiente llega sola; el filtro busca en todo.": (
+        "The next page comes on its own; the filter searches it all."
+    ),
     # --- pages as the cursor nears the end
     "cargando el resto del nivel…": "loading the rest of the level…",
     "cargando el resto del nivel… {count}": "loading the rest of the level… {count}",
