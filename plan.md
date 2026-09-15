@@ -1781,8 +1781,9 @@ efecto las tres trampas que lo hacían caro:
       la posición final, que es lo que dicen los tests de `tidalapi`, y si la pista cae
       en otro sitio la app lo dice en vez de enseñar una lista que miente. No se
       reintenta, y mientras un movimiento va de camino no sale otro.
-- [x] Probado con dobles. **Falta lanzarlo contra TIDAL real** en una playlist de
-      prueba: está en `next.md`.
+- [x] **Comprobado contra TIDAL real** por el mantenedor el 2026-09-14: renombrar,
+      cambiar la descripción, borrar y mover pistas, contrastado con lo que muestra
+      TIDAL. El `toIndex` como posición final queda confirmado.
 
 ### Revisión antes de la 0.8.0 (2026-09-11)
 

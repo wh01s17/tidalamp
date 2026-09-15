@@ -18,17 +18,8 @@ Lo de aquí no bloquea publicar. `plan.md` §5 y §6 mandan sobre el estado gene
 ## Para la próxima versión
 
 Descubrir, la vista de cuadrícula y la gestión de playlists propias están hechas
-(2026-09-14): ver `CHANGELOG.md` y `plan.md` §4. Queda por comprobar a mano:
-
-- **Probar contra TIDAL real lo que escribe en tus playlists.** Renombrar, cambiar
-  la descripción, borrar y mover una pista están cubiertos con dobles, y Descubrir
-  se recorrió contra TIDAL real, pero nada de lo que escribe se ha lanzado todavía
-  contra la cuenta. Hacerlo en una playlist de prueba creada para eso.
-  - *Qué mirar:* que mover una pista hacia abajo y hacia arriba la deja una fila más
-    allá y no dos (el `toIndex` de TIDAL se tomó como la posición final, por los tests
-    de `tidalapi`; si no lo es, la app lo dice con «TIDAL no dejó … donde se pidió»);
-    que una descripción vacía la borra; que la playlist borrada desaparece de «Mis
-    playlists» sin recargar.
+(2026-09-14): ver `CHANGELOG.md` y `plan.md` §4. Las escrituras en tus playlists
+se comprobaron contra TIDAL real ese mismo día. Queda por comprobar a mano:
 
 - **Ver la disposición compacta en un terminal real.** Por debajo de 80x26 la
   interfaz quita la carátula y la fila de balance, y hasta ahora solo lo cubren tests
