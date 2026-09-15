@@ -1679,6 +1679,111 @@ efecto las tres trampas que lo hacían caro:
 - [x] La fila va la última de la raíz y no junto a «Mis playlists»: las cuatro de antes
       son lo que la cuenta guarda, y hay tests que las encuentran por su posición.
 
+### Descubrir - `library.py`
+
+- [x] Última fila de la raíz, detrás de «Mis mixes». Abre a tres páginas de TIDAL:
+      `session.home()`, `session.for_you()` y `session.explore()`. Cada página es un
+      nivel con una fila por categoría, y cada categoría abre a lo que trae
+      (`_item_rows`), en el orden de TIDAL y con los tipos mezclados si vienen
+      mezclados («Recently played» trae álbumes, artistas, playlists y mixes).
+- [x] **Se deja fuera lo que no se puede reproducir ni abrir:** vídeos, los banners
+      destacados (`PageItem`), los bloques de texto y los `None` que `tidalapi` deja
+      en la lista cuando no sabe leer un elemento (los `DEEP_LINK` de los atajos de
+      inicio, que avisa con «Item type 'DEEP_LINK' not implemented»). Una categoría
+      que se queda vacía no sale, y una sin título se llama «Más».
+- [x] **Los mixes de las páginas son `MixV2`, sin `items()`.** Dicen qué son y no qué
+      llevan: al abrirlos se pide el mix entero con `session.mix(id)`. Y en la página
+      de inicio llegan **sin `mix_type`** (visto contra TIDAL real el 2026-09-14): el
+      primer corte los filtraba por `mix_type` y se perdían enteras tres categorías,
+      el historial, las radios personales y los mixes a medida. Ahora se reconocen por
+      clase.
+- [x] **Los enlaces de Explorar no usan `PageLink.get()`**, que llama a un
+      `session.parse_page` que `tidalapi` 0.8.11 no tiene. `_page_at` pide la ruta con
+      un `Page` nuevo; tampoco `session.page`, que `Page.get` sobrescribe y que dos
+      niveles cargando a la vez compartirían.
+- [x] Sin «más…» en las categorías de inicio: `PageCategoryV2.view_all` también está
+      roto (llama a un `session.view_all` que no existe). Queda en `next.md`, «Sin
+      fecha».
+- [x] Recorrido contra TIDAL real el 2026-09-14, solo lectura: inicio con sus
+      categorías de álbumes, playlists, artistas, pistas y mixes; «Para ti» con sus
+      mixes, que abren a sus pistas; y un género de Explorar (Hip-Hop), que abre a su
+      propia página con doce categorías.
+
+### Vista de cuadrícula - `screens/grid.py`, `screens/browser.py`
+
+- [x] `library_view` (`list` o `grid`) en `config.toml`, en la ventana de ajustes y con
+      `v` en el navegador, que lo escribe. **Una sola vista para toda la biblioteca**, y
+      no por nivel como los órdenes: la cuadrícula ya se aplica solo donde tiene
+      sentido, así que no hacía falta otra cosa que recordar.
+- [x] `_grid_fits` decide por nivel: cuadrícula si está pedida, el nivel no tiene
+      pistas y al menos una fila trae carátula (`Row.art`). Un nivel de pistas, la raíz
+      y las secciones de un artista siguen en listado. Se decide sobre el nivel entero
+      y no sobre lo que deja el filtro, para que escribir en `/` no cambie la vista.
+- [x] `GridList` tiene la misma superficie que `RowList` (`rows`, `cursor`, `current`,
+      `move`, `set_rows`, `empty_text`), y el navegador habla con el que se ve a través
+      de `_list()`. Cada ficha son 16x8 celdas de carátula y tres líneas de texto: el
+      nombre, el artista y el detalle. El nombre sale de `Row.caption` cuando la
+      etiqueta no sirve: la de un álbum es «artista - nombre», y en la primera
+      captura real, con 16 celdas, solo quedaba «Tiro De Gracia -». Sin artista
+      (`Row.byline`), el detalle sube una línea.
+- [x] **Lo que sobra del ancho va a los huecos** (`grid.spread`), como el
+      `space-between` de CSS: la primera ficha pegada a la izquierda y la última a la
+      derecha, con huecos que difieren como mucho en una celda. Con un hueco fijo, todo
+      el sobrante se amontonaba a la derecha, casi una columna vacía (visto en el
+      terminal del mantenedor el 2026-09-14). Todas las líneas usan los mismos huecos,
+      así que la última, si está incompleta, sigue en sus columnas. Con una sola
+      columna no hay huecos: va centrada.
+      **No se llama `visible`** el método que da las filas en pantalla: `Widget.visible`
+      ya existe en Textual, y pisarlo deja el widget sin pintar.
+- [x] **Solo medios bloques**, sea cual sea el terminal: una imagen de kitty o sixel la
+      pinta el terminal encima del texto, y la cuadrícula vive en una ventana sobre la
+      que se abren el menú, la ayuda y cada pregunta. Las carátulas se piden a 160 px
+      (320 los mixes), solo las de las fichas en pantalla y una línea más, en un worker
+      exclusivo de su propio grupo que se cancela al desplazarse. Se cortan en celdas en
+      ese hilo y quedan en memoria por URL (`grid._CELLS`, hasta 600). Sin Pillow o con
+      una descarga rota, la ficha dibuja un cuadrado con la inicial y no lo vuelve a
+      pedir.
+- [x] **Sextantes donde el terminal los dibuja** (`artwork.sextant_cells`,
+      2026-09-14): seis píxeles por celda, dos de ancho y tres de alto, en vez de
+      los cuatro de los cuadrantes. Una celda mide el doble de alto que de ancho,
+      así que los píxeles de cuadrante son tiras altas y la carátula escalonaba en
+      filas gruesas; con tres filas quedan casi cuadrados, la mitad más de detalle
+      en vertical con los mismos dos colores. Cada celda prueba las 32 formas de
+      partir sus seis píxeles, con la misma regla que `quadrant_cell`. Solo en
+      kitty, ghostty, WezTerm y foot (`draws_sextants`), que dibujan esos glifos
+      ellos mismos; en otro terminal dependen de la fuente, y una que no los traiga
+      pinta una caja por celda. `TIDALAMP_SEXTANTS` fuerza cualquiera de los dos.
+      Solo en la cuadrícula: la carátula del reproductor en `blocks` sigue en
+      cuadrantes.
+- [x] `←` recorre la cuadrícula; en el listado sigue volviendo atrás, y `⌫` vuelve en
+      los dos. `↑` `↓` saltan una línea de fichas y RePág/AvPág, una pantalla.
+
+### Tus playlists - `library.py`, `screens/browser.py`, `screens/tracks.py`
+
+- [x] `Row.editable` marca las filas de «Mis playlists» (`_own_playlist_rows`); una
+      playlist encontrada en una búsqueda o en Descubrir no lo es, aunque sea tuya.
+      `m` sobre una editable añade `PLAYLIST_EXTRA`: renombrar (`n`), cambiar la
+      descripción (`e`) y borrar (`x`). Las tres construyen el `UserPlaylist` de esa
+      playlist sola (`_writable`), una petición, y una playlist ajena levanta
+      `PlaylistNotWritable`.
+- [x] **Renombrar no usa `UserPlaylist.edit`**, que toma una descripción vacía como
+      «deja la que tiene», así que no se podría borrar. Se manda la misma petición
+      con lo que se pidió. Se reintenta como una lectura: mandar dos veces el mismo
+      nombre deja el mismo nombre.
+- [x] Borrar pregunta con el cursor en Cancelar y **no se reintenta**: un segundo
+      DELETE tras una respuesta perdida no encontraría nada y daría error sobre una
+      playlist que ya no está. Olvida «Mis playlists» en todos sus órdenes y la
+      playlist.
+- [x] **Mover con `alt+↑` `alt+↓`** solo con la playlist en su orden y sin filtro: si
+      no, la posición en pantalla no es la de TIDAL. Tampoco baja por encima de un
+      «más…». La posición se confirma antes con `_position_of` (TIDAL puede dejar
+      huecos en una página) y después con `_is_at`: el `toIndex` de TIDAL se tomó como
+      la posición final, que es lo que dicen los tests de `tidalapi`, y si la pista cae
+      en otro sitio la app lo dice en vez de enseñar una lista que miente. No se
+      reintenta, y mientras un movimiento va de camino no sale otro.
+- [x] Probado con dobles. **Falta lanzarlo contra TIDAL real** en una playlist de
+      prueba: está en `next.md`.
+
 ### Revisión antes de la 0.8.0 (2026-09-11)
 
 Leído todo lo nuevo desde la `0.7.0` buscando lo que los tests no cubrían. Cuatro
@@ -1802,9 +1907,10 @@ una pista en cada calidad y leer `~/.local/state/tidalamp/tidalamp.log`.
 
 > [!NOTE]
 > La funcionalidad comprometida para la próxima versión vive en
-> [next.md](./next.md), con sus trampas y su forma de comprobarse. Tras la `0.10.0`
-> está vacía. Esta sección sigue siendo el estado general y aquella, la cola de
-> trabajo.
+> [next.md](./next.md), con sus trampas y su forma de comprobarse. Descubrir, la
+> cuadrícula y la gestión de playlists ya están hechas (2026-09-14, sin publicar);
+> allí quedan las comprobaciones a mano. Esta sección sigue siendo el estado general
+> y aquella, la cola de trabajo.
 
 P1–P4 están cerradas: lo que queda no es funcionalidad que falte para que el
 reproductor sirva, sino acabado, distribución y confirmar contra TIDAL real cosas hoy

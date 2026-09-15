@@ -5,6 +5,36 @@ versioning is [semantic](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Discover, at the end of the library: TIDAL's home page, For you and Explore. Each
+  one opens to its categories (recently played, albums you will enjoy, new tracks,
+  your mixes and radio stations, and the rest), and each category to what it holds;
+  Explore's genres, moods and decades open to pages of their own. Videos and
+  TIDAL's banners are left out. A category shows what TIDAL puts on the page,
+  usually its first ten.
+- A grid view for the library (`library_view`, Library view in the settings window,
+  or `v` in the browser): albums, playlists, artists and mixes as tiles with their
+  covers. The covers are drawn with text, so the menu, the help and every
+  question still open over them: sextants, six pixels a cell, in kitty, ghostty,
+  WezTerm and foot, which draw those glyphs themselves, and quadrants anywhere else
+  (`TIDALAMP_SEXTANTS=1` or `0` settles it). A level of tracks is always a list. The arrow keys
+  walk the grid and `⌫` goes back.
+- Your own playlists can be changed from the browser. `m` on one of them also offers
+  to rename it (`n`), change its description (`e`) or delete it (`x`, after asking
+  with the cursor on Cancel). Inside it, `alt+up` and `alt+down` move a track, with
+  the playlist in its own order and unfiltered, and TIDAL is asked afterwards
+  whether the track landed where it was sent.
+
+### Changed
+
+- In the browser, `←` walks the grid. In the list it still goes back, as `⌫` does.
+
+### Fixed
+
+- No dark block at the head of the status line while nothing is loading: the idle
+  spinner kept its padding, two cells of its own ground.
+
 ## [0.10.0] - 2026-09-14
 
 ### Added

@@ -189,6 +189,7 @@ show the key that actually works.
 | `/`             | inside the browser, filter the level you are on    |
 | `R`             | reload the level, bypassing the cache              |
 | `s`             | inside the browser, sort the level you are on      |
+| `v`             | inside the browser, show the level as a list or as a grid of covers |
 | `d`             | inside the browser, remove from favourites or from the open playlist |
 | `m`             | inside the browser, open the menu of a track, album, artist or playlist |
 | `y`             | show lyrics for the current track                  |
@@ -251,6 +252,27 @@ An artist opens to its sections: popular tracks, albums, EPs and singles, and ot
 (compilations and appearances), each disc opening to its tracks. They are the
 sections TIDAL has, in its own order, and one with nothing in it is left out. `m` and
 `a` on an artist still play its popular tracks.
+
+**Discover**, the last row of the library, is what TIDAL proposes rather than what you
+keep: its home page (recently played, albums you will enjoy, new tracks, your mixes and
+radio stations), For you, and Explore, whose genres, moods and decades each open to a
+page of their own. Every page opens to its categories and every category to what it
+holds, which plays and opens like anything else in the library. Videos and TIDAL's
+banners are left out, and a category shows what TIDAL puts on the page, usually the
+first ten.
+
+**The grid.** `v` in the browser (or Library view in the settings window) shows a level
+of albums, playlists, artists or mixes as tiles, each with its cover, its name and a
+line under it; `v` again goes back to the list, and the choice is kept in
+`config.toml` as `library_view`. The arrow keys walk the tiles, `⌫` goes back, and
+every other key of the browser works as it does in the list. A level of tracks is
+always a list. The covers are drawn with text, whatever the terminal can do, because an
+image sent with kitty or sixel is painted over the text and would cover the menu, the
+help and every question that opens on top of the grid. In kitty, ghostty, WezTerm and
+foot they use sextants, six pixels to a cell, which those terminals draw themselves;
+anywhere else, the quadrants every font has, four to a cell. `TIDALAMP_SEXTANTS=1`
+turns sextants on for another terminal whose font has them, and `0` turns them off.
+They arrive a moment after the tiles, the ones on screen first.
 
 Tracks play one into the next with no gap: the next one is fetched from TIDAL shortly
 before the current one ends and handed to mpv ahead of time, along with its cover (and
@@ -402,6 +424,15 @@ it: a level has one obvious thing to do.
 Going to the artist or the album from the browser opens it on top of the level you
 were on, and `⌫` comes back to it. From the queue, the browser opens right there, and
 `⌫` goes back to the root of the library instead of closing it.
+
+On a playlist of yours, one in `My playlists`, the menu has three more lines: **rename**
+(`n`), **change the description** (`e`), typed over the one it has, and an empty one
+clears it, and **delete the playlist** (`x`), which asks first with the cursor on Cancel.
+Inside one of your playlists, `alt+↑` and `alt+↓` move the track under the cursor, as in
+the queue, and TIDAL is asked afterwards whether it landed where it was sent. That only
+works with the playlist in its own order and unfiltered: sorted with `s` or narrowed
+with `/`, a row's place on screen is not its place in the playlist, and the browser says
+so instead of moving it.
 
 `m` on an album, an artist or a playlist opens the same menu for everything inside it:
 **play it all now** (`a`), **play it all next** (`c`), **add it to your favourites**
@@ -577,6 +608,7 @@ writes `~/.config/tidalamp/config.toml`, so a change made once stays made.
 | Visualizer | `bars` `mirror` `curve` `fine`            | immediately   |
 | Autoplay  | on / off                                  | immediately    |
 | Normalised volume | `off` `track` `album`             | immediately    |
+| Library view | `list` `grid`                          | the next level opened |
 | Debug log | on / off                                  | immediately    |
 
 Normalised volume uses the ReplayGain TIDAL sends with every stream: `track` evens
@@ -605,6 +637,7 @@ backdrop = "auto"             # the picture behind the queue: auto, none, or a t
 visualizer = "bars"           # analyzer shape: bars, mirror, curve, or fine
 autoplay = false              # when the queue ends, carry on with the last track's radio
 replaygain = "off"            # normalised volume: off, track, or album
+library_view = "list"         # the library as a list, or as a grid of covers
 debug = false                 # log to ~/.local/state/tidalamp/tidalamp.log
 
 [keys]
@@ -614,7 +647,7 @@ quit = "ctrl+q"
 
 Precedence is **environment → file → default**. `TIDALAMP_QUALITY`, `TIDALAMP_ART`,
 `TIDALAMP_LANG`, `TIDALAMP_COLUMNS`, `TIDALAMP_THEME`, `TIDALAMP_PALETTE`,
-`TIDALAMP_VISUALIZER`, and `TIDALAMP_DEBUG` therefore override the file for one-off runs; the settings window
+`TIDALAMP_VISUALIZER`, `TIDALAMP_LIBRARY_VIEW`, and `TIDALAMP_DEBUG` therefore override the file for one-off runs; the settings window
 labels a row whose value is being shadowed that way, rather than showing a value the
 app is not using. A syntax error in the file does not prevent startup; it is logged
 and the defaults take over.

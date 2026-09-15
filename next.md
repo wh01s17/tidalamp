@@ -17,9 +17,49 @@ Lo de aquí no bloquea publicar. `plan.md` §5 y §6 mandan sobre el estado gene
 
 ## Para la próxima versión
 
-Nada comprometido todavía: lo de abajo no tiene versión.
+Descubrir, la vista de cuadrícula y la gestión de playlists propias están hechas
+(2026-09-14): ver `CHANGELOG.md` y `plan.md` §4. Queda por comprobar a mano:
+
+- **Probar contra TIDAL real lo que escribe en tus playlists.** Renombrar, cambiar
+  la descripción, borrar y mover una pista están cubiertos con dobles, y Descubrir
+  se recorrió contra TIDAL real, pero nada de lo que escribe se ha lanzado todavía
+  contra la cuenta. Hacerlo en una playlist de prueba creada para eso.
+  - *Qué mirar:* que mover una pista hacia abajo y hacia arriba la deja una fila más
+    allá y no dos (el `toIndex` de TIDAL se tomó como la posición final, por los tests
+    de `tidalapi`; si no lo es, la app lo dice con «TIDAL no dejó … donde se pidió»);
+    que una descripción vacía la borra; que la playlist borrada desaparece de «Mis
+    playlists» sin recargar.
+
+- **Ver la disposición compacta en un terminal real.** Por debajo de 80x26 la
+  interfaz quita la carátula y la fila de balance, y hasta ahora solo lo cubren tests
+  que miden celdas y no colores (`plan.md` §9.5).
+  - *Lo que ya se ha visto (2026-09-14):* una captura a 72x17, que está por debajo del
+    mínimo de 60x18 por la altura. Sale bien el aviso («The window is 72×17. TIDAL AMP
+    needs at least 60×18.»), en el color de acento y sin cortes. **La disposición
+    compacta en sí no sale**, porque a esa altura la tapa el aviso.
+  - La forma tenue que se ve detrás del aviso en esa captura es el fondo de pantalla
+    del mantenedor, que se transparenta a través de kitty. No es un fallo.
+  - *Visto el 2026-09-14:* el aviso, bien de 48x11 a 72x17, sin cortes (a 48 columnas
+    la línea más larga cabe justa). Y la disposición compacta con el reproductor en
+    marcha, en un tema: el transporte cabe entero, la barra de título está completa,
+    no hay carátula ni fila de balance, y la cola recorta sus columnas. En la captura
+    la insignia decía «C  FLAC…»: era el `Glide` desplazando la línea, que no cabe, a
+    mitad de camino. No es un fallo.
+  - El cuadradito oscuro que se veía a la izquierda de la línea de estado, en esa
+    captura y también a tamaño normal, era el spinner `#busy` parado: su relleno
+    dibujaba dos celdas de su propio fondo. Arreglado (clase `-idle`, sin relleno).
+  - *Por mirar:* los otros tres temas.
+  - *Comprobación:* capturas entre 60x18 y 79x25 (por ejemplo 72x20 y 79x25) en los
+    cuatro temas. Qué mirar: lo mismo que §9.5, que la fila del transporte no se salga
+    ni se parta y que las barras de título llenen su fila.
 
 ## Sin fecha
+
+- **«más…» en las categorías de Inicio.** Una categoría de la página de inicio trae
+  los diez primeros que TIDAL pone en la página, y la lista completa está detrás de
+  su «view all». `tidalapi` 0.8.11 lo tiene roto: `PageCategoryV2.view_all` llama a
+  un `session.view_all` que no existe. Habría que pedir la ruta de `_more.api_path`
+  a mano, como ya se hace con los enlaces de Explorar (`library._page_at`).
 
 - **Sacar objetos de verdad de `TidalAmp`.** 2635 líneas y 182 métodos en `app.py`;
   `_setting_changed` es de lo más enredado. No en mixins (ver «Descartado»), sino
