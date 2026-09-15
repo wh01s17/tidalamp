@@ -29,6 +29,10 @@ versioning is [semantic](https://semver.org/).
 ### Changed
 
 - In the browser, `←` walks the grid. In the list it still goes back, as `⌫` does.
+- No more `more…` to press every hundred rows: the next page comes in on its own as
+  the cursor nears the end of a level. And a filter in the library brings in the rest
+  of the level first, so it searches all of it and not only the pages already loaded;
+  in a search, which has no end worth reaching, it narrows what came back.
 
 ### Fixed
 

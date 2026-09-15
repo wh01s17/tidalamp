@@ -1733,6 +1733,13 @@ efecto las tres trampas que lo hacían caro:
       terminal del mantenedor el 2026-09-14). Todas las líneas usan los mismos huecos,
       así que la última, si está incompleta, sigue en sus columnas. Con una sola
       columna no hay huecos: va centrada.
+- [x] **Asoma la línea siguiente** (2026-09-14): `per_screen` cuenta las fichas que
+      caben enteras, y lo que sobra al pie dibuja el principio de las carátulas de la
+      línea que viene. Se probó a dibujar solo fichas enteras, y el pie vacío parecía
+      decir que no había más discos; y a reservar tres líneas para el asomo, que a
+      algunos altos se comía una línea de fichas que cabía. Con la última línea en
+      pantalla no asoma nada, y ese hueco sí dice que se acabó. A una ficha solo le
+      puede faltar su línea de aire de abajo: el borde del widget ya hace de aire.
       **No se llama `visible`** el método que da las filas en pantalla: `Widget.visible`
       ya existe en Textual, y pisarlo deja el widget sin pintar.
 - [x] **Solo medios bloques**, sea cual sea el terminal: una imagen de kitty o sixel la
@@ -1757,6 +1764,29 @@ efecto las tres trampas que lo hacían caro:
       cuadrantes.
 - [x] `←` recorre la cuadrícula; en el listado sigue volviendo atrás, y `⌫` vuelve en
       los dos. `↑` `↓` saltan una línea de fichas y RePág/AvPág, una pantalla.
+
+### Páginas según se acerca el cursor - `screens/browser.py`
+
+- [x] **La página siguiente se pide sola** (2026-09-14, a petición del mantenedor,
+      que no quería pulsar «más…» cada cien filas). `_page_on` corre tras cada
+      movimiento y tras cada `_show`: si el cursor está a una pantalla de «más…» en
+      el listado, o a una pantalla y una línea de fichas en la cuadrícula, pide esa
+      página en segundo plano. Un nivel más corto que la ventana la pide al abrirse.
+      `_paging` guarda la fila «más…» en camino: una página cada vez, y nunca dos
+      veces la misma; si su nivel se dejó, se olvida. `_load_more` va en su propio
+      grupo exclusivo, `paging`: en el grupo por defecto, una página pedida al
+      acercarse cancelaba el nivel que el usuario acababa de abrir. Un fallo lo dice
+      en la línea de estado y deja «más…» para ↵, sin tratar el nivel como fallido.
+- [x] **El filtro de la biblioteca trae el resto del nivel** (`_load_rest`), página
+      a página, con la cuenta en el spinner. Filtrar solo lo cargado decía «nada
+      coincide» sobre una colección que no había leído. Mientras llega, `_page_on`
+      no pide nada por su cuenta.
+- [x] **En una búsqueda, no** (`BrowserScreen(search=True)`, desde `/`): una búsqueda
+      no tiene un final útil. Filtrar estrecha lo que llegó y «más…» sobrevive al
+      filtro; y con un filtro puesto `_page_on` tampoco pagina solo, porque sin
+      coincidencias el cursor está sobre «más…» y se traería la búsqueda entera.
+- [x] Cargarlo todo al abrir se descartó: son 6 peticiones para 539 álbumes y 30
+      para una playlist de 3.000, antes de ver nada, y más riesgo de un 429.
 
 ### Tus playlists - `library.py`, `screens/browser.py`, `screens/tracks.py`
 

@@ -325,8 +325,10 @@ The settings window over the scrim. `Transparencia` is on, and `Carátula` sitti
   *Sinfonía* — every word you type has to match somewhere, and a track is also found by
   its album, which is not on the line unless you turned that column on. `↵` applies the
   filter and gives the arrows back to the list; `Esc` clears it and leaves the browser
-  open, on the row you had reached. The `more…` row is never filtered out, because a
-  level is one page deep until you ask for the rest.
+  open, on the row you had reached. In the library, typing a filter brings in the rest
+  of the level, page by page, so it searches the whole collection and not the pages
+  already loaded. A search is not fetched whole, having no end worth reaching: there,
+  the `more…` row is never filtered out, and `↵` on it fetches the next page.
 
 `f` adds the selected track, album, artist, or playlist to TIDAL favourites; `F`
 removes it.
@@ -363,8 +365,11 @@ not reshuffle what comes next. While the queue is filtered the rows may not visi
 reorder — the track it swapped with can be one the filter is hiding — but the number
 at the head of the line changes, because that is the queue position.
 
-Long levels are paginated in groups of 100. The final row is `more…`; pressing `↵` on
-it loads the next page **into the same level** without losing the cursor position.
+Long levels come from TIDAL a hundred at a time, and the next hundred is fetched on
+its own as the cursor nears the end, in the background, into the same level and
+without losing the cursor's place: there is nothing to press. A level shorter than the
+window fills it at once. The final row, `more…`, is there while a page is still to
+come, and `↵` on it fetches it too.
 Opened levels are cached for the lifetime of the application, so returning to one is
 instant. `R` fetches the current level again, which is useful after creating a
 playlist on another device.
