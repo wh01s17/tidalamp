@@ -2339,9 +2339,11 @@ class TidalAmp(App):
             self.call_from_thread(
                 setattr, self, "status", _("sin carátula: {error}").format(error=exc)
             )
-            return
+            cover = None
         if url == self._art_url:
             self._art_look = look
+            # None too: a cover that could not be had takes the last one
+            # down, rather than leaving another record's cover over this one.
             self.call_from_thread(self._art_ready, cover)
 
     def _reload_art(self) -> None:
@@ -2375,7 +2377,7 @@ class TidalAmp(App):
         if fullscreen is not None:
             fullscreen.reload_cover()
 
-    def _art_ready(self, cover: artwork.Cover) -> None:
+    def _art_ready(self, cover: artwork.Cover | None) -> None:
         """Put a freshly rendered cover up — and take it straight back down if
         there is a window in front of it.
 
@@ -2394,10 +2396,21 @@ class TidalAmp(App):
         # changed from the browser, or a theme changed in the settings, which
         # re-measures the box and fetches the cover again) stayed up, painted
         # over the window.
-        if len(self.screen_stack) > 1 and cover.protocol is not artwork.Protocol.BLOCKS:
+        if (
+            cover is not None
+            and len(self.screen_stack) > 1
+            and cover.protocol is not artwork.Protocol.BLOCKS
+        ):
             self._art_hidden = True
             self._pending_art = cover
             return
+        # Up now, so whatever a window hid before is stale. Left set, the next
+        # tick saw a hidden cover with no window in front and put it back,
+        # over this one: pick another record in the browser, its cover lands
+        # from the cache as the browser closes, and the last record's comes
+        # back a quarter of a second later (seen on 2026-09-14).
+        self._art_hidden = False
+        self._pending_art = None
         widget.show(cover)
 
     def _artwork(self) -> Artwork | None:

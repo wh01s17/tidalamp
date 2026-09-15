@@ -34,6 +34,10 @@ versioning is [semantic](https://semver.org/).
 
 - No dark block at the head of the status line while nothing is loading: the idle
   spinner kept its padding, two cells of its own ground.
+- Picking another record from the browser no longer leaves the last record's cover
+  up. The new cover landed as the browser closed, and a moment later the player put
+  back the one the browser had hidden, over it. And a cover that cannot be had now
+  takes the last one down, rather than leaving another record's cover in its place.
 
 ## [0.10.0] - 2026-09-14
 
