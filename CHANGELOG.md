@@ -20,8 +20,8 @@ versioning is [semantic](https://semver.org/).
   covers. The covers are drawn with text, so the menu, the help and every
   question still open over them: sextants, six pixels a cell, in kitty, ghostty,
   WezTerm and foot, which draw those glyphs themselves, and quadrants anywhere else
-  (`TIDALAMP_SEXTANTS=1` or `0` settles it). A level of tracks is always a list. The arrow keys
-  walk the grid and `⌫` goes back.
+  (`TIDALAMP_SEXTANTS=1` or `0` settles it). A level of tracks is always a list. The
+  arrow keys walk the grid and `⌫` goes back.
 - Your own playlists can be changed from the browser. `m` on one of them also offers
   to rename it (`n`), change its description (`e`) or delete it (`x`, after asking
   with the cursor on Cancel). Inside it, `alt+up` and `alt+down` move a track, with

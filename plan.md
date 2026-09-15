@@ -4,8 +4,8 @@ Documento de traspaso. Describe qué existe, qué está verificado, qué falta y
 criterio se tomaron las decisiones, para que cualquiera (humano o modelo) pueda
 retomar el trabajo sin contexto previo.
 
-**Última actualización:** 2026-09-15, versión `0.11.0` preparada y validada en local,
-pendiente del tag. Lo nuevo: Descubrir, con la home de TIDAL, Para ti y Explorar,
+**Última actualización:** 2026-09-15, versión `0.11.0` publicada en PyPI y en GitHub,
+con el tag `v0.11.0` sobre `975c12f` y el checksum del tarball en `340fb5d`. Lo nuevo: Descubrir, con la home de TIDAL, Para ti y Explorar,
 recorridos contra TIDAL real; la vista de cuadrícula de la biblioteca (`v`), con las
 carátulas en sextantes donde el terminal los dibuja solo; renombrar, describir,
 borrar y reordenar tus playlists, comprobado por el mantenedor contra TIDAL real; la
@@ -1948,9 +1948,8 @@ una pista en cada calidad y leer `~/.local/state/tidalamp/tidalamp.log`.
 > [!NOTE]
 > La funcionalidad comprometida para la próxima versión vive en
 > [next.md](./next.md), con sus trampas y su forma de comprobarse. Descubrir, la
-> cuadrícula, la gestión de playlists y las páginas que llegan solas entran en la
-> `0.11.0`, preparada el 2026-09-15 y pendiente del tag; allí quedan las
-> comprobaciones a mano. Esta sección sigue siendo el estado general
+> cuadrícula, la gestión de playlists y las páginas que llegan solas entraron en la
+> `0.11.0`, publicada el 2026-09-15; allí quedan las comprobaciones a mano. Esta sección sigue siendo el estado general
 > y aquella, la cola de trabajo.
 
 P1–P4 están cerradas: lo que queda no es funcionalidad que falte para que el
@@ -1958,17 +1957,15 @@ reproductor sirva, sino acabado, distribución y confirmar contra TIDAL real cos
 probadas sólo con dobles.
 
 **Orden propuesto (2026-09-11):** ~~P5 empaquetado~~ y ~~carátula~~ ✅ hechos. Cada
-versión se publica siguiendo `publish.md`; la última publicada es la `0.10.0`
-(2026-09-14), en PyPI y en GitHub, con el checksum del tarball ya en el PKGBUILD
-(`0dde123`). La `0.11.0` está preparada y validada en local, pendiente del tag, con el
-checksum del PKGBUILD en `SKIP` hasta que exista. Lo que queda abierto aquí pide
-credenciales tuyas o un par de ojos.
+versión se publica siguiendo `publish.md`; la última publicada es la `0.11.0`
+(2026-09-15), en PyPI y en GitHub, con el checksum del tarball ya en el PKGBUILD
+(`340fb5d`). Lo que queda abierto aquí pide credenciales tuyas o un par de ojos.
 
 1. Publicar en el AUR cuando vuelva a abrir el registro de cuentas nuevas. El paquete
    está preparado y se puede probar localmente, pero el alta final depende del
    servicio externo y no tiene fecha anunciada. **Todo lo del AUR queda pendiente**
-   (decidido por el mantenedor el 2026-09-14): de la `0.10.0` sólo está hecho el
-   checksum (`publish.md` §8.1 y §8.3, en `0dde123`); §8.2 (`makepkg -Csi`,
+   (decidido por el mantenedor el 2026-09-14): de la `0.11.0` sólo está hecho el
+   checksum (`publish.md` §8.1 y §8.3, en `340fb5d`); §8.2 (`makepkg -Csi`,
    `namcap`) no se ha ejecutado para esta versión, y §8.4 a §8.6 esperan al registro.
 2. ~~Mirar `retro` y `ascii` en un terminal de verdad~~ ✅ hecho el 2026-09-10; ver §9.5.
    Queda el extremo pequeño: la disposición compacta no se ha visto nunca.
