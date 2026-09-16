@@ -5,6 +5,15 @@ versioning is [semantic](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.11.1] - 2026-09-16
+
+### Fixed
+
+- The title of the lyrics window (`y`) is shown whole. It wrapped on words in a head
+  one row tall, so the end of a long name, and the mode and provider after it, never
+  showed; and the idle spinner kept a third of the head to itself. It now spends the
+  whole head and glides there and back when it does not fit, as the track title does.
+
 ## [0.11.0] - 2026-09-15
 
 ### Added

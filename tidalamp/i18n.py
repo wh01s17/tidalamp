@@ -214,6 +214,10 @@ ENGLISH: dict[str, str] = {
     "página": "page",
     "{count} elementos": "{count} items",
     "1 elemento": "1 item",
+    # --- 0.11.1, in the help's list of changes
+    "El título de la letra (y) cabe entero, o se desliza.": (
+        "The lyrics title (y) fits whole, or glides."
+    ),
     # --- 0.11.0, in the help's list of changes
     "Descubrir: la home de TIDAL, Para ti y Explorar.": (
         "Discover: TIDAL's home, For you and Explore."
