@@ -697,7 +697,10 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
       (modo y proveedor incluidos) caía a una fila que nadie veía. Ahora es un `Glide`,
       el spinner quieto no guarda sus 34 celdas (`display: none` en `-idle`) y
       `Glide._timed` sólo se detiene si su pantalla no es la del frente, porque antes
-      bastaba con que hubiera un modal para que ninguna línea se moviera.
+      bastaba con que hubiera un modal para que ninguna línea se moviera. **Visto por
+      el mantenedor en su terminal (2026-09-16):** el título largo de `y` se desliza y
+      vuelve, el título del reproductor y la insignia de calidad se quedan quietos
+      detrás del modal, y la ventana no parpadea.
 
 ### Carátula — `artwork.py`, `widgets.py`
 
