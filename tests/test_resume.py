@@ -126,7 +126,12 @@ def test_quitting_writes_the_second_of_the_track_playing(monkeypatch):
             application._play_index(2)
             application._start(entries[2], Playable("https://cdn/3"))
             mpv.idle, mpv.duration, mpv.position = False, 200.0, 61.0
-            await pilot.pause(0.3)
+            # The slow tick reads the second four times a second. A fixed
+            # 0.3 s left it 50 ms, and a loaded CI runner missed it.
+            for _ in range(200):
+                if application._last_position == 61.0:
+                    break
+                await pilot.pause(0.05)
 
             application._remember_position()
             assert application.queue.position == 61.0
