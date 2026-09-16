@@ -370,8 +370,14 @@
 
 #lyrics-spinner {
     background: $tidalamp-title-background;
-    width: 34;
+    width: auto;
     padding: 0 1;
+}
+
+/* Idle it gives its cells back to the title: 34 of them held empty cut the
+   track name in a window 80 wide. */
+#lyrics-spinner.-idle {
+    display: none;
 }
 
 #lyrics-body {

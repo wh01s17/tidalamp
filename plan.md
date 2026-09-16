@@ -686,6 +686,12 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
 - [x] Fallback a texto plano con scroll manual cuando TIDAL no entrega timestamps.
 - [x] Reutiliza refresco de sesión, reintentos de red y una cache por pista durante la
       sesión. Una letra ausente muestra un error local sin afectar al reproductor.
+- [x] El título del modal usa todo el encabezado y se desliza cuando no cabe, como el
+      marquee. Era un `Static` de una fila que partía por palabras: lo que sobraba
+      (modo y proveedor incluidos) caía a una fila que nadie veía. Ahora es un `Glide`,
+      el spinner quieto no guarda sus 34 celdas (`display: none` en `-idle`) y
+      `Glide._timed` sólo se detiene si su pantalla no es la del frente, porque antes
+      bastaba con que hubiera un modal para que ninguna línea se moviera.
 
 ### Carátula — `artwork.py`, `widgets.py`
 

@@ -17,7 +17,7 @@ from ..i18n import _
 from ..lyrics import LyricsDocument
 from ..queue import Entry
 from ..theme import palette_for
-from ..widgets import Spinner
+from ..widgets import Glide, Spinner
 
 if TYPE_CHECKING:  # The screens report back to the app; the app owns them.
     pass
@@ -58,10 +58,11 @@ class LyricsScreen(ModalScreen[None]):
     def compose(self) -> ComposeResult:
         with Vertical(id="lyrics-box"):
             with Horizontal(id="lyrics-head"):
-                yield Static(
+                # A Glide, not a Static: a Static wrapped the title on words
+                # and a head one row tall hid everything after the first break.
+                yield Glide(
                     _("▓ LETRA ▓  {title}").format(title=self._track_title),
                     id="lyrics-title",
-                    markup=False,
                 )
                 yield Spinner(id="lyrics-spinner")
             yield Static("  " + _("cargando…"), id="lyrics-body", markup=False)
@@ -75,7 +76,7 @@ class LyricsScreen(ModalScreen[None]):
         """Ask for the lyrics of the track the window is on, from scratch."""
         self._document = None
         self._plain_offset = 0
-        self.query_one("#lyrics-title", Static).update(
+        self.query_one("#lyrics-title", Glide).update(
             _("▓ LETRA ▓  {title}").format(title=self._track_title)
         )
         entry = self._current()
@@ -116,7 +117,7 @@ class LyricsScreen(ModalScreen[None]):
         self._document = document
         mode = _("sincronizada") if document.synced else _("texto")
         provider = f" · {document.provider}" if document.provider else ""
-        self.query_one("#lyrics-title", Static).update(
+        self.query_one("#lyrics-title", Glide).update(
             _("▓ LETRA ▓  {title} · {mode}{provider}").format(
                 title=self._track_title, mode=mode, provider=provider
             )

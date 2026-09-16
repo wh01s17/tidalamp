@@ -85,9 +85,10 @@ class Glide(Widget):
 
     def _timed(self) -> None:
         # Nothing behind a modal is worth animating: the player under a scrim
-        # repaints the whole blend for a line nobody is reading.
+        # repaints the whole blend for a line nobody is reading. A line in the
+        # modal itself is the one being read.
         with contextlib.suppress(Exception):
-            if len(self.app.screen_stack) > 1:
+            if self.screen is not self.app.screen:
                 return
         self.tick()
 

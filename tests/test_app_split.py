@@ -440,7 +440,47 @@ def test_the_lyrics_window_follows_a_track_changed_by_the_media_keys(monkeypatch
 
             application.mpris_next()
             await settle(pilot, lambda: "letra de Parabola" in body())
-            title = str(application.screen.query_one("#lyrics-title", Static).render())
+            title = str(application.screen.query_one("#lyrics-title").content)
             assert "Parabola" in title
+
+    asyncio.run(scenario())
+
+
+def test_the_lyrics_window_title_spends_the_head_and_glides_when_it_does_not_fit(
+    monkeypatch,
+):
+    """The title was a Static one row tall: it wrapped on words and the rest,
+    mode and provider included, went to a row nobody saw. And the idle
+    spinner kept 34 cells of the head to itself."""
+    from tidalamp.lyrics import parse_lyrics
+    from tidalamp.widgets import Glide
+
+    isolate_runtime(monkeypatch)
+    monkeypatch.setattr(Glide, "HOLD", 0)
+    monkeypatch.setattr(
+        TidalAmp, "_lyrics_for", lambda self, entry: parse_lyrics(text="verso")
+    )
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(120, 36)) as pilot:
+            title = "A Title Far Too Long To Fit In A Window Eighty Cells Wide At All"
+            application.queue.replace(
+                [Entry(id=1, title=title, artist="Alice In Chains", duration=60)],
+                start=0,
+            )
+            await pilot.pause()
+            await pilot.press("y")
+            screen = application.screen
+            await settle(pilot, lambda: not screen.query_one("Spinner").busy)
+            await pilot.pause()
+
+            head = screen.query_one("#lyrics-head")
+            glide = screen.query_one("#lyrics-title", Glide)
+            assert glide.outer_size.width == head.size.width
+            assert title in glide.content
+            first = glide.render().plain
+            assert cell_len(first) == glide.size.width
+            await settle(pilot, lambda: glide.render().plain != first)
 
     asyncio.run(scenario())
