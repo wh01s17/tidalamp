@@ -4,7 +4,12 @@ Documento de traspaso. Describe qué existe, qué está verificado, qué falta y
 criterio se tomaron las decisiones, para que cualquiera (humano o modelo) pueda
 retomar el trabajo sin contexto previo.
 
-**Última actualización:** 2026-09-15, versión `0.11.0` publicada en PyPI y en GitHub,
+**Última actualización:** 2026-09-16, versión `0.11.1` preparada y validada en local,
+pendiente del tag. Es un arreglo: el título de la ventana de letras (`y`) partía por
+palabras en un encabezado de una fila y el spinner quieto se quedaba 34 celdas, así que
+un nombre largo se cortaba y el modo y el proveedor no se veían; ahora usa todo el
+encabezado y se desliza cuando no cabe. Antes, 2026-09-15, versión `0.11.0` publicada
+en PyPI y en GitHub,
 con el tag `v0.11.0` sobre `975c12f` y el checksum del tarball en `340fb5d`. Lo nuevo: Descubrir, con la home de TIDAL, Para ti y Explorar,
 recorridos contra TIDAL real; la vista de cuadrícula de la biblioteca (`v`), con las
 carátulas en sextantes donde el terminal los dibuja solo; renombrar, describir,
@@ -1965,7 +1970,9 @@ probadas sólo con dobles.
 **Orden propuesto (2026-09-11):** ~~P5 empaquetado~~ y ~~carátula~~ ✅ hechos. Cada
 versión se publica siguiendo `publish.md`; la última publicada es la `0.11.0`
 (2026-09-15), en PyPI y en GitHub, con el checksum del tarball ya en el PKGBUILD
-(`340fb5d`). Lo que queda abierto aquí pide credenciales tuyas o un par de ojos.
+(`340fb5d`). La `0.11.1` está preparada y validada en local, pendiente del tag, con el
+checksum del PKGBUILD en `SKIP` hasta que exista. Lo que queda abierto aquí pide
+credenciales tuyas o un par de ojos.
 
 1. Publicar en el AUR cuando vuelva a abrir el registro de cuentas nuevas. El paquete
    está preparado y se puede probar localmente, pero el alta final depende del
