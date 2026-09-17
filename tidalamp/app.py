@@ -822,7 +822,7 @@ class TidalAmp(App):
             if desktop.create() is not None:
                 self.status = _("tidalamp ya está en el menú de aplicaciones")
             else:
-                self.status = _("no se pudo crear el acceso directo; mira el registro")
+                self.status = _("no se pudo crear el acceso directo; mira el log")
         elif value == "decline":
             desktop.decline()
             self.status = _("sin acceso directo; no se volverá a preguntar")
@@ -2648,7 +2648,7 @@ class TidalAmp(App):
                 parts.append(f"{sink.rate / 1000:g} kHz")
             if sink.rate and self._stream_rate and self._stream_rate != sink.rate:
                 parts.append(
-                    _("remuestreado desde {rate} kHz").format(
+                    _("resampling desde {rate} kHz").format(
                         rate=f"{self._stream_rate / 1000:g}"
                     )
                 )
@@ -2931,7 +2931,7 @@ class TidalAmp(App):
                 else _("transparencia desactivada")
             )
         elif name == "debug":
-            self.status = _("registro: {value}").format(
+            self.status = _("debug log: {value}").format(
                 value=_("activado") if config.DEBUG else _("desactivado")
             )
 

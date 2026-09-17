@@ -118,7 +118,7 @@ def test_encrypted_manifest_explains_the_drm():
 
 
 def test_empty_manifest_is_reported():
-    with pytest.raises(StreamUnavailable, match="Manifiesto vacío"):
+    with pytest.raises(StreamUnavailable, match="Manifest vacío"):
         resolve(track_with(FakeManifest(urls=[])))
 
 

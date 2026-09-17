@@ -14,6 +14,12 @@ versioning is [semantic](https://semver.org/).
   equaliser, covers) and its launchers in `~/.local/share/applications`, so the next
   start is a first start and asks about the menu again.
 
+### Changed
+
+- The Spanish interface keeps technical terms in English where Spanish has no natural
+  word for them: `rates`, `graph`, `resampling`, `debug log`, `manifest` and
+  `device flow`, instead of «ritmos», «grafo», «remuestrea» and the like.
+
 ### Fixed
 
 - Lyric lines wider than the lyrics window (`y`) wrap under their own text, and the

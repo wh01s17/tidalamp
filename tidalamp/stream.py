@@ -192,7 +192,7 @@ def resolve(track: tidalapi.Track) -> Playable:
         urls = manifest.get_urls()
         if not urls:
             raise StreamUnavailable(
-                _("Manifiesto vacío para «{name}»").format(name=track.name)
+                _("Manifest vacío para «{name}»").format(name=track.name)
             )
         url = urls[0]
 

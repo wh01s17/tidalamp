@@ -147,7 +147,7 @@ class ConfigScreen(ModalScreen[None]):
                 note=_("ReplayGain de TIDAL: por pista o por disco; sin recortar"),
                 group=audio,
             ),
-            Option(_("Ritmos hi-res en PipeWire"), action="rates", group=audio),
+            Option(_("Rates hi-res en PipeWire"), action="rates", group=audio),
             Option(_("Reiniciar PipeWire"), action="restart", group=audio),
             Option(
                 _("Tema"),
@@ -234,7 +234,7 @@ class ConfigScreen(ModalScreen[None]):
                 group=general,
             ),
             Option(
-                _("Registro de depuración"),
+                _("Debug log"),
                 key="debug",
                 choices=self.SWITCH,
                 group=general,
@@ -376,12 +376,12 @@ class ConfigScreen(ModalScreen[None]):
         if self._sink.bluetooth:
             return _("la salida es Bluetooth: no hay hi-res real por ahí")
         if len(self._allowed) == 1:
-            return _("el grafo está fijo en {rate} Hz y remuestrea todo").format(
+            return _("el graph está fijo en {rate} Hz y hace resampling de todo").format(
                 rate=self._allowed[0]
             )
         if self._hardware:
             return _("el DAC llega a {rate} Hz").format(rate=max(self._hardware))
-        return _("el grafo puede cambiar de ritmo")
+        return _("el graph puede cambiar de rate")
 
     def _render_list(self) -> None:
         palette = palette_for(self)
@@ -488,14 +488,14 @@ class ConfigScreen(ModalScreen[None]):
         if self._sink.bluetooth:
             return _("  Bluetooth: no hay hi-res real por esta salida")
         if len(self._allowed) == 1:
-            return _("  El grafo remuestrea todo a {rate} Hz").format(
+            return _("  El graph hace resampling de todo a {rate} Hz").format(
                 rate=self._allowed[0]
             )
         # The rates allow it and still the two differ: something else holds
         # the sink at its rate, or the switch has not landed yet.
         stream = self._stream_rate
         if stream and self._sink.rate and stream != self._sink.rate:
-            return _("  PipeWire remuestrea {stream} Hz a {rate} Hz").format(
+            return _("  PipeWire hace resampling de {stream} Hz a {rate} Hz").format(
                 stream=stream, rate=self._sink.rate
             )
         return ""
@@ -554,10 +554,10 @@ class ConfigScreen(ModalScreen[None]):
             configured = audio.rates_configured()
             self.app.push_screen(
                 ChoiceScreen(
-                    _("RITMOS HI-RES EN PIPEWIRE"),
+                    _("RATES HI-RES EN PIPEWIRE"),
                     [
-                        ("write", _("configurar: PipeWire ofrece los ritmos del DAC")),
-                        ("remove", _("quitar: PipeWire vuelve a un solo ritmo")),
+                        ("write", _("configurar: PipeWire ofrece los rates del DAC")),
+                        ("remove", _("quitar: PipeWire vuelve a un solo rate")),
                     ],
                     "write" if configured else "remove",
                 ),
@@ -652,7 +652,7 @@ class ConfigScreen(ModalScreen[None]):
             self._launcher = created
             self.player.status = _("tidalamp ya está en el menú de aplicaciones")
         else:
-            self.player.status = _("no se pudo crear el acceso directo; mira el registro")
+            self.player.status = _("no se pudo crear el acceso directo; mira el log")
         self._render_list()
 
     def _rates_chosen(self, value: object, configured: bool) -> None:
@@ -759,10 +759,10 @@ class ConfigScreen(ModalScreen[None]):
     def _toggle_rates(self) -> None:
         if audio.rates_configured():
             audio.remove_rates()
-            message = _("ritmos hi-res quitados; reinicia PipeWire para aplicarlo")
+            message = _("rates hi-res quitados; reinicia PipeWire para aplicarlo")
         else:
             audio.write_rates()
-            message = _("ritmos hi-res escritos; reinicia PipeWire para aplicarlo")
+            message = _("rates hi-res escritos; reinicia PipeWire para aplicarlo")
         self.player.status = message
         self._render_list()
 

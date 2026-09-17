@@ -1192,7 +1192,7 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
       `clock.force-rate` (que sí cambia un driver en marcha) hasta que el sink lo
       sigue, y lo devuelve a `0`: el grafo se queda en ese rate. No fuerza si hay más
       de un stream en el sink, ni un rate fuera de `allowed-rates` o de lo que dice
-      ALSA. `OUT` añade «remuestreado desde … kHz» y la ventana `o` avisa cuando
+      ALSA. `OUT` añade «resampling desde … kHz» y la ventana `o` avisa cuando
       stream y sink difieren. **Comprobado en el hardware** el 2026-09-17: el BTR15 sigue
       el rate al cambiar de pista.
 
@@ -1603,7 +1603,7 @@ fichero en sí.
 
 ### Filas de ajustes que se eligen de una lista — `screens/config_window.py`
 
-- [x] Calidad, Ritmos hi-res en PipeWire y Reiniciar PipeWire no cambian con las
+- [x] Calidad, Rates hi-res en PipeWire y Reiniciar PipeWire no cambian con las
       flechas: una de más cambiaba la calidad, reescribía el drop-in o reiniciaba
       PipeWire y cortaba el audio. Enter abre `ChoiceScreen`, la lista de elegir uno
       sacada de la ventana de velocidad (que ahora es un caso de ella). La de
@@ -2500,7 +2500,7 @@ DAC recibe 48 kHz. La pantalla de `o` lo detecta y lo arregla; un DAC con pantal
 confirma, y si no la tiene, `grep Momentary /proc/asound/card*/stream0` mientras suena.
 Mirarlo en la **segunda** pista, y que sea de otro rate que la primera: la primera tras
 reiniciar PipeWire siempre llega bien, y lo que se comprueba es que el DAC la siga. Si
-no la sigue, `OUT` dice «remuestreado desde … kHz».
+no la sigue, `OUT` dice «resampling desde … kHz».
 
 ### 9.4 Decisión pendiente, no comprobación
 

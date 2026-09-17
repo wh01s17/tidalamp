@@ -431,7 +431,7 @@ def test_the_rates_row_writes_and_removes_the_drop_in(monkeypatch, tmp_path):
             application.push_screen(screen)
             await pilot.pause()
 
-            screen.cursor = config_row(screen, "Ritmos hi-res en PipeWire")
+            screen.cursor = config_row(screen, "Rates hi-res en PipeWire")
             await pilot.pause()
             # The list opens on what is true now («quitar»); one up is «configurar».
             await pilot.press("enter", "up", "enter")
@@ -651,7 +651,7 @@ def test_the_arrows_leave_quality_rates_and_restart_alone(monkeypatch, tmp_path)
             screen = ConfigScreen()
             application.push_screen(screen)
             await pilot.pause()
-            for label in ("Calidad", "Ritmos hi-res en PipeWire", "Reiniciar PipeWire"):
+            for label in ("Calidad", "Rates hi-res en PipeWire", "Reiniciar PipeWire"):
                 screen.cursor = config_row(screen, label)
                 await pilot.pause()
                 await pilot.press("left", "right", "right", "left")

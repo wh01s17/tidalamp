@@ -142,7 +142,7 @@ def test_the_screen_says_when_pipewire_resamples_the_stream(monkeypatch, tmp_pat
             application.push_screen(ConfigScreen())
             await settle(pilot, lambda: "Mi DAC" in config_text(application))
             drawn = config_text(application)
-            assert "PipeWire remuestrea 44100 Hz a 48000 Hz" in drawn
+            assert "PipeWire hace resampling de 44100 Hz a 48000 Hz" in drawn
 
     asyncio.run(scenario())
 
@@ -169,8 +169,8 @@ def test_the_screen_reports_what_the_audio_stack_is_doing(monkeypatch, tmp_path)
             # A graph stuck on one rate is the thing worth saying out loud,
             # and without moving the cursor onto the row that fixes it: the
             # badge tells the truth about the stream while the DAC gets less.
-            assert "remuestrea" in drawn
-            assert "El grafo remuestrea" in drawn.split("Salida:")[1]
+            assert "resampling" in drawn
+            assert "El graph hace resampling" in drawn.split("Salida:")[1]
 
     asyncio.run(scenario())
 
@@ -194,7 +194,7 @@ def test_a_graph_that_can_change_rate_says_nothing_alarming(monkeypatch, tmp_pat
             application.push_screen(ConfigScreen())
             await settle(pilot, lambda: "Mi DAC" in config_text(application))
 
-            assert "remuestrea" not in config_text(application)
+            assert "resampling" not in config_text(application)
 
     asyncio.run(scenario())
 

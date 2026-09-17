@@ -71,7 +71,7 @@ ENGLISH: dict[str, str] = {
         'no cover: Pillow is missing (pip install "tidalamp[art]")'
     ),
     # --- config screen
-    "Ventana de configuración, con los ritmos hi-res de PipeWire.": (
+    "Ventana de configuración, con los rates hi-res de PipeWire.": (
         "A settings window, including PipeWire's hi-res rates."
     ),
     "configuración": "settings",
@@ -110,8 +110,8 @@ ENGLISH: dict[str, str] = {
     "Duración": "Duration",
     "Tema": "Theme",
     "Paleta": "Palette",
-    "Registro de depuración": "Debug log",
-    "Ritmos hi-res en PipeWire": "Hi-res rates in PipeWire",
+    "Debug log": "Debug log",
+    "Rates hi-res en PipeWire": "Hi-res rates in PipeWire",
     "Reiniciar PipeWire": "Restart PipeWire",
     "acción": "action",
     "activado": "on",
@@ -137,11 +137,11 @@ ENGLISH: dict[str, str] = {
     "LOSSLESS  (con device flow llega como HIGH)": (
         "LOSSLESS  (through device flow it arrives as HIGH)"
     ),
-    "RITMOS HI-RES EN PIPEWIRE": "HI-RES RATES IN PIPEWIRE",
-    "configurar: PipeWire ofrece los ritmos del DAC": (
+    "RATES HI-RES EN PIPEWIRE": "HI-RES RATES IN PIPEWIRE",
+    "configurar: PipeWire ofrece los rates del DAC": (
         "configure: PipeWire offers the DAC's rates"
     ),
-    "quitar: PipeWire vuelve a un solo ritmo": (
+    "quitar: PipeWire vuelve a un solo rate": (
         "remove: PipeWire goes back to a single rate"
     ),
     "REINICIAR PIPEWIRE": "RESTART PIPEWIRE",
@@ -266,7 +266,7 @@ ENGLISH: dict[str, str] = {
     "tidalamp ya está en el menú de aplicaciones": (
         "tidalamp is now in the application menu"
     ),
-    "no se pudo crear el acceso directo; mira el registro": (
+    "no se pudo crear el acceso directo; mira el log": (
         "could not create the shortcut; see the log"
     ),
     "sin acceso directo; no se volverá a preguntar": (
@@ -430,29 +430,29 @@ ENGLISH: dict[str, str] = {
     "  Bluetooth: no hay hi-res real por esta salida": (
         "  Bluetooth: no real hi-res goes through this output"
     ),
-    "  El grafo remuestrea todo a {rate} Hz": (
+    "  El graph hace resampling de todo a {rate} Hz": (
         "  The graph resamples everything to {rate} Hz"
     ),
-    "  PipeWire remuestrea {stream} Hz a {rate} Hz": (
+    "  PipeWire hace resampling de {stream} Hz a {rate} Hz": (
         "  PipeWire resamples {stream} Hz to {rate} Hz"
     ),
-    "remuestreado desde {rate} kHz": "resampled from {rate} kHz",
+    "resampling desde {rate} kHz": "resampled from {rate} kHz",
     "no se pudo consultar PipeWire": "could not ask PipeWire",
     "la salida es Bluetooth: no hay hi-res real por ahí": (
         "the output is Bluetooth: no real hi-res goes through it"
     ),
-    "el grafo está fijo en {rate} Hz y remuestrea todo": (
+    "el graph está fijo en {rate} Hz y hace resampling de todo": (
         "the graph is stuck at {rate} Hz and resamples everything"
     ),
     "el DAC llega a {rate} Hz": "the DAC reaches {rate} Hz",
-    "el grafo puede cambiar de ritmo": "the graph can change rate",
+    "el graph puede cambiar de rate": "the graph can change rate",
     "corta el audio un momento; la reproducción se detiene antes": (
         "cuts audio for a moment; playback is stopped first"
     ),
-    "ritmos hi-res escritos; reinicia PipeWire para aplicarlo": (
+    "rates hi-res escritos; reinicia PipeWire para aplicarlo": (
         "hi-res rates written; restart PipeWire to apply them"
     ),
-    "ritmos hi-res quitados; reinicia PipeWire para aplicarlo": (
+    "rates hi-res quitados; reinicia PipeWire para aplicarlo": (
         "hi-res rates removed; restart PipeWire to apply it"
     ),
     "reiniciando PipeWire…": "restarting PipeWire…",
@@ -464,7 +464,7 @@ ENGLISH: dict[str, str] = {
         "could not restart PipeWire; do it yourself: systemctl --user restart {services}"
     ),
     "calidad: {value}": "quality: {value}",
-    "registro: {value}": "log: {value}",
+    "debug log: {value}": "debug log: {value}",
     "el idioma cambia al reiniciar tidalamp": (
         "the language changes when tidalamp restarts"
     ),
@@ -594,7 +594,7 @@ ENGLISH: dict[str, str] = {
     "Carátula más nítida en blocks y más ligera en kitty y sixel.": (
         "Sharper covers in blocks, lighter ones in kitty and sixel."
     ),
-    "Calidad, ritmos y reiniciar PipeWire se eligen de una lista.": (
+    "Calidad, rates y reiniciar PipeWire se eligen de una lista.": (
         "Quality, rates and PipeWire's restart chosen from a list."
     ),
     # --- notas de versión 0.7.0
@@ -980,7 +980,7 @@ ENGLISH: dict[str, str] = {
         "“{name}” is DRM-protected (Widevine); mpv cannot play it. "
         "Try TIDALAMP_QUALITY=HIGH."
     ),
-    "Manifiesto vacío para «{name}»": "Empty manifest for “{name}”",
+    "Manifest vacío para «{name}»": "Empty manifest for “{name}”",
     "eso no es una pista, un álbum, un artista ni una playlist": (
         "that is not a track, album, artist, or playlist"
     ),
@@ -992,7 +992,7 @@ ENGLISH: dict[str, str] = {
     "Cliente TIDAL para terminal con interfaz retro.": (
         "TIDAL client for the terminal with a retro interface."
     ),
-    "Autoriza el cliente con tu cuenta TIDAL (flujo de dispositivo).": (
+    "Autoriza el cliente con tu cuenta TIDAL (device flow).": (
         "Authorize the client with your TIDAL account (device flow)."
     ),
     "Abre esta URL y autoriza el acceso:\n": ("Open this URL and authorize access:\n"),
@@ -1000,7 +1000,7 @@ ENGLISH: dict[str, str] = {
     "Sesión guardada para {user_id}.": "Session saved for {user_id}.",
     "Lanza la interfaz.": "Launch the interface.",
     "Muestra la versión y sale.": "Show the version and exit.",
-    "Registro de depuración en {path}": "Debug log at {path}",
+    "Debug log en {path}": "Debug log at {path}",
     "Muestra la configuración efectiva y crea el fichero si no existe.": (
         "Show the effective configuration and create the file if it is missing."
     ),

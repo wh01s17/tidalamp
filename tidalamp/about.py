@@ -117,7 +117,7 @@ def releases() -> tuple[Release, ...]:
                 _("w: pantalla completa, con la cola al lado."),
                 _("Reproducción automática; la velocidad, también por MPRIS."),
                 _("Carátula más nítida en blocks y más ligera en kitty y sixel."),
-                _("Calidad, ritmos y reiniciar PipeWire se eligen de una lista."),
+                _("Calidad, rates y reiniciar PipeWire se eligen de una lista."),
             ),
         ),
         Release(
@@ -208,7 +208,7 @@ def releases() -> tuple[Release, ...]:
                 _("Reproducción con mpv por IPC, hasta FLAC 24 bit/96 kHz."),
                 _("Búsqueda, biblioteca paginada, favoritos y cola persistente."),
                 _("Menú de pista: ahora, a continuación, radio y favoritos."),
-                _("Ventana de configuración, con los ritmos hi-res de PipeWire."),
+                _("Ventana de configuración, con los rates hi-res de PipeWire."),
                 _("Letras sincronizadas, ecualizador de 10 bandas y balance."),
                 _("Carátula en kitty, sixel o medios bloques, y espectro con cava."),
                 _("MPRIS2 completo, incluida la lista de pistas."),

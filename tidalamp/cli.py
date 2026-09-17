@@ -20,9 +20,9 @@ app = typer.Typer(
 )
 
 
-@app.command(help=_("Autoriza el cliente con tu cuenta TIDAL (flujo de dispositivo)."))
+@app.command(help=_("Autoriza el cliente con tu cuenta TIDAL (device flow)."))
 def login() -> None:
-    """Autoriza el cliente con tu cuenta TIDAL (flujo de dispositivo)."""
+    """Autoriza el cliente con tu cuenta TIDAL (device flow)."""
 
     def show(url: str, expires_in: float) -> None:
         typer.echo(_("Abre esta URL y autoriza el acceso:\n"))
@@ -47,7 +47,7 @@ def tui() -> None:
     from .app import TidalAmp
 
     if os.environ.get("TIDALAMP_DEBUG"):
-        typer.echo(_("Registro de depuración en {path}").format(path=LOG_FILE))
+        typer.echo(_("Debug log en {path}").format(path=LOG_FILE))
 
     try:
         session = load_session()

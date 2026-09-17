@@ -646,7 +646,7 @@ def test_source_output_and_pause_are_separate_truthful_readouts(monkeypatch):
             )
             await pilot.pause()
             output = str(application.query_one("#output", Glide).content)
-            assert output.endswith("48 kHz · remuestreado desde 44.1 kHz")
+            assert output.endswith("48 kHz · resampling desde 44.1 kHz")
             assert application.query_one("#volume", Slider).label == "VOL/mpv"
 
     asyncio.run(scenario())
