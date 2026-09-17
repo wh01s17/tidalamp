@@ -21,9 +21,18 @@ Descubrir, la vista de cuadrícula, la gestión de playlists propias y las pági
 llegan solas entraron en la `0.11.0` (publicada el 2026-09-15): ver
 `CHANGELOG.md` y `plan.md` §4. La `0.11.1` (publicada el 2026-09-16) sólo arregla
 el título de la ventana de letras, y la `0.11.2` (publicada el 2026-09-17) que el DAC
-siga el rate de cada pista y no sólo el de la primera. Las escrituras en tus playlists
+siga el rate de cada pista y no sólo el de la primera. La `0.12.0` (preparada el
+2026-09-17) ofrece añadir tidalamp al menú de aplicaciones. Las escrituras en tus playlists
 se comprobaron contra TIDAL real ese mismo día. Queda por comprobar a mano:
 
+- **Ver el lanzador del menú en un primer arranque real.** Los tests cubren el diálogo,
+  la fila de ajustes y el `.desktop` escrito, pero nadie ha abierto tidalamp desde el
+  menú con el fichero que escribe la app.
+  - *Comprobación:* con `TidalAmp.desktop` apartado y sin
+    `~/.local/state/tidalamp/desktop-entry`, arrancar `tidalamp` desde la terminal,
+    decir que sí, y abrirlo desde Super + Espacio en Omarchy: que abra en mosaico, con
+    el icono, y que MPRIS lo asocie al lanzador. Luego, en `o`, que la fila diga
+    `creado` y ↵ avise con la ruta. Y ver el pie deslizarse en una ventana estrecha.
 - **Ver la disposición compacta en un terminal real.** Por debajo de 80x26 la
   interfaz quita la carátula y la fila de balance, y hasta ahora solo lo cubren tests
   que miden celdas y no colores (`plan.md` §9.5).
