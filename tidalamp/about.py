@@ -50,6 +50,15 @@ def releases() -> tuple[Release, ...]:
     """Newest first. Translated at call time, not at import time."""
     return (
         Release(
+            "0.12.0",
+            "2026-09-17",
+            (
+                _("Al primer inicio, ofrece añadirse al menú de aplicaciones."),
+                _("Acceso directo en el menú, también desde o."),
+                _("El pie de la ventana o se desliza si no cabe."),
+            ),
+        ),
+        Release(
             "0.11.2",
             "2026-09-17",
             (_("El DAC sigue el rate de cada pista, no sólo de la primera."),),

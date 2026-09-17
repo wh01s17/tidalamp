@@ -238,6 +238,13 @@ ENGLISH: dict[str, str] = {
     "sin acceso directo; no se volverá a preguntar": (
         "no shortcut; you will not be asked again"
     ),
+    "Al primer inicio, ofrece añadirse al menú de aplicaciones.": (
+        "On the first start, offers to add itself to the application menu."
+    ),
+    "Acceso directo en el menú, también desde o.": "Menu shortcut, also from o.",
+    "El pie de la ventana o se desliza si no cabe.": (
+        "The foot of the o window glides when it does not fit."
+    ),
     "El DAC sigue el rate de cada pista, no sólo de la primera.": (
         "The DAC follows every track's rate, not just the first's."
     ),

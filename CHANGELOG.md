@@ -5,6 +5,8 @@ versioning is [semantic](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-09-17
+
 ### Added
 
 - tidalamp can add itself to the application menu. The first time the player opens
