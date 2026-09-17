@@ -215,6 +215,9 @@ ENGLISH: dict[str, str] = {
     "{count} elementos": "{count} items",
     "1 elemento": "1 item",
     # --- 0.11.1, in the help's list of changes
+    "El DAC sigue el rate de cada pista, no sólo de la primera.": (
+        "The DAC follows every track's rate, not just the first's."
+    ),
     "El título de la letra (y) cabe entero, o se desliza.": (
         "The lyrics title (y) fits whole, or glides."
     ),

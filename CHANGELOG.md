@@ -5,6 +5,8 @@ versioning is [semantic](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.11.2] - 2026-09-17
+
 ### Fixed
 
 - Hi-res reached the DAC for the first track only. PipeWire does not change the rate
