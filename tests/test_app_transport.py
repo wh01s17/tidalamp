@@ -14,6 +14,7 @@ from app_helpers import (
     settle,
     track_rows,
     transport,
+    wait_for,
 )
 
 from tidalamp import app as app_module
@@ -120,14 +121,12 @@ def test_play_and_pause_are_one_button_showing_what_it_will_do(monkeypatch):
                 [Entry(id=1, title="t", artist="a", duration=9)], start=0
             )
             mpv.idle = False
-            await pilot.pause(0.3)
+            await wait_for(pilot, lambda: "x ‖" in transport(application))
             drawn = transport(application)
-            assert "x ‖" in drawn
             assert drawn.count("▶") == 2, "los dos del ▶▶ de «siguiente», y ninguno más"
 
             mpv.paused = True
-            await pilot.pause(0.3)
-            assert "x ▶" in transport(application)
+            await wait_for(pilot, lambda: "x ▶" in transport(application))
 
     asyncio.run(scenario())
 
@@ -149,7 +148,7 @@ def test_a_track_ending_on_its_own_still_advances(monkeypatch):
             )
             application._sync_queue()
             mpv.idle = False
-            await pilot.pause(0.3)
+            await wait_for(pilot, lambda: application._was_idle is False)
             started.clear()
 
             # mpv falls idle by itself: the song finished.
@@ -529,9 +528,13 @@ def test_a_status_with_square_brackets_reaches_the_screen_intact(monkeypatch):
     async def scenario() -> None:
         application = TidalAmp(object(), FakeMpv())
         async with application.run_test(size=(100, 40)) as pilot:
-            await pilot.pause(0.3)
-            drawn = application.query_one("#status").render_line(0).text
-            assert "tidalamp[art]" in drawn
+            await wait_for(
+                pilot,
+                lambda: (
+                    "tidalamp[art]"
+                    in application.query_one("#status").render_line(0).text
+                ),
+            )
 
     asyncio.run(scenario())
 

@@ -12,6 +12,7 @@ from app_helpers import (
     isolate_runtime,
     settle,
     use_theme,
+    wait_for,
 )
 from rich.cells import cell_len
 from textual.widgets import Static
@@ -193,39 +194,32 @@ def test_split_shows_the_lyrics_above_the_player_and_follows_the_song(
                 [Entry(id=7, title="t", artist="a", duration=60)], start=0
             )
             mpv.position = 6.0
-            await pilot.pause(0.6)
-            await pilot.pause(0.3)
-
             pane = application.query_one(LyricsPane)
+            accent = application.tidalamp_palette["accent"].lower()
+
+            def lit() -> str:
+                return "".join(
+                    segment.text
+                    for y in range(pane.size.height)
+                    for segment in pane.render_line(y)
+                    if segment.style
+                    and segment.style.color
+                    and segment.style.color.name.lower() == accent
+                )
+
+            await wait_for(
+                pilot, lambda: "segunda línea" in lit(), what="la línea que suena"
+            )
             assert pane.display and pane.size.height > 10
             drawn = [pane.render_line(y).text for y in range(pane.size.height)]
             assert any("segunda línea" in row for row in drawn)
-            accent = application.tidalamp_palette["accent"].lower()
-            lit = [
-                segment.text
-                for y in range(pane.size.height)
-                for segment in pane.render_line(y)
-                if segment.style
-                and segment.style.color
-                and segment.style.color.name.lower() == accent
-            ]
-            assert "segunda línea" in "".join(lit), "la línea que suena, en el acento"
             # The band and the keys sit under the lyrics, at their stacked height.
             display = application.query_one("#display")
             assert display.region.y >= pane.region.bottom
             assert display.region.height < 20
 
             mpv.position = 10.0
-            await pilot.pause(0.6)
-            lit = [
-                segment.text
-                for y in range(pane.size.height)
-                for segment in pane.render_line(y)
-                if segment.style
-                and segment.style.color
-                and segment.style.color.name.lower() == accent
-            ]
-            assert "tercera" in "".join(lit)
+            await wait_for(pilot, lambda: "tercera" in lit(), what="la tercera línea")
             assert fetched == [7], "una sola carga por pista"
 
             app_module.config.set_option("arrangement", "stacked")
@@ -247,10 +241,12 @@ def test_split_shows_the_looks_line_while_there_are_no_lyrics(monkeypatch, tmp_p
     async def scenario() -> None:
         application = TidalAmp(object(), FakeMpv())
         async with application.run_test(size=(180, 44)) as pilot:
-            await pilot.pause(0.5)
             pane = application.query_one(LyricsPane)
-            rows = [pane.render_line(y).text for y in range(pane.size.height)]
-            assert any("anillo" in row for row in rows)
+
+            def rows() -> list[str]:
+                return [pane.render_line(y).text for y in range(pane.size.height)]
+
+            await wait_for(pilot, lambda: any("anillo" in row for row in rows()))
             marquee = application.query_one(Marquee).render().plain
             assert "anillo" in marquee
 
@@ -396,14 +392,15 @@ def test_plain_lyrics_move_through_the_track_in_the_split_pane(monkeypatch, tmp_
                 )
 
             mpv.position = 0.0
-            await pilot.pause(0.5)
-            assert "verso 0" in shown() and "verso 99" not in shown()
+            await wait_for(
+                pilot, lambda: "verso 0" in shown() and "verso 99" not in shown()
+            )
             mpv.position = 100.0
-            await pilot.pause(0.5)
-            assert "verso 0" not in shown() and "verso 99" not in shown()
+            await wait_for(
+                pilot, lambda: "verso 0" not in shown() and "verso 99" not in shown()
+            )
             mpv.position = 200.0
-            await pilot.pause(0.5)
-            assert "verso 99" in shown()
+            await wait_for(pilot, lambda: "verso 99" in shown())
 
     asyncio.run(scenario())
 

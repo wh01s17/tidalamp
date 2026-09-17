@@ -6,7 +6,7 @@ from __future__ import annotations
 import asyncio
 import json
 
-from app_helpers import FakeMpv
+from app_helpers import FakeMpv, wait_for
 from test_app_gapless import Playable, isolate, three
 
 from tidalamp.app import TidalAmp
@@ -128,10 +128,7 @@ def test_quitting_writes_the_second_of_the_track_playing(monkeypatch):
             mpv.idle, mpv.duration, mpv.position = False, 200.0, 61.0
             # The slow tick reads the second four times a second. A fixed
             # 0.3 s left it 50 ms, and a loaded CI runner missed it.
-            for _ in range(200):
-                if application._last_position == 61.0:
-                    break
-                await pilot.pause(0.05)
+            await wait_for(pilot, lambda: application._last_position == 61.0)
 
             application._remember_position()
             assert application.queue.position == 61.0

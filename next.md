@@ -47,33 +47,6 @@ se comprobaron contra TIDAL real ese mismo día. Queda por comprobar a mano:
   - *Comprobación:* capturas entre 60x18 y 79x25 (por ejemplo 72x20 y 79x25) en los
     cuatro temas. Qué mirar: lo mismo que §9.5, que la fila del transporte no se salga
     ni se parta y que las barras de título llenen su fila.
-
-- **Esperas fijas en los tests de la app.** Al preparar la `0.11.1` el CI de 3.13
-  falló en `test_resume.py`: el test daba 0,3 s a un tick que corre cada 0,25 s, y el
-  runner cargado no llegó. Ese está arreglado (`33a305a`, espera a la condición), pero
-  quedan unas 18 esperas fijas, de `pause(0.3)` a `pause(0.8)`, en
-  `test_app_transport.py`, `test_app_gapless.py`, `test_app_split.py` y
-  `test_app_cover.py`. Cualquiera puede fallar igual, y suele ser justo al publicar.
-  - *Qué hacer:* un `wait_for(pilot, condición)` en `tests/app_helpers.py`, y cambiar
-    cada espera fija por la condición que de verdad se espera.
-  - *Trampas:* `settle` espera también a los workers, así que no sirve cuando lo que se
-    espera es un tick. Lo que depende del tick lento (0,25 s) con menos de 0,5 s de
-    margen es frágil.
-  - *Comprobación:* correr esos ficheros varias veces con la CPU limitada
-    (`taskset -c 0`) o cargada, y que no falle ninguno.
-
-- **Líneas largas en el cuerpo de la ventana de letras.** Sin reproducir: visto
-  leyendo el código al arreglar el título en la `0.11.1`. `#lyrics-body` es un
-  `Static`, que parte por palabras, como el título que se cortaba. Una línea que no
-  cabe (unas 70 celdas en la ventana de 80) ocupa dos filas, pero
-  `LyricsDocument.window()` cuenta líneas y no filas: en una letra sincronizada la
-  línea cantada bajaría y podría salirse por abajo.
-  - *Qué hacer:* primero un test que lo confirme. Luego decidir entre recortar con `…`,
-    como ya hace `LyricsPane`, o contar filas en vez de líneas.
-  - *Comprobación:* un test con una letra sincronizada de líneas de más de 80
-    caracteres que compruebe que la línea activa sigue en pantalla, y verlo con una
-    canción real de versos largos.
-
 ## Sin fecha
 
 - **«más…» en las categorías de Inicio.** Una categoría de la página de inicio trae

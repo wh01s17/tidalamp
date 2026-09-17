@@ -15,6 +15,7 @@ from app_helpers import (
     isolate_runtime,
     settle,
     use_theme,
+    wait_for,
 )
 from textual.screen import Screen
 from textual.widgets import Input, Static
@@ -238,8 +239,7 @@ def test_a_second_cover_behind_a_window_stays_down_too(monkeypatch):
             assert application._pending_art is second
 
             application.pop_screen()
-            await pilot.pause(0.4)
-            assert art.cover is second
+            await wait_for(pilot, lambda: art.cover is second)
 
     asyncio.run(scenario())
 
@@ -357,15 +357,18 @@ def test_stop_stays_stopped_instead_of_restarting_the_queue(monkeypatch):
             )
             application._sync_queue()
             mpv.idle = False
-            # Long enough for the slow tick to have seen it playing: without
-            # that the guard is never reached and the test passes for the
-            # wrong reason.
-            await pilot.pause(0.4)
-            assert application._was_idle is False
+            # Until the slow tick has seen it playing: without that the guard
+            # is never reached and the test passes for the wrong reason.
+            await wait_for(pilot, lambda: application._was_idle is False)
             started.clear()
 
             await pilot.press("c")
-            await pilot.pause(0.8)
+            await wait_for(pilot, lambda: application.queue.playing == -1)
+            # Ticks that see it idle, by hand: a runner too loaded to run one
+            # in a fixed wait would pass without testing anything.
+            for _tick in range(3):
+                application._tick_slow()
+            await pilot.pause()
 
             assert application.queue.playing == -1
             assert started == [], "nada debe volver a arrancar"

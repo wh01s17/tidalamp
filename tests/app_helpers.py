@@ -30,6 +30,23 @@ async def settle(pilot, done, tries: int = 100) -> None:
     raise AssertionError("el worker no terminó")
 
 
+async def wait_for(pilot, condition, timeout: float = 10.0, what: str = "") -> None:
+    """Pump the event loop until ``condition()`` holds, or fail after ``timeout``.
+
+    What replaces a fixed `pilot.pause(0.3)`: the tick those pauses waited
+    for runs every 0.25 s, and a loaded CI runner did not get there in time.
+    Unlike `settle`, it does not wait for the workers, so it serves for what
+    a tick does. A generous timeout costs nothing when the condition is met
+    at once, which on a quiet machine it is.
+    """
+    loop = asyncio.get_running_loop()
+    deadline = loop.time() + timeout
+    while not condition():
+        if loop.time() > deadline:
+            raise AssertionError(f"no llegó a cumplirse: {what or condition}")
+        await pilot.pause(0.02)
+
+
 class FakeMpv:
     alive = True
     stalled = False

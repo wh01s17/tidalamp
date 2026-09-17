@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import asyncio
 
-from app_helpers import FakeMpv, isolate_runtime, settle
+from app_helpers import FakeMpv, isolate_runtime, settle, wait_for
 
 from tidalamp import app as app_module
 from tidalamp import artwork
@@ -56,7 +56,8 @@ async def playing_first(application, mpv, pilot, entries) -> None:
     mpv.idle = False
     mpv.duration = 200.0
     mpv.position = 10.0
-    await pilot.pause(0.3)
+    # A slow tick has seen it playing at 10 s, and decided not to prefetch.
+    await wait_for(pilot, lambda: application._last_position == 10.0)
 
 
 def test_the_next_track_is_queued_ahead_and_starts_without_resolving(monkeypatch):
@@ -270,7 +271,11 @@ def test_a_restart_that_fails_waits_before_trying_again(monkeypatch):
             await pilot.pause()
             mpv.alive = False
             await settle(pilot, lambda: mpv.restarts > 0 and not application._recovering)
-            await pilot.pause(0.6)
+            # The ticks by hand: waiting for them proved nothing on a runner
+            # too loaded to run any.
+            for _tick in range(4):
+                application._tick_slow()
+            await pilot.pause()
             assert mpv.restarts == 1, "no cuatro veces por segundo"
             assert "no se pudo reiniciar" in application.status
 
@@ -417,7 +422,7 @@ def test_a_restarted_mpv_picks_the_track_up_where_it_was(monkeypatch):
             entries = three()
             await playing_first(application, mpv, pilot, entries)
             mpv.position = 95.0
-            await pilot.pause(0.3)
+            await wait_for(pilot, lambda: application._last_position == 95.0)
             resolves.clear()
 
             mpv.alive = False
@@ -446,7 +451,7 @@ def test_next_pressed_during_the_reload_starts_the_next_at_the_top(monkeypatch):
             entries = three()
             await playing_first(application, mpv, pilot, entries)
             mpv.position = 95.0
-            await pilot.pause(0.3)
+            await wait_for(pilot, lambda: application._last_position == 95.0)
             resolves.clear()
 
             mpv.alive = False

@@ -1408,6 +1408,16 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
       shuffle/repeat, 429 de tidalapi con `Retry-After`, volver a la pista que suena,
       creación por lotes y parcial de playlists, controles clicables y la garantía de
       que el tick lento no reinstala filtros.
+- [x] **Sin esperas fijas en los tests de la app** (2026-09-17). La `0.11.1` falló en
+      el CI por un `pause(0.3)` a un tick de 0,25 s. Las 18 que quedaban en
+      `test_app_split.py`, `test_app_gapless.py`, `test_app_transport.py`,
+      `test_app_cover.py` y `test_resume.py` son ahora `app_helpers.wait_for(pilot,
+      condición)`, que bombea el loop hasta que se cumple o falla a los 10 s. Las que
+      comprobaban que algo **no** pasa (que mpv no se reintenta, que `c` no vuelve a
+      arrancar la pista) llaman a `_tick_slow()` a mano: con una espera fija, un runner
+      tan cargado que no llegaba a ningún tick las daba por buenas sin probar nada.
+      Comprobado con esos ficheros tres veces en un solo core cargado
+      (`taskset -c 0` con un `yes` en el mismo core).
 
 ### Navegador y cola en la UI — `app.py`
 
@@ -2221,6 +2231,11 @@ dejará de importar y con él no arranca la aplicación entera.
 ## 7. Trampas conocidas
 
 Cosas que ya costaron tiempo una vez:
+
+- **Nada de `pilot.pause(0.3)` para esperar a un tick.** Los ticks de la app corren
+  cada 0,1 s y 0,25 s y un runner cargado se los salta. Se espera a la condición con
+  `app_helpers.wait_for`; `settle` no sirve para eso porque espera a los workers. Para
+  comprobar que algo no pasa, se llama al tick a mano.
 
 - **`allowed-rates` no basta para que el DAC siga a la pista.** PipeWire sólo elige
   rate nuevo con el driver parado, y un mpv persistente nunca lo deja parar entre
