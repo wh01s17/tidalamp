@@ -272,6 +272,15 @@ ENGLISH: dict[str, str] = {
     "sin acceso directo; no se volverá a preguntar": (
         "no shortcut; you will not be asked again"
     ),
+    "Cerrar sesión desde o; si quieres, borra también los datos.": (
+        "Log out from o; optionally, delete the data too."
+    ),
+    "Los versos largos de la letra (y) se parten bajo su texto.": (
+        "Long lyric lines (y) wrap under their own text."
+    ),
+    "Términos técnicos en inglés: rates, graph, resampling.": (
+        "Technical terms stay in English: rates, graph, resampling."
+    ),
     "Al primer inicio, ofrece añadirse al menú de aplicaciones.": (
         "On the first start, offers to add itself to the application menu."
     ),

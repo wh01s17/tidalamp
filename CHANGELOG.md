@@ -5,6 +5,8 @@ versioning is [semantic](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.13.0] - 2026-09-17
+
 ### Added
 
 - Log out, under General in the settings window. Enter asks first, on Cancel. The
