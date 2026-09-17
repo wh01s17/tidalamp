@@ -14,7 +14,7 @@ from textual.screen import ModalScreen
 from textual.widgets import Static
 
 from ..i18n import _
-from ..lyrics import LyricsDocument
+from ..lyrics import LyricsDocument, fit, last_start
 from ..queue import Entry
 from ..theme import palette_for
 from ..widgets import Glide, Spinner
@@ -135,29 +135,43 @@ class LyricsScreen(ModalScreen[None]):
         if document is None:
             return
         body = self.query_one("#lyrics-body", Static)
-        height = max(5, body.size.height)
+        height = max(5, body.content_size.height)
+        # Wrapped here, not by the Static: it counted as one line what it
+        # drew on two or three rows, and brought the second row back under
+        # the marker instead of under the text.
+        width = max(10, body.content_size.width - self.MARKER)
+        wrapped = [self._wrap(line.text, width) for line in document.lines]
+        rows = [len(parts) for parts in wrapped]
         if document.synced:
-            start, lines, active = document.window(self._position(), height)
+            active = document.active_index(self._position())
+            start, end = fit(rows, active or 0, height)
         else:
-            self._plain_offset = max(
-                0, min(self._plain_offset, max(0, len(document.lines) - height))
-            )
-            start = self._plain_offset
-            lines = document.lines[start : start + height]
             active = None
+            self._plain_offset = max(0, min(self._plain_offset, last_start(rows, height)))
+            start = self._plain_offset
+            end = fit(rows[start:], 0, height)[1] + start
 
-        rendered = Text()
+        rendered = Text(no_wrap=True, overflow="crop")
         palette = palette_for(self)
-        for offset, line in enumerate(lines):
-            index = start + offset
-            marker = "▶ " if index == active else "  "
+        for index in range(start, end):
             style = (
                 f"bold {palette['active_foreground']} on {palette['accent']}"
                 if index == active
                 else palette["body"]
             )
-            rendered.append(f"{marker}{line.text}\n", style=style)
+            for row, part in enumerate(wrapped[index]):
+                marker = "▶ " if index == active and row == 0 else "  "
+                rendered.append(f"{marker}{part}\n", style=style)
         body.update(rendered)
+
+    # The cells the marker, «▶ » or two spaces, takes at the start of a row.
+    MARKER = 2
+
+    def _wrap(self, text: str, width: int) -> list[str]:
+        """``text`` in rows of at most ``width`` cells, split between words."""
+        if not text:
+            return [""]
+        return [part.plain.rstrip() for part in Text(text).wrap(self.app.console, width)]
 
     def _scroll_plain(self, amount: int) -> None:
         if self._document is None or self._document.synced:

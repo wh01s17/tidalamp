@@ -719,6 +719,22 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
       el mantenedor en su terminal (2026-09-16):** el título largo de `y` se desliza y
       vuelve, el título del reproductor y la insignia de calidad se quedan quietos
       detrás del modal, y la ventana no parpadea.
+- [x] **Líneas más anchas que la ventana** (2026-09-17). `#lyrics-body` es un `Static`
+      que parte por palabras, y `LyricsDocument.window()` contaba líneas: con versos de
+      dos filas la línea cantada, centrada por líneas, quedaba por debajo del borde, y
+      la segunda fila de cada verso volvía a la columna del marcador. Confirmado con un
+      test antes del arreglo (`tests/test_lyrics_window.py`). Ahora la ventana parte
+      cada línea ella misma (`Text.wrap`, que cuenta celdas y respeta las anchas) con
+      la sangría del marcador, y `lyrics.fit()` elige qué líneas caben **por filas**,
+      con la cantada centrada y rellenando hacia el otro lado cerca de los extremos;
+      el scroll de la letra sin sincronizar se detiene en `lyrics.last_start()`. Se
+      eligió contar filas y no recortar con «…», como hace `LyricsPane`: en la ventana
+      se lee la letra, y el recorte se come justo el final del verso. `LyricsPane` y
+      `window()` siguen como estaban. **Visto por el mantenedor (2026-09-17)** con
+      «Godzilla» de Eminem (Musixmatch, sincronizada), en una ventana de 80 columnas:
+      los versos que no caben siguen en la fila de abajo bajo su texto y la línea
+      cantada queda a la vista. Una primera captura salió mal porque era una app
+      arrancada antes del arreglo: tras cambiar código, reiniciar tidalamp.
 
 ### Carátula — `artwork.py`, `widgets.py`
 

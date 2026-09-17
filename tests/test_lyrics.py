@@ -105,3 +105,36 @@ def test_empty_and_failed_lyrics_are_actionable():
     )
     with pytest.raises(LyricsUnavailable, match="sin licencia"):
         load_lyrics(failed)
+
+
+def test_fit_centres_the_anchor_by_rows_not_by_lines():
+    from tidalamp.lyrics import fit
+
+    # Ten lines of two rows in a window of seven: three lines, the anchor
+    # in the middle one, and never more rows than the window has.
+    start, end = fit([2] * 10, 5, 7)
+
+    assert start <= 5 < end
+    assert sum([2] * (end - start)) <= 7
+    assert (start, end) == (4, 7)
+
+
+def test_fit_fills_from_the_other_side_at_either_end():
+    from tidalamp.lyrics import fit
+
+    assert fit([1, 3, 1, 1, 1], 0, 5) == (0, 3)
+    assert fit([1, 1, 1, 3, 1], 4, 5) == (2, 5)
+
+
+def test_an_anchor_taller_than_the_window_is_still_shown():
+    from tidalamp.lyrics import fit
+
+    assert fit([1, 9, 1], 1, 4) == (1, 2)
+    assert fit([], 0, 4) == (0, 0)
+
+
+def test_scrolling_stops_where_the_last_screenful_starts():
+    from tidalamp.lyrics import last_start
+
+    assert last_start([1, 1, 2, 2, 2], 4) == 3
+    assert last_start([1, 1], 10) == 0

@@ -14,6 +14,12 @@ versioning is [semantic](https://semver.org/).
   equaliser, covers) and its launchers in `~/.local/share/applications`, so the next
   start is a first start and asks about the menu again.
 
+### Fixed
+
+- Lyric lines wider than the lyrics window (`y`) wrap under their own text, and the
+  sung line stays on screen. The window counted lines, not rows: with long verses the
+  sung one went below the bottom, and plain lyrics could not scroll to their end.
+
 ## [0.12.0] - 2026-09-17
 
 ### Added

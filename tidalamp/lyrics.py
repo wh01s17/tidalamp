@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import re
 from bisect import bisect_right
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any
 
@@ -57,6 +58,43 @@ class LyricsDocument:
             return 0, self.lines[:height], None
         start = max(0, min(active - height // 2, len(self.lines) - height))
         return start, self.lines[start : start + height], active
+
+
+def fit(rows: Sequence[int], anchor: int, height: int) -> tuple[int, int]:
+    """The lines ``[start, end)`` to show so their rows fill ``height``.
+
+    ``rows`` is how many rows each line takes once wrapped. ``window()``
+    counts lines, and a line wider than the lyrics window takes two or three
+    rows: centred by lines, the sung one went below the bottom. This centres
+    ``anchor`` by rows instead, and near either end fills the other way. The
+    anchor is always in, even when it alone is taller than ``height``.
+    """
+    if not rows:
+        return 0, 0
+    anchor = max(0, min(anchor, len(rows) - 1))
+    start, end = anchor, anchor + 1
+    used = rows[anchor]
+    above = (height - used) // 2
+    while start > 0 and rows[start - 1] <= above and used + rows[start - 1] <= height:
+        start -= 1
+        above -= rows[start]
+        used += rows[start]
+    while end < len(rows) and used + rows[end] <= height:
+        used += rows[end]
+        end += 1
+    while start > 0 and used + rows[start - 1] <= height:
+        start -= 1
+        used += rows[start]
+    return start, end
+
+
+def last_start(rows: Sequence[int], height: int) -> int:
+    """The first line of the last screenful: where scrolling down stops."""
+    start, used = len(rows), 0
+    while start > 0 and used + rows[start - 1] <= height:
+        start -= 1
+        used += rows[start]
+    return min(start, max(0, len(rows) - 1))
 
 
 def _seconds(match: re.Match[str]) -> float:
