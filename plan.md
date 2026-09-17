@@ -166,7 +166,9 @@ tidalamp/
   about.py      Créditos, licencia, repositorio y notas de versión, más el mapa de
                 atajos que pinta la ayuda. Datos puros: sin Textual.
   audio.py      La pila de audio bajo mpv: sink por defecto, ritmos que permite
-                PipeWire, ritmos que acepta el DAC, y el drop-in que los desbloquea.
+                PipeWire, ritmos que acepta el DAC, el drop-in que los desbloquea y
+                `clock.force-rate`, para que el DAC siga a cada pista y no sólo a la
+                primera.
                 Todo por subprocess, y todo contesta con lo que encontró en vez de
                 lanzar: nada de esto está en el camino que reproduce música.
   mpris.py      Servicio MPRIS2 en D-Bus. Habla con la app por el Protocol
@@ -1087,7 +1089,8 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
       sigue, y lo devuelve a `0`: el grafo se queda en ese rate. No fuerza si hay más
       de un stream en el sink, ni un rate fuera de `allowed-rates` o de lo que dice
       ALSA. `OUT` añade «remuestreado desde … kHz» y la ventana `o` avisa cuando
-      stream y sink difieren.
+      stream y sink difieren. **Comprobado en el hardware** el 2026-09-17: el BTR15 sigue
+      el rate al cambiar de pista.
 
 ### Menú de la pista — `screens/tracks.py`, `queue.py`, `library.py`
 
@@ -1954,7 +1957,7 @@ Distinguir esto importa: parte del código nunca se ha ejecutado contra TIDAL re
 | **`login` y reproducción real**    | **VERIFICADO POR EL USUARIO**     | El usuario ejecutó `tidalamp tui` con su cuenta y reprodujo TOOL - Schism (Lateralus) el 2026-09-08. Login, búsqueda, `stream.resolve()` y salida de audio funcionan de verdad. |
 | Reproducción real (`ao` de verdad) | **VERIFICADO**                    | Sale sonido por PipeWire, y la prueba es el propio analizador: cava lee el **monitor del sink**, no nuestro mpv, así que un espectro con forma sólo puede venir de audio que llegó al sink. Se comprobó primero con un sink Bluetooth y después con el DAC USB (ver la fila siguiente). |
 | Ruta BTS / MPD -> HLS              | **VERIFICADO CONTRA TIDAL REAL**  | Ambas ramas cubiertas por tests con manifiestos fijados, y `stream.resolve()` registra cuál toma. La lectura real ya se hizo: es la matriz de las cuatro calidades sobre dos pistas de la fila siguiente, donde `HI_RES_LOSSLESS` cae en MPD y el resto en BTS —lo que dice la trampa de §7 sobre pedir una calidad y no obtenerla. Esta fila decía «PARCIAL» por una reproducción real que llevaba hecha desde entonces. |
-| Hi-res **hasta el DAC**            | **VERIFICADO EN EL HARDWARE**     | La pantalla del propio FiiO BTR15 muestra `PCM 176.4K` mientras la app dice `24bit 176kHz HI_RES_LOSSLESS` y la pantalla de configuración `Salida: FIIO BTR15 · 176400 Hz s32le`. Es la única comprobación que ninguna capa de software puede falsear: está aguas abajo de TIDAL, de mpv y de PipeWire. Confirma además que el drop-in de `allowed-rates` respeta **las dos familias**: 176,4 kHz es múltiplo de 44,1, no de 48, así que el grafo siguió a la pista en vez de acercarla a su ritmo. Antes de esto, con `allowed-rates = [ 48000 ]`, el mismo stream llegaba remuestreado a 48 kHz con la insignia diciendo la verdad sobre el stream. |
+| Hi-res **hasta el DAC**            | **VERIFICADO EN EL HARDWARE**     | La pantalla del propio FiiO BTR15 muestra `PCM 176.4K` mientras la app dice `24bit 176kHz HI_RES_LOSSLESS` y la pantalla de configuración `Salida: FIIO BTR15 · 176400 Hz s32le`. Es la única comprobación que ninguna capa de software puede falsear: está aguas abajo de TIDAL, de mpv y de PipeWire. Confirma además que el drop-in de `allowed-rates` respeta **las dos familias**: 176,4 kHz es múltiplo de 44,1, no de 48, así que el grafo siguió a la pista en vez de acercarla a su ritmo. Antes de esto, con `allowed-rates = [ 48000 ]`, el mismo stream llegaba remuestreado a 48 kHz con la insignia diciendo la verdad sobre el stream. **Pista a pista** (2026-09-17, 0.11.2): con el drop-in sólo la primera pista llegaba a su rate; con `clock.force-rate`, al pasar a un FLAC 24/96 el DAC quedó a 96000 Hz según `/proc/asound/card*/pcm0p/sub0/hw_params`, un solo stream en el sink y `clock.force-rate` otra vez en `0`. |
 | Ruta MPD -> HLS (hi-res)           | **VERIFICADO CONTRA TIDAL REAL**  | Matriz de las cuatro calidades sobre dos pistas reales; con `HI_RES_LOSSLESS` la rama es MPD, FLAC 24 bit/96 kHz, 69 segmentos. `ffprobe` sobre la playlist reescrita da flac/96000/24 y `ffmpeg` decodifica 3 s a un WAV de 1.152.102 bytes (exactamente 96000×3×2×2). La app real con mpv de verdad: insignias `24bit 96kHz HI_RES_LOSSLESS`, posición 12,3 s de 266 s, RMS −19,2 dBFS. La playlist sin reescribir falla con *error reading header* en el mismo ffmpeg. |
 | Empaquetado (sdist / wheel / AUR)  | **Verificado salvo la publicación** | `python -m build` + `twine check` en ambos artefactos; 89 pruebas desde el sdist extraído; `bash -n` y `makepkg --printsrcinfo` sobre el PKGBUILD; `pacman -Si` confirma que todas las dependencias están en `extra`. El environment de GitHub y el *pending publisher* de PyPI ya están configurados. No se ha ejecutado `makepkg -si` ni se ha publicado nada porque aún no existe el tag; el envío final al AUR está además bloqueado externamente mientras siga cerrado el registro de cuentas nuevas. |
 | Carátula                           | **VERIFICADO A LA VISTA**     | Capturas del usuario en kitty, dos veces: la portada de Thriller se dibuja con el protocolo gráfico en su recuadro, a la izquierda del reloj, sin invadir el marquee ni el analizador, y con el recuadro ya adaptativo. Unidades sobre los tres codificadores, incluida una vuelta completa de sixel a píxeles; la app real bajo un pty con `TERM=xterm-kitty` emite el APC gráfico anclado en la esquina del widget, y en medios bloques pyte muestra el recuadro con el resto del display intacto. |
@@ -2391,6 +2394,9 @@ que se oyen y que las insignias dicen `24bit … HI_RES_LOSSLESS` en la primera.
 tiene el grafo fijo en un ritmo, la insignia dice la verdad sobre el stream mientras el
 DAC recibe 48 kHz. La pantalla de `o` lo detecta y lo arregla; un DAC con pantalla lo
 confirma, y si no la tiene, `grep Momentary /proc/asound/card*/stream0` mientras suena.
+Mirarlo en la **segunda** pista, y que sea de otro rate que la primera: la primera tras
+reiniciar PipeWire siempre llega bien, y lo que se comprueba es que el DAC la siga. Si
+no la sigue, `OUT` dice «remuestreado desde … kHz».
 
 ### 9.4 Decisión pendiente, no comprobación
 
