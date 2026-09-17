@@ -5,6 +5,15 @@ versioning is [semantic](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Log out, under General in the settings window. Enter asks first, on Cancel. The
+  saved session is always deleted, the window says to log in again with
+  `tidalamp login`, and accepting closes tidalamp. The question has a box, unticked,
+  to delete tidalamp's data too: its config, state and cache folders (settings, queue,
+  equaliser, covers) and its launchers in `~/.local/share/applications`, so the next
+  start is a first start and asks about the menu again.
+
 ## [0.12.0] - 2026-09-17
 
 ### Added

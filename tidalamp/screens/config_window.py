@@ -16,7 +16,7 @@ from textual.reactive import reactive
 from textual.screen import ModalScreen
 from textual.widgets import Static
 
-from .. import artwork, audio, columns, config, desktop
+from .. import artwork, audio, auth, columns, config, desktop
 from ..i18n import _
 from ..layouts import BACKDROPS, label
 from ..scrolling import Glide, _window
@@ -25,6 +25,7 @@ from ..theme import LAYOUTS, available_palettes, paired_palette, palette_for
 from ..widgets import Analyzer
 from .choice import ChoiceScreen
 from .column_picker import ColumnsScreen, _crop
+from .logout import LogoutScreen
 
 if TYPE_CHECKING:  # The screens report back to the app; the app owns them.
     from ..app import TidalAmp
@@ -244,6 +245,12 @@ class ConfigScreen(ModalScreen[None]):
                 note=_("añade tidalamp al menú de aplicaciones"),
                 group=general,
             ),
+            Option(
+                _("Cerrar sesión"),
+                action="logout",
+                note=_("borra la sesión, y si quieres los datos; cierra tidalamp"),
+                group=general,
+            ),
         ]
 
     def compose(self) -> ComposeResult:
@@ -355,7 +362,7 @@ class ConfigScreen(ModalScreen[None]):
             return option.note
         if option.action == "rates":
             return self._rates_detail()
-        if option.action == "columns":
+        if option.action in ("columns", "logout"):
             return option.note
         if option.action == "launcher":
             if self._launcher is not None:
@@ -513,6 +520,7 @@ class ConfigScreen(ModalScreen[None]):
             "rates",
             "restart",
             "launcher",
+            "logout",
         )
 
     def action_activate(self) -> None:
@@ -572,6 +580,48 @@ class ConfigScreen(ModalScreen[None]):
 
         elif option.action == "launcher":
             self._offer_launcher()
+
+        elif option.action == "logout":
+            self.app.push_screen(LogoutScreen(), self._logout_chosen)
+
+    def _logout_chosen(self, value: object) -> None:
+        """Forget the account, then say how to come back and close the app.
+
+        The app closes because the session it holds in memory would go on
+        working until its token expires: a logout that kept playing would not
+        look like one. Any way out of the last window closes it, esc included,
+        since the files are already gone by then.
+        """
+        if value not in ("session", "everything"):
+            return
+        everything = value == "everything"
+        paths = auth.forgotten(data_too=everything)
+        failure = auth.logout(paths)
+        if failure is not None:
+            self._notice = _("  No se pudo cerrar la sesión:\n  {error}").format(
+                error=failure
+            )
+            self._render_list()
+            return
+        if everything:
+            self.player.forget_on_exit = paths
+        deleted = (
+            _("Se borraron la sesión y los datos de tidalamp.")
+            if everything
+            else _("Se borró la sesión.")
+        )
+        self.app.push_screen(
+            ChoiceScreen(
+                _("SESIÓN CERRADA"),
+                [("ok", _("aceptar"))],
+                hint=_(" ↵ aceptar y cerrar tidalamp"),
+                message=deleted
+                + "\n"
+                + _("Para volver a usar tidalamp, inicia sesión con:")
+                + "\n\n    tidalamp login",
+            ),
+            lambda _value: self.player.quit_now(),
+        )
 
     def _offer_launcher(self) -> None:
         """Create the menu launcher, unless there is one: then say where."""

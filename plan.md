@@ -1092,9 +1092,51 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
       es `xdg-terminal-exec --app-id=TUI.tile -e … tui` con `Terminal=false`, lo mismo
       que escribe `omarchy-tui-install`; en otro escritorio, `Terminal=true`. La ruta
       es absoluta (`shutil.which`), porque el menú no siempre tiene `~/.local/bin`.
+- [x] **Verificado por el mantenedor en Omarchy (2026-09-17)**, con capturas: tras
+      «Cerrar sesión» con la casilla de los datos, `tidalamp login` y el primer
+      arranque, sale la pregunta; antes de responder el menú sólo tiene el Tidal
+      oficial, y al decir que sí aparece TidalAmp con su icono y la barra de estado lo
+      confirma. El fichero escrito es `tidalamp.desktop` con
+      `xdg-terminal-exec --app-id=TUI.tile`, el SVG queda en `hicolor` y la marca
+      guarda la ruta. Abierto desde el menú y con la fila `o` en «creado», según el
+      mantenedor.
 - [x] Nunca impide abrir el reproductor: cualquier `OSError` se registra y se sigue.
       Fuera de Linux no se pregunta, y `TIDALAMP_NO_DESKTOP_ENTRY` apaga la pregunta
       (los tests lo ponen en `conftest.py` para no tocar el menú de quien los corre).
+
+### Cerrar sesión — `auth.py`, `screens/logout.py`, `screens/config_window.py`
+
+- [x] **Fila «Cerrar sesión»** en General de la ventana `o` (2026-09-17). ↵ abre
+      `LogoutScreen`, con el cursor en «cancelar» como Reiniciar PipeWire. No es un
+      `ChoiceScreen` porque la pregunta tiene dos respuestas: el logout y qué se lleva.
+      Por eso los datos van en una casilla, `[ ] borrar también los datos de
+      tidalamp`, sin marcar: ↵ sobre ella la marca y no borra nada; sólo
+      «cerrar sesión» aplica.
+- [x] **Qué se borra.** `auth.forgotten(data_too)` lo decide y `auth.logout(paths)` lo
+      borra (las carpetas enteras). Siempre `session.json`. Con la casilla, además
+      `CONFIG_DIR`, `STATE_DIR` y `CACHE_DIR` enteros y `desktop.user_launchers()`:
+      todo `.desktop` de `$XDG_DATA_HOME/applications` que lance tidalamp, con
+      cualquier nombre, y su SVG. Sólo la carpeta del usuario; los del sistema son de
+      un paquete. Así el siguiente arranque es un primer arranque de verdad.
+      *Por qué tan amplio* (2026-09-17): la primera versión sólo borraba `config.toml`
+      y la marca `desktop-entry`, y al probarla el `TidalAmp.desktop` de
+      `omarchy-tui-install` seguía en el menú, `offer()` lo encontraba y no preguntaba;
+      y la cola volvía. Un fichero que ya no está no es un fallo; uno que no se puede
+      borrar sí, se intenta el resto igual y el primer `OSError` vuelve a la ventana,
+      que lo avisa y **no** cierra la app.
+- [x] **La cola volvía tras borrarla.** `_close_player` guarda la cola y
+      `settings.json` al salir, después del borrado. Con la casilla, la ventana pone
+      `TidalAmp.forget_on_exit`: al salir no se guarda nada y, cerrado mpv, se vuelve a
+      borrar todo, porque mientras la ventana final estaba abierta la app seguía
+      sonando y escribiendo carátulas y estado.
+- [x] **Después se cierra.** Un `ChoiceScreen` («SESIÓN CERRADA», con el nuevo
+      parámetro `message`) dice qué se borró y que hay que entrar con `tidalamp login`;
+      aceptar, o esc, llama a `TidalAmp.quit_now()`, el mismo cierre que «salir». Se
+      cierra porque la sesión en memoria seguiría valiendo hasta que caduque el token,
+      y un logout que sigue sonando no lo parece.
+- [x] Los tests nunca tocan los datos reales: `conftest.py` apunta `auth.SESSION_FILE`,
+      `desktop.MARKER`, las tres carpetas de `config` y `XDG_DATA_HOME` a un temporal
+      en cada test.
 
 ### Configuración — `config.py`, `audio.py`, `screens/config_window.py`
 

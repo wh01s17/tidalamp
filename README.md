@@ -621,6 +621,7 @@ writes `~/.config/tidalamp/config.toml`, so a change made once stays made.
 | Library view | `list` `grid`                          | the next level opened |
 | Debug log | on / off                                  | immediately    |
 | Menu shortcut | created / not created                 | immediately    |
+| Log out   | action                                    | closes tidalamp |
 
 Normalised volume uses the ReplayGain TIDAL sends with every stream: `track` evens
 out every track, `album` keeps the loud and quiet songs of one record as the record
@@ -631,10 +632,18 @@ the badge line under the clock says the gain applied to the track playing, such 
 The lines at the foot of the window (the note on the current row, the output and any
 warning) glide there and back when they do not fit, as the track title does.
 
-Quality, Hi-res rates in PipeWire, Restart PipeWire and Menu shortcut do not change
-with the arrows,
+Log out deletes the saved session and closes tidalamp; to use it again, run
+`tidalamp login`. Its question has a box to delete tidalamp's data too:
+`~/.config/tidalamp`, `~/.local/state/tidalamp` and `~/.cache/tidalamp` (settings,
+queue, equaliser, covers) and any launcher for tidalamp in
+`~/.local/share/applications`, with its icon. The next start is then a first start,
+and asks about the menu again. Launchers installed system-wide by a package are left
+alone.
+
+Quality, Hi-res rates in PipeWire, Restart PipeWire, Menu shortcut and Log out do not
+change with the arrows,
 since a stray press on any of them costs more than a colour: Enter opens a list to
-choose from, and Restart's list opens on Cancel.
+choose from, and Restart's and Log out's lists open on Cancel.
 
 `tidalamp config` shows the effective settings and creates the file if it does not
 exist:

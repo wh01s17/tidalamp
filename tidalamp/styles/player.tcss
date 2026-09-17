@@ -603,6 +603,13 @@
     margin-bottom: 1;
 }
 
+#choice-message {
+    color: $tidalamp-body;
+    height: auto;
+    padding: 0 1;
+    margin-bottom: 1;
+}
+
 .choice-row {
     color: $tidalamp-body;
     height: 1;

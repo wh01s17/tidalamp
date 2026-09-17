@@ -10,11 +10,13 @@ from __future__ import annotations
 import json
 import logging
 import os
+import shutil
 from pathlib import Path
 
 import tidalapi
 
 from . import config as settings
+from . import desktop
 from .config import SESSION_FILE, ensure_dirs
 from .i18n import _
 from .net import TimeoutSession
@@ -171,6 +173,45 @@ def ensure_fresh(session: tidalapi.Session) -> bool:
         raise NotLoggedIn(_("No se pudo refrescar la sesión. Ejecuta: tidalamp login"))
     _save(session)
     return True
+
+
+def forgotten(data_too: bool = False) -> tuple[Path, ...]:
+    """What a logout deletes: the tokens, and with ``data_too`` all the rest.
+
+    The rest is everything tidalamp keeps: its config, state and cache folders
+    (the settings, the queue and where it was, the equaliser, the answer about
+    the menu, the covers) and its launchers in the user's menu. After such a
+    logout the next start is a first start, and asks about the menu again.
+    """
+    if not data_too:
+        return (SESSION_FILE,)
+    return (
+        SESSION_FILE,
+        settings.CONFIG_DIR,
+        settings.STATE_DIR,
+        settings.CACHE_DIR,
+        *desktop.user_launchers(),
+    )
+
+
+def logout(paths: tuple[Path, ...]) -> OSError | None:
+    """Delete ``paths``, `forgotten()`'s; a missing one is already forgotten.
+
+    Every file is tried even when one fails, and the first failure comes back
+    to the caller: a session that could not be deleted is not a logout, and
+    the app must not tell the user it was.
+    """
+    failure: OSError | None = None
+    for path in paths:
+        try:
+            if path.is_dir() and not path.is_symlink():
+                shutil.rmtree(path)
+            else:
+                path.unlink(missing_ok=True)
+        except OSError as exc:
+            log.warning("no se pudo borrar %s (%s)", path, exc)
+            failure = failure or exc
+    return failure
 
 
 def login(on_link) -> tidalapi.Session:

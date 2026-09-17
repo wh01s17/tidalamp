@@ -16,6 +16,7 @@ from .config_window import _ATTRIBUTES, _FLAGS, ConfigScreen, Option
 from .equalizer import PRESET_LABELS, EqScreen
 from .fullscreen import FullscreenScreen
 from .help import HelpScreen
+from .logout import LogoutScreen
 from .lyrics_window import LyricsScreen
 from .prompts import PlaylistNameScreen, SearchScreen
 from .rowlist import RowList, _hex, _Paint
@@ -42,6 +43,7 @@ __all__ = [
     "EqScreen",
     "FullscreenScreen",
     "HelpScreen",
+    "LogoutScreen",
     "LyricsScreen",
     "Option",
     "PlaylistNameScreen",

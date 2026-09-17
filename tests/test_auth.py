@@ -208,3 +208,72 @@ def test_the_tidal_session_waits_for_an_answer_only_so_long():
     from tidalamp.net import TimeoutSession
 
     assert isinstance(auth._new_session().request_session, TimeoutSession)
+
+
+def test_logout_deletes_every_file_it_forgets(tmp_path):
+    files = [tmp_path / name for name in ("session.json", "config.toml", "marker")]
+    for path in files:
+        path.write_text("x")
+
+    assert auth.logout(tuple(files)) is None
+    assert not any(path.exists() for path in files)
+
+
+def test_a_file_already_gone_is_not_a_failed_logout(tmp_path):
+    assert auth.logout((tmp_path / "session.json",)) is None
+
+
+def test_a_plain_logout_forgets_the_session_alone(tmp_path, monkeypatch):
+    monkeypatch.setattr(auth, "SESSION_FILE", tmp_path / "session.json")
+
+    assert auth.forgotten() == (tmp_path / "session.json",)
+
+
+def test_the_data_box_takes_every_folder_and_the_menu_launchers(tmp_path, monkeypatch):
+    """The queue came back after such a logout, and `omarchy-tui-install`'s
+    launcher kept the first start from asking about the menu."""
+    from tidalamp import config
+
+    monkeypatch.setattr(auth, "SESSION_FILE", tmp_path / "session.json")
+    for name in ("CONFIG_DIR", "STATE_DIR", "CACHE_DIR"):
+        monkeypatch.setattr(config, name, tmp_path / name)
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "data"))
+    applications = tmp_path / "data" / "applications"
+    applications.mkdir(parents=True)
+    ours = applications / "TidalAmp.desktop"
+    ours.write_text("[Desktop Entry]\nExec=xdg-terminal-exec -e /x/tidalamp tui\n")
+    (applications / "tidal.desktop").write_text("[Desktop Entry]\nExec=tidal-hifi\n")
+
+    assert auth.forgotten(data_too=True) == (
+        tmp_path / "session.json",
+        tmp_path / "CONFIG_DIR",
+        tmp_path / "STATE_DIR",
+        tmp_path / "CACHE_DIR",
+        ours,
+    )
+
+
+def test_logout_deletes_folders_whole(tmp_path):
+    folder = tmp_path / "state"
+    (folder / "deep").mkdir(parents=True)
+    (folder / "deep" / "queue.json").write_text("[]")
+
+    assert auth.logout((folder,)) is None
+    assert not folder.exists()
+
+
+def test_a_file_that_cannot_be_deleted_is_reported_and_the_rest_still_go(tmp_path):
+    """A session left on disk is not a logout: the app must not say it was."""
+    locked = tmp_path / "locked"
+    locked.mkdir()
+    stuck = locked / "session.json"
+    stuck.write_text("x")
+    after = tmp_path / "config.toml"
+    after.write_text("x")
+    locked.chmod(0o500)
+    try:
+        assert isinstance(auth.logout((stuck, after)), OSError)
+        assert stuck.exists()
+        assert not after.exists()
+    finally:
+        locked.chmod(0o700)

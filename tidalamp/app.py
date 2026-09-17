@@ -7,6 +7,7 @@ import functools
 import logging
 import time
 from collections.abc import Callable
+from pathlib import Path
 from typing import NamedTuple, cast
 
 import tidalapi
@@ -21,7 +22,7 @@ from textual.reactive import reactive
 from textual.widgets import Input, Static
 from textual.worker import get_current_worker
 
-from . import about, artwork, audio, columns, config, desktop, i18n, library
+from . import about, artwork, audio, auth, columns, config, desktop, i18n, library
 from .auth import NotLoggedIn, ensure_fresh
 from .i18n import _
 from .layouts import Layout, backdrop_for, layout_for
@@ -393,6 +394,10 @@ class TidalAmp(App):
         # Set by the CLI when this is the first start that can offer a menu
         # launcher. Off by default, so tests and embedders never see it.
         self.offer_launcher = False
+        # Set by a logout that takes the app's data: on the way out nothing is
+        # saved, and these are deleted again once mpv has let go, since the
+        # queue, the settings and the covers were being written until then.
+        self.forget_on_exit: tuple[Path, ...] = ()
         # The rate mpv sends to the sink, read with it: when the two differ,
         # PipeWire is resampling and the OUT badge says so.
         self._stream_rate = 0
@@ -3036,7 +3041,11 @@ class TidalAmp(App):
     def _quit_answered(self, answer: object) -> None:
         self._quit_question = None
         if answer == "quit":
-            self.run_worker(self._close_player(), exclusive=False)
+            self.quit_now()
+
+    def quit_now(self) -> None:
+        """Close the player without asking, the way «salir» does once asked."""
+        self.run_worker(self._close_player(), exclusive=False)
 
     async def action_force_quit(self) -> None:
         # Async because Textual's own action_quit is: saving the queue, closing
@@ -3099,14 +3108,17 @@ class TidalAmp(App):
         and the driver once the app exits, and a method of that name here
         replaced it rather than running before it.
         """
-        self._remember_position()
-        self._saved(self.queue.save())
-        self._saved(self.settings.save())
+        if not self.forget_on_exit:
+            self._remember_position()
+            self._saved(self.queue.save())
+            self._saved(self.settings.save())
         if self._mpris_ready:
             await self.mpris.stop()
         self._stop_spectrum()
         self.mpv.close()
         cleanup_playlists()
+        if self.forget_on_exit:
+            auth.logout(self.forget_on_exit)
         self.exit()
 
     # ------------------------------------------------------------------ MPRIS

@@ -43,9 +43,13 @@ class ChoiceScreen(ModalScreen[object]):
         hint: str | None = None,
         keys: tuple[str, ...] = (),
         key_value: object = None,
+        message: str = "",
     ) -> None:
         super().__init__()
         self._heading = heading
+        # Lines between the heading and the options, for the answer that needs
+        # saying more than a heading holds: what to do next, a command to run.
+        self._message = message
         self._options = list(options)
         self._current = current
         values = [value for value, _label in self._options]
@@ -62,6 +66,8 @@ class ChoiceScreen(ModalScreen[object]):
     def compose(self) -> ComposeResult:
         with Vertical(id="choice-box"):
             yield Static(self._heading, id="choice-title", markup=False)
+            if self._message:
+                yield Static(self._message, id="choice-message", markup=False)
             for index in range(len(self._options)):
                 yield Static("", id=f"choice-{index}", classes="choice-row", markup=False)
             yield Static(self._hint, id="choice-hint", markup=False)
@@ -72,6 +78,7 @@ class ChoiceScreen(ModalScreen[object]):
         widest = max(
             [cell_len(label) for _value, label in self._options]
             + [cell_len(self._hint), cell_len(self._heading)]
+            + [cell_len(line) + 2 for line in self._message.splitlines()]
         )
         self.query_one("#choice-box").styles.width = widest + 8
         self._redraw()

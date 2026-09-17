@@ -127,3 +127,21 @@ def private_library_orders(tmp_path_factory, monkeypatch):
         library, "ORDERS_FILE", tmp_path_factory.mktemp("state") / "library-orders.json"
     )
     monkeypatch.setattr(library, "_CHOSEN", None)
+
+
+@pytest.fixture(autouse=True)
+def private_session(tmp_path_factory, monkeypatch):
+    """The session, the app's folders and the menu, never the developer's own.
+
+    A logout that takes the data deletes all of them: a test that reached it
+    through the settings window without pointing them somewhere else wiped
+    whoever ran the suite, launcher included.
+    """
+    from tidalamp import auth, config, desktop
+
+    folder = tmp_path_factory.mktemp("session")
+    monkeypatch.setattr(auth, "SESSION_FILE", folder / "session.json")
+    monkeypatch.setattr(desktop, "MARKER", folder / "desktop-entry")
+    for name in ("CONFIG_DIR", "STATE_DIR", "CACHE_DIR"):
+        monkeypatch.setattr(config, name, folder / name.lower())
+    monkeypatch.setenv("XDG_DATA_HOME", str(folder / "data"))

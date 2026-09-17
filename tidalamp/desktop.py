@@ -63,6 +63,35 @@ def existing(dirs: list[Path]) -> Path | None:
     return None
 
 
+def user_launchers(data_home: Path | None = None) -> list[Path]:
+    """Every launcher of tidalamp in the user's own menu folder, and its icon.
+
+    What a logout that takes the app's data deletes: ours, `tidalamp.desktop`,
+    and one written for it under another name, such as `omarchy-tui-install`'s
+    `TidalAmp.desktop`, which would otherwise keep the first start from asking.
+    Only the user's folder: the system's belong to a package.
+    """
+    home = data_dirs()[0] if data_home is None else data_home
+    folder = home / "applications"
+    found: list[Path] = []
+    try:
+        candidates = sorted(folder.glob("*.desktop"))
+    except OSError:
+        candidates = []
+    for candidate in candidates:
+        try:
+            if candidate.name == FILE_NAME or _EXEC.search(
+                candidate.read_text(errors="replace")
+            ):
+                found.append(candidate)
+        except OSError:
+            continue
+    icon = home / "icons/hicolor/scalable/apps" / f"{ICON_NAME}.svg"
+    if icon.exists():
+        found.append(icon)
+    return found
+
+
 def command() -> str:
     """The absolute command a menu can run, or "" when it cannot be told."""
     found = shutil.which("tidalamp")

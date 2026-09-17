@@ -148,3 +148,24 @@ def test_a_failure_to_write_does_not_stop_the_player(home, monkeypatch):
 
     assert create(home) is None
     desktop.decline(home["marker"])
+
+
+def test_user_launchers_are_every_entry_for_tidalamp_in_the_users_menu(tmp_path):
+    """`omarchy-tui-install`'s `TidalAmp.desktop` too: left behind, a logout
+    that took the data still found a launcher and never asked again."""
+    applications = tmp_path / "applications"
+    applications.mkdir()
+    omarchy = applications / "TidalAmp.desktop"
+    omarchy.write_text("[Desktop Entry]\nExec=xdg-terminal-exec -e /x/tidalamp tui\n")
+    hidden = applications / "tidalamp.desktop"
+    hidden.write_text("[Desktop Entry]\nHidden=true\n")
+    (applications / "tidal.desktop").write_text("[Desktop Entry]\nExec=tidal-hifi\n")
+    icon = tmp_path / "icons/hicolor/scalable/apps/tidalamp.svg"
+    icon.parent.mkdir(parents=True)
+    icon.write_text("<svg/>")
+
+    assert desktop.user_launchers(tmp_path) == [omarchy, hidden, icon]
+
+
+def test_no_menu_folder_is_no_launchers(tmp_path):
+    assert desktop.user_launchers(tmp_path) == []

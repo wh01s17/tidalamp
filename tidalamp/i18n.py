@@ -215,6 +215,40 @@ ENGLISH: dict[str, str] = {
     "{count} elementos": "{count} items",
     "1 elemento": "1 item",
     # --- 0.11.1, in the help's list of changes
+    "Cerrar sesión": "Log out",
+    "borra la sesión, y si quieres los datos; cierra tidalamp": (
+        "deletes the session, and the data if you like; closes tidalamp"
+    ),
+    "¿CERRAR SESIÓN?": "LOG OUT?",
+    "cerrar sesión": "log out",
+    "[{mark}] borrar también los datos de tidalamp": (
+        "[{mark}] delete tidalamp's data too"
+    ),
+    (
+        "Se borra la sesión guardada y tidalamp se cierra.\n"
+        "Para volver a entrar hará falta: tidalamp login\n\n"
+        "Los datos son la configuración, la cola, el ecualizador,\n"
+        "la caché y el acceso directo del menú."
+    ): (
+        "The saved session is deleted and tidalamp closes.\n"
+        "To come back you will need: tidalamp login\n\n"
+        "The data is the settings, the queue, the equaliser,\n"
+        "the cache and the menu shortcut."
+    ),
+    " ↑↓ elegir  ↵ marcar o aplicar  esc cerrar": (
+        " ↑↓ choose  ↵ tick or apply  esc close"
+    ),
+    "Se borró la sesión.": "The session was deleted.",
+    "Se borraron la sesión y los datos de tidalamp.": (
+        "The session and tidalamp's data were deleted."
+    ),
+    "Para volver a usar tidalamp, inicia sesión con:": (
+        "To use tidalamp again, log in with:"
+    ),
+    "  No se pudo cerrar la sesión:\n  {error}": "  Could not log out:\n  {error}",
+    "SESIÓN CERRADA": "LOGGED OUT",
+    "aceptar": "accept",
+    " ↵ aceptar y cerrar tidalamp": " ↵ accept and close tidalamp",
     "¿AÑADIR TIDALAMP AL MENÚ DE APLICACIONES?": "ADD TIDALAMP TO THE APPLICATION MENU?",
     "sí, crear el acceso directo": "yes, create the shortcut",
     "Acceso directo en el menú": "Menu shortcut",
