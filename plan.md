@@ -4,8 +4,9 @@ Documento de traspaso. Describe qué existe, qué está verificado, qué falta y
 criterio se tomaron las decisiones, para que cualquiera (humano o modelo) pueda
 retomar el trabajo sin contexto previo.
 
-**Última actualización:** 2026-09-17, versión `0.11.2` preparada y validada en local,
-pendiente del tag. Es un arreglo: con los rates hi-res configurados, sólo la primera
+**Última actualización:** 2026-09-17, versión `0.11.2` publicada en PyPI y en GitHub,
+con el tag `v0.11.2` sobre `195fb2c` y el checksum del tarball en `649e6aa`, comprobada
+en el hardware (el BTR15 sigue el rate de cada pista). Es un arreglo: con los rates hi-res configurados, sólo la primera
 pista llegaba al DAC a su rate; PipeWire no cambia el de un dispositivo en marcha y
 mpv no lo deja parar entre pistas, así que las demás se remuestreaban (un AAC a
 44,1 kHz sonaba a 48 kHz). Ahora se fuerza `clock.force-rate` hasta que el DAC sigue a
@@ -1981,8 +1982,9 @@ una pista en cada calidad y leer `~/.local/state/tidalamp/tidalamp.log`.
 > La funcionalidad comprometida para la próxima versión vive en
 > [next.md](./next.md), con sus trampas y su forma de comprobarse. Descubrir, la
 > cuadrícula, la gestión de playlists y las páginas que llegan solas entraron en la
-> `0.11.0`, publicada el 2026-09-15, y la `0.11.1` (2026-09-16) sólo arregla el título
-> de la ventana de letras; allí quedan las comprobaciones a mano. Esta sección sigue siendo el estado general
+> `0.11.0`, publicada el 2026-09-15; la `0.11.1` (2026-09-16) sólo arregla el título
+> de la ventana de letras, y la `0.11.2` (2026-09-17) que el DAC siga el rate de cada
+> pista; allí quedan las comprobaciones a mano. Esta sección sigue siendo el estado general
 > y aquella, la cola de trabajo.
 
 P1–P4 están cerradas: lo que queda no es funcionalidad que falte para que el
@@ -1990,17 +1992,16 @@ reproductor sirva, sino acabado, distribución y confirmar contra TIDAL real cos
 probadas sólo con dobles.
 
 **Orden propuesto (2026-09-11):** ~~P5 empaquetado~~ y ~~carátula~~ ✅ hechos. Cada
-versión se publica siguiendo `publish.md`; la última publicada es la `0.11.1`
-(2026-09-16), en PyPI y en GitHub, con el checksum del tarball ya en el PKGBUILD
-(`b40eafb`). La `0.11.2` está preparada y validada en local, pendiente del tag, con el
-checksum del PKGBUILD en `SKIP` hasta que exista. Lo que queda abierto aquí pide
+versión se publica siguiendo `publish.md`; la última publicada es la `0.11.2`
+(2026-09-17), en PyPI y en GitHub, con el checksum del tarball ya en el PKGBUILD
+(`649e6aa`). Lo que queda abierto aquí pide
 credenciales tuyas o un par de ojos.
 
 1. Publicar en el AUR cuando vuelva a abrir el registro de cuentas nuevas. El paquete
    está preparado y se puede probar localmente, pero el alta final depende del
    servicio externo y no tiene fecha anunciada. **Todo lo del AUR queda pendiente**
-   (decidido por el mantenedor el 2026-09-14): de la `0.11.1` sólo está hecho el
-   checksum (`publish.md` §8.1 y §8.3, en `b40eafb`); §8.2 (`makepkg -Csi`,
+   (decidido por el mantenedor el 2026-09-14): de la `0.11.2` sólo está hecho el
+   checksum (`publish.md` §8.1 y §8.3, en `649e6aa`); §8.2 (`makepkg -Csi`,
    `namcap`) no se ha ejecutado para esta versión, y §8.4 a §8.6 esperan al registro.
 2. ~~Mirar `retro` y `ascii` en un terminal de verdad~~ ✅ hecho el 2026-09-10; ver §9.5.
    Queda el extremo pequeño: la disposición compacta no se ha visto nunca.
