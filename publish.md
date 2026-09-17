@@ -14,7 +14,8 @@ paquete en el AUR.
 
 > [!IMPORTANT]
 > **Estado a 2026-09-17:** hay diecisiete versiones publicadas en PyPI, hasta `0.12.0`,
-> con Trusted Publishing, cada una con su GitHub Release. El environment `pypi` de GitHub existe y el publisher de PyPI ya
+> con Trusted Publishing, cada una con su GitHub Release. La `0.13.0` está preparada
+> y validada en local, pendiente del tag. El environment `pypi` de GitHub existe y el publisher de PyPI ya
 > no está pendiente: se convirtió en uno normal con la primera publicación, así que
 > §1.2 y §1.3 quedan como registro de cómo se configuró y no como pasos a repetir. La
 > publicación en el AUR sigue aplazada por una causa externa:

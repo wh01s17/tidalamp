@@ -4,7 +4,14 @@ Documento de traspaso. Describe qué existe, qué está verificado, qué falta y
 criterio se tomaron las decisiones, para que cualquiera (humano o modelo) pueda
 retomar el trabajo sin contexto previo.
 
-**Última actualización:** 2026-09-17, versión `0.12.0` publicada en PyPI y en GitHub,
+**Última actualización:** 2026-09-17, versión `0.13.0` preparada y validada en local,
+pendiente del tag. Lo nuevo: la fila «Cerrar sesión» de la ventana `o`, que siempre
+borra la sesión y, con su casilla, también la configuración, la cola, el ecualizador,
+la caché y los lanzadores del menú; los versos más anchos que la ventana de letras se
+parten bajo su texto; y la interfaz en español deja en inglés los términos técnicos
+(rates, graph, resampling). Ver §4, «Cerrar sesión» y «Letras». Los tests de la app ya
+no esperan con pausas fijas (§7). Antes, 2026-09-17, versión `0.12.0` publicada en
+PyPI y en GitHub,
 con el tag `v0.12.0` sobre `9cb66d8` y el checksum del tarball en `991aa3a`. Lo nuevo: en el primer arranque con sesión y mpv, un diálogo ofrece
 añadir tidalamp al menú de aplicaciones (en Omarchy, como `omarchy-tui-install`); la
 ventana `o` tiene la fila «Acceso directo en el menú», que avisa con la ruta si ya
@@ -2101,7 +2108,8 @@ una pista en cada calidad y leer `~/.local/state/tidalamp/tidalamp.log`.
 > cuadrícula, la gestión de playlists y las páginas que llegan solas entraron en la
 > `0.11.0`, publicada el 2026-09-15; la `0.11.1` (2026-09-16) sólo arregla el título
 > de la ventana de letras, y la `0.11.2` (2026-09-17) que el DAC siga el rate de cada
-> pista; la `0.12.0` (2026-09-17) trae el lanzador del menú; allí quedan las comprobaciones a mano. Esta sección sigue siendo el estado general
+> pista; la `0.12.0` (2026-09-17) trae el lanzador del menú, y la `0.13.0` (preparada
+> el 2026-09-17) cerrar sesión; allí quedan las comprobaciones a mano. Esta sección sigue siendo el estado general
 > y aquella, la cola de trabajo.
 
 P1–P4 están cerradas: lo que queda no es funcionalidad que falte para que el
@@ -2111,7 +2119,8 @@ probadas sólo con dobles.
 **Orden propuesto (2026-09-11):** ~~P5 empaquetado~~ y ~~carátula~~ ✅ hechos. Cada
 versión se publica siguiendo `publish.md`; la última publicada es la `0.12.0`
 (2026-09-17), en PyPI y en GitHub, con el checksum del tarball ya en el PKGBUILD
-(`991aa3a`). Lo que queda abierto aquí pide
+(`991aa3a`). La `0.13.0` está preparada y validada en local, pendiente del tag, con el
+checksum del PKGBUILD en `SKIP` hasta que exista. Lo que queda abierto aquí pide
 credenciales tuyas o un par de ojos.
 
 1. Publicar en el AUR cuando vuelva a abrir el registro de cuentas nuevas. El paquete
