@@ -13,8 +13,9 @@ calcula el checksum y, cuando vuelva a ser posible obtener una cuenta, se public
 paquete en el AUR.
 
 > [!IMPORTANT]
-> **Estado a 2026-09-16:** hay quince versiones publicadas en PyPI, hasta `0.11.1`,
-> con Trusted Publishing, cada una con su GitHub Release. El environment `pypi` de GitHub existe y el publisher de PyPI ya
+> **Estado a 2026-09-17:** hay quince versiones publicadas en PyPI, hasta `0.11.1`,
+> con Trusted Publishing, cada una con su GitHub Release. La `0.11.2` está preparada
+> y validada en local, pendiente del tag. El environment `pypi` de GitHub existe y el publisher de PyPI ya
 > no está pendiente: se convirtió en uno normal con la primera publicación, así que
 > §1.2 y §1.3 quedan como registro de cómo se configuró y no como pasos a repetir. La
 > publicación en el AUR sigue aplazada por una causa externa:

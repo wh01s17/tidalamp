@@ -4,7 +4,13 @@ Documento de traspaso. Describe qué existe, qué está verificado, qué falta y
 criterio se tomaron las decisiones, para que cualquiera (humano o modelo) pueda
 retomar el trabajo sin contexto previo.
 
-**Última actualización:** 2026-09-16, versión `0.11.1` publicada en PyPI y en GitHub,
+**Última actualización:** 2026-09-17, versión `0.11.2` preparada y validada en local,
+pendiente del tag. Es un arreglo: con los rates hi-res configurados, sólo la primera
+pista llegaba al DAC a su rate; PipeWire no cambia el de un dispositivo en marcha y
+mpv no lo deja parar entre pistas, así que las demás se remuestreaban (un AAC a
+44,1 kHz sonaba a 48 kHz). Ahora se fuerza `clock.force-rate` hasta que el DAC sigue a
+la pista, y `OUT` y la ventana `o` avisan si no coinciden. Antes, 2026-09-16, versión
+`0.11.1` publicada en PyPI y en GitHub,
 con el tag `v0.11.1` sobre `33a305a` y el checksum del tarball en `b40eafb`. Es un
 arreglo: el título de la ventana de letras (`y`) partía por
 palabras en un encabezado de una fila y el spinner quieto se quedaba 34 celdas, así que
@@ -1986,7 +1992,8 @@ probadas sólo con dobles.
 **Orden propuesto (2026-09-11):** ~~P5 empaquetado~~ y ~~carátula~~ ✅ hechos. Cada
 versión se publica siguiendo `publish.md`; la última publicada es la `0.11.1`
 (2026-09-16), en PyPI y en GitHub, con el checksum del tarball ya en el PKGBUILD
-(`b40eafb`). Lo que queda abierto aquí pide
+(`b40eafb`). La `0.11.2` está preparada y validada en local, pendiente del tag, con el
+checksum del PKGBUILD en `SKIP` hasta que exista. Lo que queda abierto aquí pide
 credenciales tuyas o un par de ojos.
 
 1. Publicar en el AUR cuando vuelva a abrir el registro de cuentas nuevas. El paquete
