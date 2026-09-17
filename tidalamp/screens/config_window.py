@@ -93,6 +93,7 @@ class ConfigScreen(ModalScreen[None]):
         self._sink = audio.Sink()
         self._allowed: tuple[int, ...] = ()
         self._hardware: tuple[int, ...] = ()
+        self._stream_rate = 0
         self._rows: list[Option] = []
         # Set when a change here drags another setting with it. It stays up
         # until the screen closes, which is as long as it is true.
@@ -242,10 +243,12 @@ class ConfigScreen(ModalScreen[None]):
         """Ask the audio stack what it is doing. Off the UI loop: it shells out."""
         found = (audio.sink(), audio.allowed_rates())
         hardware = audio.hardware_rates(found[0].name)
-        self.app.call_from_thread(self._probed, found[0], found[1], hardware)
+        stream = getattr(getattr(self.app, "mpv", None), "samplerate", 0)
+        self.app.call_from_thread(self._probed, found[0], found[1], hardware, stream)
 
-    def _probed(self, found, allowed, hardware) -> None:
+    def _probed(self, found, allowed, hardware, stream_rate: int = 0) -> None:
         self._sink, self._allowed, self._hardware = found, allowed, hardware
+        self._stream_rate = stream_rate
         self._render_list()
 
     def watch_cursor(self) -> None:
@@ -415,6 +418,13 @@ class ConfigScreen(ModalScreen[None]):
         if len(self._allowed) == 1:
             return _("  El grafo remuestrea todo a {rate} Hz").format(
                 rate=self._allowed[0]
+            )
+        # The rates allow it and still the two differ: something else holds
+        # the sink at its rate, or the switch has not landed yet.
+        stream = self._stream_rate
+        if stream and self._sink.rate and stream != self._sink.rate:
+            return _("  PipeWire remuestrea {stream} Hz a {rate} Hz").format(
+                stream=stream, rate=self._sink.rate
             )
         return ""
 

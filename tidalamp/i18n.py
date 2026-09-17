@@ -366,6 +366,10 @@ ENGLISH: dict[str, str] = {
     "  El grafo remuestrea todo a {rate} Hz": (
         "  The graph resamples everything to {rate} Hz"
     ),
+    "  PipeWire remuestrea {stream} Hz a {rate} Hz": (
+        "  PipeWire resamples {stream} Hz to {rate} Hz"
+    ),
+    "remuestreado desde {rate} kHz": "resampled from {rate} kHz",
     "no se pudo consultar PipeWire": "could not ask PipeWire",
     "la salida es Bluetooth: no hay hi-res real por ahí": (
         "the output is Bluetooth: no real hi-res goes through it"

@@ -390,6 +390,9 @@ class TidalAmp(App):
         self._transport_hits: list[tuple[int, int, str]] = []
         self._playable: Playable | None = None
         self._sink = audio.Sink()
+        # The rate mpv sends to the sink, read with it: when the two differ,
+        # PipeWire is resampling and the OUT badge says so.
+        self._stream_rate = 0
         # What the queue is narrowed to, and which queue positions that
         # leaves on screen. Empty filter means every position, in order.
         self._queue_filter = ""
@@ -2609,6 +2612,12 @@ class TidalAmp(App):
                 parts.append(f"PCM {sink.sample_format.upper()}")
             if sink.rate:
                 parts.append(f"{sink.rate / 1000:g} kHz")
+            if sink.rate and self._stream_rate and self._stream_rate != sink.rate:
+                parts.append(
+                    _("remuestreado desde {rate} kHz").format(
+                        rate=f"{self._stream_rate / 1000:g}"
+                    )
+                )
             line = "OUT  " + " · ".join(parts)
         self.query_one("#output", Glide).update(line)
 
@@ -2622,21 +2631,48 @@ class TidalAmp(App):
         `pactl` once, that early, reports the rate of the *previous* track:
         the badge said 44.1 kHz while the DAC's own screen read 96K. So poll
         instead of guessing a delay, and publish each change as it lands.
+
+        Nor does PipeWire switch at all while the device is running, and
+        between tracks it always is: mpv reopens its output in milliseconds.
+        The first track after a restart set the rate and every later one was
+        resampled to it. When mpv and the sink disagree, the rate is forced
+        until the sink follows, then handed back.
         """
         worker = get_current_worker()
         deadline = time.monotonic() + SINK_SETTLE
-        last: audio.Sink | None = None
-        while not worker.is_cancelled:
-            sink = audio.sink()
-            if sink != last:
-                last = sink
-                self.call_from_thread(self._set_sink, sink)
-            if time.monotonic() >= deadline:
-                return
-            time.sleep(SINK_POLL)
+        last: tuple[audio.Sink, int] | None = None
+        forced = 0
+        try:
+            while not worker.is_cancelled:
+                sink = audio.sink()
+                stream = self.mpv.samplerate
+                if (sink, stream) != last:
+                    last = (sink, stream)
+                    self.call_from_thread(self._set_sink, sink, stream)
+                if forced and sink.rate == forced:
+                    audio.force_rate(0)
+                    forced = 0
+                elif not forced and stream and sink.rate and stream != sink.rate:
+                    target = audio.rate_to_force(
+                        sink,
+                        stream,
+                        audio.allowed_rates(),
+                        audio.hardware_rates(sink.name),
+                        audio.streams_on(sink),
+                    )
+                    if target and audio.force_rate(target):
+                        log.info("forzando %s Hz: el sink iba a %s Hz", target, sink.rate)
+                        forced = target
+                if time.monotonic() >= deadline:
+                    return
+                time.sleep(SINK_POLL)
+        finally:
+            if forced:
+                audio.force_rate(0)
 
-    def _set_sink(self, sink: audio.Sink) -> None:
+    def _set_sink(self, sink: audio.Sink, stream_rate: int = 0) -> None:
         self._sink = sink
+        self._stream_rate = stream_rate
         self._refresh_output_line()
 
     # ----------------------------------------------------------------- fiddles

@@ -636,6 +636,17 @@ def test_source_output_and_pause_are_separate_truthful_readouts(monkeypatch):
             assert "24-bit" in source and "176.4 kHz" in source
             assert "HI-RES" in source and "PAUSA" in source
             assert output == "OUT  FIIO BTR15 · PCM S32LE · 176.4 kHz"
+
+            # mpv sending another rate is PipeWire resampling: say it there.
+            application._set_sink(
+                audio_module.Sink(
+                    name="alsa_output.usb", description="FIIO BTR15", rate=48000
+                ),
+                44100,
+            )
+            await pilot.pause()
+            output = str(application.query_one("#output", Glide).content)
+            assert output.endswith("48 kHz · remuestreado desde 44.1 kHz")
             assert application.query_one("#volume", Slider).label == "VOL/mpv"
 
     asyncio.run(scenario())

@@ -121,6 +121,32 @@ def test_a_shape_that_is_not_one_of_the_three_falls_back_to_bars(monkeypatch):
     asyncio.run(scenario())
 
 
+def test_the_screen_says_when_pipewire_resamples_the_stream(monkeypatch, tmp_path):
+    """The rates were configured and the row said so, while mpv sent 44.1 kHz
+    and the DAC ran at 48: nothing in the window gave the mismatch away."""
+    isolate_runtime(monkeypatch)
+    isolate_config(monkeypatch, tmp_path)
+    monkeypatch.setattr(
+        audio_module,
+        "sink",
+        lambda: audio_module.Sink(name="s", description="Mi DAC", rate=48000),
+    )
+    monkeypatch.setattr(audio_module, "allowed_rates", lambda: audio_module.RATES)
+    mpv = FakeMpv()
+    mpv.samplerate = 44100
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), mpv)
+        async with application.run_test(size=(100, 34)) as pilot:
+            await pilot.pause()
+            application.push_screen(ConfigScreen())
+            await settle(pilot, lambda: "Mi DAC" in config_text(application))
+            drawn = config_text(application)
+            assert "PipeWire remuestrea 44100 Hz a 48000 Hz" in drawn
+
+    asyncio.run(scenario())
+
+
 def test_the_screen_reports_what_the_audio_stack_is_doing(monkeypatch, tmp_path):
     isolate_runtime(monkeypatch)
     isolate_config(monkeypatch, tmp_path)

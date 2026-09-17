@@ -681,6 +681,13 @@ still never sees hi-res. **Hi-res rates in PipeWire** drops a file into
 **Restart PipeWire** applies it — stopping playback first, since mpv is holding the
 sink.
 
+PipeWire only picks a new rate while the device is idle, and between tracks it never
+is. So when a track's rate differs from the DAC's, tidalamp sets `clock.force-rate`
+for the moment it takes the DAC to switch, then puts it back to `0`. It does not
+force anything while another application is playing through the same output. If
+the two rates still differ, the `OUT` badge says `resampled from … kHz` and this
+window adds a warning line.
+
 The window also names the output and warns when it is Bluetooth, which cannot carry
 lossless whatever the rates say. Both actions are reversible: the row toggles the file
 back off, and deleting it by hand does the same.

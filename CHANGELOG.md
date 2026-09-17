@@ -5,6 +5,18 @@ versioning is [semantic](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- Hi-res reached the DAC for the first track only. PipeWire does not change the rate
+  of a device that is playing, and between tracks mpv reopens its output too fast for
+  the DAC to stop: every later track was resampled to the rate the first one left
+  behind, so a 44.1 kHz track played at 48 kHz. When mpv and the sink disagree,
+  tidalamp now sets `clock.force-rate` until the DAC follows and hands it back to `0`
+  straight away. It is left alone while another application plays through the same
+  sink, and for rates the graph or the card does not take.
+- The `OUT` badge adds `resampled from … kHz`, and the settings window a warning line,
+  when the rate mpv sends and the DAC's differ.
+
 ## [0.11.1] - 2026-09-16
 
 ### Fixed

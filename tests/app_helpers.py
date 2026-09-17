@@ -42,6 +42,7 @@ class FakeMpv:
     # mpv's own playlist: 0 is what `load` started, 1 what `append` queued.
     playlist_pos = 0
     gain = 0.0
+    samplerate = 0
 
     def __init__(self) -> None:
         self.filter_calls: list[tuple[str, str | None]] = []
@@ -117,7 +118,12 @@ def isolate_runtime(monkeypatch) -> None:
         """Resolve the fake audio stack inline, without a closing-loop race."""
         sink = audio_module.sink()
         allowed = audio_module.allowed_rates()
-        screen._probed(sink, allowed, audio_module.hardware_rates(sink.name))
+        screen._probed(
+            sink,
+            allowed,
+            audio_module.hardware_rates(sink.name),
+            getattr(screen.app.mpv, "samplerate", 0),
+        )
 
     monkeypatch.setattr(Queue, "load", lambda self: False)
     monkeypatch.setattr(Queue, "save", lambda self: None)

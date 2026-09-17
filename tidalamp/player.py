@@ -410,6 +410,17 @@ class Mpv:
         return float(self.get("duration") or 0.0)
 
     @property
+    def samplerate(self) -> int:
+        """The rate mpv hands the audio output, or 0 before it has opened one."""
+        params = self.get("audio-out-params")
+        if not isinstance(params, dict):
+            return 0
+        try:
+            return int(params.get("samplerate") or 0)
+        except (TypeError, ValueError):
+            return 0
+
+    @property
     def volume(self) -> int:
         current = self.get("volume")
         if current is not None:

@@ -495,11 +495,13 @@ def test_the_output_rate_is_followed_until_pipewire_settles(monkeypatch):
     )
 
     class Recorder:
-        def _set_sink(self, sink):
+        mpv = FakeMpv()
+
+        def _set_sink(self, sink, stream_rate=0):
             seen.append(sink.rate)
 
-        def call_from_thread(self, fn, sink):
-            fn(sink)
+        def call_from_thread(self, fn, *args):
+            fn(*args)
 
     recorder = Recorder()
     # The worker body, called straight rather than through Textual's runner.
@@ -508,6 +510,92 @@ def test_the_output_rate_is_followed_until_pipewire_settles(monkeypatch):
     # It published the stale rate first, then corrected itself, and it did not
     # repeat a rate that had not moved.
     assert seen == [44100, 96000]
+
+
+def test_a_running_dac_is_forced_to_the_rate_of_the_next_track(monkeypatch):
+    """PipeWire does not switch a device that is running, and between tracks
+    mpv reopens its output too fast for the DAC to ever stop: a 44.1 kHz AAC
+    reached the BTR15 at 48 kHz, the rate an earlier track had left it on. The
+    worker forces the stream's rate, and hands the choice back once the sink
+    has followed.
+    """
+    from tidalamp import app as app_module
+
+    forced: list[int] = []
+    state = {"rate": 48000}
+
+    def fake_force(rate):
+        forced.append(rate)
+        if rate:
+            state["rate"] = rate
+        return True
+
+    monkeypatch.setattr(
+        audio_module,
+        "sink",
+        lambda: audio_module.Sink(name="alsa_output.usb", rate=state["rate"], index=80),
+    )
+    monkeypatch.setattr(audio_module, "allowed_rates", lambda: audio_module.RATES)
+    monkeypatch.setattr(audio_module, "hardware_rates", lambda name: audio_module.RATES)
+    monkeypatch.setattr(audio_module, "streams_on", lambda sink: 1)
+    monkeypatch.setattr(audio_module, "force_rate", fake_force)
+    monkeypatch.setattr(app_module, "SINK_SETTLE", 0.3)
+    monkeypatch.setattr(app_module, "SINK_POLL", 0.0)
+    monkeypatch.setattr(
+        app_module, "get_current_worker", lambda: type("W", (), {"is_cancelled": False})
+    )
+    seen: list[tuple[int, int]] = []
+
+    class Recorder:
+        mpv = FakeMpv()
+
+        def _set_sink(self, sink, stream_rate=0):
+            seen.append((sink.rate, stream_rate))
+
+        def call_from_thread(self, fn, *args):
+            fn(*args)
+
+    Recorder.mpv.samplerate = 44100
+    TidalAmp._refresh_sink_worker.__wrapped__(Recorder())
+
+    assert forced == [44100, 0]
+    assert seen == [(48000, 44100), (44100, 44100)]
+
+
+def test_the_rate_is_not_forced_under_another_application(monkeypatch):
+    """With something else playing through the same sink, forcing would switch
+    it under that application's feet. Resampling is the lesser harm there."""
+    from tidalamp import app as app_module
+
+    forced: list[int] = []
+    monkeypatch.setattr(
+        audio_module,
+        "sink",
+        lambda: audio_module.Sink(name="alsa_output.usb", rate=48000, index=80),
+    )
+    monkeypatch.setattr(audio_module, "allowed_rates", lambda: audio_module.RATES)
+    monkeypatch.setattr(audio_module, "hardware_rates", lambda name: ())
+    monkeypatch.setattr(audio_module, "streams_on", lambda sink: 2)
+    monkeypatch.setattr(audio_module, "force_rate", lambda rate: forced.append(rate))
+    monkeypatch.setattr(app_module, "SINK_SETTLE", 0.1)
+    monkeypatch.setattr(app_module, "SINK_POLL", 0.0)
+    monkeypatch.setattr(
+        app_module, "get_current_worker", lambda: type("W", (), {"is_cancelled": False})
+    )
+
+    class Recorder:
+        mpv = FakeMpv()
+
+        def _set_sink(self, sink, stream_rate=0):
+            pass
+
+        def call_from_thread(self, fn, *args):
+            fn(*args)
+
+    Recorder.mpv.samplerate = 44100
+    TidalAmp._refresh_sink_worker.__wrapped__(Recorder())
+
+    assert forced == []
 
 
 def test_a_translated_theme_name_still_cycles_through_every_theme(monkeypatch, tmp_path):

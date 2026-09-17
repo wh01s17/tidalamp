@@ -59,6 +59,7 @@ def test_the_default_sink_is_read_with_its_rate(pactl):
     assert found.rate == 48000
     assert found.sample_format == "s32le"
     assert found.bluetooth is False
+    assert found.index == 3367
 
 
 def test_no_pactl_is_an_answer_not_a_crash(monkeypatch):
@@ -192,3 +193,49 @@ def test_a_restart_that_fails_says_what_to_run_by_hand(monkeypatch):
     assert "systemctl --user restart" in message
     for service in audio.SERVICES:
         assert service in message
+
+
+# ------------------------------------------------------------- forcing a rate
+
+
+def test_streams_are_counted_on_the_sink_they_play_through(monkeypatch):
+    listing = (
+        "134\t80\t133\tPipeWire\tfloat32le 2ch 44100Hz\n135\t79\t140\tPipeWire\ts16le\n"
+    )
+    monkeypatch.setattr(audio, "_run", lambda command, timeout=5: listing)
+
+    assert audio.streams_on(audio.Sink(name="usb", index=80)) == 1
+    assert audio.streams_on(audio.Sink(name="usb", index=81)) == 0
+    assert audio.streams_on(audio.Sink(name="usb")) == -1
+
+
+DAC = audio.Sink(name=BTR15, rate=48000, index=80)
+
+
+def test_a_mismatched_stream_asks_for_its_own_rate():
+    assert audio.rate_to_force(DAC, 44100, audio.RATES, audio.RATES, 1) == 44100
+
+
+@pytest.mark.parametrize(
+    ("sink", "stream", "allowed", "hardware", "streams"),
+    [
+        (DAC, 48000, audio.RATES, audio.RATES, 1),  # already there
+        (DAC, 44100, audio.RATES, audio.RATES, 2),  # someone else is playing
+        (DAC, 44100, (48000,), audio.RATES, 1),  # the graph would not take it
+        (DAC, 44100, audio.RATES, (48000, 96000), 1),  # nor would the card
+        (DAC, 0, audio.RATES, audio.RATES, 1),  # mpv has no output yet
+        (audio.Sink(name="bluez_output.x", rate=48000), 44100, audio.RATES, (), 1),
+    ],
+)
+def test_the_rate_is_left_alone(sink, stream, allowed, hardware, streams):
+    assert audio.rate_to_force(sink, stream, allowed, hardware, streams) == 0
+
+
+def test_forcing_goes_through_the_settings_metadata(monkeypatch):
+    calls = []
+    monkeypatch.setattr(
+        audio, "_run", lambda command, timeout=5: calls.append(command) or ""
+    )
+
+    assert audio.force_rate(44100)
+    assert calls == [["pw-metadata", "-n", "settings", "0", "clock.force-rate", "44100"]]

@@ -1070,6 +1070,17 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
 - [x] **Comprobado en el hardware** (2026-09-08): con el drop-in puesto y PipeWire
       reiniciado desde la pantalla, el FiiO BTR15 muestra `PCM 176.4K` en su propia
       pantalla. Ver §5.
+- [x] **El rate sigue a cada pista, no sólo a la primera** (2026-09-16). Con el
+      drop-in puesto, un AAC a 44,1 kHz llegaba al BTR15 a 48 kHz: PipeWire no cambia
+      el rate de un driver en RUNNING (ni en IDLE; sólo al suspender, ~5 s), y mpv
+      cierra y reabre su salida entre pistas en milisegundos. Medido: mpv `F32P 44100`,
+      DAC `S32LE 48000`; con pausa, el DAC pasó a 44100 al quedar SUSPENDED. El worker
+      del sink lee `audio-out-params` de mpv y, si no coincide con el sink, pone
+      `clock.force-rate` (que sí cambia un driver en marcha) hasta que el sink lo
+      sigue, y lo devuelve a `0`: el grafo se queda en ese rate. No fuerza si hay más
+      de un stream en el sink, ni un rate fuera de `allowed-rates` o de lo que dice
+      ALSA. `OUT` añade «remuestreado desde … kHz» y la ventana `o` avisa cuando
+      stream y sink difieren.
 
 ### Menú de la pista — `screens/tracks.py`, `queue.py`, `library.py`
 
@@ -2095,6 +2106,11 @@ dejará de importar y con él no arranca la aplicación entera.
 ## 7. Trampas conocidas
 
 Cosas que ya costaron tiempo una vez:
+
+- **`allowed-rates` no basta para que el DAC siga a la pista.** PipeWire sólo elige
+  rate nuevo con el driver parado, y un mpv persistente nunca lo deja parar entre
+  pistas: la primera fija el rate y las demás se remuestrean. Mirar el DAC en la
+  segunda pista, no en la primera. `clock.force-rate` sí cambia un driver en marcha.
 
 - **tidalapi convierte el 429 antes de que llegue a la app.** En 0.8.11 un límite de
   peticiones deja de ser `requests.HTTPError` y pasa a

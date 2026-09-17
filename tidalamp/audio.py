@@ -67,6 +67,7 @@ class Sink:
     description: str = ""
     rate: int = 0
     sample_format: str = ""
+    index: int = -1
 
     @property
     def known(self) -> bool:
@@ -84,10 +85,12 @@ def sink() -> Sink:
     if not name:
         return Sink()
     listing = _run(["pactl", "list", "sinks"]) or ""
-    description, rate, fmt = "", 0, ""
-    for block in listing.split("\nSink #"):
+    description, rate, fmt, index = "", 0, "", -1
+    for block in ("\n" + listing).split("\nSink #"):
         if f"Name: {name}" not in block:
             continue
+        number = re.match(r"(\d+)", block)
+        index = int(number.group(1)) if number else -1
         found = re.search(r"^\s*Description:\s*(.+)$", block, re.MULTILINE)
         description = found.group(1).strip() if found else ""
         spec = re.search(
@@ -96,7 +99,23 @@ def sink() -> Sink:
         if spec:
             fmt, rate = spec.group(1), int(spec.group(2))
         break
-    return Sink(name=name, description=description, rate=rate, sample_format=fmt)
+    return Sink(
+        name=name, description=description, rate=rate, sample_format=fmt, index=index
+    )
+
+
+def streams_on(target: Sink) -> int:
+    """How many playback streams the sink is carrying. -1 when unknown."""
+    if target.index < 0:
+        return -1
+    listing = _run(["pactl", "list", "sink-inputs", "short"])
+    if listing is None:
+        return -1
+    return sum(
+        1
+        for line in listing.splitlines()
+        if len(fields := line.split("\t")) > 1 and fields[1] == str(target.index)
+    )
 
 
 def allowed_rates() -> tuple[int, ...]:
@@ -147,6 +166,43 @@ def _same_device(alsa_line: str, sink_name: str) -> bool:
     alsa = re.sub(r"[^a-z0-9]", "", alsa_line.split(" at ")[0].lower())
     sink = re.sub(r"[^a-z0-9]", "", sink_name.lower())
     return bool(alsa) and (alsa in sink or sink in alsa)
+
+
+def rate_to_force(
+    target: Sink,
+    stream_rate: int,
+    allowed: tuple[int, ...],
+    hardware: tuple[int, ...],
+    streams: int,
+) -> int:
+    """The rate to force the graph to so the DAC gets the stream untouched, or 0.
+
+    PipeWire only picks a new graph rate while the device is idle. mpv closes
+    and reopens its output between tracks in milliseconds, so the device never
+    gets there and every track after the first is resampled to the rate the
+    session started at. Forcing is left alone when anything else is playing
+    through the sink (it would hear the switch) and when the rate is one the
+    graph or the card does not take.
+    """
+    if not target.known or target.bluetooth or not target.rate or stream_rate <= 0:
+        return 0
+    if stream_rate == target.rate or streams != 1:
+        return 0
+    if stream_rate not in allowed:
+        return 0
+    if hardware and stream_rate not in hardware:
+        return 0
+    return stream_rate
+
+
+def force_rate(rate: int) -> bool:
+    """Set `clock.force-rate`; 0 hands the choice back to PipeWire.
+
+    Unlike the allowed rates, a forced rate switches a device that is running.
+    Released to 0 once the device follows, the graph keeps the rate it is on.
+    """
+    done = _run(["pw-metadata", "-n", "settings", "0", "clock.force-rate", str(rate)])
+    return done is not None
 
 
 def rates_configured() -> bool:
