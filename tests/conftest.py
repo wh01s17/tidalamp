@@ -16,6 +16,8 @@ import os
 # import time, which is the half that made the suite pass or fail on nothing
 # but the terminal it was run from.
 os.environ.setdefault("TIDALAMP_LANG", "es")
+# Never write a launcher into the developer's own menu from a test.
+os.environ.setdefault("TIDALAMP_NO_DESKTOP_ENTRY", "1")
 
 import pytest
 

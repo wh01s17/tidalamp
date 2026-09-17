@@ -7,7 +7,7 @@ import sys
 
 import typer
 
-from . import about
+from . import about, desktop
 from . import config as settings
 from .auth import NotLoggedIn, load_session
 from .auth import login as do_login
@@ -62,7 +62,11 @@ def tui() -> None:
         raise typer.Exit(1) from exc
 
     try:
-        TidalAmp(session, mpv).run()
+        application = TidalAmp(session, mpv)
+        # Only once logged in and able to play: a launcher that opens
+        # straight into «log in first» is not worth offering.
+        application.offer_launcher = desktop.offer()
+        application.run()
     finally:
         mpv.close()
 

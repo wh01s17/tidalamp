@@ -35,6 +35,7 @@ Authorize once through the link it prints, and the session is kept at
 - [About the analyzer](#about-the-analyzer)
 - [Cover art](#cover-art)
 - [Desktop integration (MPRIS)](#desktop-integration-mpris)
+  - [In the application menu](#in-the-application-menu)
 - [Help and about](#help-and-about)
 - [Troubleshooting](#troubleshooting)
 - [Platform support](#platform-support)
@@ -82,6 +83,10 @@ tidalamp
 
 Without the `art` extra everything works except the cover, which is simply not drawn;
 tidalamp says so once in the status line at startup.
+
+The first launch has to be from a terminal (`tidalamp login`, then `tidalamp`). The
+player then asks whether to add itself to the application menu: see
+[In the application menu](#in-the-application-menu).
 
 ### Arch Linux (AUR)
 
@@ -615,6 +620,7 @@ writes `~/.config/tidalamp/config.toml`, so a change made once stays made.
 | Normalised volume | `off` `track` `album`             | immediately    |
 | Library view | `list` `grid`                          | the next level opened |
 | Debug log | on / off                                  | immediately    |
+| Menu shortcut | created / not created                 | immediately    |
 
 Normalised volume uses the ReplayGain TIDAL sends with every stream: `track` evens
 out every track, `album` keeps the loud and quiet songs of one record as the record
@@ -622,7 +628,11 @@ has them. A track is never raised past its own peak, so nothing clips. While it 
 the badge line under the clock says the gain applied to the track playing, such as
 `RG -7.5 dB`, or `RG —` when TIDAL sent no gain for it.
 
-Quality, Hi-res rates in PipeWire and Restart PipeWire do not change with the arrows,
+The lines at the foot of the window (the note on the current row, the output and any
+warning) glide there and back when they do not fit, as the track title does.
+
+Quality, Hi-res rates in PipeWire, Restart PipeWire and Menu shortcut do not change
+with the arrows,
 since a stray press on any of them costs more than a colour: Enter opens a list to
 choose from, and Restart's list opens on Cancel.
 
@@ -851,6 +861,27 @@ MPRIS is unavailable.
 The speed goes over MPRIS too: `Rate` reads and sets it, between `MinimumRate` 0.25
 and `MaximumRate` 2. A desktop may send any number in that range; it lands on the
 nearest quarter, the speeds the `b` window offers, and 0 is ignored.
+
+### In the application menu
+
+pipx installs a command and nothing else, so the menu does not know about tidalamp.
+The first time the player opens (logged in, with mpv present) it asks in a dialog
+whether to add it:
+
+- **yes** writes `~/.local/share/applications/tidalamp.desktop` and its icon. From
+  then on it is in the menu of any freedesktop desktop. On Omarchy it opens in
+  Omarchy's own terminal, tiled, the way `omarchy-tui-install` does it.
+- **no** is remembered, and the question is not asked again.
+- **Esc** leaves it for the next start.
+
+If a launcher for tidalamp already exists, under any name (the AUR package's, or one
+made with `omarchy-tui-install`), nothing is asked. To take it out of the menu, delete
+the file: it will not be offered again.
+
+**Menu shortcut**, under General in the settings window (`o`), does the same at any
+time, even after a no: it says `created` or `not created`, Enter offers to create it,
+and when one already exists it shows where instead. `TIDALAMP_NO_DESKTOP_ENTRY=1`
+turns off the first-start question.
 
 ## Help and about
 

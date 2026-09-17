@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
 from rich.cells import cell_len, set_cell_size
@@ -15,9 +16,10 @@ from textual.reactive import reactive
 from textual.screen import ModalScreen
 from textual.widgets import Static
 
-from .. import artwork, audio, columns, config
+from .. import artwork, audio, columns, config, desktop
 from ..i18n import _
 from ..layouts import BACKDROPS, label
+from ..scrolling import Glide, _window
 from ..settings import REPLAYGAIN_MODES
 from ..theme import LAYOUTS, available_palettes, paired_palette, palette_for
 from ..widgets import Analyzer
@@ -94,6 +96,16 @@ class ConfigScreen(ModalScreen[None]):
         self._allowed: tuple[int, ...] = ()
         self._hardware: tuple[int, ...] = ()
         self._stream_rate = 0
+        # The launcher already in a menu folder, if any. Probed with the audio
+        # stack, off the UI loop: it reads every entry in those folders.
+        self._launcher: Path | None = None
+        # The footer lines glide, as a `Glide` does, when one is wider than the
+        # box: a path or a URL cropped to «…» lost exactly the part worth reading.
+        self._glide_offset = 0
+        self._glide_direction = 1
+        self._glide_wait = Glide.HOLD
+        self._glide_calls = 0
+        self._glide_overflow = 0
         self._rows: list[Option] = []
         # Set when a change here drags another setting with it. It stays up
         # until the screen closes, which is as long as it is true.
@@ -226,6 +238,12 @@ class ConfigScreen(ModalScreen[None]):
                 choices=self.SWITCH,
                 group=general,
             ),
+            Option(
+                _("Acceso directo en el menú"),
+                action="launcher",
+                note=_("añade tidalamp al menú de aplicaciones"),
+                group=general,
+            ),
         ]
 
     def compose(self) -> ComposeResult:
@@ -237,6 +255,34 @@ class ConfigScreen(ModalScreen[None]):
     def on_mount(self) -> None:
         self._rows = self._options()
         self._probe()
+        self.set_interval(1 / 10, self._glide_tick)
+
+    def _glide_restart(self) -> None:
+        self._glide_offset, self._glide_direction = 0, 1
+        self._glide_wait = Glide.HOLD
+
+    def _glide_tick(self) -> None:
+        """One step of the footer's glide, at `Glide`'s pace: hold, slide, back."""
+        if self.app.screen is not self:
+            return
+        overflow = self._glide_overflow
+        if overflow <= 0:
+            if self._glide_offset:
+                self._glide_restart()
+                self._render_list()
+            return
+        self._glide_calls = (self._glide_calls + 1) % Glide.EVERY
+        if self._glide_calls:
+            return
+        if self._glide_wait:
+            self._glide_wait -= 1
+            return
+        self._glide_offset += self._glide_direction
+        if self._glide_offset >= overflow or self._glide_offset <= 0:
+            self._glide_offset = max(0, min(self._glide_offset, overflow))
+            self._glide_direction = -self._glide_direction
+            self._glide_wait = Glide.HOLD
+        self._render_list()
 
     @work(thread=True, exclusive=True, group="config")
     def _probe(self) -> None:
@@ -244,14 +290,21 @@ class ConfigScreen(ModalScreen[None]):
         found = (audio.sink(), audio.allowed_rates())
         hardware = audio.hardware_rates(found[0].name)
         stream = getattr(getattr(self.app, "mpv", None), "samplerate", 0)
+        launcher = desktop.existing(desktop.data_dirs())
         self.app.call_from_thread(self._probed, found[0], found[1], hardware, stream)
+        self.app.call_from_thread(self._launcher_probed, launcher)
 
     def _probed(self, found, allowed, hardware, stream_rate: int = 0) -> None:
         self._sink, self._allowed, self._hardware = found, allowed, hardware
         self._stream_rate = stream_rate
         self._render_list()
 
+    def _launcher_probed(self, launcher: Path | None) -> None:
+        self._launcher = launcher
+        self._render_list()
+
     def watch_cursor(self) -> None:
+        self._glide_restart()
         if self.is_mounted:
             self._render_list()
 
@@ -285,6 +338,8 @@ class ConfigScreen(ModalScreen[None]):
             if audio.rates_configured():
                 return _("configurado")
             return _("sin configurar")
+        if option.action == "launcher":
+            return _("creado") if self._launcher is not None else _("sin crear")
         if option.action == "columns":
             return _("{count} de {total}").format(
                 count=len(config.COLUMNS), total=len(columns.ALL)
@@ -301,6 +356,10 @@ class ConfigScreen(ModalScreen[None]):
         if option.action == "rates":
             return self._rates_detail()
         if option.action == "columns":
+            return option.note
+        if option.action == "launcher":
+            if self._launcher is not None:
+                return _("en {path}").format(path=_home(self._launcher))
             return option.note
         return _("corta el audio un momento; la reproducción se detiene antes")
 
@@ -364,8 +423,14 @@ class ConfigScreen(ModalScreen[None]):
         rendered = Text()
         for text, style in self._window(lines, len(footer)):
             rendered.append(_crop(text, room) + "\n", style=style)
+        self._glide_overflow = max(
+            (cell_len(text) - room for text, _s in footer), default=0
+        )
         for text, style in footer:
-            rendered.append("\n" + _crop(text, room), style=style)
+            overflow = cell_len(text) - room
+            if overflow > 0:
+                text = _window(text, min(self._glide_offset, overflow), room)
+            rendered.append("\n" + text, style=style)
         widget.update(rendered)
 
     def _window(
@@ -444,7 +509,11 @@ class ConfigScreen(ModalScreen[None]):
         under the next track, PipeWire's rates were written or removed, or
         PipeWire was restarted and the audio cut. Only ↵ opens them now.
         """
-        return option.key == "quality" or option.action in ("rates", "restart")
+        return option.key == "quality" or option.action in (
+            "rates",
+            "restart",
+            "launcher",
+        )
 
     def action_activate(self) -> None:
         option = self._rows[self.cursor]
@@ -500,6 +569,41 @@ class ConfigScreen(ModalScreen[None]):
                 ),
                 lambda value: self._restart() if value == "restart" else None,
             )
+
+        elif option.action == "launcher":
+            self._offer_launcher()
+
+    def _offer_launcher(self) -> None:
+        """Create the menu launcher, unless there is one: then say where."""
+        found = desktop.existing(desktop.data_dirs())
+        self._launcher = found
+        if found is not None:
+            self._notice = _("  El acceso directo ya existe:\n  {path}").format(
+                path=_home(found)
+            )
+            self._render_list()
+            return
+        self.app.push_screen(
+            ChoiceScreen(
+                _("¿AÑADIR TIDALAMP AL MENÚ DE APLICACIONES?"),
+                [
+                    ("create", _("sí, crear el acceso directo")),
+                    ("cancel", _("cancelar")),
+                ],
+            ),
+            self._launcher_chosen,
+        )
+
+    def _launcher_chosen(self, value: object) -> None:
+        if value != "create":
+            return
+        created = desktop.create()
+        if created is not None:
+            self._launcher = created
+            self.player.status = _("tidalamp ya está en el menú de aplicaciones")
+        else:
+            self.player.status = _("no se pudo crear el acceso directo; mira el registro")
+        self._render_list()
 
     def _rates_chosen(self, value: object, configured: bool) -> None:
         if value is None or (value == "write") == configured:
@@ -656,3 +760,11 @@ _ATTRIBUTES = {
     "replaygain": "REPLAYGAIN",
     "library_view": "LIBRARY_VIEW",
 }
+
+
+def _home(path: Path) -> str:
+    """A path the way a shell would print it, with `~` for the home folder."""
+    try:
+        return "~/" + str(path.relative_to(Path.home()))
+    except ValueError:
+        return str(path)

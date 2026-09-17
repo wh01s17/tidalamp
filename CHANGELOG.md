@@ -5,6 +5,22 @@ versioning is [semantic](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- tidalamp can add itself to the application menu. The first time the player opens
+  from a terminal, a dialog asks whether to write
+  `~/.local/share/applications/tidalamp.desktop` and its icon; on Omarchy it opens in
+  Omarchy's terminal, tiled. A no is remembered, Esc asks again next time, and an
+  existing launcher for tidalamp, under any name, settles it without asking.
+  `TIDALAMP_NO_DESKTOP_ENTRY=1` turns the question off.
+- Menu shortcut, under General in the settings window: created or not, Enter offers
+  to create it, and when one already exists it says where.
+
+### Changed
+
+- The lines at the foot of the settings window glide there and back when they are
+  wider than the window, as the track title does, instead of ending in `…`.
+
 ## [0.11.2] - 2026-09-17
 
 ### Fixed

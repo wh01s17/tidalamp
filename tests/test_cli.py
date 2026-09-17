@@ -128,3 +128,35 @@ def test_search_prints_ids_for_scripts(monkeypatch):
 
     assert result.exit_code == 0
     assert "42  TOOL - Schism" in result.output
+
+
+def test_tui_offers_the_launcher_once_it_can_play(monkeypatch):
+    """Only after the session and mpv are there: a launcher that opens straight
+    into «log in first» is not worth offering."""
+    from tidalamp import desktop
+
+    offered = []
+    monkeypatch.setattr(cli, "load_session", lambda: object())
+    monkeypatch.setattr(cli, "Mpv", lambda: type("M", (), {"close": lambda self: None})())
+    monkeypatch.setattr(desktop, "offer", lambda: True)
+    monkeypatch.setattr("tidalamp.app.TidalAmp.__init__", lambda self, s, m: None)
+    monkeypatch.setattr(
+        "tidalamp.app.TidalAmp.run", lambda self: offered.append(self.offer_launcher)
+    )
+
+    result = runner.invoke(cli.app, ["tui"])
+
+    assert result.exit_code == 0, result.output
+    assert offered == [True]
+
+
+def test_tui_without_a_session_offers_no_launcher(monkeypatch):
+    from tidalamp import desktop
+
+    def no_session():
+        raise NotLoggedIn("No hay sesión guardada. Ejecuta: tidalamp login")
+
+    monkeypatch.setattr(cli, "load_session", no_session)
+    monkeypatch.setattr(desktop, "offer", lambda: pytest.fail("ofreció el lanzador"))
+
+    assert runner.invoke(cli.app, ["tui"]).exit_code == 1

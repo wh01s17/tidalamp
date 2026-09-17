@@ -43,6 +43,6 @@ package() {
   # a player it cannot name or draw an icon for.
   install -Dm644 packaging/tidalamp.desktop \
     "$pkgdir/usr/share/applications/$pkgname.desktop"
-  install -Dm644 packaging/tidalamp.svg \
+  install -Dm644 tidalamp/tidalamp.svg \
     "$pkgdir/usr/share/icons/hicolor/scalable/apps/$pkgname.svg"
 }

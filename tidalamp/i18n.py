@@ -215,6 +215,29 @@ ENGLISH: dict[str, str] = {
     "{count} elementos": "{count} items",
     "1 elemento": "1 item",
     # --- 0.11.1, in the help's list of changes
+    "¿AÑADIR TIDALAMP AL MENÚ DE APLICACIONES?": "ADD TIDALAMP TO THE APPLICATION MENU?",
+    "sí, crear el acceso directo": "yes, create the shortcut",
+    "Acceso directo en el menú": "Menu shortcut",
+    "añade tidalamp al menú de aplicaciones": "adds tidalamp to the application menu",
+    "creado": "created",
+    "sin crear": "not created",
+    "en {path}": "at {path}",
+    "  El acceso directo ya existe:\n  {path}": (
+        "  The shortcut already exists:\n  {path}"
+    ),
+    "no, y no volver a preguntar": "no, and do not ask again",
+    " ↑↓ elegir  ↵ aplicar  esc preguntar la próxima vez": (
+        " ↑↓ choose  ↵ apply  esc ask next time"
+    ),
+    "tidalamp ya está en el menú de aplicaciones": (
+        "tidalamp is now in the application menu"
+    ),
+    "no se pudo crear el acceso directo; mira el registro": (
+        "could not create the shortcut; see the log"
+    ),
+    "sin acceso directo; no se volverá a preguntar": (
+        "no shortcut; you will not be asked again"
+    ),
     "El DAC sigue el rate de cada pista, no sólo de la primera.": (
         "The DAC follows every track's rate, not just the first's."
     ),

@@ -171,6 +171,10 @@ tidalamp/
                 primera.
                 Todo por subprocess, y todo contesta con lo que encontró en vez de
                 lanzar: nada de esto está en el camino que reproduce música.
+  desktop.py    El lanzador del menú: `offer()` dice si preguntar en el primer
+                arranque, `create()` escribe `tidalamp.desktop` y el icono, y
+                `decline()` guarda el no. Respeta cualquier lanzador que ya abra
+                tidalamp y, en Omarchy, abre como `omarchy-tui-install`.
   mpris.py      Servicio MPRIS2 en D-Bus. Habla con la app por el Protocol
                 PlayerBackend, así que no conoce Textual ni tidalapi.
   cli.py        Entrypoint typer: login / tui / config / search, y `--version`.
@@ -1049,6 +1053,43 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
       medido a media anchura y las pistas acababan a mitad de fila; el
       `call_after_refresh` no llegaba después del layout del fondo. En headless no se
       reproduce, así que no hay test que falle sin el arreglo: **comprobarlo a mano**.
+
+### Lanzador del menú — `desktop.py`, `cli.py`, `app.py`, `screens/config_window.py`
+
+- [x] **tidalamp puede aparecer en el menú de aplicaciones** (2026-09-17). pipx sólo
+      instala el comando, así que el menú no lo veía; hacía falta `omarchy-tui-install`
+      a mano. `create()` escribe `tidalamp.desktop` en `$XDG_DATA_HOME/applications`
+      (el nombre que anuncia MPRIS en `DesktopEntry`) y el SVG en
+      `icons/hicolor/scalable/apps`. El icono vive ahora en `tidalamp/tidalamp.svg`
+      para viajar en el wheel; el PKGBUILD lo instala desde ahí.
+- [x] **Se pregunta, no se impone.** `tidalamp tui`, ya con sesión y mpv, pone
+      `offer_launcher = desktop.offer()` en la app, y `on_mount` abre un `ChoiceScreen`:
+      «sí, crear» llama a `create()`, «no» a `decline()`, y esc no guarda nada y vuelve
+      a preguntar en el siguiente arranque. La barra de estado dice el resultado.
+- [x] **Una sola vez.** La respuesta queda en `~/.local/state/tidalamp/desktop-entry`:
+      ni un no ni un lanzador borrado a mano se vuelven a ofrecer. `offer()` busca antes
+      en `XDG_DATA_HOME` y `XDG_DATA_DIRS` un `tidalamp.desktop` (aunque sea un
+      `Hidden=true`) o cualquier `.desktop` cuyo `Exec` lance tidalamp, como el
+      `TidalAmp.desktop` de `omarchy-tui-install` o el del paquete del AUR; si lo hay,
+      guarda la marca sin preguntar. `create()` nunca pisa un `tidalamp.desktop`.
+- [x] **Fila «Acceso directo en el menú»** en General de la ventana `o`: `creado` o
+      `sin crear` (lo sondea el worker de `_probe`, fuera del bucle), con la ruta en el
+      detalle. ↵ vuelve a buscar: si ya existe, avisa con la ruta en la línea de
+      avisos; si no, un `ChoiceScreen` con crear o cancelar. Funciona aunque se haya
+      dicho que no al arrancar, porque `create()` no mira la marca. Las rutas se
+      muestran con `~`.
+- [x] **El pie de la ventana `o` se desliza** en vez de acabar en «…»: detalle, salida,
+      avisos. No es un `Glide` (todo el listado es un solo `Static`), sino su mismo
+      ritmo (`Glide.EVERY`, `Glide.HOLD`) con un `set_interval` propio y
+      `scrolling._window`; vuelve al principio al mover el cursor y no se mueve con
+      otra ventana encima.
+- [x] **En Omarchy** (`omarchy-launch-tui` en el PATH o `/usr/share/omarchy`) el `Exec`
+      es `xdg-terminal-exec --app-id=TUI.tile -e … tui` con `Terminal=false`, lo mismo
+      que escribe `omarchy-tui-install`; en otro escritorio, `Terminal=true`. La ruta
+      es absoluta (`shutil.which`), porque el menú no siempre tiene `~/.local/bin`.
+- [x] Nunca impide abrir el reproductor: cualquier `OSError` se registra y se sigue.
+      Fuera de Linux no se pregunta, y `TIDALAMP_NO_DESKTOP_ENTRY` apaga la pregunta
+      (los tests lo ponen en `conftest.py` para no tocar el menú de quien los corre).
 
 ### Configuración — `config.py`, `audio.py`, `screens/config_window.py`
 

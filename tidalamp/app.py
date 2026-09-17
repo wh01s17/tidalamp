@@ -21,7 +21,7 @@ from textual.reactive import reactive
 from textual.widgets import Input, Static
 from textual.worker import get_current_worker
 
-from . import about, artwork, audio, columns, config, i18n, library
+from . import about, artwork, audio, columns, config, desktop, i18n, library
 from .auth import NotLoggedIn, ensure_fresh
 from .i18n import _
 from .layouts import Layout, backdrop_for, layout_for
@@ -390,6 +390,9 @@ class TidalAmp(App):
         self._transport_hits: list[tuple[int, int, str]] = []
         self._playable: Playable | None = None
         self._sink = audio.Sink()
+        # Set by the CLI when this is the first start that can offer a menu
+        # launcher. Off by default, so tests and embedders never see it.
+        self.offer_launcher = False
         # The rate mpv sends to the sink, read with it: when the two differ,
         # PipeWire is resampling and the OUT badge says so.
         self._stream_rate = 0
@@ -792,6 +795,32 @@ class TidalAmp(App):
         # cover never appears and nothing else would ever say why.
         if self.art_protocol is not artwork.Protocol.NONE and not artwork.have_decoder():
             self.status = _('sin carátula: falta Pillow (pip install "tidalamp[art]")')
+        if self.offer_launcher:
+            self._ask_launcher()
+
+    def _ask_launcher(self) -> None:
+        """First start: ask whether tidalamp should appear in the menu."""
+        self.push_screen(
+            ChoiceScreen(
+                _("¿AÑADIR TIDALAMP AL MENÚ DE APLICACIONES?"),
+                [
+                    ("create", _("sí, crear el acceso directo")),
+                    ("decline", _("no, y no volver a preguntar")),
+                ],
+                hint=_(" ↑↓ elegir  ↵ aplicar  esc preguntar la próxima vez"),
+            ),
+            self._launcher_answered,
+        )
+
+    def _launcher_answered(self, value: object) -> None:
+        if value == "create":
+            if desktop.create() is not None:
+                self.status = _("tidalamp ya está en el menú de aplicaciones")
+            else:
+                self.status = _("no se pudo crear el acceso directo; mira el registro")
+        elif value == "decline":
+            desktop.decline()
+            self.status = _("sin acceso directo; no se volverá a preguntar")
 
     @_quiet_after_teardown
     def _refresh_theme(self) -> None:
