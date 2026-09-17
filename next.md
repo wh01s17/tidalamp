@@ -21,7 +21,7 @@ Descubrir, la vista de cuadrícula, la gestión de playlists propias y las pági
 llegan solas entraron en la `0.11.0` (publicada el 2026-09-15): ver
 `CHANGELOG.md` y `plan.md` §4. La `0.11.1` (publicada el 2026-09-16) sólo arregla
 el título de la ventana de letras, y la `0.11.2` (publicada el 2026-09-17) que el DAC
-siga el rate de cada pista y no sólo el de la primera. La `0.12.0` (preparada el
+siga el rate de cada pista y no sólo el de la primera. La `0.12.0` (publicada el
 2026-09-17) ofrece añadir tidalamp al menú de aplicaciones. Las escrituras en tus playlists
 se comprobaron contra TIDAL real ese mismo día. Queda por comprobar a mano:
 
