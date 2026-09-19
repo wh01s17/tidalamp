@@ -4,7 +4,13 @@ Documento de traspaso. Describe qué existe, qué está verificado, qué falta y
 criterio se tomaron las decisiones, para que cualquiera (humano o modelo) pueda
 retomar el trabajo sin contexto previo.
 
-**Última actualización:** 2026-09-17, versión `0.13.0` publicada en PyPI y en GitHub,
+**Última actualización:** 2026-09-19, versión `0.14.0` preparada y validada en local,
+pendiente del tag. Lo nuevo: en pantalla completa, `y` pone la letra al lado de la
+carátula en vez de abrir una ventana encima, y con `tab` la cola se acopla a su
+derecha; la letra la dibuja un widget compartido con la ventana de `y`
+(`LyricsBoard`); y los glifos del transporte pasan a su corte pesado, con el signo del
+modo separado de su marca. Ver §4, «Pantalla completa» y «Letras». Antes, 2026-09-17,
+versión `0.13.0` publicada en PyPI y en GitHub,
 con el tag `v0.13.0` sobre `6f6b25a` y el checksum del tarball en `d1de5e3`. Lo nuevo: la fila «Cerrar sesión» de la ventana `o`, que siempre
 borra la sesión y, con su casilla, también la configuración, la cola, el ecualizador,
 la caché y los lanzadores del menú; los versos más anchos que la ventana de letras se
@@ -2163,8 +2169,9 @@ una pista en cada calidad y leer `~/.local/state/tidalamp/tidalamp.log`.
 > cuadrícula, la gestión de playlists y las páginas que llegan solas entraron en la
 > `0.11.0`, publicada el 2026-09-15; la `0.11.1` (2026-09-16) sólo arregla el título
 > de la ventana de letras, y la `0.11.2` (2026-09-17) que el DAC siga el rate de cada
-> pista; la `0.12.0` (2026-09-17) trae el lanzador del menú, y la `0.13.0`
-> (2026-09-17) cerrar sesión; allí quedan las comprobaciones a mano. Esta sección sigue siendo el estado general
+> pista; la `0.12.0` (2026-09-17) trae el lanzador del menú, la `0.13.0`
+> (2026-09-17) cerrar sesión, y la `0.14.0` (preparada el 2026-09-19) la letra al lado
+> de la carátula en pantalla completa; allí quedan las comprobaciones a mano. Esta sección sigue siendo el estado general
 > y aquella, la cola de trabajo.
 
 P1–P4 están cerradas: lo que queda no es funcionalidad que falte para que el
@@ -2174,7 +2181,8 @@ probadas sólo con dobles.
 **Orden propuesto (2026-09-11):** ~~P5 empaquetado~~ y ~~carátula~~ ✅ hechos. Cada
 versión se publica siguiendo `publish.md`; la última publicada es la `0.13.0`
 (2026-09-17), en PyPI y en GitHub, con el checksum del tarball ya en el PKGBUILD
-(`d1de5e3`). Lo que queda abierto aquí pide
+(`d1de5e3`). La `0.14.0` está preparada y validada en local, pendiente del tag, con el
+checksum del PKGBUILD en `SKIP` hasta que exista. Lo que queda abierto aquí pide
 credenciales tuyas o un par de ojos.
 
 1. Publicar en el AUR cuando vuelva a abrir el registro de cuentas nuevas. El paquete
