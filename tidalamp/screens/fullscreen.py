@@ -16,9 +16,10 @@ from textual.widgets import Static
 from .. import artwork, config
 from ..columns import QUALITY_LABELS
 from ..i18n import _
-from ..queue import Repeat
+from ..lyrics import LyricsDocument
+from ..queue import Entry, Repeat
 from ..theme import palette_for
-from ..widgets import Artwork, SeekBar
+from ..widgets import Artwork, LyricsBoard, SeekBar
 from .rowlist import RowList
 
 if TYPE_CHECKING:
@@ -51,11 +52,17 @@ SIXEL_ROWS = 1280 // artwork.CELL[1]
 
 
 class FullscreenScreen(Screen[None]):
-    """The cover centred and large, a bar at the foot, the queue on demand.
+    """The cover centred and large, a bar at the foot, the words and the
+    queue on demand.
 
     Not a window over the player but the player's other face: the cover is
     drawn here, not hidden, and windows opened over this view (help, speed)
     hide it the way they hide the player's. Opened with `w`, left with esc.
+
+    `y` and `tab` open two panels to the right of the cover, which shrinks to
+    make room: the lyrics first and the queue against the edge, so opening
+    the queue over open lyrics docks it on the right rather than pushing the
+    words out of the way.
     """
 
     BINDINGS = [
@@ -75,8 +82,16 @@ class FullscreenScreen(Screen[None]):
         self._pending: artwork.Cover | None = None
         self._suspended = False
         self._panel = False
+        # The lyrics panel: whether it is open, and which track it is on, so
+        # a track change is noticed on the tick and asked for once.
+        self._words = False
+        self._words_entry: int | None = None
         # The clickable glyphs on the controls line, as (start, end, action).
         self._hits: list[tuple[int, int, str]] = []
+        # The buttons on the right of the bar, as (start, end, action) in
+        # cells counted back from the right edge: that line is right-aligned,
+        # so where each word sits depends on the width of the bar.
+        self._side_hits: list[tuple[int, int, str]] = []
         # What the queue panel last mirrored, to redraw it only when it changed.
         self._queue_shape: tuple = ()
         # Set once a kitty cover has been shown here: closing the view deletes
@@ -95,6 +110,13 @@ class FullscreenScreen(Screen[None]):
         with Horizontal(id="fs-body"):
             with Vertical(id="fs-stage"):
                 yield FullArtwork(id="fs-art")
+            with Vertical(id="fs-lyrics"):
+                # The words alone, with no heading over them: beside the
+                # cover it is plain what they are, and the button on the bar
+                # says so. Centred in their column, like the cover in its
+                # stage, and drifting because the arrows here belong to the
+                # queue: plain lyrics are carried by the song, not scrolled.
+                yield LyricsBoard(id="fs-lyrics-body", drift=True, centre=True)
             with Vertical(id="fs-queue"):
                 yield Static(_("COLA"), id="fs-queue-title", markup=False)
                 yield RowList(id="fs-queue-list")
@@ -112,6 +134,7 @@ class FullscreenScreen(Screen[None]):
         # view wears too, so a theme changes both.
         self.styles.border = self.player.query_one("#main").styles.border
         self.query_one("#fs-queue").display = False
+        self.query_one("#fs-lyrics").display = False
         # The panel is the player's queue, not a copy with a cursor of its own:
         # every queue key (`g`, `d`, `alt+↑↓`, `m`, `f`) acts on the player's
         # cursor, so the panel follows that cursor the moment it moves.
@@ -248,6 +271,8 @@ class FullscreenScreen(Screen[None]):
         self._render_track()
         self._render_controls()
         self._render_side()
+        if self._words:
+            self._sync_lyrics(position, duration)
         if self._panel:
             self.mirror_queue()
         if self._current_url() != self._url:
@@ -314,12 +339,31 @@ class FullscreenScreen(Screen[None]):
         if playable is not None:
             quality = QUALITY_LABELS.get(playable.quality, playable.quality)
             text.append(f"{quality} · {playable.khz} kHz", style=palette["muted"])
+        # The two panels as buttons, lit while they are open. Each carries the
+        # key that opens it, so the line under them is left for the way out.
+        gap = "   "
+        buttons = [
+            ("toggle_lyrics", f"{self.player.lyrics_key} ♪ " + _("letra"), self._words),
+            ("toggle_queue", "tab ≡ " + _("cola"), self._panel),
+        ]
+        text.append("\n")
+        self._side_hits = []
+        # Counted back from the right edge, the end of the line: the whole
+        # line is right-aligned, so the last button ends where the bar does.
+        back = 0
+        for index, (action, label, _lit) in enumerate(reversed(buttons)):
+            if index:
+                back += cell_len(gap)
+            self._side_hits.append((back, back + cell_len(label), action))
+            back += cell_len(label)
+        for index, (_action, label, lit) in enumerate(buttons):
+            if index:
+                text.append(gap, style=palette["muted"])
+            text.append(
+                label, style=f"bold {palette['accent']}" if lit else palette["body"]
+            )
         text.append(
-            "\n≡ " + _("cola"),
-            style=f"bold {palette['accent']}" if self._panel else palette["body"],
-        )
-        text.append(
-            f"\n? {_('ayuda')}   tab {_('cola')}   w/esc {_('volver')}",
+            f"\n? {_('ayuda')}   w/esc {_('volver')}",
             style=palette["muted"],
         )
         self.query_one("#fs-side", Static).update(text)
@@ -346,8 +390,78 @@ class FullscreenScreen(Screen[None]):
 
     @on(events.Click, "#fs-side")
     def _side_clicked(self, event: events.Click) -> None:
-        self.action_toggle_queue()
+        """The buttons sit on the second row of the side, against its right
+        edge: which one was hit is counted back from that edge."""
+        region = self.query_one("#fs-side").content_region
         event.stop()
+        if event.screen_y != region.y + 1:
+            return
+        back = region.right - 1 - event.screen_x
+        for start, end, action in self._side_hits:
+            if start <= back < end:
+                getattr(self, f"action_{action}")()
+                break
+
+    # ------------------------------------------------------------ the words
+
+    @property
+    def lyrics_open(self) -> bool:
+        return self._words
+
+    def action_toggle_lyrics(self) -> None:
+        """Show or hide the words beside the cover, which shrinks to make room.
+
+        With the queue open too the words go between the two, so the queue
+        stays against the right edge where `tab` put it.
+        """
+        self._words = not self._words
+        self.query_one("#fs-lyrics").display = self._words
+        if self._words:
+            # From scratch: the panel may have been closed for several tracks.
+            self._words_entry = None
+            self._sync_lyrics(self.player.mpv.position, self.player.mpv.duration)
+        self._render_side()
+        self.call_after_refresh(self._fit)
+
+    def _sync_lyrics(self, position: float, duration: float) -> None:
+        """Keep the panel on the playing track and on the line it is singing.
+
+        One fetch per track, in a worker, through the same cache `y` uses in
+        the player; everything else is the board comparing line numbers.
+        """
+        board = self.query_one("#fs-lyrics-body", LyricsBoard)
+        entry = self.player.queue.current
+        wanted = entry.id if entry is not None else None
+        if wanted != self._words_entry:
+            self._words_entry = wanted
+            if entry is None:
+                board.show(None, _("no hay una pista reproduciéndose"))
+            else:
+                board.show(None, _("buscando la letra…"))
+                self._lyrics_worker(entry)
+        board.follow(position, duration)
+
+    @work(thread=True, exclusive=True, group="fs-lyrics")
+    def _lyrics_worker(self, entry: Entry) -> None:
+        try:
+            document = self.player._lyrics_for(entry)
+        except Exception as exc:
+            self.app.call_from_thread(self._lyrics_failed, entry.id, str(exc))
+            return
+        self.app.call_from_thread(self._lyrics_ready, entry.id, document)
+
+    def _lyrics_ready(self, entry_id: int, document: LyricsDocument) -> None:
+        # The track moved on, or the view was closed, while the lyrics were
+        # in flight: a thread worker is not stopped in the middle, and what
+        # it answers to is gone.
+        if entry_id != self._words_entry or not self.is_mounted:
+            return
+        self.query_one("#fs-lyrics-body", LyricsBoard).show(document)
+
+    def _lyrics_failed(self, entry_id: int, message: str) -> None:
+        if entry_id != self._words_entry or not self.is_mounted:
+            return
+        self.query_one("#fs-lyrics-body", LyricsBoard).show(None, message)
 
     # ------------------------------------------------------------ the queue
 

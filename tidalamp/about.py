@@ -353,7 +353,8 @@ def shortcuts(keys) -> tuple[Section, ...]:
             _("Pantalla completa"),
             (
                 (f"{key('fullscreen')} / esc", _("volver al reproductor")),
-                ("tab", _("mostrar u ocultar la cola, al lado de la carátula")),
+                (key("lyrics"), _("mostrar u ocultar la letra, al lado de la carátula")),
+                ("tab", _("mostrar u ocultar la cola, a la derecha de la letra")),
                 ("↑ / ↓   ↵", _("en la cola: moverse y reproducir")),
                 (key("to_playing"), _("ir a la pista que suena; abre la cola")),
                 (key("remove"), _("quitar la pista del cursor")),

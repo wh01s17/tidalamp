@@ -471,3 +471,226 @@ def test_the_tick_can_reach_the_view_before_it_is_mounted(monkeypatch):
     view = FullscreenScreen()
     view.follow(12.0, 200.0)
     view.mirror_queue(force=True)
+
+
+def _synced(count: int = 30) -> str:
+    """An LRC of `count` lines, one a second."""
+    return "\n".join(f"[00:{i:02d}.00]verso {i}" for i in range(count))
+
+
+def a_lyric_for_every_track(monkeypatch, subtitles: str = "", text: str = "") -> None:
+    from tidalamp.lyrics import parse_lyrics
+
+    monkeypatch.setattr(
+        TidalAmp,
+        "_lyrics_for",
+        lambda self, entry: parse_lyrics(
+            subtitles=subtitles.format(title=entry.title) if subtitles else "",
+            text=text.format(title=entry.title) if text else "",
+            provider="Musixmatch",
+        ),
+    )
+
+
+def _board(screen):
+    from tidalamp.widgets import LyricsBoard
+
+    return screen.query_one("#fs-lyrics-body", LyricsBoard)
+
+
+def test_y_puts_the_words_beside_the_cover_and_the_queue_docks_to_their_right(
+    monkeypatch,
+):
+    """In the view `y` is a panel, not a window: a window there would hide the
+    very cover the words belong to. The cover shrinks to make room, and `tab`
+    then puts the queue against the right edge, past the words."""
+    isolate_runtime(monkeypatch)
+    a_lyric_for_every_track(monkeypatch, subtitles=_synced())
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(160, 44)) as pilot:
+            await pilot.pause()
+            a_queue_playing(application)
+            await pilot.press("w")
+            await pilot.pause()
+            screen = application.screen
+            words = screen.query_one("#fs-lyrics")
+            assert not words.display
+            stage = screen.query_one("#fs-stage").size.width
+
+            await pilot.press("y")
+            await settle(pilot, lambda: _board(screen).document is not None)
+            assert screen.lyrics_open and words.display
+            assert screen.query_one("#fs-stage").size.width < stage
+            # No window over the view: the cover is still the screen in front.
+            assert application.screen is screen
+
+            await pilot.press("tab")
+            await pilot.pause()
+            queue = screen.query_one("#fs-queue")
+            body = screen.query_one("#fs-body")
+            assert words.region.x < queue.region.x
+            assert words.region.right == queue.region.x
+            assert queue.region.right == body.region.right
+
+            await pilot.press("y")
+            await pilot.pause()
+            assert not screen.lyrics_open and not words.display
+            # The queue stays where it was, now beside the cover again.
+            assert queue.display and queue.region.right == body.region.right
+
+    asyncio.run(scenario())
+
+
+def test_the_words_in_the_view_follow_the_song_and_the_track(monkeypatch):
+    """The sung line is marked and the panel moves with it, and a track
+    changed under the view (here by the media keys) is asked for again."""
+    isolate_runtime(monkeypatch)
+    a_lyric_for_every_track(monkeypatch, subtitles=_synced())
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(160, 30)) as pilot:
+            await pilot.pause()
+            a_queue_playing(application)
+            await pilot.press("w", "y")
+            screen = application.screen
+            await settle(pilot, lambda: _board(screen).document is not None)
+
+            def marked() -> str:
+                board = _board(screen)
+                rows = [board.render_line(y).text for y in range(board.size.height)]
+                return next((row for row in rows if "▶" in row), "")
+
+            screen.follow(3.0, 60.0)
+            await pilot.pause()
+            assert "verso 3" in marked()
+            screen.follow(21.0, 60.0)
+            await pilot.pause()
+            assert "verso 21" in marked()
+
+            # The words alone: no heading over them, and no empty row
+            # where one used to be.
+            assert not screen.query("#fs-lyrics-title")
+
+            application.mpris_next()
+            await settle(pilot, lambda: screen._words_entry == 1)
+            assert _board(screen).document is not None
+
+    asyncio.run(scenario())
+
+
+def test_plain_words_in_the_view_are_carried_by_the_song(monkeypatch):
+    """The arrows in the view belong to the queue, so lyrics without
+    timestamps are not scrolled by hand: they move with the track, and the
+    last line is on screen by the end of it."""
+    isolate_runtime(monkeypatch)
+    a_lyric_for_every_track(monkeypatch, text="\n".join(f"verso {i}" for i in range(60)))
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(160, 30)) as pilot:
+            await pilot.pause()
+            a_queue_playing(application)
+            await pilot.press("w", "y")
+            screen = application.screen
+            await settle(pilot, lambda: _board(screen).document is not None)
+
+            def shown() -> str:
+                board = _board(screen)
+                return "\n".join(
+                    board.render_line(y).text for y in range(board.size.height)
+                )
+
+            screen.follow(0.0, 200.0)
+            await pilot.pause()
+            assert "verso 0" in shown()
+            assert "verso 59" not in shown()
+
+            screen.follow(200.0, 200.0)
+            await pilot.pause()
+            assert "verso 59" in shown()
+
+    asyncio.run(scenario())
+
+
+def test_the_words_button_on_the_bar_opens_them_too(monkeypatch):
+    """Two buttons on the right of the bar, each with the key that opens it:
+    a click on «letra» is `y` and one on «cola» is tab."""
+    isolate_runtime(monkeypatch)
+    a_lyric_for_every_track(monkeypatch, subtitles=_synced())
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(160, 44)) as pilot:
+            await pilot.pause()
+            a_queue_playing(application)
+            await pilot.press("w")
+            await pilot.pause()
+            screen = application.screen
+            side = screen.query_one("#fs-side")
+            line = side.render_line(1).text
+            assert "letra" in line and line.rstrip().endswith("cola")
+
+            def click(action: str) -> tuple[int, int]:
+                start, end, _a = next(
+                    hit for hit in screen._side_hits if hit[2] == action
+                )
+                middle = (start + end) // 2
+                region = side.content_region
+                return (region.right - 1 - middle - side.region.x, 1)
+
+            await pilot.click("#fs-side", offset=click("toggle_lyrics"))
+            await pilot.pause()
+            assert screen.lyrics_open
+            await pilot.click("#fs-side", offset=click("toggle_queue"))
+            await pilot.pause()
+            assert screen.queue_open
+            await pilot.click("#fs-side", offset=click("toggle_lyrics"))
+            await pilot.pause()
+            assert not screen.lyrics_open
+
+    asyncio.run(scenario())
+
+
+def test_the_words_sit_in_the_middle_of_their_half_of_the_view(monkeypatch):
+    """Beside the cover the words are a page of their own: they take half of
+    what the queue leaves, as the cover does, and the block is centred across
+    that half and down it instead of hanging from a corner."""
+    isolate_runtime(monkeypatch)
+    a_lyric_for_every_track(monkeypatch, subtitles=_synced(count=6))
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(160, 44)) as pilot:
+            await pilot.pause()
+            a_queue_playing(application)
+            await pilot.press("w", "y")
+            screen = application.screen
+            await settle(pilot, lambda: _board(screen).document is not None)
+            board = _board(screen)
+            rows = [board.render_line(y).text for y in range(board.size.height)]
+            written = [row for row in rows if row.strip()]
+
+            # As much air to the left of the block as to the right of it, and
+            # as many empty rows above it as below.
+            left = min(len(row) - len(row.lstrip()) for row in written)
+            right = board.size.width - max(len(row.rstrip()) for row in written)
+            assert left > 0 and abs(left - right) <= 1
+            above = rows.index(written[0])
+            below = len(rows) - 1 - rows.index(written[-1])
+            assert above > 0 and abs(above - below) <= 1
+
+            # The panel takes half of what the queue leaves, so with the
+            # queue closed the words are centred in that half and not pinned
+            # against the frame.
+            words = screen.query_one("#fs-lyrics")
+            body = screen.query_one("#fs-body")
+            assert words.region.right == body.region.right
+            assert words.region.width == screen.query_one("#fs-stage").region.width
+            await pilot.press("tab")
+            await pilot.pause()
+            assert words.region.right == screen.query_one("#fs-queue").region.x
+
+    asyncio.run(scenario())

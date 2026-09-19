@@ -395,8 +395,11 @@ ENGLISH: dict[str, str] = {
     ),
     "Pantalla completa": "Full screen",
     "volver al reproductor": "back to the player",
-    "mostrar u ocultar la cola, al lado de la carátula": (
-        "show or hide the queue, beside the cover"
+    "mostrar u ocultar la cola, a la derecha de la letra": (
+        "show or hide the queue, to the right of the lyrics"
+    ),
+    "mostrar u ocultar la letra, al lado de la carátula": (
+        "show or hide the lyrics, beside the cover"
     ),
     "en la cola: moverse y reproducir": "in the queue: move and play",
     "ir a la pista que suena; abre la cola": "go to the playing track; opens the queue",

@@ -1111,7 +1111,12 @@ class TidalAmp(App):
     # glyph is the action it will do: "▶" while stopped or paused, "‖" while
     # something is playing, which is what every transport in the world does.
     # Every state remains legible without colour and keeps a fixed width.
-    REPEAT_GLYPHS = {Repeat.NONE: "↻–", Repeat.QUEUE: "↻A", Repeat.TRACK: "↻1"}
+    # The sign and the mark it carries, kept apart so a view with room to
+    # spare can put air between them: run together they read as one glyph
+    # nobody can name, and the full-screen bar draws them «↻ A».
+    REPEAT_SIGN = "↻"
+    REPEAT_TAGS = {Repeat.NONE: "–", Repeat.QUEUE: "A", Repeat.TRACK: "1"}
+    REPEAT_GLYPHS = {mode: "↻" + tag for mode, tag in REPEAT_TAGS.items()}
 
     # The same three states behind a spelled-out label. One cell each, so the
     # word keeps its width whichever mode is on.
@@ -2195,8 +2200,11 @@ class TidalAmp(App):
         self._prefetching = entry
         # The lyrics only when something on screen follows the playing track
         # with them: otherwise it is a request per track nobody reads.
-        lyrics = self.split or any(
-            isinstance(screen, LyricsScreen) for screen in self.screen_stack
+        view = self._fullscreen()
+        lyrics = (
+            self.split
+            or (view is not None and view.lyrics_open)
+            or any(isinstance(screen, LyricsScreen) for screen in self.screen_stack)
         )
         self._prefetch_worker(entry, lyrics)
 
@@ -2769,6 +2777,12 @@ class TidalAmp(App):
         self.query_one(LyricsPane).show(document, message)
 
     def action_lyrics(self) -> None:
+        # In the full-screen view the words are a panel beside the cover, not
+        # a window over it: a window there hides the very cover they belong
+        # to, and its own panel can sit next to the queue.
+        if isinstance(self.screen, FullscreenScreen):
+            self.screen.action_toggle_lyrics()
+            return
         if self.queue.current is None:
             self.status = _("no hay una pista reproduciéndose")
             return
@@ -2798,6 +2812,12 @@ class TidalAmp(App):
             ).format(width=self.MIN_WIDTH, height=self.MIN_HEIGHT)
             return
         self.push_screen(FullscreenScreen())
+
+    @property
+    def lyrics_key(self) -> str:
+        """The key that opens the lyrics, for the full-screen view's button:
+        `y`, or whatever the config file rebound it to."""
+        return keys_for("lyrics").split(",")[0]
 
     def _fullscreen(self) -> FullscreenScreen | None:
         """The full-screen view, if it is anywhere on the stack."""

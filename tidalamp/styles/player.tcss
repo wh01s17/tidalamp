@@ -643,8 +643,8 @@
 }
 
 /* The full-screen view (`w`): the cover centred on the display's ground, a
-   bar of three rows at the foot on the panel, and the queue beside the cover
-   when it is asked for. Colour is the palette's; the frame is copied from the
+   bar of three rows at the foot on the panel, and the words (`y`) and the
+   queue (`tab`) beside the cover when they are asked for. Colour is the palette's; the frame is copied from the
    player's by the screen itself, so the look carries over. */
 FullscreenScreen {
     background: $tidalamp-display-background;
@@ -659,6 +659,23 @@ FullscreenScreen {
     width: 1fr;
     align: center middle;
     background: $tidalamp-display-background;
+}
+
+/* The words beside the cover, on the display's own ground and with no rule
+   between the two: they are part of what is being shown, not the window next
+   door. The queue keeps its rule, so it still reads as a panel of its own.
+   They take half of what the queue leaves, as the cover does, and the block
+   is centred in that half (`LyricsBoard(centre=True)`), so it sits between
+   the cover and the edge rather than pinned to either of them. A column all
+   the same, so the queue opened over the words docks to their right. */
+#fs-lyrics {
+    width: 1fr;
+    background: $tidalamp-display-background;
+    padding: 1 2;
+}
+
+#fs-lyrics-body {
+    height: 1fr;
 }
 
 #fs-queue {
