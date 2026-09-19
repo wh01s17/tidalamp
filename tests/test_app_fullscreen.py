@@ -563,10 +563,19 @@ def test_the_words_in_the_view_follow_the_song_and_the_track(monkeypatch):
                 rows = [board.render_line(y).text for y in range(board.size.height)]
                 return next((row for row in rows if "▶" in row), "")
 
-            screen.follow(3.0, 60.0)
+            def at(second: float) -> None:
+                # Through mpv and not only through `follow`: the player's own
+                # tick calls it too, with mpv's position, and on a slow
+                # machine it landed between the call and the reading and put
+                # the panel back on the first line.
+                application.mpv.position = second
+                application.mpv.duration = 60.0
+                screen.follow(second, 60.0)
+
+            at(3.0)
             await pilot.pause()
             assert "verso 3" in marked()
-            screen.follow(21.0, 60.0)
+            at(21.0)
             await pilot.pause()
             assert "verso 21" in marked()
 
@@ -603,12 +612,19 @@ def test_plain_words_in_the_view_are_carried_by_the_song(monkeypatch):
                     board.render_line(y).text for y in range(board.size.height)
                 )
 
-            screen.follow(0.0, 200.0)
+            def at(second: float) -> None:
+                # Through mpv as well: the player's tick calls `follow` with
+                # mpv's own position, and it would carry the words back.
+                application.mpv.position = second
+                application.mpv.duration = 200.0
+                screen.follow(second, 200.0)
+
+            at(0.0)
             await pilot.pause()
             assert "verso 0" in shown()
             assert "verso 59" not in shown()
 
-            screen.follow(200.0, 200.0)
+            at(200.0)
             await pilot.pause()
             assert "verso 59" in shown()
 
