@@ -272,6 +272,15 @@ ENGLISH: dict[str, str] = {
     "sin acceso directo; no se volverá a preguntar": (
         "no shortcut; you will not be asked again"
     ),
+    "En pantalla completa, y pone la letra al lado de la carátula.": (
+        "In full screen, y puts the lyrics beside the cover."
+    ),
+    "Con la cola abierta: carátula, letra y cola, de izquierda a derecha.": (
+        "With the queue open: cover, lyrics and queue, left to right."
+    ),
+    "Iconos del transporte más gruesos y con aire entre signo y marca.": (
+        "Heavier transport icons, with air between sign and mark."
+    ),
     "Cerrar sesión desde o; si quieres, borra también los datos.": (
         "Log out from o; optionally, delete the data too."
     ),

@@ -9,7 +9,7 @@ or the Winamp trademark holders.
 
 import logging
 
-__version__ = "0.13.0"
+__version__ = "0.14.0"
 
 # Without a handler of our own, logging's last-resort handler would print
 # warnings straight to stderr — on top of the TUI. config.setup_logging()

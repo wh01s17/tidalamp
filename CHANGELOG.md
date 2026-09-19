@@ -5,6 +5,8 @@ versioning is [semantic](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.14.0] - 2026-09-19
+
 ### Added
 
 - In the full-screen view (`w`), `y` shows the lyrics beside the cover instead of
@@ -16,6 +18,18 @@ versioning is [semantic](https://semver.org/).
   side. Both panels have a button at the right of the bar, each with the key that
   opens it, and the view's help (`?`) lists them. Lyrics without timestamps are
   carried along by the track here, because the arrows in the view belong to the queue.
+
+### Changed
+
+- The transport glyphs are cut heavier, because the thin ones read as specks beside
+  the words next to them: `⟳` for repeat instead of `↻`, `⬤ ◯` for the mode lamps
+  instead of `● ○`, and `⏸` for pause instead of `‖`. Each one still takes a single
+  cell, so no button changes width.
+- Shuffle and repeat put a space between the sign and the mark that says the mode:
+  `⇄ ⬤` and `⟳ A` instead of `⇄●` and `↻A`, which read as one glyph. The compact
+  player, which has no columns to spare, keeps them pressed together.
+- The full-screen bar draws its controls in bold whether they are lit or not, with
+  more air between them, and pauses on `❚❚`.
 
 ## [0.13.0] - 2026-09-17
 
