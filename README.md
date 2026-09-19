@@ -198,7 +198,7 @@ show the key that actually works.
 | `d`             | inside the browser, remove from favourites or from the open playlist |
 | `m`             | inside the browser, open the menu of a track, album, artist or playlist |
 | `y`             | show lyrics for the current track                  |
-| `s` `r`         | shuffle (`⇄`) / repeat (`↻`), on the transport row |
+| `s` `r`         | shuffle (`⇄`) / repeat (`⟳`), on the transport row |
 | `d`             | remove from the queue                              |
 | `alt+↑` `alt+↓` | move the track in the queue                        |
 | `e`             | open the equalizer                                 |
@@ -222,8 +222,13 @@ could make the browser unusable.
 
 `w` opens a full-screen view: the cover as large as the terminal allows, centred, and a
 bar at the foot with the track on the left, the controls, the seek bar and the times in
-the middle, and the quality and a button for the queue on the right. `tab` (or a click
-on that button) opens the queue beside the cover, which shrinks to make room; `↑` `↓`
+the middle, and the quality and buttons for the lyrics and the queue on the right. `y`
+(or a click on its button) puts the lyrics beside the cover rather than in a window over
+it: the words alone, with no heading and no rule between them and the cover, centred
+in their column and following the song with the sung line marked. Where TIDAL sends no timestamps they are carried
+along by the track, since the arrows here belong to the queue. `tab`
+(or a click on that button) opens the queue beside the cover, which shrinks to make room;
+with both open it is cover, lyrics and queue, left to right. `↑` `↓`
 walk it and `Enter` plays, and the queue's own keys work in it as they do in the
 player's: `g` goes to the playing track (and opens the panel if it is closed), `d`
 removes, `alt+↑` `alt+↓` move, `m` opens the track menu, `f` `F` favourite. With the
@@ -281,7 +286,8 @@ They arrive a moment after the tiles, the ones on screen first.
 
 Tracks play one into the next with no gap: the next one is fetched from TIDAL shortly
 before the current one ends and handed to mpv ahead of time, along with its cover (and
-its lyrics, when the split view or the lyrics window is showing them).
+its lyrics, when the split view, the lyrics window or the full-screen view's panel is
+showing them).
 
 Quitting keeps your place: the queue comes back on the next start with the cursor on
 the track you were hearing, the status line says the second it will resume at, and
@@ -346,9 +352,10 @@ The speed lasts until you quit.
 
 `s` toggles shuffle and `r` cycles repeat (off → queue → track). Both sit on the
 transport row as buttons, lit in the palette's accent while they are on. Every state
-is also readable without colour: `⇄○`/`⇄●` for shuffle, and `↻–`/`↻A`/`↻1` for the
-three repeat modes — the `retro`, `nova` and `ascii` layouts spell the same states out
-as `SHUFFLE ○` and `REPEAT 1`.
+is also readable without colour: `⇄ ◯`/`⇄ ⬤` for shuffle, and `⟳ –`/`⟳ A`/`⟳ 1` for
+the three repeat modes — the `retro`, `nova` and `ascii` layouts spell the same states
+out as `SHUFFLE ◯` and `REPEAT 1`. The compact player, short of columns, presses each
+sign against its mark.
 
 `p` **saves the queue as a new TIDAL playlist**: it asks for a name and creates it with
 the tracks in queue order, not in shuffle order, because what is saved is the list and
@@ -736,7 +743,8 @@ TIDALAMP_LANG=en tidalamp
 
 `y` opens lyrics for the current track without stopping playback. When TIDAL provides
 LRC subtitles, the active line is highlighted and the window follows mpv's position.
-Plain text can be scrolled with `↑`, `↓`, `PageUp`, and `PageDown`.
+Plain text can be scrolled with `↑`, `↓`, `PageUp`, and `PageDown`. In the full-screen
+view (`w`) the same words open as a panel beside the cover instead of a window over it.
 
 Not every track has lyrics, and regional licences do not always expose them. In that
 case, the window displays an error and playback continues normally.

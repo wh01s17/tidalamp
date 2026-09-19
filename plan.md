@@ -742,6 +742,16 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
       los versos que no caben siguen en la fila de abajo bajo su texto y la línea
       cantada queda a la vista. Una primera captura salió mal porque era una app
       arrancada antes del arreglo: tras cambiar código, reiniciar tidalamp.
+- [x] **Un solo sitio donde se dibuja la letra:** `LyricsBoard` (`scrolling.py`). El
+      partido por palabras, el `fit()` por filas y el marcador estaban dentro de
+      `LyricsScreen`, y la pantalla completa necesitaba lo mismo al lado de la
+      carátula. Ahora es un widget: la ventana le pasa la posición (`follow`) y le
+      mueve la letra plana a mano (`scroll_lines`), y el panel de la vista lo crea con
+      `drift=True`, que lleva la letra plana con la pista como hace `LyricsPane` en
+      split. `LyricsPane` se queda como estaba: recorta con «…» para no perder el
+      centro de la línea cantada en una banda de nueve filas, y eso sigue siendo lo
+      suyo. Repinta sólo cuando cambia la línea cantada o el desplazamiento, no cuatro
+      veces por segundo.
 
 ### Carátula — `artwork.py`, `widgets.py`
 
@@ -822,12 +832,19 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
       que se pierde es la cola. El recorte necesita el ancho, que sólo existe tras el
       layout, así que `_check_size()` vuelve a pintar la barra al redimensionar.
 - [x] Shuffle y repetición dejaron de ser una fila propia con las palabras
-      `SHUF OFF` / `REP ALL`: ahora son dos botones más del transporte, `s ⇄` y `r ↻`,
-      encendidos con el acento del tema cuando están activos. Repetir-una es `r ↻1`,
+      `SHUF OFF` / `REP ALL`: ahora son dos botones más del transporte, `s ⇄` y `r ⟳`,
+      encendidos con el acento del tema cuando están activos. Repetir-una es `r ⟳ 1`,
       porque es el único estado que el color no puede decir solo.
-- [x] `↻ ` y `↻1` miden lo mismo a propósito: al cambiar de modo la fila no se desplaza.
+- [x] `⟳ –` y `⟳ 1` miden lo mismo a propósito: al cambiar de modo la fila no se
+      desplaza.
+- [x] **El corte pesado de cada glifo** (2026-09-19, pedido por el mantenedor tras
+      verlos en su terminal): `⟳` en vez de `↻`, `⬤ ◯` en vez de `● ○` y `⏸` en vez de
+      `‖`, todos de una celda, así que ningún botón cambia de ancho. Los finos se leían
+      como motas al lado del texto. Y el signo va separado de su marca (`s ⇄ ⬤`,
+      `r ⟳ A`) con el mismo `separator` que ya había entre la tecla y el glifo, que en
+      compacto es la cadena vacía y los deja pegados.
 - [x] Play y pausa son **un solo botón y una sola tecla**: `x ▶` parado o en pausa,
-      `x ‖` sonando —el icono es la acción que hará al pulsarlo—. `action_play` cubre
+      `x ⏸` sonando —el icono es la acción que hará al pulsarlo—. `action_play` cubre
       los tres estados. La `c` de Winamp desapareció: después de fusionar los botones
       hacía exactamente lo mismo que `x`, y dos atajos para una función es el desorden
       que la fusión venía a quitar. `pause` ya no está en `DEFAULT_KEYS` ni en la
@@ -1700,6 +1717,44 @@ fichero en sí.
       biblioteca con la suya.
 - [x] Colores de la paleta; el marco se copia del `#main` del reproductor, así que
       cada tema viste también esta vista.
+- [x] **Los controles se ven** (señalado por el mantenedor en su terminal): van en
+      negrita estén encendidos o no —apagados pesaban lo mismo que los tiempos de
+      debajo y se perdían en la barra—, con seis celdas entre botón y botón, y la
+pausa es `❚❚`, con
+      el play rellenado a dos celdas (`▶ `) como la fila ascii rellena `> ` a `||`: un
+      botón que cambia de ancho mueve la fila cada vez que se pulsa. Los modos van
+      `⇄ ⬤` y `⟳ A`, con el signo separado de la marca; para eso `REPEAT_GLYPHS` se
+      parte en `REPEAT_SIGN` y `REPEAT_TAGS`.
+- [x] **La letra al lado de la carátula** (`y`). En la vista, `y` no abre la ventana
+      del reproductor: una ventana ahí tapa justo la carátula a la que pertenece la
+      letra. Abre un panel entre la carátula y la cola, así que con las dos abiertas
+      quedan carátula, letra y cola de izquierda a derecha, y la cola sigue pegada al
+      borde donde la puso `tab`. La carátula encoge y se vuelve a pedir a su tamaño
+      (`_fit`), como al abrir la cola. El panel lo dibuja `LyricsBoard`, el mismo
+      widget que la ventana de `y` (ver «Letras»), y se carga con un worker por pista
+      contra la misma cache (`_lyrics_for`); `_prefetch_next` también calienta la
+      letra de la pista siguiente mientras el panel esté abierto. La letra sin
+      timestamps la lleva la canción (`drift`), porque aquí las flechas son de la
+      cola. `action_lyrics` mira si la vista está delante y, si lo está, alterna el
+      panel; el resto del reproductor sigue abriendo la ventana.
+- [x] **El panel son las palabras y nada más:** sin encabezado (al lado de la carátula
+      se ve lo que es, y el botón de la barra lo dice) y sin regla entre la carátula y
+      la letra, que son la misma cosa mostrada; la cola sí conserva la suya, porque es
+      la ventana de al lado. Relleno de dos celdas por los cuatro lados y, con la cola
+      cerrada, cuatro más de margen a la derecha (`-alone`), porque un verso largo
+      llegaba al marco.
+- [x] **El bloque, centrado en su columna** (`LyricsBoard(centre=True)`): la sangría
+      sale del verso más ancho de **toda** la letra, no de las líneas en pantalla, así
+      que no baila al pasar la canción; va fuera del estilo, para que el resaltado sea
+      las palabras y no el aire. Y una letra más corta que el panel se centra también
+      a lo alto, en vez de colgar del borde de arriba: eso último vale igual para la
+      ventana de `y`.
+- [x] **Dos botones a la derecha de la barra**, «♪ letra» y «≡ cola», cada uno con la
+      tecla que lo abre delante y encendido en el acento mientras está abierto; debajo
+      queda `? ayuda   w/esc volver`, que es la salida. Antes un clic en cualquier
+      parte de `#fs-side` abría la cola: ahora la línea guarda sus rangos en celdas
+      **contadas desde el borde derecho** (`_side_hits`), porque la línea va alineada
+      a la derecha y dónde cae cada palabra depende del ancho de la barra.
 
 ### mpv que no contesta - `player.py`, `app.py`
 

@@ -5,6 +5,18 @@ versioning is [semantic](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- In the full-screen view (`w`), `y` shows the lyrics beside the cover instead of
+  opening a window over it: the cover shrinks to make room, and the words follow the
+  song with the sung line marked, as they do in the window. The panel is the words
+  alone — no heading, and no rule between them and the cover — centred in its column,
+  and a lyric shorter than the panel sits centred down it too. Opening the queue with
+  `tab` docks it to the right of the words, so cover, words and queue sit side by
+  side. Both panels have a button at the right of the bar, each with the key that
+  opens it, and the view's help (`?`) lists them. Lyrics without timestamps are
+  carried along by the track here, because the arrows in the view belong to the queue.
+
 ## [0.13.0] - 2026-09-17
 
 ### Added
