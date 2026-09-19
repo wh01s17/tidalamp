@@ -181,7 +181,7 @@ def lit(application) -> dict[str, bool]:
     accent = application.tidalamp_palette["accent"].lower()
     found = {}
     for segment in application.query_one("#transport-play").render_line(LABEL_ROW):
-        for glyph in ("⇄", "↻"):
+        for glyph in ("⇄", "⟳"):
             if glyph in segment.text:
                 colour = segment.style.bgcolor
                 found[glyph] = colour is not None and colour.name.lower() == accent

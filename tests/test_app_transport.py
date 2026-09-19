@@ -56,7 +56,7 @@ def test_the_transport_buttons_are_clickable_without_changing_keyboard_controls(
 
             assert clicked is True
             assert application.queue.shuffle is True
-            assert "⇄●" in transport(application)
+            assert "⇄ ⬤" in transport(application)
 
     asyncio.run(scenario())
 
@@ -102,7 +102,7 @@ def test_the_buttons_show_the_rebound_key_not_the_shipped_one(monkeypatch):
 
 
 def test_play_and_pause_are_one_button_showing_what_it_will_do(monkeypatch):
-    """There used to be «x ▶» and «c ‖» side by side, and only one of them
+    """There used to be «x ▶» and «c ⏸» side by side, and only one of them
     ever made sense at a given moment."""
     isolate_runtime(monkeypatch)
     monkeypatch.setattr(TidalAmp, "_resolve_worker", lambda self, entry: None)
@@ -115,13 +115,13 @@ def test_play_and_pause_are_one_button_showing_what_it_will_do(monkeypatch):
             # Stopped: the button offers to play, and there is no second one.
             drawn = transport(application)
             assert "x ▶" in drawn
-            assert drawn.count("‖") == 0
+            assert drawn.count("⏸") == 0
 
             application.queue.replace(
                 [Entry(id=1, title="t", artist="a", duration=9)], start=0
             )
             mpv.idle = False
-            await wait_for(pilot, lambda: "x ‖" in transport(application))
+            await wait_for(pilot, lambda: "x ⏸" in transport(application))
             drawn = transport(application)
             assert drawn.count("▶") == 2, "los dos del ▶▶ de «siguiente», y ninguno más"
 

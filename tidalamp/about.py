@@ -285,7 +285,7 @@ def shortcuts(keys) -> tuple[Section, ...]:
         Section(
             _("Reproducción"),
             (
-                (key("play"), _("reproducir o pausar (▶ / ‖)")),
+                (key("play"), _("reproducir o pausar (▶ / ⏸)")),
                 (key("stop"), _("detener")),
                 (key("prev"), _("pista anterior")),
                 (key("next"), _("pista siguiente")),
@@ -326,7 +326,7 @@ def shortcuts(keys) -> tuple[Section, ...]:
                 (key("clear"), _("vaciar la cola")),
                 (key("undo_clear"), _("deshacer el último vaciado de la cola")),
                 (key("shuffle"), _("aleatorio (⇄)")),
-                (key("repeat"), _("repetición ↻: off, toda la cola, una pista")),
+                (key("repeat"), _("repetición ⟳: off, toda la cola, una pista")),
             ),
         ),
         Section(

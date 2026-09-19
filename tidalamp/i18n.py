@@ -481,7 +481,7 @@ ENGLISH: dict[str, str] = {
         "the language changes when tidalamp restarts"
     ),
     # --- track action menu
-    "reproducir o pausar (▶ / ‖)": "play or pause (▶ / ‖)",
+    "reproducir o pausar (▶ / ⏸)": "play or pause (▶ / ⏸)",
     "Menú de pista: ahora, a continuación, radio y favoritos.": (
         "Track menu: play now, play next, radio and favourites."
     ),
@@ -551,7 +551,7 @@ ENGLISH: dict[str, str] = {
     "bajar la pista en la cola": "move the track down the queue",
     "vaciar la cola": "clear the queue",
     "aleatorio (⇄)": "shuffle (⇄)",
-    "repetición ↻: off, toda la cola, una pista": (
+    "repetición ⟳: off, toda la cola, una pista": (
         "repeat ↻: off, the whole queue, one track"
     ),
     "buscar en TIDAL": "search TIDAL",

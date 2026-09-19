@@ -33,38 +33,40 @@ def test_shuffle_and_repeat_are_lit_buttons_on_the_transport_row(monkeypatch):
     """They used to be «SHUF OFF» / «REP ALL» words on a row of their own.
 
     Colour still reinforces the state, but the glyphs also say it explicitly.
+    Room enough not to be compact: there the sign and its mark are pressed
+    together, and here they are drawn with the cell of air between them.
     """
     isolate_runtime(monkeypatch)
 
     async def scenario() -> None:
         application = TidalAmp(object(), FakeMpv())
-        async with application.run_test() as pilot:
+        async with application.run_test(size=(120, 40)) as pilot:
             await pilot.pause()
-            assert lit(application) == {"⇄": False, "↻": False}
-            assert "⇄○" in transport(application)
-            assert "↻–" in transport(application)
+            assert lit(application) == {"⇄": False, "⟳": False}
+            assert "⇄ ◯" in transport(application)
+            assert "⟳ –" in transport(application)
 
             await pilot.press("s")
             await pilot.pause()
             assert lit(application)["⇄"] is True
-            assert "⇄●" in transport(application)
+            assert "⇄ ⬤" in transport(application)
 
             await pilot.press("r")
             await pilot.pause()
-            assert lit(application)["↻"] is True
-            assert "↻A" in transport(application)
+            assert lit(application)["⟳"] is True
+            assert "⟳ A" in transport(application)
 
             application.mpris_set_loop_status("Track")
             application.mpris_set_shuffle(False)
             await pilot.pause()
             assert lit(application)["⇄"] is False
-            assert "↻1" in transport(application)
+            assert "⟳ 1" in transport(application)
 
     asyncio.run(scenario())
 
 
 def test_toggling_repeat_does_not_shift_the_rest_of_the_row(monkeypatch):
-    """«↻ » and «↻1» are the same width on purpose."""
+    """«⟳ –» and «⟳ 1» are the same width on purpose."""
     isolate_runtime(monkeypatch)
 
     async def scenario() -> None:

@@ -83,11 +83,11 @@ def test_the_retro_theme_squares_each_button_and_spells_the_toggles(monkeypatch)
             assert not any(glyph in top + face + bottom for glyph in "▛▜▙▟▌▐")
             assert "SHUFFLE" in face and "REPEAT" in face
             # The mark, not the colour, is what says the state.
-            assert "SHUFFLE ○" in face and "REPEAT ○" in face
+            assert "SHUFFLE ◯" in face and "REPEAT ◯" in face
 
             await pilot.press("s")
             await pilot.pause()
-            assert "SHUFFLE ●" in transport(application)
+            assert "SHUFFLE ⬤" in transport(application)
 
     asyncio.run(scenario())
 
@@ -229,9 +229,9 @@ def test_switching_look_remeasures_the_transport_instead_of_cropping_it(monkeypa
                 assert cell_len(drawn) <= widget.size.width, name
                 # The last button is drawn whole, not cut off after its key.
                 last = (
-                    "r ↻–"
+                    "r ⟳ –"
                     if name == "quattro"
-                    else f"r {'repeat' if name == 'nova' else 'REPEAT'} ○"
+                    else f"r {'repeat' if name == 'nova' else 'REPEAT'} ◯"
                 )
                 assert last in drawn, name
 
@@ -275,16 +275,16 @@ def test_the_nova_theme_carries_state_without_drawing_a_single_box(monkeypatch):
             assert not any(glyph in face for glyph in "╭│▛▌"), "nova no dibuja cajas"
             assert not top.strip(), "la fila de arriba queda vacía"
             assert not under.strip(), "sin nada encendido, no hay subrayado"
-            assert "s shuffle ○" in face
+            assert "s shuffle ◯" in face
 
             await pilot.press("s")
             await pilot.pause()
             face = widget.render_line(1).text
             under = widget.render_line(2).text
-            assert "s shuffle ●" in face
+            assert "s shuffle ⬤" in face
             # The rule sits exactly under the label it belongs to.
-            start = face.index("s shuffle ●")
-            assert under[start : start + len("s shuffle ●")] == "─" * 11
+            start = face.index("s shuffle ⬤")
+            assert under[start : start + len("s shuffle ⬤")] == "─" * 11
             assert under.strip() == "─" * 11, "sólo el que está encendido"
 
     asyncio.run(scenario())

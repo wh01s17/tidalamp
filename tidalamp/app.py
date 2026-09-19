@@ -1108,19 +1108,20 @@ class TidalAmp(App):
     SEPARATOR = " · "
 
     # The transport is drawn as boxed buttons three rows tall. The play/pause
-    # glyph is the action it will do: "▶" while stopped or paused, "‖" while
+    # glyph is the action it will do: "▶" while stopped or paused, "⏸" while
     # something is playing, which is what every transport in the world does.
     # Every state remains legible without colour and keeps a fixed width.
     # The sign and the mark it carries, kept apart so a view with room to
     # spare can put air between them: run together they read as one glyph
-    # nobody can name, and the full-screen bar draws them «↻ A».
-    REPEAT_SIGN = "↻"
+    # nobody can name, and the full-screen bar draws them «⟳ A».
+    REPEAT_SIGN = "⟳"
     REPEAT_TAGS = {Repeat.NONE: "–", Repeat.QUEUE: "A", Repeat.TRACK: "1"}
-    REPEAT_GLYPHS = {mode: "↻" + tag for mode, tag in REPEAT_TAGS.items()}
+    REPEAT_GLYPHS = {mode: "⟳" + tag for mode, tag in REPEAT_TAGS.items()}
 
     # The same three states behind a spelled-out label. One cell each, so the
-    # word keeps its width whichever mode is on.
-    REPEAT_MARKS = {Repeat.NONE: "○", Repeat.QUEUE: "●", Repeat.TRACK: "1"}
+    # word keeps its width whichever mode is on, and in the heavy cut: the
+    # light «○ ●» were specks beside the letters they belong to.
+    REPEAT_MARKS = {Repeat.NONE: "◯", Repeat.QUEUE: "⬤", Repeat.TRACK: "1"}
 
     # The same three again, for the layout that spends no Unicode at all.
     REPEAT_MARKS_ASCII = {Repeat.NONE: "-", Repeat.QUEUE: "*", Repeat.TRACK: "1"}
@@ -1175,7 +1176,7 @@ class TidalAmp(App):
         something and springs back, while shuffle and repeat stay pressed.
 
         `words` spells the two toggles out — SHUFFLE and REPEAT, the way the
-        original does — instead of using the `⇄ ↻` glyphs. It costs about a
+        original does — instead of using the `⇄ ⟳` glyphs. It costs about a
         dozen columns, so a compact terminal keeps the glyphs whatever the
         layout asks for, and the glyphs still say the state on their own.
 
@@ -1198,10 +1199,12 @@ class TidalAmp(App):
             marks = self.REPEAT_MARKS_ASCII
         else:
             prev = "◀" if self._compact else "◀◀"
-            play = "‖" if playing else "▶"
+            # «⏸», the pause of the media keys, in one cell like «▶»: two
+            # heavy bars would be two, and the button must not change width.
+            play = "⏸" if playing else "▶"
             stop = "■"
             nxt = "▶" if self._compact else "▶▶"
-            on, off = "●", "○"
+            on, off = "⬤", "◯"
             marks = self.REPEAT_MARKS
 
         if spelled:
@@ -1216,8 +1219,13 @@ class TidalAmp(App):
             shuffle = f"{key('shuffle')}{separator}SH{on if self.queue.shuffle else off}"
             repeat = f"{key('repeat')}{separator}RP{marks[self.queue.repeat]}"
         else:
-            shuffle = f"{key('shuffle')}{separator}{'⇄●' if self.queue.shuffle else '⇄○'}"
-            repeat = f"{key('repeat')}{separator}{self.REPEAT_GLYPHS[self.queue.repeat]}"
+            # `separator` is the air between the key and its glyph; the same
+            # cell goes between the glyph and its mark, which used to be
+            # stuck to it. The compact player pays for neither.
+            sign = "⬤" if self.queue.shuffle else "◯"
+            shuffle = f"{key('shuffle')}{separator}⇄{separator}{sign}"
+            tag = self.REPEAT_TAGS[self.queue.repeat]
+            repeat = f"{key('repeat')}{separator}{self.REPEAT_SIGN}{separator}{tag}"
         rate = speed_text(self.mpv.speed)
         rate = (rate.replace("×", "x") if plain else rate).ljust(5)
         modes: list[tuple[str, str, bool]] = [

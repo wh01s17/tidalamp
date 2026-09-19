@@ -298,14 +298,25 @@ class FullscreenScreen(Screen[None]):
         plain = player.layout.ascii_only
         playing = not player.mpv.paused and not player.mpv.idle
         queue = player.queue
+        # Heavier glyphs than the player's own, and a space between a mode's
+        # sign and the mark that says which mode: at the foot of a screen
+        # given over to one cover, the thin ones read as specks beside the
+        # track's name, and «⟳A» read as one glyph nobody could name.
         if plain:
-            shuffle = "SH*" if queue.shuffle else "SH-"
-            repeat = "RP" + player.REPEAT_MARKS_ASCII[queue.repeat]
+            shuffle = "SH *" if queue.shuffle else "SH -"
+            repeat = "RP " + player.REPEAT_MARKS_ASCII[queue.repeat]
             prev, play, nxt = "<<", "||" if playing else "> ", ">>"
         else:
-            shuffle = "⇄●" if queue.shuffle else "⇄○"
-            repeat = player.REPEAT_GLYPHS[queue.repeat]
-            prev, play, nxt = "◀◀", "‖" if playing else "▶", "▶▶"
+            # The heavy cut of each glyph, not the light one: at the foot of a
+            # screen given over to one cover the thin marks read as specks
+            # beside the track's name. «⬤ ◯» for the mode lamps, «❚❚» for the
+            # pause, and the mode's sign apart from its mark.
+            shuffle = "⇄ ⬤" if queue.shuffle else "⇄ ◯"
+            repeat = f"{player.REPEAT_SIGN} {player.REPEAT_TAGS[queue.repeat]}"
+            # Play is padded to the two cells the pause takes, the way the
+            # ASCII row pads «> » to «||»: a button that changes width shifts
+            # every button to its right each time it is pressed.
+            prev, play, nxt = "◀◀", "❚❚" if playing else "▶ ", "▶▶"
         buttons = [
             ("shuffle", shuffle, queue.shuffle),
             ("prev", prev, False),
@@ -313,7 +324,7 @@ class FullscreenScreen(Screen[None]):
             ("next", nxt, False),
             ("repeat", repeat, queue.repeat is not Repeat.NONE),
         ]
-        gap = "     "
+        gap = "      "
         width = self.query_one("#fs-controls").size.width
         total = sum(cell_len(label) for _a, label, _l in buttons) + cell_len(gap) * (
             len(buttons) - 1
@@ -326,8 +337,10 @@ class FullscreenScreen(Screen[None]):
             if index:
                 text.append(gap)
                 cursor += cell_len(gap)
-            style = f"bold {palette['accent']}" if lit else palette["body"]
-            text.append(label, style=style)
+            # Bold whether it is lit or not: unlit they are the same weight
+            # as the times under them and disappeared into the bar.
+            colour = palette["accent"] if lit else palette["body"]
+            text.append(label, style=f"bold {colour}")
             self._hits.append((cursor, cursor + cell_len(label), action))
             cursor += cell_len(label)
         self.query_one("#fs-controls", Static).update(text)
