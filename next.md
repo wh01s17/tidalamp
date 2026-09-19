@@ -23,7 +23,7 @@ llegan solas entraron en la `0.11.0` (publicada el 2026-09-15): ver
 el título de la ventana de letras, y la `0.11.2` (publicada el 2026-09-17) que el DAC
 siga el rate de cada pista y no sólo el de la primera. La `0.12.0` (publicada el
 2026-09-17) ofrece añadir tidalamp al menú de aplicaciones, la `0.13.0` (publicada el
-2026-09-17) trae cerrar sesión desde `o`, y la `0.14.0` (preparada el 2026-09-19) la
+2026-09-17) trae cerrar sesión desde `o`, y la `0.14.0` (publicada el 2026-09-19) la
 letra al lado de la carátula en pantalla completa. Las escrituras en tus playlists
 se comprobaron contra TIDAL real ese mismo día. Queda por comprobar a mano:
 

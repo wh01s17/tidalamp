@@ -4,8 +4,8 @@ Documento de traspaso. Describe qué existe, qué está verificado, qué falta y
 criterio se tomaron las decisiones, para que cualquiera (humano o modelo) pueda
 retomar el trabajo sin contexto previo.
 
-**Última actualización:** 2026-09-19, versión `0.14.0` preparada y validada en local,
-pendiente del tag. Lo nuevo: en pantalla completa, `y` pone la letra al lado de la
+**Última actualización:** 2026-09-19, versión `0.14.0` publicada en PyPI y en GitHub,
+con el tag `v0.14.0` sobre `2dc24d3` y el checksum del tarball en `369860e`. Lo nuevo: en pantalla completa, `y` pone la letra al lado de la
 carátula en vez de abrir una ventana encima, y con `tab` la cola se acopla a su
 derecha; la letra la dibuja un widget compartido con la ventana de `y`
 (`LyricsBoard`); y los glifos del transporte pasan a su corte pesado, con el signo del
@@ -2170,8 +2170,8 @@ una pista en cada calidad y leer `~/.local/state/tidalamp/tidalamp.log`.
 > `0.11.0`, publicada el 2026-09-15; la `0.11.1` (2026-09-16) sólo arregla el título
 > de la ventana de letras, y la `0.11.2` (2026-09-17) que el DAC siga el rate de cada
 > pista; la `0.12.0` (2026-09-17) trae el lanzador del menú, la `0.13.0`
-> (2026-09-17) cerrar sesión, y la `0.14.0` (preparada el 2026-09-19) la letra al lado
-> de la carátula en pantalla completa; allí quedan las comprobaciones a mano. Esta sección sigue siendo el estado general
+> (2026-09-17) cerrar sesión, y la `0.14.0` (2026-09-19) la letra al lado de la
+> carátula en pantalla completa; allí quedan las comprobaciones a mano. Esta sección sigue siendo el estado general
 > y aquella, la cola de trabajo.
 
 P1–P4 están cerradas: lo que queda no es funcionalidad que falte para que el
@@ -2179,17 +2179,16 @@ reproductor sirva, sino acabado, distribución y confirmar contra TIDAL real cos
 probadas sólo con dobles.
 
 **Orden propuesto (2026-09-11):** ~~P5 empaquetado~~ y ~~carátula~~ ✅ hechos. Cada
-versión se publica siguiendo `publish.md`; la última publicada es la `0.13.0`
-(2026-09-17), en PyPI y en GitHub, con el checksum del tarball ya en el PKGBUILD
-(`d1de5e3`). La `0.14.0` está preparada y validada en local, pendiente del tag, con el
-checksum del PKGBUILD en `SKIP` hasta que exista. Lo que queda abierto aquí pide
+versión se publica siguiendo `publish.md`; la última publicada es la `0.14.0`
+(2026-09-19), en PyPI y en GitHub, con el checksum del tarball ya en el PKGBUILD
+(`369860e`). Lo que queda abierto aquí pide
 credenciales tuyas o un par de ojos.
 
 1. Publicar en el AUR cuando vuelva a abrir el registro de cuentas nuevas. El paquete
    está preparado y se puede probar localmente, pero el alta final depende del
    servicio externo y no tiene fecha anunciada. **Todo lo del AUR queda pendiente**
-   (decidido por el mantenedor el 2026-09-14): de la `0.13.0` sólo está hecho el
-   checksum (`publish.md` §8.1 y §8.3, en `d1de5e3`); §8.2 (`makepkg -Csi`,
+   (decidido por el mantenedor el 2026-09-14): de la `0.14.0` sólo está hecho el
+   checksum (`publish.md` §8.1 y §8.3, en `369860e`); §8.2 (`makepkg -Csi`,
    `namcap`) no se ha ejecutado para esta versión, y §8.4 a §8.6 esperan al registro.
 2. ~~Mirar `retro` y `ascii` en un terminal de verdad~~ ✅ hecho el 2026-09-10; ver §9.5.
    Queda el extremo pequeño: la disposición compacta no se ha visto nunca.
