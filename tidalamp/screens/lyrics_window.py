@@ -5,7 +5,6 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import TYPE_CHECKING
 
-from rich.text import Text
 from textual import work
 from textual.app import ComposeResult
 from textual.binding import Binding
@@ -14,10 +13,9 @@ from textual.screen import ModalScreen
 from textual.widgets import Static
 
 from ..i18n import _
-from ..lyrics import LyricsDocument, fit, last_start
+from ..lyrics import LyricsDocument
 from ..queue import Entry
-from ..theme import palette_for
-from ..widgets import Glide, Spinner
+from ..widgets import Glide, LyricsBoard, Spinner
 
 if TYPE_CHECKING:  # The screens report back to the app; the app owns them.
     pass
@@ -53,7 +51,6 @@ class LyricsScreen(ModalScreen[None]):
         self._entry_id = entry.id if entry is not None else None
         self._track_title = entry.label if entry is not None else ""
         self._document: LyricsDocument | None = None
-        self._plain_offset = 0
 
     def compose(self) -> ComposeResult:
         with Vertical(id="lyrics-box"):
@@ -65,7 +62,7 @@ class LyricsScreen(ModalScreen[None]):
                     id="lyrics-title",
                 )
                 yield Spinner(id="lyrics-spinner")
-            yield Static("  " + _("cargando…"), id="lyrics-body", markup=False)
+            yield LyricsBoard(id="lyrics-body")
             yield Static(_(" ↑↓ desplazar   y/esc cerrar"), id="lyrics-hint")
 
     def on_mount(self) -> None:
@@ -75,17 +72,15 @@ class LyricsScreen(ModalScreen[None]):
     def _start(self) -> None:
         """Ask for the lyrics of the track the window is on, from scratch."""
         self._document = None
-        self._plain_offset = 0
         self.query_one("#lyrics-title", Glide).update(
             _("▓ LETRA ▓  {title}").format(title=self._track_title)
         )
         entry = self._current()
+        board = self.query_one("#lyrics-body", LyricsBoard)
         if entry is None or entry.id != self._entry_id:
-            self.query_one("#lyrics-body", Static).update(
-                "  " + _("no hay una pista reproduciéndose")
-            )
+            board.show(None, _("no hay una pista reproduciéndose"))
             return
-        self.query_one("#lyrics-body", Static).update("  " + _("cargando…"))
+        board.show(None, _("cargando…"))
         self.query_one(Spinner).start(_("buscando la letra…"))
         self._load(entry)
 
@@ -115,6 +110,7 @@ class LyricsScreen(ModalScreen[None]):
             return
         self.query_one(Spinner).stop()
         self._document = document
+        self.query_one("#lyrics-body", LyricsBoard).show(document)
         mode = _("sincronizada") if document.synced else _("texto")
         provider = f" · {document.provider}" if document.provider else ""
         self.query_one("#lyrics-title", Glide).update(
@@ -128,56 +124,14 @@ class LyricsScreen(ModalScreen[None]):
         if entry_id != self._entry_id:
             return
         self.query_one(Spinner).stop()
-        self.query_one("#lyrics-body", Static).update(f"  {exc}")
+        self.query_one("#lyrics-body", LyricsBoard).show(None, str(exc))
 
     def _refresh_lyrics(self) -> None:
-        document = self._document
-        if document is None:
-            return
-        body = self.query_one("#lyrics-body", Static)
-        height = max(5, body.content_size.height)
-        # Wrapped here, not by the Static: it counted as one line what it
-        # drew on two or three rows, and brought the second row back under
-        # the marker instead of under the text.
-        width = max(10, body.content_size.width - self.MARKER)
-        wrapped = [self._wrap(line.text, width) for line in document.lines]
-        rows = [len(parts) for parts in wrapped]
-        if document.synced:
-            active = document.active_index(self._position())
-            start, end = fit(rows, active or 0, height)
-        else:
-            active = None
-            self._plain_offset = max(0, min(self._plain_offset, last_start(rows, height)))
-            start = self._plain_offset
-            end = fit(rows[start:], 0, height)[1] + start
-
-        rendered = Text(no_wrap=True, overflow="crop")
-        palette = palette_for(self)
-        for index in range(start, end):
-            style = (
-                f"bold {palette['active_foreground']} on {palette['accent']}"
-                if index == active
-                else palette["body"]
-            )
-            for row, part in enumerate(wrapped[index]):
-                marker = "▶ " if index == active and row == 0 else "  "
-                rendered.append(f"{marker}{part}\n", style=style)
-        body.update(rendered)
-
-    # The cells the marker, «▶ » or two spaces, takes at the start of a row.
-    MARKER = 2
-
-    def _wrap(self, text: str, width: int) -> list[str]:
-        """``text`` in rows of at most ``width`` cells, split between words."""
-        if not text:
-            return [""]
-        return [part.plain.rstrip() for part in Text(text).wrap(self.app.console, width)]
+        """The board follows the track; the window only tells it where it is."""
+        self.query_one("#lyrics-body", LyricsBoard).follow(self._position())
 
     def _scroll_plain(self, amount: int) -> None:
-        if self._document is None or self._document.synced:
-            return
-        self._plain_offset += amount
-        self._refresh_lyrics()
+        self.query_one("#lyrics-body", LyricsBoard).scroll_lines(amount)
 
     def action_up(self) -> None:
         self._scroll_plain(-1)

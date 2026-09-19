@@ -409,6 +409,7 @@ def test_the_lyrics_window_follows_a_track_changed_by_the_media_keys(monkeypatch
     """With `y` open the app's keys do not reach the player, but MPRIS does:
     the window used to keep the lyrics of the track it opened on."""
     from tidalamp.lyrics import parse_lyrics
+    from tidalamp.widgets import LyricsBoard
 
     isolate_runtime(monkeypatch)
 
@@ -431,7 +432,8 @@ def test_the_lyrics_window_follows_a_track_changed_by_the_media_keys(monkeypatch
             await pilot.press("y")
 
             def body() -> str:
-                return str(application.screen.query_one("#lyrics-body", Static).render())
+                board = application.screen.query_one("#lyrics-body", LyricsBoard)
+                return str(board.render())
 
             await settle(pilot, lambda: "letra de Schism" in body())
 

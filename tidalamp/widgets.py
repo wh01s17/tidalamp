@@ -17,7 +17,7 @@ from textual.widget import Widget
 
 from .analyzer import Analyzer, EqualizerBars
 from .artwork import Cover, Protocol, kitty_delete, quadrant_cell
-from .scrolling import Glide, LyricsPane, Marquee
+from .scrolling import Glide, LyricsBoard, LyricsPane, Marquee
 from .theme import palette_for
 
 __all__ = [
@@ -25,6 +25,7 @@ __all__ = [
     "Artwork",
     "EqualizerBars",
     "Glide",
+    "LyricsBoard",
     "LyricsPane",
     "Marquee",
     "SeekBar",

@@ -1,5 +1,5 @@
 """Text that moves: lines that glide when they do not fit, the scrolling
-title, and the lyrics pane that follows the song."""
+title, and the two surfaces the lyrics are read on."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from rich.text import Text
 from textual.reactive import reactive
 from textual.widget import Widget
 
-from .lyrics import LyricsDocument
+from .lyrics import LyricsDocument, fit, last_start
 from .theme import palette_for
 
 
@@ -156,6 +156,181 @@ class Marquee(Glide):
 
     def _style(self) -> str:
         return f"bold {palette_for(self)['accent']}"
+
+
+class LyricsBoard(Widget):
+    """The words, wrapped to the width they are given, following the song.
+
+    Read in two places: the window `y` opens over the player, and the panel
+    beside the cover in the full-screen view. The same lyrics, drawn the same
+    way, so moving from one to the other is the same page in another frame.
+
+    A verse wider than the surface takes two or three rows, so which lines
+    show is decided **by rows** (`lyrics.fit`) with the sung one centred:
+    counted by lines it fell below the bottom. Plain lyrics have no
+    timestamps to follow: the window scrolls them by hand, and the panel,
+    which has no keys of its own (they belong to the queue), carries them
+    along with the track -- `drift=True`.
+
+    A lyric shorter than the surface is centred in it, and with `centre=True`
+    the block is centred across it as well: in a column beside the cover the
+    words are a page of their own, and left hanging from the top left corner
+    of a tall panel they read as spilt rather than laid out.
+    """
+
+    # The cells the marker, «▶ » or two spaces, takes at the start of a row.
+    MARKER = 2
+
+    # The widest a centred block is set: about a line of prose, so a verse
+    # that has to wrap comes back to a left edge the eye can find again.
+    COLUMN = 56
+
+    def __init__(self, *, drift: bool = False, centre: bool = False, **kwargs) -> None:
+        super().__init__(**kwargs)
+        self.document: LyricsDocument | None = None
+        # Why there are no words, when there are none: loading, or the error.
+        self.message = ""
+        self.drifts = drift
+        self.centres = centre
+        self._position = 0.0
+        self._active: int | None = None
+        # The first plain line on screen, in lines: the row it starts at is
+        # worked out when it is drawn, at the width it is drawn to.
+        self._offset = 0
+
+    def show(self, document: LyricsDocument | None, message: str = "") -> None:
+        """Swap the words, or put a line saying why there are none."""
+        self.document, self.message = document, message
+        self._active = None
+        self._offset = 0
+        self.refresh()
+
+    def follow(self, position: float, duration: float = 0.0) -> None:
+        """Move with the track, repainting only when what shows changes.
+
+        Called four times a second; a line lasts seconds, so almost every
+        call is a comparison and nothing else.
+        """
+        self._position = position
+        document = self.document
+        if document is None:
+            return
+        if not document.synced:
+            if self.drifts:
+                self._drift(duration)
+            return
+        active = document.active_index(position)
+        if active != self._active:
+            self._active = active
+            self.refresh()
+
+    def _drift(self, duration: float) -> None:
+        """Where plain lyrics sit, for how far into the track it is: the last
+        line is on screen by the end of the song."""
+        rows = self._rows()
+        if not rows or duration <= 0:
+            return
+        progress = max(0.0, min(1.0, self._position / duration))
+        offset = round(progress * last_start(rows, self._height()))
+        if offset != self._offset:
+            self._offset = offset
+            self.refresh()
+
+    def scroll_lines(self, amount: int) -> None:
+        """Move plain lyrics by hand. Synced ones follow the song instead."""
+        document = self.document
+        if document is None or document.synced or self.drifts:
+            return
+        last = last_start(self._rows(), self._height())
+        self._offset = max(0, min(self._offset + amount, last))
+        self.refresh()
+
+    # --------------------------------------------------------------- drawing
+
+    def _height(self) -> int:
+        return max(5, self.size.height)
+
+    def _wrap(self, text: str) -> list[str]:
+        """``text`` in rows of the width left by the marker, split on words."""
+        if not text:
+            return [""]
+        return [
+            part.plain.rstrip()
+            for part in Text(text).wrap(self.app.console, self._column())
+        ]
+
+    def _column(self) -> int:
+        """How wide the words are set, which is not always the whole surface.
+
+        A centred block takes half the view when the queue is closed, and a
+        verse run across eighty or a hundred cells is a line the eye loses
+        its way back from. It is set in a column of reading width and that
+        column is centred; the window, which the reader sized, keeps using
+        all of itself.
+        """
+        width = max(10, self.size.width - self.MARKER)
+        return min(width, self.COLUMN) if self.centres else width
+
+    def _wrapped(self) -> list[list[str]]:
+        document = self.document
+        return [self._wrap(line.text) for line in document.lines] if document else []
+
+    def _rows(self) -> list[int]:
+        """How many rows each line takes, once wrapped."""
+        return [len(parts) for parts in self._wrapped()]
+
+    def render(self) -> Text:
+        palette = palette_for(self)
+        document = self.document
+        if document is None:
+            return Text(f"  {self.message}", style=palette["muted"])
+        wrapped = self._wrapped()
+        rows = [len(parts) for parts in wrapped]
+        height = self._height()
+        if document.synced:
+            active = document.active_index(self._position)
+            start, end = fit(rows, active or 0, height)
+        else:
+            active = None
+            # Clamped here and not where it is moved: the last screenful
+            # depends on the width the lines are wrapped to, which is this
+            # widget's, and the window is resizable.
+            self._offset = max(0, min(self._offset, last_start(rows, height)))
+            start = self._offset
+            end = fit(rows[start:], 0, height)[1] + start
+        out = Text(no_wrap=True, overflow="crop")
+        # A lyric shorter than the surface is centred in it rather than hung
+        # from the top edge: beside the cover a dozen lines with a screenful
+        # of nothing under them read as a page half printed.
+        used = sum(rows[start:end])
+        if start == 0 and end == len(rows) and used < height:
+            out.append("\n" * ((height - used) // 2))
+        indent = " " * self._indent(wrapped)
+        for index in range(start, end):
+            style = (
+                f"bold {palette['active_foreground']} on {palette['accent']}"
+                if index == active
+                else palette["body"]
+            )
+            for row, part in enumerate(wrapped[index]):
+                marker = "▶ " if index == active and row == 0 else "  "
+                # The indent outside the style: the lit line is the words and
+                # the marker, not the air the block is centred by.
+                out.append(indent)
+                out.append(f"{marker}{part}\n", style=style)
+        return out
+
+    def _indent(self, wrapped: list[list[str]]) -> int:
+        """The air on the left that centres the block, where it is centred.
+
+        Measured over the whole lyric and not over the lines on screen: with
+        the widest verse deciding it, the block holds still while the song
+        goes by instead of shifting under every change of window.
+        """
+        if not self.centres:
+            return 0
+        widest = max((cell_len(part) for parts in wrapped for part in parts), default=0)
+        return max(0, (self.size.width - self.MARKER - widest) // 2)
 
 
 class LyricsPane(Widget):
