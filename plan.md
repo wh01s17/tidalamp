@@ -2117,6 +2117,11 @@ desconocidos disco a disco, y el que se abría estaba lleno de basura.
       permisivas, y el GET con reintentos. Las dos fuentes devuelven lo mismo, así que
       `freemusic` las trata igual y nada del reproductor por encima se entera de que
       hay más de una.
+- [x] **Marcada experimental, y la fila lo dice.** Lo que puede prometer y lo que
+      alguien llega buscando no son lo mismo: el sonido de «lofi hip hop radio» —la
+      niña que estudia— es el catálogo de un sello y nada de eso es Creative Commons.
+      Esto es lo más cerca que llega un catálogo libre, y la etiqueta es lo que
+      mantiene eso honesto.
 - [x] **Jamendo primero.** Todo su catálogo es CC por definición. Lo que da y el
       Archive no, medido el 2026-09-20:
 
@@ -2142,6 +2147,19 @@ desconocidos disco a disco, y el que se abría estaba lleno de basura.
 - [x] **El catálogo recorrible es del Archive, así que sólo sale cuando el día lo sirvió
       el Archive.** Bajo un día de Jamendo sería un paseo por otra biblioteca, con otros
       discos y otros artistas, que es peor que no ofrecer nada.
+
+#### Acertar el género costó dos intentos
+
+- [x] **`chillout` era la palabra equivocada.** Pegaba con el fondo de armario de
+      Jamendo: ambient de netlabel europeo de 2006 —Tryad, Zeropage, Sublustris Nox—,
+      que es chill y no es lofi. 2787 pistas y sólo el 15% de 2018 en adelante.
+- [x] **`chillhop` es la palabra que usan los que etiquetan este género:** 89% reciente.
+      Y con un suelo de fecha en 2016, `chillhop+lofi` da **331 pistas, el 79% de 2018
+      en adelante y 70 artistas**, con títulos que dicen «Study Beats (Lofi Hip-Hop
+      Ensemble)» en vez de «ecologikorgan». A cuarenta al día, más de una semana antes
+      de que una pueda repetirse.
+- [x] El suelo de fecha hace tanto como el tag: el lofi como género es más joven que
+      casi todo este catálogo.
 
 #### La trampa que costó un intento
 

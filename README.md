@@ -271,8 +271,13 @@ holds, which plays and opens like anything else in the library. Videos and TIDAL
 banners are left out, and a category shows what TIDAL puts on the page, usually the
 first ten.
 
-**Copyright-free lofi** is the last row, and the only one that is not TIDAL's. It is a
-station rather than a catalogue: it opens straight onto a day's worth of instrumental
+**Copyright-free lofi** is the last row, and the only one that is not TIDAL's. It is
+**experimental**, and the row says so: what it can promise and what somebody arrives
+wanting are not the same thing. The *lofi hip hop radio* sound people have in mind is a
+label's catalogue, and none of it is Creative Commons; this is the closest a freely
+licensed one gets, and the selection is still being tuned.
+
+It is a station rather than a catalogue: it opens straight onto a day's worth of instrumental
 lofi, already shuffled, so `a` on the row plays the day and `↵` on a track plays that
 one. The selection is drawn with the date as its seed, so it holds still all day, is
 the same on every machine, and turns over at midnight with no server anywhere deciding
@@ -296,7 +301,11 @@ the row's name true. Those four let you *use* the music — in a video, a stream
 BY-NC-ND, the commonest in both catalogues) do not. Every row says which licence it
 carries, and so does the `SRC` badge while it plays.
 
-*Genre.* Jamendo is asked for lofi and chillout by tag. The Archive is not asked for
+*Genre.* Jamendo is asked for `chillhop` and `lofi` by tag, and only for records from
+2016 on. Both parts matter: `chillout` was the first word tried and it matched
+Jamendo's deep bench of 2006-era netlabel ambient, which is chill and is not lofi — 15%
+of what came back was from 2018 or later. With the genre's own word and a date floor,
+79% is. The Archive is not asked for
 its `lofi` tag at all, because there it means both lofi the genre and lo-fi the
 recording quality — searching it returned a Playmate calendar and a David Koresh
 discography among the beats. It is asked for the genre by name (chillhop, lofi hip hop,

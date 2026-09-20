@@ -7,8 +7,8 @@ versioning is [semantic](https://semver.org/).
 
 ### Added
 
-- **Copyright-free lofi**, a new last row of the library (`l`), and a station rather
-  than a catalogue: it opens straight onto a day's worth of instrumental lofi, already
+- **Copyright-free lofi** (*experimental*), a new last row of the library (`l`), and a
+  station rather than a catalogue: it opens straight onto a day's worth of instrumental lofi, already
   shuffled, so `a` plays the day and `↵` plays a track. The selection is drawn with the
   date as its seed, so it holds still all day, is the same on every machine, and turns
   over at midnight without a server.
@@ -27,6 +27,10 @@ versioning is [semantic](https://semver.org/).
   there as everywhere else. What TIDAL alone can do is simply not offered on those
   rows: no favourites, no playlists, no radio, no artist or album to go to, and no
   lyrics.
+  It is marked experimental, and the row says so, because what it can promise and what
+  somebody arrives wanting are not the same thing. The *lofi hip hop radio* sound people
+  have in mind is a label's catalogue and none of it is Creative Commons; this is the
+  closest a freely licensed one gets, and the selection is still being tuned.
 - `jamendo_id` (`TIDALAMP_JAMENDO_ID`), which names the application Jamendo serves the
   section to. It ships filled in and is not a secret — a Jamendo client id is public by
   design, and the `client_secret` that is not is never needed, because tidalamp only

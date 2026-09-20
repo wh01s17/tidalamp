@@ -46,8 +46,22 @@ WHO = "Jamendo"
 
 # The genre, as Jamendo's own taggers write it. `fuzzytags` and not `tags`:
 # the strict one wants every tag present on the track, and almost nothing
-# carries both «lofi» and «chillout».
-TAGS = "lofi+chillout"
+# carries both of these at once.
+#
+# `chillout` was here first and it was the wrong word. It matched Jamendo's
+# deep bench of 2006-era European netlabel ambient — Tryad, Zeropage,
+# Sublustris Nox — which is chill and is not lofi: 2787 tracks of which only
+# 15% were from 2018 or later. `chillhop` is the word this genre's own
+# taggers use, and it comes back 89% recent.
+TAGS = "chillhop+lofi"
+
+# Lofi as a genre is younger than most of this catalogue. Without a floor the
+# page fills with downtempo that happens to share a tag; with it, 79% of what
+# comes back is from 2018 or later and the titles read «Study Beats (Lofi
+# Hip-Hop Ensemble)» rather than «ecologikorgan». 331 tracks pass, which at
+# forty a day is over a week before one could come round again.
+SINCE = "2016-01-01"
+UNTIL = "2099-01-01"
 
 # VBR rather than the 96 kbps `mp31` that comes by default. `flac` exists
 # too, but not for every track, and a station that dropped whatever had no
@@ -77,6 +91,7 @@ def _query(offset: int) -> dict[str, Any]:
         "limit": PAGE,
         "offset": offset,
         "fuzzytags": TAGS,
+        "datebetween": f"{SINCE}_{UNTIL}",
         # The artist said so; we are not guessing from the title.
         "vocalinstrumental": "instrumental",
         # Neither NonCommercial nor NoDerivatives: the permissive half.

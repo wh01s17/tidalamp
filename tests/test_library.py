@@ -1272,7 +1272,10 @@ def test_the_free_section_is_the_last_row_of_the_root():
     rows = library.root(FakeSession())
     assert rows[-1].key == "free"
     assert rows[-1].label == "Lofi sin copyright"
-    assert rows[-1].detail == "la selección de hoy"
+    # Experimental, and saying so: the «lofi hip hop radio» sound is a
+    # label's catalogue and none of it is Creative Commons, so the row has to
+    # be honest about being the closest a free one gets.
+    assert rows[-1].detail == "experimental · la selección de hoy"
     assert [r.key for r in rows[:4]] == [
         "playlists",
         "fav:tracks",

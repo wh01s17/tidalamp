@@ -977,7 +977,12 @@ def root(session: tidalapi.Session) -> list[Row]:
         # one out: no subscription, no session, and a licence on every row.
         Row(
             _("Lofi sin copyright"),
-            _("la selección de hoy"),
+            # Experimental, and it says so, because what it can promise and
+            # what somebody arrives wanting are not the same thing: the
+            # «lofi hip hop radio» sound is a label's catalogue and none of
+            # it is Creative Commons. This is the closest a free catalogue
+            # gets, and the label is what keeps that honest.
+            _("experimental · la selección de hoy"),
             key="free",
             loader=cached("free", _free_level()),
         ),

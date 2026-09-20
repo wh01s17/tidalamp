@@ -193,3 +193,26 @@ def test_a_refusal_is_reported_at_once_and_not_retried(answers):
     with pytest.raises(FreeMusicUnavailable, match="Suspended"):
         jamendo.tracks()
     assert len(calls) == 1
+
+
+def test_the_query_asks_for_chillhop_and_not_for_chillout(answers):
+    """`chillout` was the first word tried and it was the wrong one: it
+    matched Jamendo's deep bench of 2006-era netlabel ambient, which is chill
+    and is not lofi. 2787 tracks came back and only 15% were from 2018 or
+    later; `chillhop`, the word this genre's own taggers use, comes back 89%
+    recent."""
+    calls, bodies = answers
+    bodies.append(body(ROW))
+    jamendo.tracks()
+    tags = calls[0][1]["fuzzytags"]
+    assert "chillhop" in tags
+    assert "chillout" not in tags
+
+
+def test_the_query_has_a_date_floor(answers):
+    """Lofi as a genre is younger than most of this catalogue. Without the
+    floor the page fills with downtempo that happens to share a tag."""
+    calls, bodies = answers
+    bodies.append(body(ROW))
+    jamendo.tracks()
+    assert calls[0][1]["datebetween"].startswith(jamendo.SINCE)

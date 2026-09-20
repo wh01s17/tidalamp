@@ -216,7 +216,7 @@ ENGLISH: dict[str, str] = {
     "1 elemento": "1 item",
     # --- copyright-free lofi, from the Internet Archive
     "Lofi sin copyright": "Copyright-free lofi",
-    "la selección de hoy": "today’s selection",
+    "experimental · la selección de hoy": "experimental · today’s selection",
     # The credits window. CC BY and CC BY-SA require attribution, so this is
     # not decoration: it is what the licence asks of whoever reuses the work.
     "▓ CRÉDITOS ▓": "▓ CREDITS ▓",
