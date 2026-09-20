@@ -2071,6 +2071,31 @@ efecto las tres trampas que lo hacían caro:
       la misma función, para que una fila no se desplace por puntos de código donde un
       título se desplaza por grafemas.
 
+### Una carga que falla no es una pista que acaba - `app.py`
+
+- [x] Desde el reproductor las dos cosas se ven igual: mpv se queda idle. Y eran la
+      misma: una URL que contestaba 500 dejaba «reproduciendo X» en la línea de estado,
+      no decía nada más y pasaba a la siguiente pista segundo y medio después. Una
+      racha de ellas se comía la cola en segundos, y desde fuera parecía que las
+      canciones «no resolvían».
+- [x] **`_opened` es lo que las distingue:** si mpv llegó a abrir el fichero. Se pone a
+      cierto con `position > 0` **o con `duration > 0`**, y lo segundo importa: mpv
+      publica la duración en cuanto abre, y una pista de dos segundos puede empezar y
+      acabar entre dos ticks del reloj de 4 Hz sin que se lea ninguna posición. Juzgar
+      sólo por la posición llamaba fallo a una pista que había sonado perfectamente,
+      y lo cazó `test_a_track_ending_on_its_own_still_advances`.
+- [x] **Se reintenta antes de rendirse,** dos veces, desde el segundo al que se apuntó.
+      El fallo para el que existe esto es momentáneo: medido contra el Archive, cinco
+      de treinta pistas contestaron 500 bajo carga y las cinco volvieron 206 al
+      siguiente intento. Comprobado de punta a punta con mpv real contra un servidor
+      que falla la primera vez: el reintento salva la pista.
+- [x] **El aviso del salto va después de `action_next()`,** no antes: `action_next`
+      escribe su propio estado al pasar, así que decirlo primero era decírselo a nadie.
+      Lo cazó su test.
+- [x] **El contador se limpia en `_now_playing`,** que es por donde pasan las dos formas
+      de que una pista empiece: `_start` y el salto sin corte. Una pista preparada que
+      no abre heredaba el «ya sonó» de la anterior y se saltaba como si hubiera acabado.
+
 ### Lofi sin copyright - `freemusic.py`, `library.py`, `queue.py`, `stream.py`
 
 La única fila de la biblioteca que no es de TIDAL. **Es una emisora, no un catálogo.**

@@ -217,6 +217,8 @@ ENGLISH: dict[str, str] = {
     # --- copyright-free lofi, from the Internet Archive
     "Lofi sin copyright": "Copyright-free lofi",
     "la selección de hoy": "today’s selection",
+    "«{title}» no abrió; reintentando…": "“{title}” did not open; trying again…",
+    "no se pudo abrir «{title}»; saltando": ("could not open “{title}”; skipping it"),
     "Todos los discos": "Every record",
     "el catálogo entero": "the whole catalogue",
     "ninguno de los discos de hoy trae audio que mpv pueda abrir": (

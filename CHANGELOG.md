@@ -24,6 +24,18 @@ versioning is [semantic](https://semver.org/).
   What TIDAL alone can do is simply not offered on those rows: no favourites, no
   playlists, no radio, no artist or album to go to, and no lyrics.
 
+### Fixed
+
+- A track whose URL will not open is tried again and then named, instead of being
+  dropped in silence. The player could not tell a load that failed from a track that
+  ended — both are mpv going idle — so a URL answering 500 put *playing X* in the
+  status line, said nothing more, and slid to the next track a second and a half
+  later; a run of them went through the queue in seconds. The status line now says
+  *“X” did not open; trying again…*, retries twice from where the track was, and only
+  then says *could not open “X”; skipping it*. Worth retrying rather than skipping:
+  measured against the Internet Archive, five of thirty tracks answered 500 under load
+  and every one of them came back on the next try.
+
 ## [0.14.0] - 2026-09-19
 
 ### Added

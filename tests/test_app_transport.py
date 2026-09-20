@@ -148,10 +148,15 @@ def test_a_track_ending_on_its_own_still_advances(monkeypatch):
             )
             application._sync_queue()
             mpv.idle = False
+            # The track is open and playing. Without that, idle is a load
+            # that failed rather than a song that finished, and the player
+            # tells the two apart (`test_app_load_failure.py`).
+            mpv.duration, mpv.position = 9.0, 4.0
             await wait_for(pilot, lambda: application._was_idle is False)
             started.clear()
 
             # mpv falls idle by itself: the song finished.
+            mpv.duration, mpv.position = 0.0, 0.0
             mpv.idle = True
             await settle(pilot, lambda: bool(started))
             assert started == [1]

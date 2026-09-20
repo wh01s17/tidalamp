@@ -347,6 +347,15 @@ class TidalAmp(App):
         # the tick fetches once per track rather than four times a second.
         self._pane_entry: int | None = None
         self._was_idle = True
+        # Whether mpv ever got the track that is loaded open. It is what
+        # tells an ended track from a load that failed, which look the same
+        # from here — both are mpv going idle. See `_gave_up`.
+        self._opened = False
+        # How many times the track that is loaded has been tried again after
+        # failing to open, and the second it was asked to start at, so a
+        # retry picks up where the first attempt was aimed.
+        self._retries = 0
+        self._started_at = 0.0
         # Where the track was on the last tick, and the track and second a
         # restarted mpv has to pick up at. A dead or stuck mpv cannot be
         # asked where it was, so the tick's own reading is what is kept.
@@ -991,10 +1000,23 @@ class TidalAmp(App):
         if self._prepared is not None and self.mpv.playlist_pos > 0:
             self._advance_to_prepared()
 
+        # A track mpv got open is a track that can end. Until then, idle
+        # means the load failed rather than the track finishing (`_gave_up`).
+        # The duration and not only the position, because mpv publishes it as
+        # soon as the file opens: a track two seconds long can begin and end
+        # between two of these ticks without a position ever being read, and
+        # judging it by the position alone called it a failure and retried a
+        # track that had played perfectly well.
+        if position > 0 or duration > 0:
+            self._opened = True
+
         # mpv going idle after having played something means the track ended.
         idle = self.mpv.idle
         if idle and not self._was_idle:
-            self.action_next()
+            if self._opened:
+                self.action_next()
+            else:
+                self._gave_up()
         self._was_idle = idle
         if not idle:
             self._prefetch_next(position, duration)
@@ -2179,6 +2201,11 @@ class TidalAmp(App):
     # How long a resolved track may wait, queued, before it is resolved
     # again: a track paused near its end would otherwise go on to a URL that
     # expired while nobody listened.
+    # How many times a track that will not open is tried again before it
+    # is named and skipped. Two, because the failures this exists for are
+    # momentary — a CDN answering 500 under load — and a track that is
+    # really gone should not hold the queue up for long.
+    LOAD_RETRIES = 2
     PREPARED_TTL = 300.0
 
     def _next_entry(self) -> Entry | None:
@@ -2591,12 +2618,48 @@ class TidalAmp(App):
         start = resume[1] if resume is not None and resume[0] is entry else 0.0
         self.mpv.load(playable.url, self._gain_for(playable), start=start)
         self._was_idle = False
-        self._now_playing(entry, playable)
+        self._now_playing(entry, playable, start=start)
 
-    def _now_playing(self, entry: Entry, playable: Playable) -> None:
+    def _gave_up(self) -> None:
+        """mpv went idle without ever having got the track open.
+
+        That is a load that failed, not a track that ended, and the two used
+        to be the same thing here: a URL mpv could not open put «reproduciendo
+        X» in the status line and then slid to the next track a second and a
+        half later, saying nothing. A queue of them raced past in seconds.
+
+        Worth retrying rather than skipping, because the failure that causes
+        this is usually a moment's worth: the Internet Archive answers 500
+        under load and the very same URL comes back 206 a second later,
+        measured on four of them. TIDAL's CDN does the same. So it is tried
+        again, from where it was, and only then given up on and named.
+        """
+        entry, playable = self.queue.current, self._playable
+        if entry is None or playable is None:
+            return
+        if self._retries < self.LOAD_RETRIES:
+            self._retries += 1
+            self.status = _("«{title}» no abrió; reintentando…").format(title=entry.title)
+            self.mpv.load(playable.url, self._gain_for(playable), start=self._started_at)
+            self._was_idle = False
+            return
+        # After the skip and not before it: `action_next` writes its own
+        # status on the way past, so saying this first said it to nobody.
+        self.action_next()
+        self.status = _("no se pudo abrir «{title}»; saltando").format(title=entry.title)
+
+    def _now_playing(self, entry: Entry, playable: Playable, start: float = 0.0) -> None:
         """What changes once a track sounds, whether a resolve started it or
-        mpv went on to it by itself."""
+        mpv went on to it by itself.
+
+        Both of those are where a track becomes the one playing, so this is
+        where its «has mpv got it open yet» is cleared — including for a
+        track mpv slid into with no gap, which never goes through `_start`.
+        """
         self._playable = playable
+        self._opened = False
+        self._retries = 0
+        self._started_at = start
         self._refresh_readout()
         # PipeWire can switch graph rate when playback starts. Query it off
         # the UI thread after handing the URL to mpv.
