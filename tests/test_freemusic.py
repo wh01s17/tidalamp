@@ -10,6 +10,8 @@ recording.
 
 from __future__ import annotations
 
+from datetime import date
+
 import pytest
 import requests
 
@@ -407,3 +409,361 @@ def test_the_free_letters_are_the_ones_the_full_menu_already_uses():
     full = {action: letter for action, _icon, letter, _label in TRACK_ACTIONS}
     for action, _icon, letter, _label in FREE_TRACK_ACTIONS:
         assert full[action] == letter
+
+
+# ------------------------------------------------------------- the junk filter
+
+
+@pytest.mark.parametrize(
+    ("doc", "why"),
+    [
+        ({"title": "Nujabes - Luv (sic) Hexalogy CD RIP"}, "un rip comercial"),
+        ({"title": "JBPWAVE A Jordan Peterson Lofi Hip Hop Mix"}, "voz sobre beats"),
+        ({"title": "Byzantine Daily Prayers Lofi"}, "rezos"),
+        ({"title": "Ulises", "subject": ["screamo", "lofi hip hop"]}, "mal etiquetado"),
+        ({"title": "Classic Background Music", "subject": "royalty free music"}, "stock"),
+        ({"title": "X Wife - S/T EP", "subject": ["lofi hiphop", "shitposting"]}, "meme"),
+    ],
+)
+def test_what_passes_both_filters_and_still_is_not_music_to_put_on(doc, why):
+    assert freemusic._is_junk(doc), why
+
+
+@pytest.mark.parametrize(
+    "doc",
+    [
+        {"title": "Popoi - Georgetown Cafe", "subject": ["chillhop", "lofi hiphop"]},
+        {"title": "Elephant Funeral - The Mountains", "subject": "chillhop,lofi,sad"},
+        {"title": "unVoid - Mintaka", "creator": "unVoid", "subject": ["chillhop"]},
+    ],
+)
+def test_the_junk_filter_keeps_the_music(doc):
+    assert not freemusic._is_junk(doc)
+
+
+def test_the_junk_filter_reads_the_tags_and_not_only_the_title():
+    """«Ulises» says nothing; its `screamo` tag says everything."""
+    assert not freemusic._is_junk({"title": "Ulises"})
+    assert freemusic._is_junk({"title": "Ulises", "subject": ["screamo"]})
+
+
+def test_junk_is_dropped_from_a_page_rather_than_shown(answers):
+    _calls, bodies = answers
+    bodies.append(
+        {
+            "response": {
+                "docs": [
+                    {"identifier": "rip", "title": "Nujabes - Luv (sic) CD RIP"},
+                    {"identifier": "good", "title": "Popoi - Smoothie"},
+                ]
+            }
+        }
+    )
+    assert [album.identifier for album in freemusic.albums()] == ["good"]
+
+
+def test_the_query_asks_for_the_genre_and_not_for_the_word_lofi():
+    """The trap the section was built wrong on first: on the Archive
+    `subject:lofi` means both lofi the genre and lo-fi the recording quality,
+    and it returned a Playmate calendar and a David Koresh discography among
+    the beats."""
+    assert '"chillhop"' in freemusic.QUERY
+    assert '"lofi hip hop"' in freemusic.QUERY
+    assert '"lofi"' not in freemusic.QUERY
+    assert '"lo-fi"' not in freemusic.QUERY
+
+
+# ----------------------------------------------------------------- the station
+
+
+@pytest.fixture
+def no_disk(monkeypatch, tmp_path):
+    """The day's cache somewhere harmless, and empty."""
+    monkeypatch.setattr(freemusic, "STATION_FILE", tmp_path / "lofi-station.json")
+
+
+def records(count: int, each: int = 4) -> list[Album]:
+    return [Album(f"r{i}", f"disco {i}", f"artista {i}", "CC BY") for i in range(count)]
+
+
+def songs_of(album: Album, each: int = 4) -> list[Track]:
+    return [
+        Track(
+            url=f"https://archive.org/download/{album.identifier}/{n}.mp3",
+            title=f"{album.title} · {n}",
+            artist=album.creator,
+            album=album.title,
+            licence=album.licence,
+            duration=180,
+        )
+        for n in range(each)
+    ]
+
+
+@pytest.fixture
+def archive(monkeypatch, no_disk):
+    """A pool of thirty records with four tracks each, and no network."""
+    pool = records(30)
+    monkeypatch.setattr(freemusic, "albums", lambda offset=0, limit=100: list(pool))
+    monkeypatch.setattr(freemusic, "tracks", songs_of)
+    return pool
+
+
+def test_the_station_is_the_same_all_day_and_different_tomorrow(archive):
+    today, tomorrow = date(2026, 9, 20), date(2026, 9, 21)
+    first = freemusic.station(today)
+    assert freemusic.station(today) == first
+    assert freemusic.station(tomorrow) != first
+
+
+def test_the_same_day_draws_the_same_tracks_on_every_machine(archive):
+    """Seeded with the date and nothing else: no server decides this, and two
+    people on the same day hear the same station."""
+    day = date(2026, 9, 20)
+    drawn = freemusic.station(day)
+    freemusic.STATION_FILE.unlink(missing_ok=True)
+    assert freemusic.station(day) == drawn
+
+
+def test_no_record_may_take_over_the_day(archive):
+    """Interleaving alone is fair only while every record still has cards:
+    once the singles run out the long records take every remaining round, and
+    the first day drawn that way was 24 of its 35 tracks from two artists."""
+    from collections import Counter
+
+    counts = Counter(song.album for song in freemusic.station(date(2026, 9, 20)))
+    assert max(counts.values()) <= freemusic.STATION_PER_RECORD
+    assert len(counts) >= 9, "un día no puede ser la tarde de un artista"
+
+
+def test_the_day_is_capped(archive):
+    assert len(freemusic.station(date(2026, 9, 20))) <= freemusic.STATION_TRACKS
+
+
+def test_an_hour_long_mix_stays_out_of_the_rotation(monkeypatch, no_disk):
+    """What this corner of the Archive is full of: «3 HOURS of lofi to study
+    to», one file, uploaded as if it were a track. A day of thirty-eight came
+    back at seven hours and fifty-one minutes before this."""
+    pool = records(12)
+
+    def mixed(album):
+        return [
+            *songs_of(album, 3),
+            Track(
+                url=f"https://archive.org/download/{album.identifier}/mix.mp3",
+                title=f"3 HOURS of lofi · {album.identifier}",
+                artist=album.creator,
+                album=album.title,
+                licence="CC BY",
+                duration=3 * 60 * 60,
+            ),
+            Track(
+                url=f"https://archive.org/download/{album.identifier}/tag.mp3",
+                title="jingle",
+                artist=album.creator,
+                album=album.title,
+                licence="CC BY",
+                duration=4,
+            ),
+        ]
+
+    monkeypatch.setattr(freemusic, "albums", lambda offset=0, limit=100: list(pool))
+    monkeypatch.setattr(freemusic, "tracks", mixed)
+
+    day = freemusic.station(date(2026, 9, 20))
+    assert day, "quitar los mixes no puede dejar el día vacío"
+    for song in day:
+        assert freemusic.STATION_SHORTEST <= song.duration <= freemusic.STATION_LONGEST
+
+
+def test_a_track_of_unknown_length_is_kept(monkeypatch, no_disk):
+    """An unknown length is the metadata's fault, not the music's, and mpv
+    says how long it is the moment it opens it."""
+    pool = records(4)
+    monkeypatch.setattr(freemusic, "albums", lambda offset=0, limit=100: list(pool))
+    monkeypatch.setattr(
+        freemusic,
+        "tracks",
+        lambda album: [
+            Track(
+                url=f"https://archive.org/download/{album.identifier}/a.mp3",
+                title="sin duración",
+                artist=album.creator,
+                album=album.title,
+                licence="CC BY",
+                duration=0,
+            )
+        ],
+    )
+    assert len(freemusic.station(date(2026, 9, 20))) == 4
+
+
+def test_one_record_that_will_not_open_does_not_spoil_the_day(monkeypatch, no_disk):
+    pool = records(12)
+    monkeypatch.setattr(freemusic, "albums", lambda offset=0, limit=100: list(pool))
+
+    def flaky(album):
+        if album.identifier in ("r0", "r5"):
+            raise FreeMusicUnavailable("sin ficheros")
+        return songs_of(album)
+
+    monkeypatch.setattr(freemusic, "tracks", flaky)
+    day = freemusic.station(date(2026, 9, 20))
+    assert day
+    assert not any(song.album in ("disco 0", "disco 5") for song in day)
+
+
+def test_a_day_where_nothing_opens_says_so(monkeypatch, no_disk):
+    monkeypatch.setattr(freemusic, "albums", lambda offset=0, limit=100: records(4))
+    monkeypatch.setattr(
+        freemusic,
+        "tracks",
+        lambda album: (_ for _ in ()).throw(FreeMusicUnavailable("x")),
+    )
+    with pytest.raises(FreeMusicUnavailable):
+        freemusic.station(date(2026, 9, 20))
+
+
+def test_an_empty_pool_says_so(monkeypatch, no_disk):
+    monkeypatch.setattr(freemusic, "albums", lambda offset=0, limit=100: [])
+    with pytest.raises(FreeMusicUnavailable):
+        freemusic.station(date(2026, 9, 20))
+
+
+def test_the_day_is_read_from_disk_instead_of_fetched_again(archive, monkeypatch):
+    day = date(2026, 9, 20)
+    drawn = freemusic.station(day)
+
+    def never(*args, **kwargs):
+        raise AssertionError("la selección del día ya estaba en disco")
+
+    monkeypatch.setattr(freemusic, "albums", never)
+    monkeypatch.setattr(freemusic, "tracks", never)
+    assert freemusic.station(day) == drawn
+
+
+def test_yesterdays_cache_is_redrawn_rather_than_served(archive):
+    freemusic.station(date(2026, 9, 20))
+    fresh = freemusic.station(date(2026, 9, 21))
+    assert fresh == freemusic.station(date(2026, 9, 21))
+
+
+@pytest.mark.parametrize(
+    "broken",
+    ['{"day": "2026-09-20", "tracks": [{"nope": 1}]}', "{not json", "[]", '{"day": 3}'],
+)
+def test_a_broken_cache_is_redrawn_and_not_a_crash(archive, broken):
+    """It caches something reproducible, so there is nothing in it worth
+    recovering and nothing in it worth failing over."""
+    freemusic.STATION_FILE.write_text(broken, encoding="utf-8")
+    assert freemusic.station(date(2026, 9, 20))
+
+
+def test_a_cache_that_cannot_be_written_still_gives_the_day(archive, monkeypatch):
+    monkeypatch.setattr(
+        freemusic,
+        "write_atomically",
+        lambda path, text: (_ for _ in ()).throw(OSError("disco lleno")),
+    )
+    assert freemusic.station(date(2026, 9, 20))
+
+
+# -------------------------------------------------------- nobody is singing
+
+
+@pytest.mark.parametrize(
+    ("doc", "why"),
+    [
+        ({"creator": "Kill Bill: The Rapper", "title": "Snow Globe"}, "un rapero"),
+        ({"title": "singing in the rain but its lofi"}, "canta"),
+        ({"title": "Edgar Cards - In Between", "subject": "acappella"}, "a capella"),
+        ({"title": "MAGMA - Freestyle luna", "subject": "poetry"}, "freestyle"),
+        ({"title": "x", "subject": ["lofi hiphop", "female_vocals"]}, "voz etiquetada"),
+    ],
+)
+def test_a_record_that_announces_a_voice_stays_out(doc, why):
+    assert freemusic._is_junk(doc), why
+
+
+@pytest.mark.parametrize(
+    "doc",
+    [
+        # `rap` is deliberately not a vocal marker: on this pool it is almost
+        # always `jazz rap` or `instrumental hip hop`, both instrumental.
+        {"title": "Free (Instrumental)", "subject": "rap beats, hip hop beats"},
+        {"title": "RÏga - Amorphée", "subject": ["instrumental hip hop", "jazz rap"]},
+        # And the whole-word matching is what makes the rest safe: `mc` is
+        # inside `ambient`, `ft` is inside almost everything.
+        {"title": "Itsovah - Balzac by night", "subject": ["ambient", "chillhop"]},
+        {"title": "Sevennotes - Soft Drift", "subject": ["chillhop", "soft"]},
+    ],
+)
+def test_the_voice_filter_does_not_eat_the_instrumentals(doc):
+    assert not freemusic._is_junk(doc)
+
+
+def test_a_guest_spot_is_caught_on_the_track_and_not_only_on_the_record():
+    """A record is not its tracks. «Kill Bill: The Rapper ft. Airospace»
+    reached a day's rotation as a track on a record whose own creator field
+    never said «rapper»."""
+    guest = Track(
+        url="https://archive.org/download/x/a.mp3",
+        title="SPACEMAN",
+        artist="Somebody ft. Airospace",
+        album="x",
+        licence="CC BY",
+        duration=180,
+    )
+    plain = Track(
+        url="https://archive.org/download/x/b.mp3",
+        title="Georgetown Cafe",
+        artist="Popoi",
+        album="x",
+        licence="CC BY",
+        duration=180,
+    )
+    assert not freemusic._instrumental(guest)
+    assert freemusic._instrumental(plain)
+
+
+def test_a_sung_track_never_reaches_the_rotation(monkeypatch, no_disk):
+    """Lofi is music to put behind whatever you are doing, and a voice is the
+    one thing that will not stay behind it."""
+    pool = records(12)
+
+    def mixed(album):
+        return [
+            *songs_of(album, 3),
+            Track(
+                url=f"https://archive.org/download/{album.identifier}/v.mp3",
+                title="Interlude (feat. Somebody)",
+                artist=album.creator,
+                album=album.title,
+                licence="CC BY",
+                duration=180,
+            ),
+            Track(
+                url=f"https://archive.org/download/{album.identifier}/w.mp3",
+                title="Talking",
+                artist="A Rapper",
+                album=album.title,
+                licence="CC BY",
+                duration=180,
+            ),
+        ]
+
+    monkeypatch.setattr(freemusic, "albums", lambda offset=0, limit=100: list(pool))
+    monkeypatch.setattr(freemusic, "tracks", mixed)
+
+    day = freemusic.station(date(2026, 9, 20))
+    assert day
+    for song in day:
+        assert "feat" not in song.title.lower()
+        assert "Rapper" not in song.artist
+
+
+def test_whole_words_only():
+    """`rap` inside `therapy` and `mc` inside `ambient` would each have
+    emptied half the pool."""
+    assert not freemusic._says("music therapy ambient soft", freemusic.VOCALS)
+    assert freemusic._says("ambient, female_vocals", freemusic.VOCALS)

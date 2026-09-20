@@ -271,25 +271,48 @@ holds, which plays and opens like anything else in the library. Videos and TIDAL
 banners are left out, and a category shows what TIDAL puts on the page, usually the
 first ten.
 
-**Copyright-free lofi** is the last row, and the only one that is not TIDAL's: lofi
-records from the [Internet Archive](https://archive.org), most listened first, each
-opening to its tracks like an album. The Archive asks for no account and no API key,
-so nothing in this row is charged against your TIDAL subscription and nothing in it can
-be DRM-locked. tidalamp itself still signs in to TIDAL to start, as it always has.
+**Copyright-free lofi** is the last row, and the only one that is not TIDAL's. It is a
+station rather than a catalogue: it opens straight onto a day's worth of instrumental
+lofi from the [Internet Archive](https://archive.org), already shuffled, so `a` on the
+row plays the day and `↵` on a track plays that one. The selection is drawn with the
+date as its seed, so it holds still all day, is the same on every machine, and turns
+over at midnight with no server anywhere deciding anything. Building it takes some
+twenty seconds once a day; after that it is read from a file. The whole catalogue is
+still there, behind **Every record**, the last row inside the station.
 
-Only permissively licensed music gets in: CC0, the public domain mark, CC BY and
-CC BY-SA. Every Creative Commons licence allows listening, so the filter is not what
-makes playback lawful; it is what makes the row's name true. Those four let you *use*
-the music — in a video, a stream, a game — and only ask that you credit the author,
-while the licences left out (chiefly BY-NC-ND, the Archive's most common) do not. Each
-record and each track says which licence it carries, in the row and in the `SRC` badge
-while it plays.
+The Archive asks for no account and no API key, so nothing in this row is charged
+against your TIDAL subscription and nothing in it can be DRM-locked. tidalamp itself
+still signs in to TIDAL to start, as it always has.
 
-The grid, the filter, the next page arriving as the cursor nears the end and gapless
-playback all work there as they do everywhere else. What only TIDAL can do is simply
-not offered on those rows: no favourites, no playlists, no radio, no artist or album to
-go to, and no lyrics. Nothing is downloaded — the audio is streamed from the Archive,
-exactly as TIDAL's is streamed from TIDAL.
+Three filters decide what may be in it.
+
+*Licence.* Only CC0, the public domain mark, CC BY and CC BY-SA. Every Creative Commons
+licence allows listening, so this is not what makes playback lawful; it is what makes
+the row's name true. Those four let you *use* the music — in a video, a stream, a game
+— and only ask that you credit the author, while the licences left out (chiefly
+BY-NC-ND, the Archive's most common) do not. Each record and each track says which
+licence it carries, in the row and in the `SRC` badge while it plays.
+
+*Genre.* Not the `lofi` tag, which on the Archive means both lofi the genre and lo-fi
+the recording quality — searching it returned a Playmate calendar and a David Koresh
+discography among the beats. The station asks for the genre by name (chillhop, lofi hip
+hop, jazzhop), and drops what still slips through: commercial rips with a licence typed
+over them, speech mixes, memes and stock background beds.
+
+*Voices, as far as metadata can tell.* Lofi is music to put behind what you are doing,
+so anything whose title, artist or tags announce singing stays out, at the record and
+at the track, and a guest spot on an otherwise instrumental record goes with it. This
+is best effort: the Archive has no field for *has singing in it*, so what is caught is
+what says so.
+
+Tracks are between forty-five seconds and ten minutes, no record may give the day more
+than four, and hour-long *3 HOURS of lofi to study to* uploads are kept out of the
+rotation — they are still in the catalogue, where they are a real thing to put on.
+
+The grid, the filter and gapless playback all work there as they do everywhere else.
+What only TIDAL can do is simply not offered on those rows: no favourites, no
+playlists, no radio, no artist or album to go to, and no lyrics. Nothing is downloaded
+— the audio is streamed from the Archive, exactly as TIDAL's is streamed from TIDAL.
 
 **The grid.** `v` in the browser (or Library view in the settings window) shows a level
 of albums, playlists, artists or mixes as tiles, each with its cover, its name and a

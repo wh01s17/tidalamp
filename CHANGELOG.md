@@ -7,15 +7,22 @@ versioning is [semantic](https://semver.org/).
 
 ### Added
 
-- **Copyright-free lofi**, a new last row of the library (`l`) that needs no TIDAL
-  subscription: lofi records from the Internet Archive, most listened first, each
-  opening to its tracks like an album. Only permissive licences get in — CC0, the
-  public domain mark, CC BY and CC BY-SA — so the music is yours to use and not only
-  to hear; every row says which licence it carries, and so does the `SRC` badge while
-  it plays. The grid (`v`), the filter (`/`), the next page as the cursor nears the
-  end and gapless playback all work there as they do everywhere else. What TIDAL
-  alone can do is simply not offered on those rows: no favourites, no playlists, no
-  radio, no artist or album to go to, and no lyrics.
+- **Copyright-free lofi**, a new last row of the library (`l`), and a station rather
+  than a catalogue: it opens straight onto a day's worth of instrumental lofi from the
+  Internet Archive, already shuffled, so `a` plays the day and `↵` plays a track. The
+  selection is drawn with the date as its seed, so it holds still all day, is the same
+  on every machine, and turns over at midnight without a server. The whole catalogue is
+  behind **Every record**, the last row inside it.
+  Three filters decide what gets in: only permissive licences (CC0, the public domain
+  mark, CC BY, CC BY-SA), so the music is yours to use and not only to hear; the genre
+  asked for by name rather than through the Archive's `lofi` tag, which also means
+  *badly recorded*; and, as far as metadata can tell, nothing with singing on it.
+  Tracks run from forty-five seconds to ten minutes, no record gives the day more than
+  four, and hour-long study mixes stay in the catalogue instead of the rotation. Every
+  row says which licence it carries, and so does the `SRC` badge while it plays. The
+  grid (`v`), the filter (`/`) and gapless playback work there as everywhere else.
+  What TIDAL alone can do is simply not offered on those rows: no favourites, no
+  playlists, no radio, no artist or album to go to, and no lyrics.
 
 ## [0.14.0] - 2026-09-19
 

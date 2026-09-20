@@ -170,9 +170,11 @@ tidalamp/
   queue.py      Entry (metadatos serializables + Track perezoso) y Queue (orden,
                 shuffle, repeat, persistencia). No conoce la UI.
   library.py    Navegación de la biblioteca. Devuelve listas de Row, paginadas.
-  freemusic.py  Cliente del Internet Archive para «Lofi sin copyright». Devuelve
-                Album y Track propios, no Row: no conoce tidalapi ni Textual, y es
-                `library` quien los convierte en filas.
+  freemusic.py  La emisora «Lofi sin copyright», sobre el Internet Archive.
+                `station()` da el día ya mezclado, sembrado con la fecha y cacheado
+                en disco; tres filtros (licencia, género, voz) deciden qué entra.
+                Devuelve Album y Track propios, no Row: no conoce tidalapi ni
+                Textual, y es `library` quien los convierte en filas.
   net.py        with_retries(): reintentos con backoff para las llamadas a TIDAL.
   spectrum.py   Cava: proceso cava + lector de frames. Opcional por diseño.
   settings.py   Balance y ecualizador: grafos de filtro y persistencia.
@@ -2071,24 +2073,81 @@ efecto las tres trampas que lo hacían caro:
 
 ### Lofi sin copyright - `freemusic.py`, `library.py`, `queue.py`, `stream.py`
 
-La primera fila de la biblioteca que no es de TIDAL. Es un reproductor, no un catálogo
-más: lo que hay que decidir de verdad es qué fuente, qué licencias y dónde poner la
-única bifurcación.
+La única fila de la biblioteca que no es de TIDAL. **Es una emisora, no un catálogo.**
+Nació como catálogo paginado y no servía: nadie abre un reproductor para audicionar a
+desconocidos disco a disco, y el que se abría estaba lleno de basura. Lo que se decide
+de verdad aquí es qué entra y con qué forma se sirve.
 
-- [x] **La fuente es el Internet Archive.** Su búsqueda (`advancedsearch.php`) y su
-      metadata (`/metadata/<id>`) no piden cuenta ni clave, que es la misma razón por
-      la que el resto del proyecto usa el device flow y no la API oficial (§2).
-      Jamendo, Pixabay y Chillhop piden clave. ccMixter respondía `fetch failed` el
-      2026-09-20. Radio Browser sí responde y da emisoras lofi en vivo, pero no hay
-      forma de verificar qué emiten, así que queda fuera: ver «Descartado» en
-      `next.md`.
-- [x] **Sólo licencias permisivas:** CC0, la marca de dominio público, CC BY y CC
-      BY-SA. Medido contra el índice vivo el 2026-09-20: 754 + 753 + 367 = 1937 items,
-      de 10421 con cualquier CC. **El filtro no es lo que hace legal reproducir** —
-      todas las CC permiten escuchar, incluidas NC y ND— sino lo que hace cierto el
-      nombre de la sección. «Sin copyright» promete música que puedes *usar*, y
-      BY-NC-ND (6009 items, el 58% del catálogo lofi) no la da. La licencia se ve en
-      cada fila y en la insignia `SRC`.
+**La fuente es el Internet Archive.** Su búsqueda (`advancedsearch.php`) y su metadata
+(`/metadata/<id>`) no piden cuenta ni clave, que es la misma razón por la que el resto
+del proyecto usa el device flow y no la API oficial (§2). Jamendo, Pixabay y Chillhop
+piden clave. FMA tiene la API muerta (404). ccMixter responde, pero es una comunidad de
+remixes y sus lofi son casi todos BY-NC: ver «Descartado» en `next.md`.
+
+#### Tres filtros deciden qué puede sonar
+
+- [x] **Licencia:** sólo CC0, dominio público, CC BY y CC BY-SA. **No es lo que hace
+      legal reproducir** —todas las CC permiten escuchar, incluidas NC y ND— sino lo
+      que hace cierto el nombre de la sección. «Sin copyright» promete música que
+      puedes *usar*, y BY-NC-ND no la da. La licencia se ve en cada fila y en `SRC`.
+- [x] **Género, y aquí estaba el error de la primera versión.** `subject:lofi` en el
+      Archive significa a la vez lofi el género y lo-fi la calidad de grabación: la
+      consulta devolvía «PLAYMATE CALENDAR 1991», la discografía de David Koresh y
+      «China 2006 Sound Clips» entre los beats. `GENRES` pide el género por su nombre
+      (chillhop, lofi hip hop, jazzhop), y eso bajó de 1937 items a 133, casi todos
+      correctos.
+- [x] **Voz.** Lofi es música para poner detrás de lo que estés haciendo, y una voz es
+      lo único que no se queda detrás. Fuera lo que anuncia canto en el título, el
+      artista o los tags, **en el disco y en la pista**: un disco no son sus pistas, y
+      «Kill Bill: The Rapper ft. Airospace» llegó a una rotación como pista de un disco
+      cuyo `creator` no decía «rapper». Es lo mejor que se puede hacer y nada más: el
+      Archive no tiene un campo que diga «lleva voz», así que cae lo que se delata.
+- [x] **`rap` no está en la lista de voz,** a propósito: en este pool casi siempre es
+      `jazz rap` o `instrumental hip hop`, los dos instrumentales, y excluirlo se
+      llevaba «Free (Instrumental)» y «Amorphée» por delante. Lo que hace seguras a las
+      demás es que `_says` compara **palabras enteras**: `mc` está dentro de `ambient` y
+      `ft` dentro de casi todo.
+- [x] **La basura se nombra por palabras, no por identificadores.** El Archive crece, y
+      una lista de ids sólo describiría el día en que se escribió.
+- [x] Medido contra el índice vivo el 2026-09-20: 133 items pasan licencia y género,
+      121 tras la basura, **115 tras el filtro de voz**, de 62 artistas.
+
+#### La emisora
+
+- [x] **`station()` devuelve el día ya mezclado.** La fila abre directamente a las
+      pistas: `a` reproduce el día entero, `↵` una pista. El catálogo queda detrás de
+      «Todos los discos», la última fila, donde vive el «más…» de todos los demás
+      niveles.
+- [x] **Sembrada con la fecha y nada más.** Se queda quieta todo el día, es la misma en
+      cualquier máquina y cambia a medianoche sin que ningún servidor decida nada.
+- [x] **Veinticuatro discos, cuatro pistas como mucho de cada uno, cuarenta de tope.**
+      Veinticuatro para cuarenta parece demasiado hasta que miras el pool: casi todo son
+      singles, y doce discos a cuatro devolvieron 18 pistas y 58 minutos. **El tope por
+      disco es lo que hace escuchable el día:** intercalar sólo es justo mientras todos
+      tengan cartas, y cuando los singles se acaban los discos largos se llevan todas
+      las rondas que quedan. El primer día sin tope fueron 24 de 35 pistas de dos
+      artistas.
+- [x] **Duración entre 45 s y 10 min.** El suelo quita interludios y jingles; el techo
+      quita de lo que está lleno este rincón del Archive: «3 HOURS of lofi to study
+      to», un fichero, subido como si fuera una pista. Un día de 38 daba 7 h 51 min
+      antes de esto, que no es una emisora, son cuatro mixes con una lista encima. El
+      catálogo sigue enseñándolos: un mix de una hora es algo real que poner, sólo que
+      no algo que barajar en una rotación.
+- [x] **Ocho peticiones en paralelo, y no más.** Medido el 2026-09-20: una llamada de
+      metadata tarda 2,2 s de mediana pida lo que pida, así que las dos docenas del día
+      cuestan 63 s en serie y unos 19 con ocho hilos. **Lanzar las 24 a la vez no
+      ayudó:** tres intentos seguidos dieron 20, 25 y 28 s, cada uno más lento, que es
+      lo que parece que te estén throttleando. La latencia es del Archive y desde aquí
+      no se gana; el día se arma una vez, con el spinner, y después se lee de un
+      fichero.
+- [x] **Caché en `STATE_DIR/lofi-station.json`,** con el día como clave. Un fichero roto
+      o de ayer se vuelve a dibujar sin más: guarda algo reproducible, así que no hay
+      nada dentro que merezca recuperarse ni nada que merezca fallar.
+- [x] **Un disco que no abre no estropea el día:** se cae y suenan los otros. Es el
+      único sitio del módulo que se traga un `FreeMusicUnavailable`.
+
+#### Lo que comparte con el resto del reproductor
+
 - [x] **`freemusic.py` no conoce `Row`, tidalapi ni Textual.** Devuelve `Album` y
       `Track` propios y es `library` quien los convierte, que es lo que mantiene el
       reparto de §3 y lo que deja el módulo comprobable contra un cuerpo JSON grabado
@@ -2096,11 +2155,11 @@ más: lo que hay que decidir de verdad es qué fuente, qué licencias y dónde p
 - [x] **Un item trae cuatro copias de cada grabación.** El Archive deriva FLAC, Ogg y
       dos MP3 de cada subida, todas apuntando al original con `original`; `_best()`
       agrupa por ese campo y se queda con el mejor formato. Medido: 192 ficheros que
-      son 23 grabaciones. Sin eso el nivel listaba cada pista cuatro veces.
+      son 23 grabaciones.
 - [x] **La mitad de las subidas no trae tags.** `_title_of` cae al nombre del fichero
       sin extensión, porque una fila que dice «01-1505152-....mp3» es peor que ninguna.
-      El `creator` del item puede ser una lista, y el `year` puede no estar: `_text` y
-      `_int` absorben esa tipificación floja, que es donde se rompía antes.
+      El `creator` puede ser una lista y el `year` puede no estar: `_text` y `_int`
+      absorben esa tipificación floja.
 - [x] **`Entry` gana `source`, `url` y `licence`**, los tres con valor por defecto, así
       que una cola escrita por la 0.14.0 se restaura entera y toda ella como TIDAL.
       `Entry.resolve()` lanza si la fila no es de TIDAL: quien llegue ahí se ha saltado
@@ -2111,9 +2170,9 @@ más: lo que hay que decidir de verdad es qué fuente, qué licencias y dónde p
       dar deja las tres cosas funcionando sin tocarlas, y derivarlo de la URL hace que
       el mismo fichero vuelva del disco como la misma pista.
 - [x] **Una sola bifurcación, en `stream.playable_for()`.** Los dos workers de `app.py`
-      (`_resolve_worker` y `_prefetch_worker`) llaman ahí y no saben de dónde viene lo
-      que suena. Todo lo de después —mpv, la cola, el prefetch, el sin corte, la
-      carátula, MPRIS— es el mismo código. No hay un segundo camino de reproducción.
+      llaman ahí y no saben de dónde viene lo que suena. Todo lo de después —mpv, la
+      cola, el prefetch, el sin corte, la carátula, MPRIS— es el mismo código. No hay
+      un segundo camino de reproducción.
 - [x] **Lo que sólo TIDAL puede hacer no se ofrece**, en vez de ofrecerlo y fallar:
       `actions_for` y `container_actions_for` dejan el menú en reproducir y encolar.
       La guarda de las letras está en `_lyrics_for`, la única puerta por la que pasan
@@ -2125,13 +2184,19 @@ más: lo que hay que decidir de verdad es qué fuente, qué licencias y dónde p
       habla de lo que TIDAL mandó de menos, y a esto no se le pidió nada. La línea `OUT`
       no se toca, porque su rate sale de PipeWire y no del `Playable`.
 - [x] **MPRIS:** `xesam:url` es la URL real; `tidal://track/-1234567` no nombra nada.
-      El `trackid` ya se construía con `uid`, un contador positivo, así que un id
-      negativo nunca llega a una ruta de D-Bus.
-- [x] **La fila va al final del root**, después de Descubrir. Las cuatro primeras son
-      lo que tiene la cuenta y hay tests y memoria muscular contando con dónde están.
-- [x] **Comprobado de extremo a extremo el 2026-09-20:** 1937 items, la búsqueda, la
-      metadata, la portada (`services/img`, 200 image/jpeg) y el audio (206
-      audio/mpeg); mpv abre y decodifica la URL (`mp3 2ch 44100 Hz 320 kbps`).
+      El `trackid` ya se construía con `uid`, un contador positivo.
+- [x] **La fila va al final del root.** Las cuatro primeras son lo que tiene la cuenta y
+      hay tests y memoria muscular contando con dónde están.
+- [x] **Comprobado de extremo a extremo el 2026-09-20:** la búsqueda, la metadata, la
+      portada (`services/img`, 200 image/jpeg) y el audio (206 audio/mpeg); mpv abre y
+      decodifica la URL (`mp3 2ch 44100 Hz 320 kbps`). El día del 2026-09-20: 30 pistas,
+      1 h 12 min, media de 2:24, 18 artistas.
+
+#### Lo que no se puede prometer
+
+Que no suene una voz. El filtro cae sobre lo que se delata en los metadatos, y el
+Archive no tiene un campo que lo diga. Si aparece un artista que no debería estar, la
+cura es una palabra más en `JUNK` o en `VOCALS`, no una lista de identificadores.
 
 ### Revisión antes de la 0.8.0 (2026-09-11)
 

@@ -853,13 +853,41 @@ def _free_album_rows(albums: Iterable[freemusic.Album]) -> list[Row]:
     return rows
 
 
+def _free_catalogue_level() -> Callable[[], list[Row]]:
+    """Every record in the pool, in one level and one request.
+
+    Not paged: the genre filter cut the pool to some 120 records, which is a
+    level the browser draws without noticing, and `_paged` would have to trust
+    the Archive's count — which counts what the junk filter then throws away,
+    so it would offer a «más…» leading to nothing.
+    """
+    return lambda: _free_album_rows(freemusic.albums(limit=freemusic.POOL))
+
+
 def _free_level() -> Callable[[], list[Row]]:
-    """The copyright-free section, most listened first, one page per request."""
-    return _paged(
-        lambda offset, limit: freemusic.albums(offset, limit),
-        _free_album_rows,
-        count=freemusic.total,
-    )
+    """The day's station: its tracks, and the catalogue behind the last row.
+
+    Tracks and not records, because this is a station: `a` on the row plays
+    the day straight through, ↵ on a track plays that one, and nobody has to
+    audition strangers a record at a time to hear something. The catalogue is
+    still there for whoever wants to dig, as the last row, where the «más…»
+    of every other level sits.
+    """
+
+    def load() -> list[Row]:
+        rows = _free_track_rows(freemusic.station())
+        rows.append(
+            Row(
+                label=_("Todos los discos"),
+                detail=_("el catálogo entero"),
+                key="free:all",
+                loader=cached("free:all", _free_catalogue_level()),
+                source=FREE,
+            )
+        )
+        return rows
+
+    return load
 
 
 def root(session: tidalapi.Session) -> list[Row]:
@@ -943,7 +971,7 @@ def root(session: tidalapi.Session) -> list[Row]:
         # one out: no subscription, no session, and a licence on every row.
         Row(
             _("Lofi sin copyright"),
-            "",
+            _("la selección de hoy"),
             key="free",
             loader=cached("free", _free_level()),
         ),

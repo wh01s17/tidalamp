@@ -216,6 +216,12 @@ ENGLISH: dict[str, str] = {
     "1 elemento": "1 item",
     # --- copyright-free lofi, from the Internet Archive
     "Lofi sin copyright": "Copyright-free lofi",
+    "la selección de hoy": "today’s selection",
+    "Todos los discos": "Every record",
+    "el catálogo entero": "the whole catalogue",
+    "ninguno de los discos de hoy trae audio que mpv pueda abrir": (
+        "none of today’s records carries audio mpv can open"
+    ),
     "dominio público": "public domain",
     "el Internet Archive contestó algo que no es JSON": (
         "the Internet Archive answered with something that is not JSON"

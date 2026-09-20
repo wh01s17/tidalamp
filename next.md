@@ -87,6 +87,14 @@ No se borran: quedan escritos con el motivo para no volver a discutirlos desde c
   Además una emisora no tiene duración ni portada: habría que tocar el transporte, la
   barra de posición y la cola para una fila que no se puede prometer. El mantenedor
   eligió quedarse sólo con el Internet Archive.
+- **Otras fuentes para «Lofi sin copyright»** (2026-09-20), miradas al rediseñarla como
+  emisora. **Jamendo** tiene taxonomía de géneros de verdad y URLs de stream, pero pide
+  registrar un `client_id`, que es la misma puerta que §2 cierra para TIDAL, y ataría el
+  proyecto a la cuenta de una persona. **Free Music Archive** tiene la API muerta: su
+  `/api/get/tracks.json` contesta 404. **ccMixter** sí responde y tiene metadatos CC
+  buenos, pero es una comunidad de remixes —sus lofi son casi todos BY-NC, que el filtro
+  de licencia no deja pasar— y manda cabeceras tan grandes que `undici` se atraganta
+  (`requests` no). **Pixabay** pide clave.
 - **Distribuir por pacman mientras el AUR siga cerrado** (2026-09-12). Los repos
   oficiales no son una opción: los mantienen los Package Maintainers de Arch, y la vía
   para entrar pasa por el AUR. Quedaban dos caminos, los dos viables porque todas las
