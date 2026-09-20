@@ -50,6 +50,17 @@ def releases() -> tuple[Release, ...]:
     """Newest first. Translated at call time, not at import time."""
     return (
         Release(
+            "0.15.0",
+            "2026-09-20",
+            (
+                _("«Lofi sin copyright» en la biblioteca: la selección lofi del día."),
+                _("Experimental: es lo más cerca que llega un catálogo libre."),
+                _("k: créditos y licencia, que CC BY y CC BY-SA exigen."),
+                _("En pantalla completa, los nombres que no caben se deslizan."),
+                _("Una pista que no abre se reintenta y se dice, en vez de saltarse."),
+            ),
+        ),
+        Release(
             "0.14.0",
             "2026-09-19",
             (

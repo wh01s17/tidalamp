@@ -5,6 +5,8 @@ versioning is [semantic](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.15.0] - 2026-09-20
+
 ### Added
 
 - **Copyright-free lofi** (*experimental*), a new last row of the library (`l`), and a

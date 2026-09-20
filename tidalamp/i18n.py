@@ -277,6 +277,22 @@ ENGLISH: dict[str, str] = {
     "«{name}» no viene de TIDAL, que es de donde salen las letras": (
         "“{name}” does not come from TIDAL, which is where the lyrics come from"
     ),
+    # --- 0.15.0, in the help's list of changes
+    "«Lofi sin copyright» en la biblioteca: la selección lofi del día.": (
+        "“Copyright-free lofi” in the library: the day’s lofi selection."
+    ),
+    "Experimental: es lo más cerca que llega un catálogo libre.": (
+        "Experimental: it is the closest a freely licensed catalogue gets."
+    ),
+    "k: créditos y licencia, que CC BY y CC BY-SA exigen.": (
+        "k: credits and licence, which CC BY and CC BY-SA require."
+    ),
+    "En pantalla completa, los nombres que no caben se deslizan.": (
+        "In the full-screen view, names too long for the queue slide."
+    ),
+    "Una pista que no abre se reintenta y se dice, en vez de saltarse.": (
+        "A track that will not open is retried and named, not dropped in silence."
+    ),
     # --- 0.11.1, in the help's list of changes
     "Cerrar sesión": "Log out",
     "borra la sesión, y si quieres los datos; cierra tidalamp": (
