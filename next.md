@@ -51,6 +51,50 @@ se comprobaron contra TIDAL real ese mismo día. Queda por comprobar a mano:
     ni se parta y que las barras de título llenen su fila.
 ## Sin fecha
 
+- **Jamendo como fuente de «Lofi sin copyright», con el Internet Archive de respaldo.**
+  Decidido el 2026-09-20; **bloqueado a que el mantenedor saque un `client_id`** en
+  `devportal.jamendo.com` (alta aparte de la cuenta de `jamendo.com`: usuario, email,
+  contraseña, organización y país; luego se crea una «application» y esa da el id).
+
+  *Por qué.* La misma música, mejor indexada: 81 de los 115 discos del pool actual del
+  Archive son espejos de Jamendo. Y lo que Jamendo da y el Archive no:
+
+  | | Archive (hoy) | Jamendo |
+  | --- | --- | --- |
+  | Peticiones por día | 25, unos 19 s | **1** (`limit=200` trae audio y metadatos) |
+  | Instrumental | adivinado por palabras (`VOCALS`) | `vocalinstrumental=instrumental` |
+  | Curación | `JUNK`, escrito a mano | `featured=1`, selección de sus editores |
+  | Reparto por artista | `_interleave` + tope | `groupby=artist_id` |
+  | Formato | lo que haya subido | `audioformat=flac` |
+
+  *Lo comprobado el 2026-09-20.* El `client_id` **no es un secreto**: identifica la
+  app y va a la vista en el JS de cualquier web que use Jamendo. El `client_secret` sí
+  lo es, y **no hace falta**: sólo firma OAuth de escritura sobre cuentas de usuario.
+  Las aplicaciones nacen con plan *read only*, que es lo que usamos, y no pide
+  aprobación. Los términos permiten el uso libre no comercial y definen comercial
+  incluyendo publicidad y afiliación; tidalamp es GPL, gratuito y sin anuncios. El
+  tope son **500.000 hits**, y al pasarlo no cortan: avisan por email y meten un aviso
+  en las respuestas. Con una petición por usuario y día eso son ~16.000 usuarios
+  diarios de margen.
+
+  *Trampa ya encontrada.* El `client_id` público de pruebas que sus propios docs
+  publican (`709fa152`) **está suspendido**: contesta `code 11, Suspended Application`.
+  Por eso esto no se escribió a ciegas — sin id no se puede verificar ni una respuesta.
+
+  *Forma.* El id se lee de `TIDALAMP_JAMENDO_ID` o de `config.toml`, con el del
+  proyecto por defecto, para que quien agote la cuota compartida ponga el suyo. Sin id,
+  o si Jamendo falla, la sección cae al Internet Archive y nadie se queda sin música:
+  `freemusic.station()` ya es la única puerta, así que la elección de fuente vive
+  detrás de ella y nada más del reproductor se entera.
+
+  *Descartadas por el camino.* **Audius** responde sin clave y tiene lofi moderno de
+  verdad, pero 294 de 300 pistas suyas son «todos los derechos reservados»: rompe el
+  nombre de la sección. **Free Music Archive** tiene la API muerta (404 en
+  `/api/get/tracks.json`). **ccMixter** responde y sus metadatos CC son buenos, pero es
+  una comunidad de remixes y sus lofi son casi todos BY-NC; además manda cabeceras tan
+  grandes que `undici` se atraganta (`requests` no). **Pixabay** pide clave.
+
+
 - **«más…» en las categorías de Inicio.** Una categoría de la página de inicio trae
   los diez primeros que TIDAL pone en la página, y la lista completa está detrás de
   su «view all». `tidalapi` 0.8.11 lo tiene roto: `PageCategoryV2.view_all` llama a
