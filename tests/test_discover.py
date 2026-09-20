@@ -142,7 +142,10 @@ def test_a_link_opens_the_page_it_points_to(monkeypatch):
     assert opened == ["pages/genre_rock"]
 
 
-def test_discover_is_the_last_row_of_the_library_and_lists_three_pages():
+def test_discover_is_the_last_tidal_row_of_the_library_and_lists_three_pages():
+    """Last of TIDAL's, not last of the browser: «Lofi sin copyright» sits
+    under it, after everything the account holds and everything TIDAL
+    proposes (`test_library.py`)."""
     session = SimpleNamespace(
         # `root` hands the counters to the levels it builds, uncalled.
         user=SimpleNamespace(
@@ -156,8 +159,10 @@ def test_discover_is_the_last_row_of_the_library_and_lists_three_pages():
     )
     rows = library.root(session)
 
-    assert rows[-1].label == "Descubrir"
-    assert [row.label for row in rows[-1].loader()] == ["Inicio", "Para ti", "Explorar"]
+    discover = next(row for row in rows if row.key == "discover")
+    assert rows.index(discover) == len(rows) - 2
+    assert discover.label == "Descubrir"
+    assert [row.label for row in discover.loader()] == ["Inicio", "Para ti", "Explorar"]
 
 
 def test_an_album_tile_says_the_name_first_and_the_artist_under_it():

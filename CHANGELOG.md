@@ -5,6 +5,18 @@ versioning is [semantic](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **Copyright-free lofi**, a new last row of the library (`l`) that needs no TIDAL
+  subscription: lofi records from the Internet Archive, most listened first, each
+  opening to its tracks like an album. Only permissive licences get in — CC0, the
+  public domain mark, CC BY and CC BY-SA — so the music is yours to use and not only
+  to hear; every row says which licence it carries, and so does the `SRC` badge while
+  it plays. The grid (`v`), the filter (`/`), the next page as the cursor nears the
+  end and gapless playback all work there as they do everywhere else. What TIDAL
+  alone can do is simply not offered on those rows: no favourites, no playlists, no
+  radio, no artist or album to go to, and no lyrics.
+
 ## [0.14.0] - 2026-09-19
 
 ### Added

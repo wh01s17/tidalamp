@@ -1208,3 +1208,118 @@ def test_a_batch_whose_answer_is_lost_is_not_sent_twice(monkeypatch):
 
     assert len(playlist.batches) == 1, "un reintento duplicaría el lote"
     assert caught.value.added == 0
+
+
+# --------------------------------------------- «Lofi sin copyright», the only
+# level that is not TIDAL's
+
+
+def fake_archive(monkeypatch, albums=None, tracks=None, total=None):
+    """Stand in for the Internet Archive. `library` is what is under test
+    here; `freemusic`'s own parsing has `test_freemusic.py`."""
+    from tidalamp.freemusic import Album, Track
+
+    records = (
+        albums
+        if albums is not None
+        else [
+            Album("x", "Tame The Beast", "Lofi Lion", "CC BY", 2021),
+            Album("y", "Field Experience", "", "CC0", 2012),
+        ]
+    )
+    songs = (
+        tracks
+        if tracks is not None
+        else [
+            Track(
+                url=f"https://archive.org/download/x/{n}.mp3",
+                title=f"pista {n}",
+                artist="Lofi Lion",
+                album="Tame The Beast",
+                licence="CC BY",
+                duration=174,
+                track_num=n,
+                codec="MP3",
+                art_url="https://archive.org/services/img/x",
+            )
+            for n in (1, 2)
+        ]
+    )
+    monkeypatch.setattr(library.freemusic, "albums", lambda offset=0, limit=100: records)
+    monkeypatch.setattr(library.freemusic, "tracks", lambda album: songs)
+    monkeypatch.setattr(library.freemusic, "total", lambda: total)
+    return records, songs
+
+
+def free_level(monkeypatch, session=None) -> list[Row]:
+    library.forget()
+    rows = library.root(session or FakeSession())
+    return next(r for r in rows if r.key == "free").loader()
+
+
+def test_the_free_section_is_the_last_row_of_the_root():
+    """Last on purpose. The four levels above it are what the account holds
+    and the tests that count on their positions must keep counting right."""
+    rows = library.root(FakeSession())
+    assert rows[-1].key == "free"
+    assert rows[-1].label == "Lofi sin copyright"
+    assert [r.key for r in rows[:4]] == [
+        "playlists",
+        "fav:tracks",
+        "fav:albums",
+        "fav:artists",
+    ]
+
+
+def test_a_free_record_shows_its_licence_where_an_album_shows_its_year(monkeypatch):
+    fake_archive(monkeypatch)
+    rows = free_level(monkeypatch)
+    assert rows[0].label == "Lofi Lion - Tame The Beast"
+    assert rows[0].detail == "2021 · CC BY"
+    # No creator: the licence carries the byline, so the tile is not blank.
+    assert rows[1].byline == "CC0"
+
+
+def test_a_free_record_is_not_tidals_and_says_so(monkeypatch):
+    """What the menus read to decide which verbs to offer."""
+    fake_archive(monkeypatch)
+    rows = free_level(monkeypatch)
+    assert not rows[0].is_tidal
+    assert all(row.is_tidal for row in library.root(FakeSession())[:-1])
+
+
+def test_opening_a_free_record_gives_playable_rows(monkeypatch):
+    fake_archive(monkeypatch)
+    tracks = free_level(monkeypatch)[0].loader()
+    assert [row.label for row in tracks] == ["Lofi Lion - pista 1", "Lofi Lion - pista 2"]
+    entry = tracks[0].entry
+    assert entry is not None
+    assert not entry.is_tidal
+    assert entry.url.endswith("/1.mp3")
+    assert entry.licence == "CC BY"
+
+
+def test_the_free_section_offers_more_when_the_archive_has_more(monkeypatch):
+    from tidalamp.freemusic import Album
+
+    page = [Album(f"id{i}", f"disco {i}", "", "CC0") for i in range(PAGE)]
+    fake_archive(monkeypatch, albums=page, total=PAGE + 40)
+    rows = free_level(monkeypatch)
+    assert len(rows) == PAGE + 1
+    assert rows[-1].more is not None
+
+
+def test_a_free_row_cannot_be_favourited(monkeypatch):
+    """Favourites belong to a TIDAL account and nothing here is in one. The
+    message has to say that rather than «eso no es una pista»."""
+    fake_archive(monkeypatch)
+    row = free_level(monkeypatch)[0]
+    with pytest.raises(library.NotFavouritable, match="no está en TIDAL"):
+        library.favourite(FakeSession(), row)
+
+
+def test_a_free_track_cannot_be_favourited_either(monkeypatch):
+    fake_archive(monkeypatch)
+    track = free_level(monkeypatch)[0].loader()[0]
+    with pytest.raises(library.NotFavouritable, match="no está en TIDAL"):
+        library.favourite(FakeSession(), track)

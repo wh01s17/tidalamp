@@ -170,6 +170,9 @@ tidalamp/
   queue.py      Entry (metadatos serializables + Track perezoso) y Queue (orden,
                 shuffle, repeat, persistencia). No conoce la UI.
   library.py    Navegación de la biblioteca. Devuelve listas de Row, paginadas.
+  freemusic.py  Cliente del Internet Archive para «Lofi sin copyright». Devuelve
+                Album y Track propios, no Row: no conoce tidalapi ni Textual, y es
+                `library` quien los convierte en filas.
   net.py        with_retries(): reintentos con backoff para las llamadas a TIDAL.
   spectrum.py   Cava: proceso cava + lector de frames. Opcional por diseño.
   settings.py   Balance y ecualizador: grafos de filtro y persistencia.
@@ -210,6 +213,7 @@ Dependencia en un solo sentido:
 ```text
 cli -> app -> {player, stream, widgets, screens, mpris, lyrics, spectrum, settings}
        app -> {queue, net, artwork, library} -> {auth, config}
+       library -> freemusic -> {net, i18n}
        screens -> {widgets, library, settings, lyrics, theme, about, audio, config}
        widgets -> {analyzer, scrolling}
        widgets -> artwork  (sólo los tipos Cover/Protocol y el borrado de kitty)
@@ -2041,6 +2045,70 @@ efecto las tres trampas que lo hacían caro:
 - [x] **Comprobado contra TIDAL real** por el mantenedor el 2026-09-14: renombrar,
       cambiar la descripción, borrar y mover pistas, contrastado con lo que muestra
       TIDAL. El `toIndex` como posición final queda confirmado.
+
+### Lofi sin copyright - `freemusic.py`, `library.py`, `queue.py`, `stream.py`
+
+La primera fila de la biblioteca que no es de TIDAL. Es un reproductor, no un catálogo
+más: lo que hay que decidir de verdad es qué fuente, qué licencias y dónde poner la
+única bifurcación.
+
+- [x] **La fuente es el Internet Archive.** Su búsqueda (`advancedsearch.php`) y su
+      metadata (`/metadata/<id>`) no piden cuenta ni clave, que es la misma razón por
+      la que el resto del proyecto usa el device flow y no la API oficial (§2).
+      Jamendo, Pixabay y Chillhop piden clave. ccMixter respondía `fetch failed` el
+      2026-09-20. Radio Browser sí responde y da emisoras lofi en vivo, pero no hay
+      forma de verificar qué emiten, así que queda fuera: ver «Descartado» en
+      `next.md`.
+- [x] **Sólo licencias permisivas:** CC0, la marca de dominio público, CC BY y CC
+      BY-SA. Medido contra el índice vivo el 2026-09-20: 754 + 753 + 367 = 1937 items,
+      de 10421 con cualquier CC. **El filtro no es lo que hace legal reproducir** —
+      todas las CC permiten escuchar, incluidas NC y ND— sino lo que hace cierto el
+      nombre de la sección. «Sin copyright» promete música que puedes *usar*, y
+      BY-NC-ND (6009 items, el 58% del catálogo lofi) no la da. La licencia se ve en
+      cada fila y en la insignia `SRC`.
+- [x] **`freemusic.py` no conoce `Row`, tidalapi ni Textual.** Devuelve `Album` y
+      `Track` propios y es `library` quien los convierte, que es lo que mantiene el
+      reparto de §3 y lo que deja el módulo comprobable contra un cuerpo JSON grabado
+      (`tests/test_freemusic.py`, sin red).
+- [x] **Un item trae cuatro copias de cada grabación.** El Archive deriva FLAC, Ogg y
+      dos MP3 de cada subida, todas apuntando al original con `original`; `_best()`
+      agrupa por ese campo y se queda con el mejor formato. Medido: 192 ficheros que
+      son 23 grabaciones. Sin eso el nivel listaba cada pista cuatro veces.
+- [x] **La mitad de las subidas no trae tags.** `_title_of` cae al nombre del fichero
+      sin extensión, porque una fila que dice «01-1505152-....mp3» es peor que ninguna.
+      El `creator` del item puede ser una lista, y el `year` puede no estar: `_text` y
+      `_int` absorben esa tipificación floja, que es donde se rompía antes.
+- [x] **`Entry` gana `source`, `url` y `licence`**, los tres con valor por defecto, así
+      que una cola escrita por la 0.14.0 se restaura entera y toda ella como TIDAL.
+      `Entry.resolve()` lanza si la fila no es de TIDAL: quien llegue ahí se ha saltado
+      un `is_tidal` y es un fallo que conviene ver.
+- [x] **El id de una pista libre es un entero negativo** derivado del CRC32 de su URL.
+      Los de TIDAL son positivos, y la cola usa `Entry.id` para deduplicar, para la
+      caché de letras y para la identidad al restaurar: un número que TIDAL nunca puede
+      dar deja las tres cosas funcionando sin tocarlas, y derivarlo de la URL hace que
+      el mismo fichero vuelva del disco como la misma pista.
+- [x] **Una sola bifurcación, en `stream.playable_for()`.** Los dos workers de `app.py`
+      (`_resolve_worker` y `_prefetch_worker`) llaman ahí y no saben de dónde viene lo
+      que suena. Todo lo de después —mpv, la cola, el prefetch, el sin corte, la
+      carátula, MPRIS— es el mismo código. No hay un segundo camino de reproducción.
+- [x] **Lo que sólo TIDAL puede hacer no se ofrece**, en vez de ofrecerlo y fallar:
+      `actions_for` y `container_actions_for` dejan el menú en reproducir y encolar.
+      La guarda de las letras está en `_lyrics_for`, la única puerta por la que pasan
+      `y`, el panel partido y el de pantalla completa. `favourite()` lo dice con su
+      motivo. `_years_worker` ya filtraba por `album_id > 0`.
+- [x] **La insignia `SRC` deja fuera lo que no sabe.** El Archive no publica el rate ni
+      la profundidad, y `— · — kHz` gasta once celdas en decirlo. La licencia va donde
+      una pista de TIDAL pone su tier, y `quality` queda vacío a propósito: `downgraded`
+      habla de lo que TIDAL mandó de menos, y a esto no se le pidió nada. La línea `OUT`
+      no se toca, porque su rate sale de PipeWire y no del `Playable`.
+- [x] **MPRIS:** `xesam:url` es la URL real; `tidal://track/-1234567` no nombra nada.
+      El `trackid` ya se construía con `uid`, un contador positivo, así que un id
+      negativo nunca llega a una ruta de D-Bus.
+- [x] **La fila va al final del root**, después de Descubrir. Las cuatro primeras son
+      lo que tiene la cuenta y hay tests y memoria muscular contando con dónde están.
+- [x] **Comprobado de extremo a extremo el 2026-09-20:** 1937 items, la búsqueda, la
+      metadata, la portada (`services/img`, 200 image/jpeg) y el audio (206
+      audio/mpeg); mpv abre y decodifica la URL (`mp3 2ch 44100 Hz 320 kbps`).
 
 ### Revisión antes de la 0.8.0 (2026-09-11)
 

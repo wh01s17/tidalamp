@@ -28,7 +28,7 @@ from .i18n import _
 from .layouts import Layout, backdrop_for, layout_for
 from .layouts import label as theme_label
 from .library import Row
-from .lyrics import LyricsDocument, load_lyrics
+from .lyrics import LyricsDocument, LyricsUnavailable, load_lyrics
 from .mpris import MprisService
 from .net import with_retries
 from .player import Mpv
@@ -47,12 +47,13 @@ from .screens import (
     SearchScreen,
     SpeedScreen,
     TrackActionsScreen,
+    actions_for,
     favourite_message,
     speed_text,
 )
 from .settings import Settings, replaygain
 from .spectrum import Cava, SpectrumUnavailable
-from .stream import Playable, StreamUnavailable, cleanup_playlists, resolve
+from .stream import Playable, StreamUnavailable, cleanup_playlists, playable_for
 from .theme import LAYOUTS, ThemePalette, load_palette
 from .widgets import (
     Analyzer,
@@ -99,7 +100,9 @@ def _entry_metadata(entry: Entry) -> dict:
         "artist": entry.artist,
         "album": entry.album,
         "art_url": entry.art_url,
-        "url": f"tidal://track/{entry.id}",
+        # A free row's audio is a real URL; a TIDAL one has none that
+        # outlives the play, so it gets the scheme its own clients use.
+        "url": entry.url or f"tidal://track/{entry.id}",
     }
 
 
@@ -1506,7 +1509,10 @@ class TidalAmp(App):
         if row is None or row.entry is None:
             self.status = _("no hay ninguna pista seleccionada")
             return
-        self.push_screen(TrackActionsScreen(row.entry.label), self._queue_menu_chosen)
+        self.push_screen(
+            TrackActionsScreen(row.entry.label, actions_for(row.entry)),
+            self._queue_menu_chosen,
+        )
 
     def _queue_menu_chosen(self, action: str | None) -> None:
         """Act on a queue row the way the browser acts on one of its own.
@@ -2219,9 +2225,9 @@ class TidalAmp(App):
     @work(thread=True, exclusive=True, group="prefetch")
     def _prefetch_worker(self, entry: Entry, lyrics: bool = False) -> None:
         try:
-            ensure_fresh(self.session)
-            track = with_retries(lambda: entry.resolve(self.session))
-            playable = resolve(track)
+            if entry.is_tidal:
+                ensure_fresh(self.session)
+            playable = playable_for(entry, self.session)
         except Exception:
             # Quietly: the track after this one is not what the user is
             # listening to. When its turn comes it is resolved as ever, and
@@ -2229,9 +2235,9 @@ class TidalAmp(App):
             self.call_from_thread(self._prefetch_gave_up, entry)
             return
         self.call_from_thread(self._prefetched, entry, playable)
-        self._warm(entry, track, lyrics)
+        self._warm(entry, lyrics)
 
-    def _warm(self, entry: Entry, track: object, lyrics: bool) -> None:
+    def _warm(self, entry: Entry, lyrics: bool) -> None:
         """Fetch the next track's cover, and its lyrics if asked, into their
         caches. The sound starts with no gap, and without this the cover and
         the lyrics then came in a moment after it, off the network.
@@ -2240,13 +2246,19 @@ class TidalAmp(App):
         download is done ahead; drawing depends on the box and the look at
         the time, and from the disk cache it is quick. Failures are silent,
         and the track's own turn fetches again and says why.
+
+        A free row has a cover and no lyrics: TIDAL is the only provider
+        here, and it knows nothing about a track that is not in its
+        catalogue.
         """
         if entry.art_url and self.art_protocol is not artwork.Protocol.NONE:
             with contextlib.suppress(Exception):
                 artwork.fetch(entry.art_url)
-        if lyrics and entry.id not in self._lyrics_cache:
+        if lyrics and entry.is_tidal and entry.id not in self._lyrics_cache:
             with contextlib.suppress(Exception):
-                self._lyrics_cache[entry.id] = load_lyrics(track)
+                # Free: `playable_for` already resolved it a moment ago and
+                # the Track is cached on the entry.
+                self._lyrics_cache[entry.id] = load_lyrics(entry.resolve(self.session))
 
     def _prefetched(self, entry: Entry, playable: Playable) -> None:
         """Queue what came back, if it is still the track that comes next.
@@ -2531,11 +2543,13 @@ class TidalAmp(App):
         try:
             # An access token only lasts a few hours, less than a listening
             # session; refresh it here rather than letting the next call fail.
-            if ensure_fresh(self.session):
+            # A free row needs neither: it carries its own URL, and
+            # refreshing a TIDAL token to play something that is not TIDAL's
+            # would be a request per track for nothing.
+            if entry.is_tidal and ensure_fresh(self.session):
                 self.call_from_thread(setattr, self, "status", _("sesión refrescada"))
             # A restored entry has no Track yet; this is where we pay for it.
-            track = with_retries(lambda: entry.resolve(self.session))
-            playable = resolve(track)
+            playable = playable_for(entry, self.session)
         except NotLoggedIn as exc:
             self.call_from_thread(self._resolve_failed, str(exc), entry)
             return
@@ -2642,12 +2656,21 @@ class TidalAmp(App):
         if playable is None:
             source = f"SRC  — · {analyzer.source} · {self._playback_label()}"
         else:
-            quality = columns.QUALITY_LABELS.get(playable.quality, playable.quality)
-            source = (
-                f"SRC  {self._codec_label(playable)} · {playable.kbps} · "
-                f"{playable.khz} kHz · {quality} · {analyzer.source} · "
-                f"{self._playback_label()}"
+            # Only what is known. A TIDAL track knows all of it; a free one
+            # knows its codec and its licence and nothing else, and a line
+            # reading «— · — kHz» spends eleven cells saying so.
+            parts = [self._codec_label(playable)]
+            if playable.kbps != "—":
+                parts.append(playable.kbps)
+            if playable.khz != "—":
+                parts.append(f"{playable.khz} kHz")
+            tier = playable.licence or columns.QUALITY_LABELS.get(
+                playable.quality, playable.quality
             )
+            if tier:
+                parts.append(tier)
+            parts += [analyzer.source, self._playback_label()]
+            source = "SRC  " + " · ".join(parts)
             source += self._gain_badge(playable)
         self.query_one("#badges", Glide).update(source)
         self._refresh_output_line()
@@ -2740,9 +2763,24 @@ class TidalAmp(App):
         self.mpv.volume = self.mpv.volume - 5
 
     def _lyrics_for(self, entry: Entry) -> LyricsDocument:
+        """The lyrics of a track, cached per entry.
+
+        The single door every lyrics view goes through — `y`, the split
+        pane and the full-screen panel — which is why the guard for a row
+        that is not TIDAL's lives here and nowhere else. TIDAL is the only
+        provider, and it has nothing to say about a track outside its
+        catalogue: the views already draw a `LyricsUnavailable` as the
+        message under the title.
+        """
         cached = self._lyrics_cache.get(entry.id)
         if cached is not None:
             return cached
+        if not entry.is_tidal:
+            raise LyricsUnavailable(
+                _("«{name}» no viene de TIDAL, que es de donde salen las letras").format(
+                    name=entry.title
+                )
+            )
         ensure_fresh(self.session)
         track = with_retries(lambda: entry.resolve(self.session))
         document = load_lyrics(track)

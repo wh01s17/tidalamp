@@ -19,10 +19,11 @@ from typing import Any, cast
 import tidalapi
 from tidalapi.types import AlbumOrder, ArtistOrder, ItemOrder, OrderDirection
 
+from . import freemusic
 from .config import STATE_DIR, write_atomically
 from .i18n import _
 from .net import with_retries
-from .queue import Entry
+from .queue import FREE, TIDAL, Entry
 
 log = logging.getLogger("tidalamp.library")
 
@@ -326,10 +327,22 @@ class Row:
     # artist. The name goes on the tile's first line and the artist under it.
     caption: str = ""
     byline: str = ""
+    # Where the level under this row comes from, as `Entry.source` says it
+    # for a track. Only «Lofi sin copyright» is not TIDAL's, and the screens
+    # read it to know which verbs to offer over the row.
+    source: str = TIDAL
 
     @property
     def is_playable(self) -> bool:
         return self.entry is not None
+
+    @property
+    def is_tidal(self) -> bool:
+        """Whether TIDAL can be asked about this row: favourites, playlists,
+        the radio, the artist behind it."""
+        if self.entry is not None:
+            return self.entry.is_tidal
+        return self.source == TIDAL
 
 
 def _paged(
@@ -794,6 +807,61 @@ def _discover_rows(session: Any) -> list[Row]:
     return rows
 
 
+def _free_track_rows(tracks: Iterable[freemusic.Track]) -> list[Row]:
+    rows = []
+    for track in tracks:
+        entry = Entry.from_free(track)
+        rows.append(Row(label=entry.label, detail=entry.length, entry=entry))
+    return rows
+
+
+def _free_album_level(
+    album: freemusic.Album, order: Order | None = None
+) -> Callable[[], list[Row]]:
+    """One item's tracks. A single request brings all of them, so there is no
+    «más…» here and the level sorts locally like an album's does — which is
+    why ``order`` is taken and ignored, exactly as `_album_level` does under
+    ``local=True``."""
+    return lambda: _free_track_rows(freemusic.tracks(album))
+
+
+def _free_album_rows(albums: Iterable[freemusic.Album]) -> list[Row]:
+    rows = []
+    for album in albums:
+        rows.append(
+            Row(
+                label=(
+                    f"{album.creator} - {album.title}" if album.creator else album.title
+                ),
+                # The licence where a TIDAL album shows its year: it is the
+                # reason this section exists, so it goes where it is read.
+                detail=" · ".join(
+                    part for part in (str(album.year or ""), album.licence) if part
+                ),
+                art=album.art_url,
+                caption=album.title,
+                byline=album.creator or album.licence,
+                source=FREE,
+                **_sortable(
+                    f"free:{album.identifier}",
+                    ALBUM_TRACK_BY,
+                    partial(_free_album_level, album),
+                    local=True,
+                ),
+            )
+        )
+    return rows
+
+
+def _free_level() -> Callable[[], list[Row]]:
+    """The copyright-free section, most listened first, one page per request."""
+    return _paged(
+        lambda offset, limit: freemusic.albums(offset, limit),
+        _free_album_rows,
+        count=freemusic.total,
+    )
+
+
 def root(session: tidalapi.Session) -> list[Row]:
     """The top level of the browser."""
     favorites = _me(session).favorites
@@ -869,6 +937,15 @@ def root(session: tidalapi.Session) -> list[Row]:
             "",
             key="discover",
             loader=cached("discover", partial(_discover_rows, session)),
+        ),
+        # The only level that is not TIDAL's. Last, after everything the
+        # account holds and everything TIDAL proposes, because it is the odd
+        # one out: no subscription, no session, and a licence on every row.
+        Row(
+            _("Lofi sin copyright"),
+            "",
+            key="free",
+            loader=cached("free", _free_level()),
         ),
     ]
 
@@ -1062,6 +1139,12 @@ def favourite(session: tidalapi.Session, row: Row, add: bool = True) -> str:
     Returns a label for the status line; raises :class:`NotFavouritable` for a
     row that is a heading, a "más…" or a level rather than a piece of music.
     """
+    if not row.is_tidal:
+        # Not a failure to report as an error: favourites are a TIDAL
+        # account's, and nothing in «Lofi sin copyright» is in one.
+        raise NotFavouritable(
+            _("«Lofi sin copyright» no está en TIDAL: no hay dónde guardarlo")
+        )
     favorites = _me(session).favorites
     entry = row.entry
     if entry is not None:

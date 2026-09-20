@@ -25,7 +25,7 @@ from .grid import GridList, cached_cells, cover_cells
 from .help import HelpScreen
 from .prompts import PlaylistNameScreen
 from .rowlist import RowList
-from .tracks import CONTAINER_ACTIONS, PLAYLIST_ACTIONS, TrackActionsScreen
+from .tracks import TrackActionsScreen, actions_for, container_actions_for
 
 if TYPE_CHECKING:  # The screens report back to the app; the app owns them.
     from ..app import TidalAmp
@@ -796,7 +796,9 @@ class BrowserScreen(ModalScreen[tuple | None]):
             return
         # A track offers more than one thing worth doing, so ask instead of
         # assuming. `a` still means what ↵ used to do on its own.
-        self.app.push_screen(TrackActionsScreen(row.label), self._act_on_track)
+        self.app.push_screen(
+            TrackActionsScreen(row.label, actions_for(row.entry)), self._act_on_track
+        )
 
     @staticmethod
     def _level_of(row: Row) -> tuple[str, Callable[[], list[Row]]]:
@@ -823,10 +825,13 @@ class BrowserScreen(ModalScreen[tuple | None]):
         if row is None:
             return
         if row.entry is not None:
-            self.app.push_screen(TrackActionsScreen(row.label), self._act_on_track)
+            self.app.push_screen(
+                TrackActionsScreen(row.label, actions_for(row.entry)), self._act_on_track
+            )
         elif row.loader is not None:
-            # A playlist of yours can also be renamed, described and deleted.
-            actions = PLAYLIST_ACTIONS if row.editable else CONTAINER_ACTIONS
+            # A playlist of yours can also be renamed, described and deleted;
+            # a record in «Lofi sin copyright» can only be played.
+            actions = container_actions_for(row)
             self.app.push_screen(
                 TrackActionsScreen(row.label, actions),
                 partial(self._act_on_container, row),

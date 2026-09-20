@@ -81,6 +81,12 @@ se comprobaron contra TIDAL real ese mismo día. Queda por comprobar a mano:
 
 No se borran: quedan escritos con el motivo para no volver a discutirlos desde cero.
 
+- **Emisoras lofi en vivo** (2026-09-20), de Radio Browser, como segunda fila de
+  «Lofi sin copyright». La API responde sin clave y tiene emisoras lofi de sobra, pero
+  no hay forma de verificar qué emiten, así que la fila dejaría de merecer su nombre.
+  Además una emisora no tiene duración ni portada: habría que tocar el transporte, la
+  barra de posición y la cola para una fila que no se puede prometer. El mantenedor
+  eligió quedarse sólo con el Internet Archive.
 - **Distribuir por pacman mientras el AUR siga cerrado** (2026-09-12). Los repos
   oficiales no son una opción: los mantienen los Package Maintainers de Arch, y la vía
   para entrar pasa por el AUR. Quedaban dos caminos, los dos viables porque todas las

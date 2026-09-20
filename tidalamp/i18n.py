@@ -214,6 +214,29 @@ ENGLISH: dict[str, str] = {
     "página": "page",
     "{count} elementos": "{count} items",
     "1 elemento": "1 item",
+    # --- copyright-free lofi, from the Internet Archive
+    "Lofi sin copyright": "Copyright-free lofi",
+    "dominio público": "public domain",
+    "el Internet Archive contestó algo que no es JSON": (
+        "the Internet Archive answered with something that is not JSON"
+    ),
+    "el Internet Archive no devolvió resultados": (
+        "the Internet Archive returned no results"
+    ),
+    "no se pudo hablar con el Internet Archive: {error}": (
+        "could not reach the Internet Archive: {error}"
+    ),
+    "«Lofi sin copyright» no está en TIDAL: no hay dónde guardarlo": (
+        "“Copyright-free lofi” is not on TIDAL: there is nowhere to save it"
+    ),
+    "«{name}» no trae audio que mpv pueda abrir": (
+        "“{name}” carries no audio mpv can open"
+    ),
+    "«{name}» no trae audio que reproducir": "“{name}” carries no audio to play",
+    "«{name}» no trae ficheros": "“{name}” carries no files",
+    "«{name}» no viene de TIDAL, que es de donde salen las letras": (
+        "“{name}” does not come from TIDAL, which is where the lyrics come from"
+    ),
     # --- 0.11.1, in the help's list of changes
     "Cerrar sesión": "Log out",
     "borra la sesión, y si quieres los datos; cierra tidalamp": (

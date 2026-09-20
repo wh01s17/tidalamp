@@ -23,14 +23,17 @@ from .rowlist import RowList, _hex, _Paint
 from .speed import SpeedScreen, speed_text
 from .tracks import (
     CONTAINER_ACTIONS,
+    FREE_TRACK_ACTIONS,
     TRACK_ACTIONS,
     PlaylistPickerScreen,
     TrackActionsScreen,
+    actions_for,
 )
 
 __all__ = [
     "BROWSER_HINTS",
     "CONTAINER_ACTIONS",
+    "FREE_TRACK_ACTIONS",
     "HINT_GAP",
     "PRESET_LABELS",
     "TRACK_ACTIONS",
@@ -55,6 +58,7 @@ __all__ = [
     "_Paint",
     "_crop",
     "_hex",
+    "actions_for",
     "column_label",
     "favourite_message",
     "fit_hints",

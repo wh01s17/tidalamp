@@ -27,6 +27,7 @@ import logging
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 import tidalapi
 
@@ -51,11 +52,14 @@ class Playable:
     sample_rate: int | None
     bit_depth: int | None
     codec: str | None
-    # Which branch of the manifest we took: "BTS" (progressive URL) or
-    # "MPD" (segmented DASH rendered to a local HLS playlist).
+    # Which branch of the manifest we took: "BTS" (progressive URL), "MPD"
+    # (segmented DASH rendered to a local HLS playlist), or "FREE" for audio
+    # that never went through TIDAL at all.
     manifest: str = "BTS"
     # What we asked TIDAL for, which is not always what it sends.
     requested: str = ""
+    # The licence of a free track, shown where a TIDAL one shows its tier.
+    licence: str = ""
     # ReplayGain in dB and peak amplitude (1.0 is full scale), for the track
     # and for its album. None when TIDAL did not send them.
     track_gain: float | None = None
@@ -222,6 +226,41 @@ def resolve(track: tidalapi.Track) -> Playable:
         album_gain=album_gain,
         album_peak=album_peak,
     )
+
+
+def direct(entry: Any) -> Playable:
+    """What mpv gets for a row that carries its own URL.
+
+    No request: the URL came with the listing and does not expire, which is
+    the whole difference between this and a TIDAL track. The sample rate and
+    the bit depth stay unknown — the Archive does not publish them and only
+    the decoder could say — and the badge leaves out what it does not know
+    rather than printing a dash for it.
+    """
+    if not entry.url:
+        raise StreamUnavailable(
+            _("«{name}» no trae audio que reproducir").format(name=entry.title)
+        )
+    log.debug("«%s» directa: %s (%s)", entry.title, entry.url, entry.licence)
+    return Playable(
+        url=entry.url,
+        # Not a TIDAL tier, and deliberately not faked as one: `downgraded`
+        # and the quality labels are about what TIDAL sent us.
+        quality="",
+        sample_rate=None,
+        bit_depth=None,
+        codec=entry.quality,
+        manifest="FREE",
+        licence=entry.licence,
+    )
+
+
+def playable_for(entry: Any, session: tidalapi.Session) -> Playable:
+    """The one place that decides how a queue row turns into audio."""
+    if not entry.is_tidal:
+        return direct(entry)
+    track = with_retries(lambda: entry.resolve(session))
+    return resolve(track)
 
 
 def cleanup_playlists() -> None:

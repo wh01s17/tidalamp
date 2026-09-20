@@ -38,6 +38,12 @@ def _claim_uid(value: int) -> int:
     return value
 
 
+# The two kinds of row a queue can hold. A TIDAL track is resolved through
+# the session on every play; a free one already knows its URL.
+TIDAL = "tidal"
+FREE = "free"
+
+
 class Repeat(StrEnum):
     """Repeat mode. The values match MPRIS ``LoopStatus`` exactly."""
 
@@ -79,6 +85,18 @@ class Entry:
     popularity: int = 0
     isrc: str = ""
     quality: str = ""
+    # Where this row comes from: "tidal", or "free" for the copyright-free
+    # section of the library. A free row carries its own URL and needs no
+    # session to play, so everything that would ask TIDAL about it — the
+    # lyrics, the radio, favourites, the year of its record — checks this
+    # first. See `is_tidal`.
+    source: str = TIDAL
+    # The audio, for a row that is not TIDAL's. Empty for a TIDAL track,
+    # whose URL is resolved per play and expires.
+    url: str = ""
+    # The licence the audio is published under, shown where a TIDAL track
+    # shows its quality tier.
+    licence: str = ""
     # Identity of this row, not of the song. Excluded from equality so two
     # rows for the same track still compare equal, as they always have.
     uid: int = field(default_factory=_new_uid, compare=False)
@@ -116,6 +134,39 @@ class Entry:
             _track=track,
         )
 
+    @classmethod
+    def from_free(cls, track: Any) -> Entry:
+        """A row out of a `freemusic.Track`.
+
+        Typed loosely on purpose: `queue` sits under `library` in the import
+        graph and importing `freemusic` here to name the parameter would be
+        the first edge pointing the other way.
+        """
+        return cls(
+            id=track.id,
+            title=track.title,
+            artist=track.artist,
+            album=track.album,
+            year=track.year,
+            duration=track.duration,
+            art_url=track.art_url,
+            track_num=track.track_num,
+            quality=track.codec,
+            source=FREE,
+            url=track.url,
+            licence=track.licence,
+        )
+
+    @property
+    def is_tidal(self) -> bool:
+        """Whether TIDAL can be asked about this row.
+
+        Everything TIDAL-only goes through here: the lyrics, the radio,
+        favourites, adding to a playlist, going to the artist or the album,
+        and filling in the year of a record.
+        """
+        return self.source == TIDAL
+
     @property
     def label(self) -> str:
         return f"{self.artist} - {self.title}" if self.artist else self.title
@@ -127,6 +178,11 @@ class Entry:
 
     def resolve(self, session: tidalapi.Session) -> tidalapi.Track:
         """Fetch the real Track, hitting the API only on a restored entry."""
+        if not self.is_tidal:
+            # Loudly rather than by returning None: a caller that reaches
+            # here has skipped an `is_tidal` check, and a free row's id is a
+            # negative number TIDAL would answer a 404 to anyway.
+            raise ValueError(f"«{self.label}» no viene de TIDAL ({self.source})")
         if self._track is None:
             # tidalapi types the id as a string; the API takes both and every
             # track id we hold came back from it as an int.
@@ -151,6 +207,9 @@ class Entry:
             "popularity": self.popularity,
             "isrc": self.isrc,
             "quality": self.quality,
+            "source": self.source,
+            "url": self.url,
+            "licence": self.licence,
             "uid": self.uid,
         }
 
@@ -177,6 +236,11 @@ class Entry:
             popularity=int(raw.get("popularity", 0) or 0),
             isrc=raw.get("isrc", "") or "",
             quality=raw.get("quality", "") or "",
+            # A queue written before the free section existed is all TIDAL,
+            # which is exactly what the default says.
+            source=raw.get("source", TIDAL) or TIDAL,
+            url=raw.get("url", "") or "",
+            licence=raw.get("licence", "") or "",
             # A queue written before uids existed simply gets fresh ones.
             uid=_claim_uid(int(raw["uid"])) if "uid" in raw else _new_uid(),
         )

@@ -263,13 +263,33 @@ An artist opens to its sections: popular tracks, albums, EPs and singles, and ot
 sections TIDAL has, in its own order, and one with nothing in it is left out. `m` and
 `a` on an artist still play its popular tracks.
 
-**Discover**, the last row of the library, is what TIDAL proposes rather than what you
-keep: its home page (recently played, albums you will enjoy, new tracks, your mixes and
+**Discover**, the last of TIDAL's rows in the library, is what TIDAL proposes rather
+than what you keep: its home page (recently played, albums you will enjoy, new tracks, your mixes and
 radio stations), For you, and Explore, whose genres, moods and decades each open to a
 page of their own. Every page opens to its categories and every category to what it
 holds, which plays and opens like anything else in the library. Videos and TIDAL's
 banners are left out, and a category shows what TIDAL puts on the page, usually the
 first ten.
+
+**Copyright-free lofi** is the last row, and the only one that is not TIDAL's: lofi
+records from the [Internet Archive](https://archive.org), most listened first, each
+opening to its tracks like an album. The Archive asks for no account and no API key,
+so nothing in this row is charged against your TIDAL subscription and nothing in it can
+be DRM-locked. tidalamp itself still signs in to TIDAL to start, as it always has.
+
+Only permissively licensed music gets in: CC0, the public domain mark, CC BY and
+CC BY-SA. Every Creative Commons licence allows listening, so the filter is not what
+makes playback lawful; it is what makes the row's name true. Those four let you *use*
+the music — in a video, a stream, a game — and only ask that you credit the author,
+while the licences left out (chiefly BY-NC-ND, the Archive's most common) do not. Each
+record and each track says which licence it carries, in the row and in the `SRC` badge
+while it plays.
+
+The grid, the filter, the next page arriving as the cursor nears the end and gapless
+playback all work there as they do everywhere else. What only TIDAL can do is simply
+not offered on those rows: no favourites, no playlists, no radio, no artist or album to
+go to, and no lyrics. Nothing is downloaded — the audio is streamed from the Archive,
+exactly as TIDAL's is streamed from TIDAL.
 
 **The grid.** `v` in the browser (or Library view in the settings window) shows a level
 of albums, playlists, artists or mixes as tiles, each with its cover, its name and a
@@ -992,6 +1012,11 @@ player its key defaults and equalizer bands come from.
   audio to files will not be accepted.
 - tidalamp **does not download or redistribute music**. Audio is streamed. The only
   on-disk playback artifact is a temporary HLS playlist containing URLs, not audio.
+- The **Copyright-free lofi** row streams from the Internet Archive and is filtered to
+  CC0, the public domain mark, CC BY and CC BY-SA. Those licences are shown per record
+  and per track so you can honour them; tidalamp streams the audio and makes no claim
+  on your behalf about what you may then do with it. The Archive's metadata is what
+  the filter trusts, and an item mislabelled at its source would be mislabelled here.
 - Authentication uses TIDAL's device authorization flow through `tidalapi`, not the
   developer API. Using an unofficial client may conflict with TIDAL's terms of
   service; users accept that decision and any risk to their account.

@@ -19,6 +19,7 @@ class Playable:
     khz = "44.1"
     quality = "LOSSLESS"
     codec = "flac"
+    licence = ""
 
     def __init__(self, url: str, gain: float | None = None, peak: float | None = None):
         self.url = url
@@ -364,7 +365,9 @@ def test_the_next_cover_and_lyrics_are_fetched_with_its_stream(monkeypatch):
     monkeypatch.setattr(app_module, "ensure_fresh", lambda session: False)
     monkeypatch.setattr(Entry, "resolve", lambda self, session: f"track-{self.id}")
     monkeypatch.setattr(
-        app_module, "resolve", lambda track: Playable(f"https://cdn/{track}")
+        app_module,
+        "playable_for",
+        lambda entry, session: Playable(f"https://cdn/track-{entry.id}"),
     )
     monkeypatch.setattr(
         app_module.artwork, "fetch", lambda url: fetched.append(url) or b""
@@ -401,9 +404,9 @@ def test_the_next_cover_and_lyrics_are_fetched_with_its_stream(monkeypatch):
             assert application._lyrics_cache[2] == "letra"
 
             # Without anything on screen following the lyrics, not asked for.
-            application._warm(entries[1], "track-2", False)
+            application._warm(entries[1], False)
             del application._lyrics_cache[2]
-            application._warm(entries[1], "track-2", False)
+            application._warm(entries[1], False)
             assert lyrics_for == ["track-2"]
 
     asyncio.run(scenario())
