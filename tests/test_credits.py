@@ -165,3 +165,123 @@ def test_the_credits_letter_collides_with_nothing():
         letter for action, _i, letter, _l in FREE_TRACK_ACTIONS if action == "credits"
     )
     assert credits not in taken
+
+
+# -------------------------------------------- `k`, everywhere it should work
+
+
+def with_queue(monkeypatch):
+    from app_helpers import FakeMpv, isolate_runtime
+
+    from tidalamp.app import TidalAmp
+
+    isolate_runtime(monkeypatch)
+    monkeypatch.setattr(TidalAmp, "_resolve_worker", lambda self, entry: None)
+    mpv = FakeMpv()
+    app = TidalAmp(object(), mpv)
+    return app, mpv
+
+
+def free_and_tidal() -> list[Entry]:
+    return [free(), Entry(id=7, title="Schism", artist="TOOL", duration=200)]
+
+
+def test_the_window_can_be_closed(monkeypatch):
+    """It could not. The binding named an action that was never written, so
+    the credits opened over the player and stayed there: esc did nothing,
+    and neither did any other key the window claimed."""
+    import asyncio
+
+    async def scenario() -> str:
+        app, _mpv = with_queue(monkeypatch)
+        async with app.run_test(size=(140, 40)) as pilot:
+            await pilot.pause()
+            app.push_screen(CreditsScreen(free()))
+            await pilot.pause()
+            assert isinstance(app.screen, CreditsScreen)
+            await pilot.press("escape")
+            await pilot.pause()
+            return type(app.screen).__name__
+
+    assert asyncio.run(scenario()) != "CreditsScreen"
+
+
+def test_k_opens_the_credits_of_the_row_under_the_cursor(monkeypatch):
+    """`k` reads about what the eye is on, the way `m` acts on it."""
+    import asyncio
+
+    async def scenario() -> str:
+        app, _mpv = with_queue(monkeypatch)
+        async with app.run_test(size=(140, 40)) as pilot:
+            await pilot.pause()
+            app.queue.append(free_and_tidal())
+            app._sync_queue()
+            app.queue.playing = 0
+            await pilot.pause()
+            await pilot.press("k")
+            await pilot.pause()
+            return type(app.screen).__name__
+
+    assert asyncio.run(scenario()) == "CreditsScreen"
+
+
+def test_k_on_a_tidal_row_says_why_there_are_none(monkeypatch):
+    """Not a red line: TIDAL's catalogue has no licence that asks anything of
+    the listener and no page to point at."""
+    import asyncio
+
+    from tidalamp.screens import RowList
+
+    async def scenario() -> tuple[str, str]:
+        app, _mpv = with_queue(monkeypatch)
+        async with app.run_test(size=(140, 40)) as pilot:
+            await pilot.pause()
+            app.queue.append(free_and_tidal())
+            app._sync_queue()
+            app.queue.playing = 0
+            app.query_one("#playlist", RowList).cursor = 1
+            await pilot.pause()
+            await pilot.press("k")
+            await pilot.pause()
+            return type(app.screen).__name__, str(app.status)
+
+    screen, status = asyncio.run(scenario())
+    assert screen != "CreditsScreen"
+    assert "Lofi sin copyright" in status
+
+
+def test_k_works_in_the_full_screen_view_too(monkeypatch):
+    """There the queue is a panel and the cursor is the player's; `k` has to
+    reach the same row from both."""
+    import asyncio
+
+    async def scenario() -> str:
+        app, _mpv = with_queue(monkeypatch)
+        async with app.run_test(size=(140, 40)) as pilot:
+            await pilot.pause()
+            app.queue.append(free_and_tidal())
+            app._sync_queue()
+            app.queue.playing = 0
+            await pilot.pause()
+            await pilot.press("w")
+            await pilot.pause()
+            await pilot.pause()
+            await pilot.press("k")
+            await pilot.pause()
+            return type(app.screen).__name__
+
+    assert asyncio.run(scenario()) == "CreditsScreen"
+
+
+def test_k_is_listed_in_the_help(monkeypatch):
+    """A key nobody is told about is a key nobody presses."""
+    from tidalamp import about
+    from tidalamp.app import keys_for
+
+    shown = [
+        label
+        for section in about.shortcuts(keys_for)
+        for _key, label in section.rows
+        if "crédito" in label
+    ]
+    assert len(shown) >= 3, "el reproductor, el navegador y pantalla completa"

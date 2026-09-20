@@ -8,23 +8,33 @@ versioning is [semantic](https://semver.org/).
 ### Added
 
 - **Copyright-free lofi**, a new last row of the library (`l`), and a station rather
-  than a catalogue: it opens straight onto a day's worth of instrumental lofi from the
-  Internet Archive, already shuffled, so `a` plays the day and `↵` plays a track. The
-  selection is drawn with the date as its seed, so it holds still all day, is the same
-  on every machine, and turns over at midnight without a server. The whole catalogue is
-  behind **Every record**, the last row inside it.
-  Three filters decide what gets in: only permissive licences (CC0, the public domain
-  mark, CC BY, CC BY-SA), so the music is yours to use and not only to hear; the genre
-  asked for by name rather than through the Archive's `lofi` tag, which also means
-  *badly recorded*; and, as far as metadata can tell, nothing with singing on it.
-  Tracks run from forty-five seconds to ten minutes, no record gives the day more than
-  four, and hour-long study mixes stay in the catalogue instead of the rotation. Every
-  row says which licence it carries, and so does the `SRC` badge while it plays. The
-  grid (`v`), the filter (`/`) and gapless playback work there as everywhere else.
-  What TIDAL alone can do is simply not offered on those rows: no favourites, no
-  playlists, no radio, no artist or album to go to, and no lyrics.
-- **Credits**, on the menu of any track in that section (`k`, or `↵` and then the
-  row). CC BY and CC BY-SA do not merely permit attribution, they require it, so the
+  than a catalogue: it opens straight onto a day's worth of instrumental lofi, already
+  shuffled, so `a` plays the day and `↵` plays a track. The selection is drawn with the
+  date as its seed, so it holds still all day, is the same on every machine, and turns
+  over at midnight without a server.
+  It comes from **Jamendo**, where everything is published under a Creative Commons
+  licence: one request for a whole day, an instrumental filter the artist set rather
+  than one guessed from titles, and a licence filter that runs on the server. The
+  **Internet Archive** catches the day when Jamendo cannot be reached or no client id
+  is configured — slower, and with its tag soup filtered here by hand — so a day is
+  never lost to one source being down. The Archive's catalogue is browsable behind
+  **Every record** when it is the source.
+  Only permissive licences get in (CC0, the public domain mark, CC BY, CC BY-SA), so
+  the music is yours to use and not only to hear. Tracks run from forty-five seconds to
+  ten minutes, no record gives the day more than four, and hour-long study mixes stay
+  out of the rotation. Every row says which licence it carries, and so does the `SRC`
+  badge while it plays. The grid (`v`), the filter (`/`) and gapless playback work
+  there as everywhere else. What TIDAL alone can do is simply not offered on those
+  rows: no favourites, no playlists, no radio, no artist or album to go to, and no
+  lyrics.
+- `jamendo_id` (`TIDALAMP_JAMENDO_ID`), which names the application Jamendo serves the
+  section to. It ships filled in and is not a secret — a Jamendo client id is public by
+  design, and the `client_secret` that is not is never needed, because tidalamp only
+  ever reads a catalogue. It is a setting because the quota is per application: anybody
+  crowded off the shared one can register their own at devportal.jamendo.com. Emptying
+  it falls back to the Internet Archive.
+- **Credits**, on `k` over any track in that section — in the player, in the browser,
+  in the full-screen view, and on the track menu. CC BY and CC BY-SA do not merely permit attribution, they require it, so the
   window gives the four things the licence asks for — title, author, source and
   licence — says in one line what that licence asks of you, and then assembles the
   credit ready to be copied into whatever the music ends up in. The source is the

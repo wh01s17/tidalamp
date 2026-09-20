@@ -243,14 +243,27 @@ ENGLISH: dict[str, str] = {
         "none of today’s records carries audio mpv can open"
     ),
     "dominio público": "public domain",
-    "el Internet Archive contestó algo que no es JSON": (
-        "the Internet Archive answered with something that is not JSON"
+    "{who} contestó algo que no es JSON": (
+        "{who} answered with something that is not JSON"
     ),
+    "no se pudo hablar con {who}: {error}": "could not reach {who}: {error}",
+    "{who} rechazó la petición: {error}": "{who} refused the request: {error}",
+    "{who} contestó sin resultados varias veces seguidas": (
+        "{who} answered with no results several times running"
+    ),
+    "{who} no devolvió nada con licencia permisiva": (
+        "{who} returned nothing under a permissive licence"
+    ),
+    "no hay un client_id de Jamendo configurado": ("no Jamendo client_id is configured"),
+    "no se encontró música con licencia libre": ("no freely licensed music was found"),
+    "créditos": "credits",
+    "créditos y licencia de la pista": "the track’s credits and licence",
+    "créditos y licencia (solo «Lofi sin copyright»)": (
+        "credits and licence (“Copyright-free lofi” only)"
+    ),
+    "los créditos son de «Lofi sin copyright»": ("credits are for “Copyright-free lofi”"),
     "el Internet Archive no devolvió resultados": (
         "the Internet Archive returned no results"
-    ),
-    "no se pudo hablar con el Internet Archive: {error}": (
-        "could not reach the Internet Archive: {error}"
     ),
     "«Lofi sin copyright» no está en TIDAL: no hay dónde guardarlo": (
         "“Copyright-free lofi” is not on TIDAL: there is nowhere to save it"
@@ -260,6 +273,7 @@ ENGLISH: dict[str, str] = {
     ),
     "«{name}» no trae audio que reproducir": "“{name}” carries no audio to play",
     "«{name}» no trae ficheros": "“{name}” carries no files",
+    "«{name}» es todo con voz": "“{name}” is all vocals",
     "«{name}» no viene de TIDAL, que es de donde salen las letras": (
         "“{name}” does not come from TIDAL, which is where the lyrics come from"
     ),

@@ -129,6 +129,9 @@ DEFAULT_KEYS: dict[str, str] = {
     "save_playlist": "p",
     "library": "l",
     "lyrics": "y",
+    # Next to `y`: both answer «what is this», one with the words and the
+    # other with who made it and what its licence asks.
+    "credits": "k",
     "equalizer": "e",
     "shuffle": "s",
     "repeat": "r",
@@ -289,6 +292,7 @@ class TidalAmp(App):
         _bind("save_playlist", _("guardar la cola como playlist")),
         _bind("library", _("biblioteca"), show=True),
         _bind("lyrics", _("letra"), show=True),
+        _bind("credits", _("créditos")),
         _bind("equalizer", _("ecualizador"), show=True),
         _bind("shuffle", "shuffle", show=True),
         _bind("repeat", "repeat", show=True),
@@ -2888,6 +2892,30 @@ class TidalAmp(App):
         if entry_id != self._pane_entry:
             return
         self.query_one(LyricsPane).show(document, message)
+
+    def action_credits(self) -> None:
+        """The credit of the row under the cursor, or of the track playing.
+
+        The cursor first, because that is what the eye is on: in the queue
+        `k` reads about the row you are looking at, the way `m` acts on it.
+        With the queue hidden, or nothing selected, it falls back to what is
+        sounding, which is the only thing there is to ask about then.
+        """
+        row = None
+        if not self._queue_hidden() and self.query("#playlist"):
+            row = self.query_one("#playlist", RowList).current
+        entry = row.entry if row is not None and row.entry is not None else None
+        if entry is None:
+            entry = self.queue.current
+        if entry is None:
+            self.status = _("no hay una pista reproduciéndose")
+            return
+        if entry.is_tidal:
+            # Not a failure worth a red line: TIDAL's catalogue has no licence
+            # that asks anything of the listener and no page to point at.
+            self.status = _("los créditos son de «Lofi sin copyright»")
+            return
+        self.push_screen(CreditsScreen(entry))
 
     def action_lyrics(self) -> None:
         # In the full-screen view the words are a panel beside the cover, not

@@ -102,6 +102,7 @@ class BrowserScreen(ModalScreen[tuple | None]):
         Binding("a", "append_one", _("añadir"), show=False),
         Binding("A", "append_all", _("añadir todo"), show=False),
         Binding("m", "menu", _("menú"), show=False),
+        Binding("k", "credits", _("créditos"), show=False),
         Binding("R", "reload", _("recargar"), show=False),
         Binding("s", "sort", _("ordenar"), show=False),
         Binding("d,delete", "remove", _("quitar"), show=False),
@@ -837,6 +838,14 @@ class BrowserScreen(ModalScreen[tuple | None]):
                 TrackActionsScreen(row.label, actions),
                 partial(self._act_on_container, row),
             )
+
+    def action_credits(self) -> None:
+        """`k`: who made the row under the cursor, and what it asks of you."""
+        row = self._list().current
+        if row is None or row.entry is None:
+            return
+        if not row.entry.is_tidal:
+            self.app.push_screen(CreditsScreen(row.entry))
 
     def _act_on_container(self, row: Row, action: str | None) -> None:
         if action is None:

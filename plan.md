@@ -170,11 +170,19 @@ tidalamp/
   queue.py      Entry (metadatos serializables + Track perezoso) y Queue (orden,
                 shuffle, repeat, persistencia). No conoce la UI.
   library.py    Navegación de la biblioteca. Devuelve listas de Row, paginadas.
-  freemusic.py  La emisora «Lofi sin copyright», sobre el Internet Archive.
-                `station()` da el día ya mezclado, sembrado con la fecha y cacheado
-                en disco; tres filtros (licencia, género, voz) deciden qué entra.
-                Devuelve Album y Track propios, no Row: no conoce tidalapi ni
-                Textual, y es `library` quien los convierte en filas.
+  music.py      Los tipos que devuelve cualquier fuente de música libre: Track,
+                el nombre de una licencia y cuáles son permisivas, más la sesión
+                HTTP y el GET con reintentos que comparten. La costura que deja
+                TIDAL fuera de la sección libre y la sección libre fuera de TIDAL.
+  jamendo.py    La fuente buena: todo su catálogo es CC, un día cabe en una
+                petición y el filtro de instrumental es un campo del artista.
+  archive.py    La de respaldo: sin clave, pero cara y con la sopa de tags
+                filtrada a mano (JUNK, VOCALS). También el catálogo que se puede
+                recorrer cuando es ella quien sirve el día.
+  freemusic.py  La emisora «Lofi sin copyright» encima de las dos: `station()`
+                da el día ya mezclado, sembrado con la fecha y cacheado en disco,
+                y decide lo que las fuentes no pueden (duración, tope por disco,
+                orden). No conoce Row: es `library` quien los convierte en filas.
   net.py        with_retries(): reintentos con backoff para las llamadas a TIDAL.
   spectrum.py   Cava: proceso cava + lector de frames. Opcional por diseño.
   settings.py   Balance y ecualizador: grafos de filtro y persistencia.
@@ -215,7 +223,8 @@ Dependencia en un solo sentido:
 ```text
 cli -> app -> {player, stream, widgets, screens, mpris, lyrics, spectrum, settings}
        app -> {queue, net, artwork, library} -> {auth, config}
-       library -> freemusic -> {net, i18n}
+       library -> freemusic -> {jamendo, archive} -> music -> {net, i18n}
+       jamendo -> config
        screens -> {widgets, library, settings, lyrics, theme, about, audio, config}
        widgets -> {analyzer, scrolling}
        widgets -> artwork  (sólo los tipos Cover/Protocol y el borrado de kitty)
@@ -2096,156 +2105,125 @@ efecto las tres trampas que lo hacían caro:
       de que una pista empiece: `_start` y el salto sin corte. Una pista preparada que
       no abre heredaba el «ya sonó» de la anterior y se saltaba como si hubiera acabado.
 
-### Lofi sin copyright - `freemusic.py`, `library.py`, `queue.py`, `stream.py`
+### Lofi sin copyright - `freemusic.py`, `jamendo.py`, `archive.py`, `music.py`
 
 La única fila de la biblioteca que no es de TIDAL. **Es una emisora, no un catálogo.**
 Nació como catálogo paginado y no servía: nadie abre un reproductor para audicionar a
-desconocidos disco a disco, y el que se abría estaba lleno de basura. Lo que se decide
-de verdad aquí es qué entra y con qué forma se sirve.
+desconocidos disco a disco, y el que se abría estaba lleno de basura.
 
-**La fuente es el Internet Archive.** Su búsqueda (`advancedsearch.php`) y su metadata
-(`/metadata/<id>`) no piden cuenta ni clave, que es la misma razón por la que el resto
-del proyecto usa el device flow y no la API oficial (§2). Jamendo, Pixabay y Chillhop
-piden clave. FMA tiene la API muerta (404). ccMixter responde, pero es una comunidad de
-remixes y sus lofi son casi todos BY-NC: ver «Descartado» en `next.md`.
+#### Dos fuentes, una forma
 
-#### Tres filtros deciden qué puede sonar
+- [x] **`music.py` es la costura.** `Track`, los nombres de licencia, cuáles son
+      permisivas, y el GET con reintentos. Las dos fuentes devuelven lo mismo, así que
+      `freemusic` las trata igual y nada del reproductor por encima se entera de que
+      hay más de una.
+- [x] **Jamendo primero.** Todo su catálogo es CC por definición. Lo que da y el
+      Archive no, medido el 2026-09-20:
 
-- [x] **Licencia:** sólo CC0, dominio público, CC BY y CC BY-SA. **No es lo que hace
-      legal reproducir** —todas las CC permiten escuchar, incluidas NC y ND— sino lo
-      que hace cierto el nombre de la sección. «Sin copyright» promete música que
-      puedes *usar*, y BY-NC-ND no la da. La licencia se ve en cada fila y en `SRC`.
+      | | Archive | Jamendo |
+      | --- | --- | --- |
+      | Un día | 25 peticiones, ~19 s | **1 petición, 1,2 s** |
+      | Instrumental | adivinado por palabras | `vocalinstrumental`, campo del artista |
+      | Licencia | filtrada aquí | `ccnc=0&ccnd=0`, en su servidor |
+      | Permisivas por página | — | 23/200 sin el filtro, **192/200** con él |
+      | Pool | 115 discos | **2787 pistas** |
+
+- [x] **El Archive de respaldo,** cuando no hay `client_id` o Jamendo no contesta. Un
+      día no se pierde porque una fuente esté caída: contestan el mismo `Track` y lo
+      único que cambia es cuánto tarda la primera apertura y lo bueno que era el
+      filtrado. El cambio de fuente se **avisa en el log**, no se hace en silencio: un
+      día que cambiara de fuente sin decirlo sería un día que nadie podría explicar.
+- [x] **El `client_id` no es un secreto y no se trata como tal.** Identifica la
+      aplicación y va a la vista en el JS de cualquier web hecha sobre Jamendo. El
+      `client_secret` sí lo es y **no hace falta**: sólo firma escrituras OAuth sobre
+      cuentas, y esto sólo lee un catálogo. Va en `config.JAMENDO_ID` con el del
+      proyecto por defecto, y es ajuste porque la cuota es por aplicación (tope de
+      500.000 hits; al pasarlo avisan, no cortan).
+- [x] **El catálogo recorrible es del Archive, así que sólo sale cuando el día lo sirvió
+      el Archive.** Bajo un día de Jamendo sería un paseo por otra biblioteca, con otros
+      discos y otros artistas, que es peor que no ofrecer nada.
+
+#### La trampa que costó un intento
+
+- [x] **Jamendo contesta `success` con cero resultados de vez en cuando.** Sin error,
+      sin aviso, la misma consulta que funcionó hace un segundo. Medido: tres de doce
+      llamadas idénticas. Leer eso como «hoy no hay lofi» habría vaciado la sección al
+      azar, así que **vacío es fallo, no respuesta**, y se reintenta (`EMPTY_TRIES`).
+      Una negativa explícita (id suspendido, id malo) no se reintenta: no se va a
+      arreglar sola y hay una segunda fuente a la que ir.
+- [x] El `client_id` público de pruebas que sus propios docs publican (`709fa152`) está
+      suspendido. Por eso esto no se escribió antes de tener uno: sin id no se puede
+      verificar ni una respuesta.
+
+#### Lo que decide la emisora y no las fuentes
+
+- [x] **Sembrada con la fecha y nada más.** Se queda quieta todo el día, es la misma en
+      cualquier máquina y cambia a medianoche sin que ningún servidor decida nada.
+- [x] **Cuatro pistas como mucho por disco (o por artista, en Jamendo).** Intercalar
+      sólo es justo mientras todos tengan cartas: cuando los singles se acaban, los
+      discos largos se llevan todas las rondas. El primer día sin tope fueron 24 de 35
+      pistas de dos artistas.
+- [x] **Duración entre 45 s y 10 min.** El suelo quita interludios; el techo quita los
+      «3 HOURS of lofi to study to» subidos como si fueran una pista. Un día de 38 daba
+      7 h 51 min antes de esto: eso no es una emisora, son cuatro mixes con una lista
+      encima.
+- [x] **Caché en `STATE_DIR/lofi-station.json`,** con el día **y una versión** como
+      clave. La versión la enseñó `source_url`: un campo nuevo con valor por defecto no
+      hace fallar un caché viejo, lo hace cargar *silenciosamente mal*, y los créditos
+      salieron vacíos sin que nada lo dijera.
+
+#### Los filtros del Archive, que Jamendo no necesita
+
 - [x] **Género, y aquí estaba el error de la primera versión.** `subject:lofi` en el
       Archive significa a la vez lofi el género y lo-fi la calidad de grabación: la
       consulta devolvía «PLAYMATE CALENDAR 1991», la discografía de David Koresh y
-      «China 2006 Sound Clips» entre los beats. `GENRES` pide el género por su nombre
-      (chillhop, lofi hip hop, jazzhop), y eso bajó de 1937 items a 133, casi todos
-      correctos.
-- [x] **Voz.** Lofi es música para poner detrás de lo que estés haciendo, y una voz es
-      lo único que no se queda detrás. Fuera lo que anuncia canto en el título, el
-      artista o los tags, **en el disco y en la pista**: un disco no son sus pistas, y
-      «Kill Bill: The Rapper ft. Airospace» llegó a una rotación como pista de un disco
-      cuyo `creator` no decía «rapper». Es lo mejor que se puede hacer y nada más: el
-      Archive no tiene un campo que diga «lleva voz», así que cae lo que se delata.
-- [x] **`rap` no está en la lista de voz,** a propósito: en este pool casi siempre es
-      `jazz rap` o `instrumental hip hop`, los dos instrumentales, y excluirlo se
-      llevaba «Free (Instrumental)» y «Amorphée» por delante. Lo que hace seguras a las
-      demás es que `_says` compara **palabras enteras**: `mc` está dentro de `ambient` y
-      `ft` dentro de casi todo.
-- [x] **La basura se nombra por palabras, no por identificadores.** El Archive crece, y
-      una lista de ids sólo describiría el día en que se escribió.
-- [x] Medido contra el índice vivo el 2026-09-20: 133 items pasan licencia y género,
-      121 tras la basura, **115 tras el filtro de voz**, de 62 artistas.
-
-#### La emisora
-
-- [x] **`station()` devuelve el día ya mezclado.** La fila abre directamente a las
-      pistas: `a` reproduce el día entero, `↵` una pista. El catálogo queda detrás de
-      «Todos los discos», la última fila, donde vive el «más…» de todos los demás
-      niveles.
-- [x] **Sembrada con la fecha y nada más.** Se queda quieta todo el día, es la misma en
-      cualquier máquina y cambia a medianoche sin que ningún servidor decida nada.
-- [x] **Veinticuatro discos, cuatro pistas como mucho de cada uno, cuarenta de tope.**
-      Veinticuatro para cuarenta parece demasiado hasta que miras el pool: casi todo son
-      singles, y doce discos a cuatro devolvieron 18 pistas y 58 minutos. **El tope por
-      disco es lo que hace escuchable el día:** intercalar sólo es justo mientras todos
-      tengan cartas, y cuando los singles se acaban los discos largos se llevan todas
-      las rondas que quedan. El primer día sin tope fueron 24 de 35 pistas de dos
-      artistas.
-- [x] **Duración entre 45 s y 10 min.** El suelo quita interludios y jingles; el techo
-      quita de lo que está lleno este rincón del Archive: «3 HOURS of lofi to study
-      to», un fichero, subido como si fuera una pista. Un día de 38 daba 7 h 51 min
-      antes de esto, que no es una emisora, son cuatro mixes con una lista encima. El
-      catálogo sigue enseñándolos: un mix de una hora es algo real que poner, sólo que
-      no algo que barajar en una rotación.
-- [x] **Ocho peticiones en paralelo, y no más.** Medido el 2026-09-20: una llamada de
-      metadata tarda 2,2 s de mediana pida lo que pida, así que las dos docenas del día
-      cuestan 63 s en serie y unos 19 con ocho hilos. **Lanzar las 24 a la vez no
-      ayudó:** tres intentos seguidos dieron 20, 25 y 28 s, cada uno más lento, que es
-      lo que parece que te estén throttleando. La latencia es del Archive y desde aquí
-      no se gana; el día se arma una vez, con el spinner, y después se lee de un
-      fichero.
-- [x] **Caché en `STATE_DIR/lofi-station.json`,** con el día como clave. Un fichero roto
-      o de ayer se vuelve a dibujar sin más: guarda algo reproducible, así que no hay
-      nada dentro que merezca recuperarse ni nada que merezca fallar.
-- [x] **Un disco que no abre no estropea el día:** se cae y suenan los otros. Es el
-      único sitio del módulo que se traga un `FreeMusicUnavailable`.
+      «China 2006 Sound Clips» entre los beats. `GENRES` pide el género por su nombre:
+      de 1937 items a 133.
+- [x] **Voz,** en el disco y en la pista, porque un disco no son sus pistas: «Kill Bill:
+      The Rapper ft. Airospace» llegó a una rotación como pista de un disco cuyo
+      `creator` no decía «rapper». Vive en `archive.tracks()` y **no** en la emisora,
+      porque es la única fuente que tiene que adivinarlo: en Jamendo el artista marcó
+      una casilla, y adivinar por encima de eso tiraría instrumentales cuyo título dice
+      «feat.».
+- [x] **`rap` no está en la lista de voz,** a propósito: aquí casi siempre es `jazz rap`
+      o `instrumental hip hop`, los dos instrumentales. Lo que hace seguras a las demás
+      es que `_says` compara **palabras enteras**: `mc` está dentro de `ambient` y `ft`
+      dentro de casi todo.
+- [x] Medido el 2026-09-20: 133 items pasan licencia y género, 121 tras la basura, 115
+      tras las voces, de 62 artistas.
 
 #### Lo que comparte con el resto del reproductor
 
-- [x] **`freemusic.py` no conoce `Row`, tidalapi ni Textual.** Devuelve `Album` y
-      `Track` propios y es `library` quien los convierte, que es lo que mantiene el
-      reparto de §3 y lo que deja el módulo comprobable contra un cuerpo JSON grabado
-      (`tests/test_freemusic.py`, sin red).
-- [x] **Un item trae cuatro copias de cada grabación.** El Archive deriva FLAC, Ogg y
-      dos MP3 de cada subida, todas apuntando al original con `original`; `_best()`
-      agrupa por ese campo y se queda con el mejor formato. Medido: 192 ficheros que
-      son 23 grabaciones.
-- [x] **La mitad de las subidas no trae tags.** `_title_of` cae al nombre del fichero
-      sin extensión, porque una fila que dice «01-1505152-....mp3» es peor que ninguna.
-      El `creator` puede ser una lista y el `year` puede no estar: `_text` y `_int`
-      absorben esa tipificación floja.
-- [x] **`Entry` gana `source`, `url` y `licence`**, los tres con valor por defecto, así
-      que una cola escrita por la 0.14.0 se restaura entera y toda ella como TIDAL.
-      `Entry.resolve()` lanza si la fila no es de TIDAL: quien llegue ahí se ha saltado
-      un `is_tidal` y es un fallo que conviene ver.
+- [x] **`Entry` gana `source`, `url`, `licence` y `source_url`**, todos con valor por
+      defecto, así que una cola escrita por la 0.14.0 se restaura entera y toda ella
+      como TIDAL. `Entry.resolve()` lanza si la fila no es de TIDAL: quien llegue ahí se
+      ha saltado un `is_tidal`.
 - [x] **El id de una pista libre es un entero negativo** derivado del CRC32 de su URL.
       Los de TIDAL son positivos, y la cola usa `Entry.id` para deduplicar, para la
-      caché de letras y para la identidad al restaurar: un número que TIDAL nunca puede
-      dar deja las tres cosas funcionando sin tocarlas, y derivarlo de la URL hace que
-      el mismo fichero vuelva del disco como la misma pista.
+      caché de letras y para la identidad al restaurar.
 - [x] **Una sola bifurcación, en `stream.playable_for()`.** Los dos workers de `app.py`
       llaman ahí y no saben de dónde viene lo que suena. Todo lo de después —mpv, la
-      cola, el prefetch, el sin corte, la carátula, MPRIS— es el mismo código. No hay
-      un segundo camino de reproducción.
+      cola, el prefetch, el sin corte, la carátula, MPRIS— es el mismo código.
 - [x] **Lo que sólo TIDAL puede hacer no se ofrece**, en vez de ofrecerlo y fallar:
-      `actions_for` y `container_actions_for` dejan el menú en reproducir y encolar.
-      La guarda de las letras está en `_lyrics_for`, la única puerta por la que pasan
-      `y`, el panel partido y el de pantalla completa. `favourite()` lo dice con su
-      motivo. `_years_worker` ya filtraba por `album_id > 0`.
-- [x] **La insignia `SRC` deja fuera lo que no sabe.** El Archive no publica el rate ni
-      la profundidad, y `— · — kHz` gasta once celdas en decirlo. La licencia va donde
-      una pista de TIDAL pone su tier, y `quality` queda vacío a propósito: `downgraded`
-      habla de lo que TIDAL mandó de menos, y a esto no se le pidió nada. La línea `OUT`
-      no se toca, porque su rate sale de PipeWire y no del `Playable`.
-- [x] **MPRIS:** `xesam:url` es la URL real; `tidal://track/-1234567` no nombra nada.
-      El `trackid` ya se construía con `uid`, un contador positivo.
-- [x] **La fila va al final del root.** Las cuatro primeras son lo que tiene la cuenta y
-      hay tests y memoria muscular contando con dónde están.
-- [x] **Comprobado de extremo a extremo el 2026-09-20:** la búsqueda, la metadata, la
-      portada (`services/img`, 200 image/jpeg) y el audio (206 audio/mpeg); mpv abre y
-      decodifica la URL (`mp3 2ch 44100 Hz 320 kbps`). El día del 2026-09-20: 30 pistas,
-      1 h 12 min, media de 2:24, 18 artistas.
-
-#### Créditos - `screens/credits.py`
-
-- [x] **No es un adorno: CC BY y CC BY-SA los exigen.** Sin ellos la sección entrega
-      música que, en rigor, no se puede usar. La ventana da las cuatro cosas que pide
-      Creative Commons —título, autor, fuente y licencia, lo que se conoce como TASL—,
-      dice en una línea qué te pide esa licencia en concreto, y monta la cita ya
-      hecha para copiar.
-- [x] **La fuente es la página de la obra, no el fichero de audio.** La atribución pide
-      dónde vive el trabajo, y una URL de descarga no lo es. `Track.source_url` y
-      `Entry.source_url` la llevan (`archive.org/details/<id>`).
-- [x] **Lo que no se sabe se omite,** no se deja en blanco: una línea con un hueco lee
-      como un fallo y no acredita a nadie.
-- [x] **Una licencia que la ventana no conoce se muestra tal cual,** sin inventarse qué
-      exige.
-- [x] **Sólo en las filas libres.** Una pista de TIDAL no tiene licencia que pida nada
-      al oyente ni página que citar.
-- [x] **El caché de la estación va versionado** (`STATION_VERSION`). Añadir `source_url`
-      lo enseñó: un campo nuevo con valor por defecto no hace fallar un caché viejo,
-      lo hace cargar *silenciosamente mal*, y los créditos salieron vacíos sin que nada
-      lo dijera. Se sube al cambiar la forma de `Track`.
-- [x] **Las letras del menú libre también se atan.** `TrackActionsScreen` construía sus
-      bindings sólo desde `TRACK_ACTIONS`, así que `k` era una letra dibujada en una
-      fila que ninguna tecla alcanzaba. Tiene su test.
+      `actions_for` y `container_actions_for`. La guarda de las letras está en
+      `_lyrics_for`, la única puerta por la que pasan `y`, el panel partido y el de
+      pantalla completa. `favourite()` lo dice con su motivo.
+- [x] **La insignia `SRC` deja fuera lo que no sabe.** La licencia va donde una pista de
+      TIDAL pone su tier, y `quality` queda vacío: `downgraded` habla de lo que TIDAL
+      mandó de menos, y a esto no se le pidió nada.
+- [x] **MPRIS:** `xesam:url` es la URL real. El `trackid` ya se construía con `uid`, un
+      contador positivo.
+- [x] **Comprobado contra las dos fuentes reales el 2026-09-20.** Jamendo: 1,2 s, 40
+      pistas, 40 artistas distintos, 2 h 32 min, todo BY o BY-SA, las URLs responden y
+      mpv las decodifica. Archive: 21,5 s, 30 pistas, 18 artistas.
 
 #### Lo que no se puede prometer
 
-Que no suene una voz. El filtro cae sobre lo que se delata en los metadatos, y el
-Archive no tiene un campo que lo diga. Si aparece un artista que no debería estar, la
-cura es una palabra más en `JUNK` o en `VOCALS`, no una lista de identificadores.
+Que no suene una voz **cuando sirve el Archive**. Ahí el filtro cae sobre lo que se
+delata en los metadatos, y el Archive no tiene un campo que lo diga; si aparece un
+artista que no debería estar, la cura es una palabra más en `JUNK` o en `VOCALS`, no
+una lista de identificadores. Con Jamendo el problema no existe: el artista marcó la
+casilla.
 
 ### Revisión antes de la 0.8.0 (2026-09-11)
 

@@ -85,6 +85,7 @@ ENV_VARS: dict[str, str] = {
     "autoplay": "TIDALAMP_AUTOPLAY",
     "replaygain": "TIDALAMP_REPLAYGAIN",
     "library_view": "TIDALAMP_LIBRARY_VIEW",
+    "jamendo_id": "TIDALAMP_JAMENDO_ID",
 }
 
 
@@ -208,6 +209,21 @@ REPLAYGAIN = setting("replaygain", "TIDALAMP_REPLAYGAIN", "off")
 # a list. `v` in the browser switches it and writes it here.
 LIBRARY_VIEW = setting("library_view", "TIDALAMP_LIBRARY_VIEW", "list")
 
+# Which application «Lofi sin copyright» asks Jamendo for its music as.
+#
+# **Not a secret, and not treated as one.** Jamendo hands out two
+# credentials: this one, which names the application and rides along in
+# every read request — it is in plain sight in the JavaScript of every site
+# built on Jamendo — and a `client_secret`, which signs OAuth writes against
+# a user's account. tidalamp only ever reads a catalogue, so it never has a
+# secret to keep, and the project's own id ships here in the open.
+#
+# It is a setting all the same, because the quota is per application: if
+# enough people run tidalamp to crowd the shared one, anybody can register
+# their own at devportal.jamendo.com and put it here. Empty falls back to
+# the Internet Archive.
+JAMENDO_ID = setting("jamendo_id", "TIDALAMP_JAMENDO_ID", "561f5c40")
+
 # Key overrides, action name to key. Empty means "the defaults in app.py".
 KEYS: dict[str, str] = {
     str(action): str(key) for action, key in (FILE.get("keys") or {}).items()
@@ -281,7 +297,7 @@ def reload() -> None:
     """
     global FILE, DEFAULT_QUALITY, ARTWORK, LANGUAGE, THEME, PALETTE, COLUMNS
     global DEBUG, TRANSPARENCY, KEYS, VISUALIZER, ARRANGEMENT, BACKDROP, COVER_SHAPE
-    global AUTOPLAY, REPLAYGAIN, LIBRARY_VIEW
+    global AUTOPLAY, REPLAYGAIN, LIBRARY_VIEW, JAMENDO_ID
     FILE = read_file()
     DEFAULT_QUALITY = setting("quality", "TIDALAMP_QUALITY", "HI_RES_LOSSLESS")
     ARTWORK = setting("artwork", "TIDALAMP_ART", "auto")
@@ -297,6 +313,7 @@ def reload() -> None:
     TRANSPARENCY = flag("transparency", "TIDALAMP_TRANSPARENCY")
     AUTOPLAY = flag("autoplay", "TIDALAMP_AUTOPLAY")
     REPLAYGAIN = setting("replaygain", "TIDALAMP_REPLAYGAIN", "off")
+    JAMENDO_ID = setting("jamendo_id", "TIDALAMP_JAMENDO_ID", "561f5c40")
     LIBRARY_VIEW = setting("library_view", "TIDALAMP_LIBRARY_VIEW", "list")
     KEYS = {str(action): str(key) for action, key in (FILE.get("keys") or {}).items()}
 

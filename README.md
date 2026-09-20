@@ -273,47 +273,52 @@ first ten.
 
 **Copyright-free lofi** is the last row, and the only one that is not TIDAL's. It is a
 station rather than a catalogue: it opens straight onto a day's worth of instrumental
-lofi from the [Internet Archive](https://archive.org), already shuffled, so `a` on the
-row plays the day and `↵` on a track plays that one. The selection is drawn with the
-date as its seed, so it holds still all day, is the same on every machine, and turns
-over at midnight with no server anywhere deciding anything. Building it takes some
-twenty seconds once a day; after that it is read from a file. The whole catalogue is
-still there, behind **Every record**, the last row inside the station.
+lofi, already shuffled, so `a` on the row plays the day and `↵` on a track plays that
+one. The selection is drawn with the date as its seed, so it holds still all day, is
+the same on every machine, and turns over at midnight with no server anywhere deciding
+anything. Nothing in it is charged against your TIDAL subscription and nothing in it
+can be DRM-locked; tidalamp itself still signs in to TIDAL to start, as it always has.
 
-The Archive asks for no account and no API key, so nothing in this row is charged
-against your TIDAL subscription and nothing in it can be DRM-locked. tidalamp itself
-still signs in to TIDAL to start, as it always has.
-
-Three filters decide what may be in it.
+It comes from [Jamendo](https://www.jamendo.com), where everything is published under a
+Creative Commons licence. A whole day is one request, the instrumental filter is a
+field the artist set rather than a guess made from titles, and the licence filter runs
+on Jamendo's side. When Jamendo cannot be reached, or when no client id is configured,
+the [Internet Archive](https://archive.org) catches the day instead — slower, some
+twenty seconds, and with its tag soup filtered here by hand — so a day is never lost to
+one source being down. Either way the first open of the day builds it and the rest are
+read from a file, and the Archive's catalogue stays browsable behind **Every record**
+when it is the source.
 
 *Licence.* Only CC0, the public domain mark, CC BY and CC BY-SA. Every Creative Commons
 licence allows listening, so this is not what makes playback lawful; it is what makes
 the row's name true. Those four let you *use* the music — in a video, a stream, a game
 — and only ask that you credit the author, while the licences left out (chiefly
-BY-NC-ND, the Archive's most common) do not. Each record and each track says which
-licence it carries, in the row and in the `SRC` badge while it plays.
+BY-NC-ND, the commonest in both catalogues) do not. Every row says which licence it
+carries, and so does the `SRC` badge while it plays.
 
-*Genre.* Not the `lofi` tag, which on the Archive means both lofi the genre and lo-fi
-the recording quality — searching it returned a Playmate calendar and a David Koresh
-discography among the beats. The station asks for the genre by name (chillhop, lofi hip
-hop, jazzhop), and drops what still slips through: commercial rips with a licence typed
-over them, speech mixes, memes and stock background beds.
+*Genre.* Jamendo is asked for lofi and chillout by tag. The Archive is not asked for
+its `lofi` tag at all, because there it means both lofi the genre and lo-fi the
+recording quality — searching it returned a Playmate calendar and a David Koresh
+discography among the beats. It is asked for the genre by name (chillhop, lofi hip hop,
+jazzhop) instead, and what still slips through is dropped: commercial rips with a
+licence typed over them, speech mixes, memes and stock background beds.
 
-*Voices, as far as metadata can tell.* Lofi is music to put behind what you are doing,
-so anything whose title, artist or tags announce singing stays out, at the record and
-at the track, and a guest spot on an otherwise instrumental record goes with it. This
-is best effort: the Archive has no field for *has singing in it*, so what is caught is
-what says so.
+*Voices.* Lofi is music to put behind what you are doing, and a voice is the one thing
+that will not stay behind it. On Jamendo the artist ticked a box and that is the end of
+it. On the Archive there is no such field, so anything whose title, artist or tags
+announce singing stays out, at the record and at the track — best effort, and only
+that.
 
 Tracks are between forty-five seconds and ten minutes, no record may give the day more
 than four, and hour-long *3 HOURS of lofi to study to* uploads are kept out of the
-rotation — they are still in the catalogue, where they are a real thing to put on.
+rotation.
 
-**Credits** are on the menu of any track in the section (`k`). CC BY and CC BY-SA do
-not merely permit attribution, they require it, so the window shows the four things
-the licence asks for — title, author, source and licence — says in one line what that
-licence asks of you, and assembles the credit ready to copy. The source is the work's
-own page, not the audio file.
+**Credits** are on `k` over any track in the section — in the player, in the browser,
+in the full-screen view, and on the track menu. CC BY and CC BY-SA do not merely permit
+attribution, they require it, so the window shows the four things the licence asks for
+— title, author, source and licence — says in one line what that licence asks of you,
+and assembles the credit ready to copy. The source is the work's own page, not the
+audio file.
 
 The grid, the filter and gapless playback all work there as they do everywhere else.
 What only TIDAL can do is simply not offered on those rows: no favourites, no
@@ -722,6 +727,7 @@ visualizer = "bars"           # analyzer shape: bars, mirror, curve, or fine
 autoplay = false              # when the queue ends, carry on with the last track's radio
 replaygain = "off"            # normalised volume: off, track, or album
 library_view = "list"         # the library as a list, or as a grid of covers
+jamendo_id = "561f5c40"       # which app Jamendo serves the lofi station to
 debug = false                 # log to ~/.local/state/tidalamp/tidalamp.log
 
 [keys]
@@ -731,10 +737,21 @@ quit = "ctrl+q"
 
 Precedence is **environment → file → default**. `TIDALAMP_QUALITY`, `TIDALAMP_ART`,
 `TIDALAMP_LANG`, `TIDALAMP_COLUMNS`, `TIDALAMP_THEME`, `TIDALAMP_PALETTE`,
-`TIDALAMP_VISUALIZER`, `TIDALAMP_LIBRARY_VIEW`, and `TIDALAMP_DEBUG` therefore override the file for one-off runs; the settings window
+`TIDALAMP_VISUALIZER`, `TIDALAMP_LIBRARY_VIEW`, `TIDALAMP_JAMENDO_ID` and
+`TIDALAMP_DEBUG` therefore override the file for one-off runs; the settings window
 labels a row whose value is being shadowed that way, rather than showing a value the
 app is not using. A syntax error in the file does not prevent startup; it is logged
 and the defaults take over.
+
+`jamendo_id` names the application [Copyright-free lofi](#queue-and-library) asks
+Jamendo for its music as. It ships filled in and **is not a secret**: a Jamendo client
+id identifies the application and is public by design, in plain sight in the JavaScript
+of every site built on Jamendo. The credential that *is* secret, the `client_secret`,
+is never needed here, because tidalamp only ever reads a catalogue and never writes to
+a Jamendo account. It is a setting because the quota is per application: if the shared
+one gets crowded, register your own in a couple of minutes at
+[devportal.jamendo.com](https://devportal.jamendo.com) and put it here. Emptying it
+falls the station back to the Internet Archive.
 
 Under `[keys]`, the action is on the left and the key on the right; separate multiple
 keys with commas. Valid actions are the ones in the [key table](#keys), and

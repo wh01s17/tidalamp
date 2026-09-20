@@ -19,9 +19,10 @@ from typing import Any, cast
 import tidalapi
 from tidalapi.types import AlbumOrder, ArtistOrder, ItemOrder, OrderDirection
 
-from . import freemusic
+from . import archive, freemusic, jamendo
 from .config import STATE_DIR, write_atomically
 from .i18n import _
+from .music import Track
 from .net import with_retries
 from .queue import FREE, TIDAL, Entry
 
@@ -807,7 +808,7 @@ def _discover_rows(session: Any) -> list[Row]:
     return rows
 
 
-def _free_track_rows(tracks: Iterable[freemusic.Track]) -> list[Row]:
+def _free_track_rows(tracks: Iterable[Track]) -> list[Row]:
     rows = []
     for track in tracks:
         entry = Entry.from_free(track)
@@ -816,16 +817,16 @@ def _free_track_rows(tracks: Iterable[freemusic.Track]) -> list[Row]:
 
 
 def _free_album_level(
-    album: freemusic.Album, order: Order | None = None
+    album: archive.Album, order: Order | None = None
 ) -> Callable[[], list[Row]]:
     """One item's tracks. A single request brings all of them, so there is no
     «más…» here and the level sorts locally like an album's does — which is
     why ``order`` is taken and ignored, exactly as `_album_level` does under
     ``local=True``."""
-    return lambda: _free_track_rows(freemusic.tracks(album))
+    return lambda: _free_track_rows(archive.tracks(album))
 
 
-def _free_album_rows(albums: Iterable[freemusic.Album]) -> list[Row]:
+def _free_album_rows(albums: Iterable[archive.Album]) -> list[Row]:
     rows = []
     for album in albums:
         rows.append(
@@ -861,7 +862,7 @@ def _free_catalogue_level() -> Callable[[], list[Row]]:
     the Archive's count — which counts what the junk filter then throws away,
     so it would offer a «más…» leading to nothing.
     """
-    return lambda: _free_album_rows(freemusic.albums(limit=freemusic.POOL))
+    return lambda: _free_album_rows(archive.albums(limit=archive.POOL))
 
 
 def _free_level() -> Callable[[], list[Row]]:
@@ -876,15 +877,20 @@ def _free_level() -> Callable[[], list[Row]]:
 
     def load() -> list[Row]:
         rows = _free_track_rows(freemusic.station())
-        rows.append(
-            Row(
-                label=_("Todos los discos"),
-                detail=_("el catálogo entero"),
-                key="free:all",
-                loader=cached("free:all", _free_catalogue_level()),
-                source=FREE,
+        # The catalogue is the Internet Archive's, so it only belongs under a
+        # day the Archive drew. Under a Jamendo day it would be a browse of
+        # some other library, with other records and other artists, which is
+        # a worse thing to offer than nothing at all.
+        if not jamendo.configured():
+            rows.append(
+                Row(
+                    label=_("Todos los discos"),
+                    detail=_("el catálogo entero"),
+                    key="free:all",
+                    loader=cached("free:all", _free_catalogue_level()),
+                    source=FREE,
+                )
             )
-        )
         return rows
 
     return load

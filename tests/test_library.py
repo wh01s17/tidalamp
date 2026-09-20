@@ -1215,7 +1215,7 @@ def test_a_batch_whose_answer_is_lost_is_not_sent_twice(monkeypatch):
 
 
 def free_tracks(n: int = 3):
-    from tidalamp.freemusic import Track
+    from tidalamp.music import Track
 
     return [
         Track(
@@ -1240,7 +1240,7 @@ def fake_archive(monkeypatch, albums=None, songs=None):
     network for the other, which is how the first draft of these passed
     against live data without anybody noticing.
     """
-    from tidalamp.freemusic import Album
+    from tidalamp.archive import Album
 
     records = (
         albums
@@ -1251,9 +1251,12 @@ def fake_archive(monkeypatch, albums=None, songs=None):
         ]
     )
     picked = free_tracks() if songs is None else songs
-    monkeypatch.setattr(library.freemusic, "albums", lambda offset=0, limit=100: records)
-    monkeypatch.setattr(library.freemusic, "tracks", lambda album: picked)
+    monkeypatch.setattr(library.archive, "albums", lambda offset=0, limit=100: records)
+    monkeypatch.setattr(library.archive, "tracks", lambda album: picked)
     monkeypatch.setattr(library.freemusic, "station", lambda day=None: picked)
+    # No client id, so the catalogue row is there to test: with Jamendo it
+    # would be a browse of some other library (`_free_level`).
+    monkeypatch.setattr(library.jamendo.config, "JAMENDO_ID", "")
     return records, picked
 
 
@@ -1369,3 +1372,14 @@ def test_a_free_track_cannot_be_favourited_either(monkeypatch):
     fake_archive(monkeypatch)
     with pytest.raises(library.NotFavouritable, match="no está en TIDAL"):
         library.favourite(FakeSession(), free_level(monkeypatch)[0])
+
+
+def test_under_a_jamendo_day_there_is_no_archive_catalogue(monkeypatch):
+    """The catalogue is the Internet Archive's, so it only belongs under a
+    day the Archive drew. Under a Jamendo day it would be a browse of some
+    other library, with other records and other artists."""
+    fake_archive(monkeypatch)
+    monkeypatch.setattr(library.jamendo.config, "JAMENDO_ID", "testing")
+    rows = free_level(monkeypatch)
+    assert all(row.is_playable for row in rows), "sólo pistas, sin fila de catálogo"
+    assert not any(row.label == "Todos los discos" for row in rows)

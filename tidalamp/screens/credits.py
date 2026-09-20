@@ -69,6 +69,9 @@ class CreditsScreen(ModalScreen[None]):
     def on_mount(self) -> None:
         self.query_one("#credits-body", Static).update(self._rendered())
 
+    def action_close(self) -> None:
+        self.dismiss(None)
+
     def _rendered(self) -> Text:
         palette = palette_for(self)
         entry = self._entry
