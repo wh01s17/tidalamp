@@ -400,3 +400,125 @@ def test_the_clock_keeps_to_its_width_counting_down(seconds, total, countdown, s
             assert rows[1].startswith("_") == shown.startswith("-"), rows
 
     asyncio.run(scenario())
+
+
+# --------------------------------- rows that do not fit slide to show the end
+
+
+def queue_row(label: str, detail: str = "4:21") -> Row:
+    return Row(label=label, detail=detail, entry=Entry(id=1, title="x", artist="y"))
+
+
+LONG = queue_row("Cosmo Pyke - Wish You Were Golden")
+SHORT = queue_row("Art Tatum - Tea for Two", "3:14")
+WIDE, DETAIL = 34, 4
+
+
+def test_a_row_that_fits_never_moves_however_far_the_phase_has_gone():
+    """The phase is shared by the whole list, so a short row is handed the
+    same offset as a long one and has to ignore it."""
+    still = RowList._line(SHORT, 1, -1, WIDE, DETAIL, 0)
+    for offset in (1, 5, 40):
+        assert RowList._line(SHORT, 1, -1, WIDE, DETAIL, offset) == still
+
+
+def test_a_row_that_does_not_fit_shows_its_end_once_the_phase_arrives():
+    """«Wish You Were Go» is the whole point: cropped, the title of the song
+    is the part you never get to read."""
+    assert "Golden" not in RowList._line(LONG, 1, -1, WIDE, DETAIL, 0)
+    assert "Golden" in RowList._line(LONG, 1, -1, WIDE, DETAIL, 99)
+
+
+def test_the_number_and_the_duration_stay_put_while_the_name_slides():
+    """A list whose numbers scrolled away with the titles would be unreadable
+    while it moved, and the number is how a queue row is found."""
+    for offset in (0, 4, 99):
+        line = RowList._line(LONG, 458, -1, WIDE, DETAIL, offset)
+        assert line.startswith(" 459. ")
+        assert line.endswith("4:21")
+
+
+def test_a_sliding_row_keeps_exactly_the_width_it_was_given():
+    for offset in range(40):
+        assert cell_len(RowList._line(LONG, 1, -1, WIDE, DETAIL, offset)) == WIDE
+        assert cell_len(RowList._line(SHORT, 1, -1, WIDE, DETAIL, offset)) == WIDE
+
+
+def test_a_row_stops_at_its_own_end_and_does_not_scroll_off():
+    """Capped at the row's own overflow, not the list's: past that it holds
+    still with its end against the edge instead of marching into blank."""
+    settled = RowList._line(LONG, 1, -1, WIDE, DETAIL, 99)
+    assert RowList._line(LONG, 1, -1, WIDE, DETAIL, 500) == settled
+    assert settled.rstrip().endswith("Golden 4:21")
+
+
+def test_offset_zero_draws_exactly_what_a_plain_crop_used_to():
+    """Every list but the full-screen queue passes no offset at all, and none
+    of them may change."""
+    assert RowList._line(LONG, 1, -1, WIDE, DETAIL) == RowList._line(
+        LONG, 1, -1, WIDE, DETAIL, 0
+    )
+
+
+def test_a_list_only_glides_when_it_is_told_to():
+    """The browser, the pickers and the player's own queue are read a row at
+    a time with the cursor; a column in motion under it is noise."""
+
+    class Host(App):
+        def compose(self) -> ComposeResult:
+            yield RowList(id="rows")
+
+    async def scenario() -> tuple[int, int]:
+        app = Host()
+        async with app.run_test(size=(WIDE, 10)):
+            widget = app.query_one(RowList)
+            widget.set_rows([LONG, SHORT])
+            for _ in range(60):
+                widget.tick()
+            quiet = widget._offset
+            widget.set_glide()
+            for _ in range(60):
+                widget.tick()
+            return quiet, widget._offset
+
+    quiet, gliding = asyncio.run(scenario())
+    assert quiet == 0, "una lista sin glide no se mueve"
+    assert gliding > 0
+
+
+def test_turning_the_glide_off_puts_every_row_back_at_its_start():
+    class Host(App):
+        def compose(self) -> ComposeResult:
+            yield RowList(id="rows")
+
+    async def scenario() -> int:
+        app = Host()
+        async with app.run_test(size=(WIDE, 10)):
+            widget = app.query_one(RowList)
+            widget.set_rows([LONG, SHORT])
+            widget.set_glide()
+            for _ in range(60):
+                widget.tick()
+            assert widget._offset > 0
+            widget.set_glide(False)
+            return widget._offset
+
+    assert asyncio.run(scenario()) == 0
+
+
+def test_a_list_where_everything_fits_never_leaves_its_start():
+    class Host(App):
+        def compose(self) -> ComposeResult:
+            yield RowList(id="rows")
+
+    async def scenario() -> int:
+        app = Host()
+        async with app.run_test(size=(120, 10)):
+            widget = app.query_one(RowList)
+            widget.set_rows([LONG, SHORT])
+            widget.set_glide()
+            for _ in range(60):
+                widget.tick()
+            return widget._offset
+
+    assert asyncio.run(scenario()) == 0

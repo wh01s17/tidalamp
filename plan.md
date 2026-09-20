@@ -2046,6 +2046,29 @@ efecto las tres trampas que lo hacían caro:
       cambiar la descripción, borrar y mover pistas, contrastado con lo que muestra
       TIDAL. El `toIndex` como posición final queda confirmado.
 
+### La cola de pantalla completa se desliza - `screens/rowlist.py`, `screens/fullscreen.py`
+
+- [x] Un nombre más ancho que su columna se cortaba y ahí quedaba: «Cosmo Pyke - Wish
+      You Were Go» no llegaba nunca a decir «Golden». Ahora `RowList._slide()` lo
+      desplaza con el ritmo de `scrolling.Glide` (`GLIDE_EVERY=3`, `GLIDE_HOLD=7`,
+      diez tics por segundo), los mismos números a propósito: la banda del reproductor
+      y la cola se mueven como una sola cosa.
+- [x] **Sólo el nombre.** El marcador, el número, la duración y cualquier otra columna
+      se quedan. Una lista cuyos números se van con los títulos no se puede leer
+      mientras se mueve, y el número es cómo se encuentra una fila en una cola de 481.
+- [x] **Una fase para toda la lista,** como `Glide` entre sus líneas, y cada fila se
+      para contra su propio final (`_slide` topa en su overflow, no en el de la lista).
+      Las cortas esperan a las largas y vuelven a salir juntas; sin eso, cada fila iba
+      a su ritmo y la columna era un hervidero.
+- [x] **Sólo esa cola.** `set_glide()` lo enciende y arranca el temporizador; sin él no
+      hay ninguno. El navegador, los selectores y la cola del reproductor se leen fila
+      a fila con el cursor, y una columna en movimiento debajo es ruido. `offset=0` —
+      lo que reciben todos ellos— dibuja exactamente lo que dibujaba el recorte de
+      antes, y hay un test que lo fija.
+- [x] `scrolling._window` pasa a público (`window`): `RowList` corta por grafemas con
+      la misma función, para que una fila no se desplace por puntos de código donde un
+      título se desplaza por grafemas.
+
 ### Lofi sin copyright - `freemusic.py`, `library.py`, `queue.py`, `stream.py`
 
 La primera fila de la biblioteca que no es de TIDAL. Es un reproductor, no un catálogo

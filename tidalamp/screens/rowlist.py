@@ -16,6 +16,7 @@ from textual.widget import Widget
 
 from .. import artwork, columns, config
 from ..library import Row
+from ..scrolling import window
 from ..theme import palette_for
 
 if TYPE_CHECKING:  # The screens report back to the app; the app owns them.
@@ -29,6 +30,13 @@ def _hex(pixel: tuple[int, int, int]) -> str:
 # One emblem cell ready to paint: the glyph for a blank cell and the styles
 # that go with it, both built once per size and palette, not per repaint.
 _Paint = tuple[str, Style, Style]
+
+# The rhythm a sliding row keeps, in ticks of the ten-a-second timer: a cell
+# every three, and about two seconds still at either end. The same numbers
+# `scrolling.Glide` uses, on purpose — the band above the queue and the queue
+# itself move as one thing rather than two.
+GLIDE_EVERY = 3
+GLIDE_HOLD = 7
 
 
 class RowList(Widget):
@@ -57,6 +65,20 @@ class RowList(Widget):
         # A row's style with an emblem cell's ground, for the cells that have
         # a letter in them (`_paint`).
         self._mix: dict[tuple, Style] = {}
+        # Names too long for the list slide to show their end, the way the
+        # band's own lines do (`scrolling.Glide`). Off by default: the browser
+        # and the pickers are lists you read a row at a time with the cursor,
+        # and a whole column in motion under it is noise. The full-screen
+        # queue turns it on, because there the queue is a wall of names read
+        # at a glance and the ones that matter are exactly the long ones.
+        self.glide = False
+        # One phase for every row, as `Glide` shares one across its lines: a
+        # short name waits while a long one finishes and they set off again
+        # together, instead of each row sliding to its own beat.
+        self._offset = 0
+        self._direction = 1
+        self._wait = GLIDE_HOLD
+        self._calls = 0
 
     def set_backdrop(
         self, path: Path | None, anchor: str = "middle", scale: float = 1.0
@@ -74,6 +96,71 @@ class RowList(Widget):
     def move(self, delta: int) -> None:
         if self.rows:
             self.cursor = max(0, min(len(self.rows) - 1, self.cursor + delta))
+
+    def set_glide(self, on: bool = True) -> None:
+        """Let the rows too long for the list slide to show their end.
+
+        The timer is started here rather than in `on_mount` so a list that
+        never glides never has one: the browser, the pickers and the player's
+        own queue are read a row at a time with the cursor, and ten wake-ups a
+        second to check a flag that is always false is a cost with no reader.
+        """
+        if on and not self.glide:
+            self.set_interval(1 / 10, self._timed)
+        self.glide = on
+        if not on and self._offset:
+            self._offset = 0
+            self.refresh()
+
+    def _overflow(self, width: int) -> int:
+        """How far the longest row still has to travel.
+
+        The whole list's, not one row's: the phase is shared, so the slide
+        runs until the longest name has shown its end and every shorter one
+        is already resting against its own (`_slide`).
+        """
+        if not self.rows:
+            return 0
+        # What a name is actually given, once the marker, the number and the
+        # detail column have taken theirs. An estimate on purpose: `_line`
+        # works the exact figure out per row and per column layout, and
+        # copying that here to advance a counter would be the same code twice.
+        detail = min(max(cell_len(row.detail) for row in self.rows), max(0, width // 3))
+        room = max(1, width - detail - self.HEAD)
+        return max((cell_len(row.label) - room for row in self.rows), default=0)
+
+    def _timed(self) -> None:
+        # Nothing behind a modal is worth animating, as `Glide` puts it: a
+        # list under a scrim repaints for rows nobody is reading.
+        try:
+            if self.screen is not self.app.screen:
+                return
+        except Exception:
+            return
+        self.tick()
+
+    def tick(self) -> None:
+        """One step of the slide, on the rhythm `Glide` keeps."""
+        if not self.glide:
+            return
+        overflow = self._overflow(max(1, self.size.width))
+        if overflow <= 0:
+            if self._offset:
+                self._offset = 0
+                self.refresh()
+            return
+        self._calls = (self._calls + 1) % GLIDE_EVERY
+        if self._calls:
+            return
+        if self._wait:
+            self._wait -= 1
+            return
+        self._offset += self._direction
+        if self._offset >= overflow or self._offset <= 0:
+            self._offset = max(0, min(self._offset, overflow))
+            self._direction = -self._direction
+            self._wait = GLIDE_HOLD
+        self.refresh()
 
     def _window_start(self) -> int:
         """The first row on screen: where it was, unless the cursor left.
@@ -116,6 +203,8 @@ class RowList(Widget):
     # stops being worth having columns at all.
     GAP = 2
     TITLE_MIN = 24
+    # What the marker and the number take before a name starts: «▶469. ».
+    HEAD = 6
 
     # A flexible column takes a share of the list, floored so one that appears
     # at all can say something and capped so a very wide terminal spends its
@@ -124,6 +213,23 @@ class RowList(Widget):
     SHARE = 6
     SHARE_MIN = 12
     SHARE_MAX = 30
+
+    @staticmethod
+    def _slide(text: str, width: int, offset: int) -> str:
+        """A name in `width` cells: whole when it fits, otherwise shifted by
+        `offset` cells so its end comes into view.
+
+        Capped at its own overflow, not at the list's: a row two cells too
+        long stops two cells in and waits there while a longer one carries on,
+        which is what keeps the column readable instead of a wall of text all
+        sliding past at once.
+        """
+        if width <= 0:
+            return ""
+        over = cell_len(text) - width
+        if over <= 0 or offset <= 0:
+            return set_cell_size(text, width)
+        return window(text, min(offset, over), width)
 
     @staticmethod
     def _cell(text: str, width: int, align: str) -> str:
@@ -163,7 +269,13 @@ class RowList(Widget):
 
     @classmethod
     def _line(
-        cls, row: Row, index: int, marked: int, width: int, detail_width: int
+        cls,
+        row: Row,
+        index: int,
+        marked: int,
+        width: int,
+        detail_width: int,
+        offset: int = 0,
     ) -> str:
         """Fit one row by terminal cells, in columns when there is room.
 
@@ -175,6 +287,12 @@ class RowList(Widget):
         A row with no entry — an album, an artist, a playlist in the browser —
         has nothing to put in those columns, so it keeps the whole line for
         its own name, with its detail on the right as before.
+
+        `offset` slides the *name* of a row too long for its column, and only
+        the name: the marker, the number, the duration and every other column
+        stay where they are. A list whose numbers scrolled away with the
+        titles would be unreadable while it moved, and the number is how a
+        queue row is found. Zero means the old behaviour, a plain crop.
         """
         marker = "▶" if index == marked else (" " if row.is_playable else "›")
         # The row's own number when it carries one — a filtered queue keeps
@@ -196,7 +314,7 @@ class RowList(Widget):
             head = f"{marker}{number:>3}. "
             title_width = width - sum(size + cls.GAP for _c, size in sized)
             name = entry.title if "artist" in shown else row.label
-            line = head + set_cell_size(name, title_width - cell_len(head))
+            line = head + cls._slide(name, title_width - cell_len(head), offset)
             for column, size in sized:
                 # `duration` draws the row's detail, not the entry's: a
                 # browser row that is not a track puts «101 pistas» there.
@@ -205,9 +323,10 @@ class RowList(Widget):
             return set_cell_size(line, width)
 
         detail = cls._cell(row.detail, detail_width, "right") if detail_width else ""
-        left = f"{marker}{number:>3}. {row.label}"
-        left_width = width - detail_width - (1 if detail else 0)
-        line = set_cell_size(left, max(0, left_width))
+        head = f"{marker}{number:>3}. "
+        left_width = max(0, width - detail_width - (1 if detail else 0))
+        left = head + cls._slide(row.label, left_width - cell_len(head), offset)
+        line = set_cell_size(left, left_width)
         if detail:
             line += f" {detail}"
         return set_cell_size(line, width)
@@ -365,7 +484,7 @@ class RowList(Widget):
         out = Text()
         for i in range(start, min(len(self.rows), start + height)):
             row = self.rows[i]
-            line = self._line(row, i, self.marked, width, detail_width)
+            line = self._line(row, i, self.marked, width, detail_width, self._offset)
             if i == self.cursor:
                 out.append(
                     line,

@@ -19,7 +19,7 @@ from textual.widgets import Static
 from .. import artwork, audio, auth, columns, config, desktop
 from ..i18n import _
 from ..layouts import BACKDROPS, label
-from ..scrolling import Glide, _window
+from ..scrolling import Glide, window
 from ..settings import REPLAYGAIN_MODES
 from ..theme import LAYOUTS, available_palettes, paired_palette, palette_for
 from ..widgets import Analyzer
@@ -436,7 +436,7 @@ class ConfigScreen(ModalScreen[None]):
         for text, style in footer:
             overflow = cell_len(text) - room
             if overflow > 0:
-                text = _window(text, min(self._glide_offset, overflow), room)
+                text = window(text, min(self._glide_offset, overflow), room)
             rendered.append("\n" + text, style=style)
         widget.update(rendered)
 

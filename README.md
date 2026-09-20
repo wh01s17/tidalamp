@@ -304,6 +304,10 @@ anywhere else, the quadrants every font has, four to a cell. `TIDALAMP_SEXTANTS=
 turns sextants on for another terminal whose font has them, and `0` turns them off.
 They arrive a moment after the tiles, the ones on screen first.
 
+In the full-screen view's queue, a name too long for the column slides to show its
+end, the way the lines in the player's band do; the number and the duration stay put,
+and a name that fits never moves. Only that queue does it.
+
 Tracks play one into the next with no gap: the next one is fetched from TIDAL shortly
 before the current one ends and handed to mpv ahead of time, along with its cover (and
 its lyrics, when the split view, the lyrics window or the full-screen view's panel is

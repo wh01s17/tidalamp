@@ -135,6 +135,12 @@ class FullscreenScreen(Screen[None]):
         self.styles.border = self.player.query_one("#main").styles.border
         self.query_one("#fs-queue").display = False
         self.query_one("#fs-lyrics").display = False
+        # Here, and only here, the names too long for the column slide to show
+        # their end. This queue is a wall of thirty names read at a glance,
+        # and the ones worth reading are exactly the ones that do not fit;
+        # the player's own queue is read a row at a time with the cursor, and
+        # a column in motion under it would be noise.
+        self.query_one("#fs-queue-list", RowList).set_glide()
         # The panel is the player's queue, not a copy with a cursor of its own:
         # every queue key (`g`, `d`, `alt+↑↓`, `m`, `f`) acts on the player's
         # cursor, so the panel follows that cursor the moment it moves.

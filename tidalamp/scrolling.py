@@ -14,7 +14,7 @@ from .lyrics import LyricsDocument, fit, last_start
 from .theme import palette_for
 
 
-def _window(text: str, start: int, width: int) -> str:
+def window(text: str, start: int, width: int) -> str:
     """`width` cells of `text` from cell `start`, cut on grapheme boundaries.
 
     Code-point slicing split combining accents and made CJK and emoji rows
@@ -123,7 +123,7 @@ class Glide(Widget):
         rows = []
         for line in self._lines_to_draw():
             shift = max(0, min(self._offset, cell_len(line) - width))
-            rows.append(_window(line, shift, width))
+            rows.append(window(line, shift, width))
         return Text("\n".join(rows), style=self._style(), no_wrap=True)
 
 
