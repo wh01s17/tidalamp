@@ -23,6 +23,12 @@ versioning is [semantic](https://semver.org/).
   grid (`v`), the filter (`/`) and gapless playback work there as everywhere else.
   What TIDAL alone can do is simply not offered on those rows: no favourites, no
   playlists, no radio, no artist or album to go to, and no lyrics.
+- **Credits**, on the menu of any track in that section (`k`, or `↵` and then the
+  row). CC BY and CC BY-SA do not merely permit attribution, they require it, so the
+  window gives the four things the licence asks for — title, author, source and
+  licence — says in one line what that licence asks of you, and then assembles the
+  credit ready to be copied into whatever the music ends up in. The source is the
+  work's own page, not the audio file.
 
 ### Fixed
 

@@ -309,6 +309,12 @@ Tracks are between forty-five seconds and ten minutes, no record may give the da
 than four, and hour-long *3 HOURS of lofi to study to* uploads are kept out of the
 rotation — they are still in the catalogue, where they are a real thing to put on.
 
+**Credits** are on the menu of any track in the section (`k`). CC BY and CC BY-SA do
+not merely permit attribution, they require it, so the window shows the four things
+the licence asks for — title, author, source and licence — says in one line what that
+licence asks of you, and assembles the credit ready to copy. The source is the work's
+own page, not the audio file.
+
 The grid, the filter and gapless playback all work there as they do everywhere else.
 What only TIDAL can do is simply not offered on those rows: no favourites, no
 playlists, no radio, no artist or album to go to, and no lyrics. Nothing is downloaded

@@ -97,6 +97,9 @@ class Entry:
     # The licence the audio is published under, shown where a TIDAL track
     # shows its quality tier.
     licence: str = ""
+    # The page the audio came from. What the credit points at: CC BY and
+    # CC BY-SA both ask for the source, and a file URL is not one.
+    source_url: str = ""
     # Identity of this row, not of the song. Excluded from equality so two
     # rows for the same track still compare equal, as they always have.
     uid: int = field(default_factory=_new_uid, compare=False)
@@ -155,6 +158,7 @@ class Entry:
             source=FREE,
             url=track.url,
             licence=track.licence,
+            source_url=track.source_url,
         )
 
     @property
@@ -210,6 +214,7 @@ class Entry:
             "source": self.source,
             "url": self.url,
             "licence": self.licence,
+            "source_url": self.source_url,
             "uid": self.uid,
         }
 
@@ -241,6 +246,7 @@ class Entry:
             source=raw.get("source", TIDAL) or TIDAL,
             url=raw.get("url", "") or "",
             licence=raw.get("licence", "") or "",
+            source_url=raw.get("source_url", "") or "",
             # A queue written before uids existed simply gets fresh ones.
             uid=_claim_uid(int(raw["uid"])) if "uid" in raw else _new_uid(),
         )

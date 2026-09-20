@@ -37,6 +37,7 @@ from .screens import (
     BrowserScreen,
     ChoiceScreen,
     ConfigScreen,
+    CreditsScreen,
     EqScreen,
     FullscreenScreen,
     HelpScreen,
@@ -1561,6 +1562,9 @@ class TidalAmp(App):
             return
         if action == "album":
             self._open_browser_at(entry, "album")
+            return
+        if action == "credits":
+            self.push_screen(CreditsScreen(entry))
             return
         self._browser_result((action, [entry], 0))
 

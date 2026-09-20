@@ -2217,6 +2217,30 @@ remixes y sus lofi son casi todos BY-NC: ver «Descartado» en `next.md`.
       decodifica la URL (`mp3 2ch 44100 Hz 320 kbps`). El día del 2026-09-20: 30 pistas,
       1 h 12 min, media de 2:24, 18 artistas.
 
+#### Créditos - `screens/credits.py`
+
+- [x] **No es un adorno: CC BY y CC BY-SA los exigen.** Sin ellos la sección entrega
+      música que, en rigor, no se puede usar. La ventana da las cuatro cosas que pide
+      Creative Commons —título, autor, fuente y licencia, lo que se conoce como TASL—,
+      dice en una línea qué te pide esa licencia en concreto, y monta la cita ya
+      hecha para copiar.
+- [x] **La fuente es la página de la obra, no el fichero de audio.** La atribución pide
+      dónde vive el trabajo, y una URL de descarga no lo es. `Track.source_url` y
+      `Entry.source_url` la llevan (`archive.org/details/<id>`).
+- [x] **Lo que no se sabe se omite,** no se deja en blanco: una línea con un hueco lee
+      como un fallo y no acredita a nadie.
+- [x] **Una licencia que la ventana no conoce se muestra tal cual,** sin inventarse qué
+      exige.
+- [x] **Sólo en las filas libres.** Una pista de TIDAL no tiene licencia que pida nada
+      al oyente ni página que citar.
+- [x] **El caché de la estación va versionado** (`STATION_VERSION`). Añadir `source_url`
+      lo enseñó: un campo nuevo con valor por defecto no hace fallar un caché viejo,
+      lo hace cargar *silenciosamente mal*, y los créditos salieron vacíos sin que nada
+      lo dijera. Se sube al cambiar la forma de `Track`.
+- [x] **Las letras del menú libre también se atan.** `TrackActionsScreen` construía sus
+      bindings sólo desde `TRACK_ACTIONS`, así que `k` era una letra dibujada en una
+      fila que ninguna tecla alcanzaba. Tiene su test.
+
 #### Lo que no se puede prometer
 
 Que no suene una voz. El filtro cae sobre lo que se delata en los metadatos, y el

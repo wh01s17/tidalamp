@@ -47,6 +47,10 @@ TRACK_ACTIONS: tuple[tuple[str, str, str, str], ...] = (
 FREE_TRACK_ACTIONS: tuple[tuple[str, str, str, str], ...] = (
     ("play", "▶", "a", _("reproducir ahora")),
     ("next", "↳", "c", _("reproducir a continuación")),
+    # The verb a TIDAL track has no use for. CC BY and CC BY-SA do not merely
+    # permit attribution, they require it, so the credit has to be reachable
+    # from the track and not buried in an about box.
+    ("credits", "©", "k", _("créditos y licencia")),
 )
 
 # What `m` offers on an album, an artist or a playlist: the same verbs, over
@@ -175,7 +179,11 @@ class TrackActionsScreen(ModalScreen[str | None]):
         Binding("enter", "choose", _("elegir"), show=False),
         *[
             Binding(letter, f"pick('{action}')", "", show=False)
-            for action, _icon, letter, _label in (*TRACK_ACTIONS, *PLAYLIST_EXTRA)
+            for action, _icon, letter, _label in (
+                *TRACK_ACTIONS,
+                *FREE_TRACK_ACTIONS,
+                *PLAYLIST_EXTRA,
+            )
         ],
     ]
 

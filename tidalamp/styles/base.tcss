@@ -39,6 +39,7 @@ ModalScreen.transparent {
 .transparent #browser-box,
 .transparent #lyrics-box,
 .transparent #actions-box,
+.transparent #credits-box,
 .transparent #picker-box,
 .transparent #config-box,
 .transparent #columns-box,

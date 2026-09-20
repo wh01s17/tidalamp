@@ -21,6 +21,7 @@ from ..i18n import _
 from ..library import Row
 from ..widgets import Spinner
 from .choice import ChoiceScreen
+from .credits import CreditsScreen
 from .grid import GridList, cached_cells, cover_cells
 from .help import HelpScreen
 from .prompts import PlaylistNameScreen
@@ -1075,6 +1076,11 @@ class BrowserScreen(ModalScreen[tuple | None]):
             return
         if action == "album":
             self._go_to(row.entry, "album")
+            return
+        if action == "credits":
+            # Over this level rather than dismissing it: reading a credit is
+            # not leaving the browser, and ⌫ should come back to the track.
+            self.app.push_screen(CreditsScreen(row.entry))
             return
         if action == "play":
             # The whole level goes into the queue, so the rest follows on —

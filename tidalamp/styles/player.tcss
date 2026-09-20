@@ -427,6 +427,37 @@
     dock: bottom;
 }
 
+/* The credits: text to read, sized to what it holds, like the track menu. */
+#credits-box {
+    width: 45%;
+    min-width: 46;
+    max-width: 76;
+    height: auto;
+    background: $tidalamp-panel;
+    border: outer $tidalamp-border;
+}
+
+#credits-title {
+    background: $tidalamp-title-background;
+    color: $tidalamp-title-foreground;
+    text-style: bold;
+    height: 1;
+    padding: 0 1;
+}
+
+#credits-body {
+    background: $tidalamp-display-background;
+    color: $tidalamp-body;
+    height: auto;
+    padding: 1 1;
+}
+
+#credits-hint {
+    background: $tidalamp-transport-background;
+    color: $tidalamp-transport-foreground;
+    height: 1;
+}
+
 #actions-box {
     /* Sized to its content: a four-line menu, not another full-height pane. */
     width: 35%;

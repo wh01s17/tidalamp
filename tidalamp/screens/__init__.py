@@ -13,6 +13,7 @@ from .browser import BROWSER_HINTS, HINT_GAP, BrowserScreen, favourite_message, 
 from .choice import ChoiceScreen
 from .column_picker import ColumnsScreen, _crop, column_label
 from .config_window import _ATTRIBUTES, _FLAGS, ConfigScreen, Option
+from .credits import CreditsScreen, attribution
 from .equalizer import PRESET_LABELS, EqScreen
 from .fullscreen import FullscreenScreen
 from .help import HelpScreen
@@ -43,6 +44,7 @@ __all__ = [
     "ChoiceScreen",
     "ColumnsScreen",
     "ConfigScreen",
+    "CreditsScreen",
     "EqScreen",
     "FullscreenScreen",
     "HelpScreen",
@@ -59,6 +61,7 @@ __all__ = [
     "_crop",
     "_hex",
     "actions_for",
+    "attribution",
     "column_label",
     "favourite_message",
     "fit_hints",

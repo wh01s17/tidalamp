@@ -65,6 +65,9 @@ log = logging.getLogger("tidalamp.freemusic")
 SEARCH_URL = "https://archive.org/advancedsearch.php"
 METADATA_URL = "https://archive.org/metadata"
 DOWNLOAD_URL = "https://archive.org/download"
+# The page a credit points at. The audio URL is a file; attribution asks
+# for where the work lives, which is the item's own page.
+DETAILS_URL = "https://archive.org/details"
 # The Archive renders a square thumbnail for any item at this path, whatever
 # the item actually holds, so a record with no cover still answers 200.
 IMAGE_URL = "https://archive.org/services/img"
@@ -226,6 +229,11 @@ class Album:
     def art_url(self) -> str:
         return f"{IMAGE_URL}/{self.identifier}"
 
+    @property
+    def source_url(self) -> str:
+        """Where the work lives, for the credit CC BY and CC BY-SA ask for."""
+        return f"{DETAILS_URL}/{self.identifier}"
+
 
 @dataclass(frozen=True, slots=True)
 class Track:
@@ -241,6 +249,9 @@ class Track:
     track_num: int = 0
     codec: str = ""
     art_url: str = ""
+    # The page this track came from, which is what a credit points at. Not
+    # the audio URL: that is a file, and attribution asks for the work.
+    source_url: str = ""
 
     @property
     def id(self) -> int:
@@ -470,6 +481,7 @@ def tracks(album: Album) -> list[Track]:
                 track_num=_int(item.get("track")),
                 codec=CODECS.get(fmt, fmt),
                 art_url=album.art_url,
+                source_url=album.source_url,
             )
         )
     if not found:
@@ -521,9 +533,15 @@ STATION_LONGEST = 10 * 60
 # serves 200 happily, so this is one round trip with room to grow into.
 POOL = 200
 
-# Today's selection, so opening the row twice is a file read and not eleven
-# requests. Keyed by the day it was drawn for: a stale one is simply redrawn.
+# Today's selection, so opening the row twice is a file read and not two
+# dozen requests. Keyed by the day it was drawn for: a stale one is redrawn.
 STATION_FILE = STATE_DIR / "lofi-station.json"
+# And by the shape of a `Track`, which is the part that is easy to get wrong.
+# A field added with a default does not make an old cache fail to load — it
+# makes it load *quietly wrong*, every track missing the new value until the
+# day turns over. Adding `source_url` did exactly that: the credits came up
+# blank and nothing anywhere said why. Bump this whenever `Track` changes.
+STATION_VERSION = 2
 
 
 def _seed(day: date) -> random.Random:
@@ -539,8 +557,8 @@ def _seed(day: date) -> random.Random:
 def _read_station(day: date) -> list[Track] | None:
     """The day's selection off the disk, or None to draw it again.
 
-    Anything wrong with the file — missing, truncated, from yesterday, written
-    by a version that shaped a Track differently — means None. It is a cache
+    Anything wrong with the file — missing, truncated, from yesterday, or
+    written when a `Track` held different fields — means None. It is a cache
     of something reproducible, so there is nothing here worth recovering.
     """
     try:
@@ -548,6 +566,8 @@ def _read_station(day: date) -> list[Track] | None:
     except (OSError, ValueError):
         return None
     if not isinstance(raw, dict) or raw.get("day") != day.isoformat():
+        return None
+    if raw.get("version") != STATION_VERSION:
         return None
     try:
         return [Track(**item) for item in raw.get("tracks", [])]
@@ -563,7 +583,11 @@ def _write_station(day: date, songs: list[Track]) -> None:
         write_atomically(
             STATION_FILE,
             json.dumps(
-                {"day": day.isoformat(), "tracks": [asdict(song) for song in songs]},
+                {
+                    "day": day.isoformat(),
+                    "version": STATION_VERSION,
+                    "tracks": [asdict(song) for song in songs],
+                },
                 ensure_ascii=False,
             ),
         )

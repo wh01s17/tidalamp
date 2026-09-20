@@ -379,7 +379,8 @@ def test_a_free_track_is_offered_only_what_can_actually_be_done():
         )
     )
     offered = [action for action, *_rest in actions_for(free)]
-    assert offered == ["play", "next"]
+    assert not {"radio", "favourite", "playlist", "artist", "album"} & set(offered)
+    assert offered[:2] == ["play", "next"]
 
     tidal = Entry(id=1, title="Schism", artist="TOOL")
     assert [action for action, *_rest in actions_for(tidal)] == [
@@ -403,11 +404,18 @@ def test_a_free_record_is_offered_only_what_can_actually_be_done():
 
 def test_the_free_letters_are_the_ones_the_full_menu_already_uses():
     """`a` and `c` keep meaning what they mean everywhere else, so muscle
-    memory carries over instead of being retrained per section."""
+    memory carries over instead of being retrained per section.
+
+    Only the verbs both menus have: `credits` is free-only, because a TIDAL
+    track has no licence that asks anything of the listener and no source
+    page to point at. Its letter is checked in `test_credits.py`.
+    """
     from tidalamp.screens.tracks import FREE_TRACK_ACTIONS, TRACK_ACTIONS
 
     full = {action: letter for action, _icon, letter, _label in TRACK_ACTIONS}
-    for action, _icon, letter, _label in FREE_TRACK_ACTIONS:
+    shared = [row for row in FREE_TRACK_ACTIONS if row[0] in full]
+    assert len(shared) >= 2
+    for action, _icon, letter, _label in shared:
         assert full[action] == letter
 
 

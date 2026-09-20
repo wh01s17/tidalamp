@@ -217,6 +217,24 @@ ENGLISH: dict[str, str] = {
     # --- copyright-free lofi, from the Internet Archive
     "Lofi sin copyright": "Copyright-free lofi",
     "la selección de hoy": "today’s selection",
+    # The credits window. CC BY and CC BY-SA require attribution, so this is
+    # not decoration: it is what the licence asks of whoever reuses the work.
+    "▓ CRÉDITOS ▓": "▓ CREDITS ▓",
+    "créditos y licencia": "credits and licence",
+    "Título": "Title",
+    "Fuente": "Source",
+    "Para citarla:": "To credit it:",
+    "de {artist}": "by {artist}",
+    " esc cerrar": " esc close",
+    "no pide nada: está en el dominio público": (
+        "asks for nothing: it is in the public domain"
+    ),
+    "cita al autor, y puedes usarla para lo que quieras": (
+        "credit the author, and use it for whatever you like"
+    ),
+    "cita al autor, y comparte los cambios con esta misma licencia": (
+        "credit the author, and share your changes under this same licence"
+    ),
     "«{title}» no abrió; reintentando…": "“{title}” did not open; trying again…",
     "no se pudo abrir «{title}»; saltando": ("could not open “{title}”; skipping it"),
     "Todos los discos": "Every record",
