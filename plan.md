@@ -4,7 +4,19 @@ Documento de traspaso. Describe qué existe, qué está verificado, qué falta y
 criterio se tomaron las decisiones, para que cualquiera (humano o modelo) pueda
 retomar el trabajo sin contexto previo.
 
-**Última actualización:** 2026-09-19, versión `0.14.0` publicada en PyPI y en GitHub,
+**Última actualización:** 2026-09-20, versión `0.15.0` publicada en PyPI y en GitHub,
+con el tag `v0.15.0` sobre `b46efbd` y el checksum del tarball en `12b0a20`. Lo nuevo:
+«Lofi sin copyright», la última fila de la biblioteca y la única que no es de TIDAL:
+una emisora, no un catálogo, con la selección instrumental del día sembrada con la
+fecha, de Jamendo y con el Internet Archive de respaldo; `k` abre los créditos y la
+licencia, que CC BY y CC BY-SA exigen y no sólo permiten; en pantalla completa los
+nombres que no caben en la cola se deslizan; y una carga que falla deja de confundirse
+con una pista que acaba, así que se reintenta y se dice en vez de saltarse en silencio.
+La sección va marcada **experimental** a propósito: el sonido de «lofi hip hop radio»
+es el catálogo de un sello y nada de eso es Creative Commons. Ver §4, «Lofi sin
+copyright», «La cola de pantalla completa se desliza» y «Una carga que falla no es una
+pista que acaba». Antes, 2026-09-19,
+versión `0.14.0` publicada en PyPI y en GitHub,
 con el tag `v0.14.0` sobre `2dc24d3` y el checksum del tarball en `369860e`. Lo nuevo: en pantalla completa, `y` pone la letra al lado de la
 carátula en vez de abrir una ventana encima, y con `tab` la cola se acopla a su
 derecha; la letra la dibuja un widget compartido con la ventana de `y`
@@ -170,6 +182,9 @@ tidalamp/
   queue.py      Entry (metadatos serializables + Track perezoso) y Queue (orden,
                 shuffle, repeat, persistencia). No conoce la UI.
   library.py    Navegación de la biblioteca. Devuelve listas de Row, paginadas.
+  columns.py    El catálogo de columnas de la cola: nombre, ancho, alineación y
+                orden en que se dejan caer cuando no caben. No importa nada del
+                reproductor, así que la ventana de `o` y `RowList` lo leen igual.
   music.py      Los tipos que devuelve cualquier fuente de música libre: Track,
                 el nombre de una licencia y cuáles son permisivas, más la sesión
                 HTTP y el GET con reintentos que comparten. La costura que deja
@@ -202,6 +217,9 @@ tidalamp/
                 primera.
                 Todo por subprocess, y todo contesta con lo que encontró en vez de
                 lanzar: nada de esto está en el camino que reproduce música.
+  distro.py     Lee `/etc/os-release` para decir el comando que instala lo que
+                falta («sudo pacman -S mpv») en el sistema donde se está
+                ejecutando, en vez de un genérico que no sirve en ninguno.
   desktop.py    El lanzador del menú: `offer()` dice si preguntar en el primer
                 arranque, `create()` escribe `tidalamp.desktop` y el icono, y
                 `decline()` guarda el no. Respeta cualquier lanzador que ya abra
@@ -2344,6 +2362,9 @@ Distinguir esto importa: parte del código nunca se ha ejecutado contra TIDAL re
 | Ruta MPD -> HLS (hi-res)           | **VERIFICADO CONTRA TIDAL REAL**  | Matriz de las cuatro calidades sobre dos pistas reales; con `HI_RES_LOSSLESS` la rama es MPD, FLAC 24 bit/96 kHz, 69 segmentos. `ffprobe` sobre la playlist reescrita da flac/96000/24 y `ffmpeg` decodifica 3 s a un WAV de 1.152.102 bytes (exactamente 96000×3×2×2). La app real con mpv de verdad: insignias `24bit 96kHz HI_RES_LOSSLESS`, posición 12,3 s de 266 s, RMS −19,2 dBFS. La playlist sin reescribir falla con *error reading header* en el mismo ffmpeg. |
 | Empaquetado (sdist / wheel / AUR)  | **Verificado salvo la publicación** | `python -m build` + `twine check` en ambos artefactos; 89 pruebas desde el sdist extraído; `bash -n` y `makepkg --printsrcinfo` sobre el PKGBUILD; `pacman -Si` confirma que todas las dependencias están en `extra`. El environment de GitHub y el *pending publisher* de PyPI ya están configurados. No se ha ejecutado `makepkg -si` ni se ha publicado nada porque aún no existe el tag; el envío final al AUR está además bloqueado externamente mientras siga cerrado el registro de cuentas nuevas. |
 | Carátula                           | **VERIFICADO A LA VISTA**     | Capturas del usuario en kitty, dos veces: la portada de Thriller se dibuja con el protocolo gráfico en su recuadro, a la izquierda del reloj, sin invadir el marquee ni el analizador, y con el recuadro ya adaptativo. Unidades sobre los tres codificadores, incluida una vuelta completa de sixel a píxeles; la app real bajo un pty con `TERM=xterm-kitty` emite el APC gráfico anclado en la esquina del widget, y en medios bloques pyte muestra el recuadro con el resto del display intacto. |
+| «Lofi sin copyright»: las dos fuentes | **VERIFICADO CONTRA LAS APIs REALES** | Jamendo (2026-09-20, con el `client_id` del proyecto): un día en **1,2 s**, 40 pistas de 40 artistas distintos, 1 h 59 min, media de 2:58, todo CC BY o CC BY-SA; las URLs contestan 206 `audio/mpeg` y **mpv las decodifica** (`mp3 2ch 44100 Hz`). Internet Archive: 21,5 s, 30 pistas, 18 artistas, portada 200 `image/jpeg`. Los filtros, medidos sobre el índice vivo: `ccnc=0&ccnd=0` sube las permisivas de 23/200 a 192/200 sobre 2787 que cumplen la consulta; `chillhop` en vez de `chillout` sube lo de 2018 en adelante del 15% al 89%, y con suelo de fecha en 2016 quedan 331 pistas al 79%. En el Archive, 133 items pasan licencia y género, 121 tras la basura y 115 tras las voces. El resto es determinista y va por tests sin red (siembra por fecha, caché versionada, tope por disco, duración, elección de fuente y respaldo). |
+| Una carga que falla                | **VERIFICADO DE PUNTA A PUNTA**   | mpv de verdad contra un servidor local que devuelve 500 la primera vez y audio la segunda: la carga falla a 1,5 s sin que salga una muestra, el reintento la recupera y suena. Antes, idle sin haber abierto se leía como «la pista acabó» y se saltaba en silencio. Seis tests cubren el reintento, el salto con su nombre, que una pista que sí sonó no se reintente, y que el contador se limpie también en el salto sin corte. |
+| Créditos y atribución              | **Verificado**                    | Renderizado con pistas reales de las dos fuentes: título, autor, fuente y licencia (TASL), lo que exige esa licencia en concreto, y la cita montada. La fuente es la página de la obra y no el fichero. 20 tests, incluido el que caza que la ventana **no se podía cerrar** (un `Binding` a una acción que no existía) y el que ata las letras del menú. |
 | Indicador de carga y barra de estado | **Verificado**                  | Unitarias del `Spinner` y de los tres momentos del navegador (raíz, abrir un nivel, volver atrás) con un loader bloqueado a propósito; la app real bajo pty midió `#statusbar` dentro de la pantalla y pintó `⠦ resolviendo «Schism»…` en la última fila. |
 | «Mis playlists» y caché de niveles | **Verificado contra TIDAL real**  | cProfile sobre la cuenta del usuario localizó las 111 peticiones; tras el cambio, la app real bajo un pty abre «Mis playlists» en 0,39 s (antes 19,87 s) y en 0,13 s la segunda vez. Unitarias: una petición por página, paginación, claves de caché y `R`. |
 | Secciones del artista              | **VERIFICADO CONTRA TIDAL REAL**  | El mantenedor lo probó a mano (2026-09-14) con varios artistas: uno grande, uno pequeño sin EPs (bôa, sin «Otros») y uno con recopilatorios. Salen las secciones esperadas y ninguna vacía; álbumes y EPs traen sus pistas; «más…» aparece en un artista con más de 100 discos; el tiempo de apertura con las cuatro peticiones de sondeo es aceptable. `m` y `a` sobre el artista añaden sus populares, `s` ordena las populares y no hace nada en los discos, y `f` lo añade a favoritos. En tests: sesión simulada con álbumes, EPs y nada en «otros». |
@@ -2371,8 +2392,9 @@ una pista en cada calidad y leer `~/.local/state/tidalamp/tidalamp.log`.
 > `0.11.0`, publicada el 2026-09-15; la `0.11.1` (2026-09-16) sólo arregla el título
 > de la ventana de letras, y la `0.11.2` (2026-09-17) que el DAC siga el rate de cada
 > pista; la `0.12.0` (2026-09-17) trae el lanzador del menú, la `0.13.0`
-> (2026-09-17) cerrar sesión, y la `0.14.0` (2026-09-19) la letra al lado de la
-> carátula en pantalla completa; allí quedan las comprobaciones a mano. Esta sección sigue siendo el estado general
+> (2026-09-17) cerrar sesión, la `0.14.0` (2026-09-19) la letra al lado de la
+> carátula en pantalla completa, y la `0.15.0` (2026-09-20) «Lofi sin copyright» y sus
+> créditos; allí quedan las comprobaciones a mano. Esta sección sigue siendo el estado general
 > y aquella, la cola de trabajo.
 
 P1–P4 están cerradas: lo que queda no es funcionalidad que falte para que el
@@ -2380,16 +2402,16 @@ reproductor sirva, sino acabado, distribución y confirmar contra TIDAL real cos
 probadas sólo con dobles.
 
 **Orden propuesto (2026-09-11):** ~~P5 empaquetado~~ y ~~carátula~~ ✅ hechos. Cada
-versión se publica siguiendo `publish.md`; la última publicada es la `0.14.0`
-(2026-09-19), en PyPI y en GitHub, con el checksum del tarball ya en el PKGBUILD
-(`369860e`). Lo que queda abierto aquí pide
+versión se publica siguiendo `publish.md`; la última publicada es la `0.15.0`
+(2026-09-20), en PyPI y en GitHub, con el checksum del tarball ya en el PKGBUILD
+(`12b0a20`). Lo que queda abierto aquí pide
 credenciales tuyas o un par de ojos.
 
 1. Publicar en el AUR cuando vuelva a abrir el registro de cuentas nuevas. El paquete
    está preparado y se puede probar localmente, pero el alta final depende del
    servicio externo y no tiene fecha anunciada. **Todo lo del AUR queda pendiente**
-   (decidido por el mantenedor el 2026-09-14): de la `0.14.0` sólo está hecho el
-   checksum (`publish.md` §8.1 y §8.3, en `369860e`); §8.2 (`makepkg -Csi`,
+   (decidido por el mantenedor el 2026-09-14): de la `0.15.0` sólo está hecho el
+   checksum (`publish.md` §8.1 y §8.3, en `12b0a20`); §8.2 (`makepkg -Csi`,
    `namcap`) no se ha ejecutado para esta versión, y §8.4 a §8.6 esperan al registro.
 2. ~~Mirar `retro` y `ascii` en un terminal de verdad~~ ✅ hecho el 2026-09-10; ver §9.5.
    Queda el extremo pequeño: la disposición compacta no se ha visto nunca.

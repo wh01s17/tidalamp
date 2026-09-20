@@ -23,8 +23,10 @@ llegan solas entraron en la `0.11.0` (publicada el 2026-09-15): ver
 el título de la ventana de letras, y la `0.11.2` (publicada el 2026-09-17) que el DAC
 siga el rate de cada pista y no sólo el de la primera. La `0.12.0` (publicada el
 2026-09-17) ofrece añadir tidalamp al menú de aplicaciones, la `0.13.0` (publicada el
-2026-09-17) trae cerrar sesión desde `o`, y la `0.14.0` (publicada el 2026-09-19) la
-letra al lado de la carátula en pantalla completa. Las escrituras en tus playlists
+2026-09-17) trae cerrar sesión desde `o`, la `0.14.0` (publicada el 2026-09-19) la
+letra al lado de la carátula en pantalla completa, y la `0.15.0` (publicada el
+2026-09-20) «Lofi sin copyright», sus créditos en `k`, los nombres que se deslizan en
+la cola de pantalla completa y el arreglo de las cargas que fallan. Las escrituras en tus playlists
 se comprobaron contra TIDAL real ese mismo día. Queda por comprobar a mano:
 
 - **Ver la disposición compacta en un terminal real.** Por debajo de 80x26 la
@@ -49,6 +51,28 @@ se comprobaron contra TIDAL real ese mismo día. Queda por comprobar a mano:
   - *Comprobación:* capturas entre 60x18 y 79x25 (por ejemplo 72x20 y 79x25) en los
     cuatro temas. Qué mirar: lo mismo que §9.5, que la fila del transporte no se salga
     ni se parta y que las barras de título llenen su fila.
+
+- **Escuchar «Lofi sin copyright» de verdad, un rato largo.** Es lo único de la
+  `0.15.0` que ninguna máquina puede comprobar: que mpv decodifica las URLs está
+  medido, que *suene* a lofi no. El mantenedor ya rechazó la primera selección
+  (`chillout` traía ambient de netlabel de 2006) y el arreglo fue pedir `chillhop` con
+  suelo de fecha en 2016, pero eso se validó **leyendo títulos y años**, no oyendo.
+  - *Qué mirar:* si se cuela alguna voz —Jamendo dice cuáles son instrumentales, pero
+    es una casilla que marca el artista—, si algún artista cansa aunque el tope sean
+    cuatro pistas, y si la mezcla del día aguanta dos horas de fondo sin distraer.
+  - *La cura si algo no encaja:* una palabra más en `archive.JUNK` o `archive.VOCALS`,
+    o retocar `jamendo.TAGS` y `jamendo.SINCE`. No una lista de identificadores: los
+    catálogos crecen y esa lista sólo describiría el día en que se escribió.
+  - *Lo que no tiene cura:* el sonido de «lofi hip hop radio» es el catálogo de un
+    sello y nada de eso es Creative Commons. Por eso la fila dice **experimental**.
+
+- **Ver deslizarse la cola de pantalla completa.** Los tests miden celdas: que una
+  fila que no cabe enseñe su final, que la que cabe no se mueva, que el número y la
+  duración no se vayan, y que el ancho no cambie nunca. Lo que no miden es el ritmo.
+  - *Qué mirar:* que a 0,3 s por celda se lea mientras se mueve y no maree con treinta
+    filas a la vez, y que las cortas esperando a las largas no se note raro.
+  - *Dónde:* `w`, luego `tab` para abrir la cola, con una cola larga de nombres largos.
+
 ## Sin fecha
 
 - **«más…» en las categorías de Inicio.** Una categoría de la página de inicio trae
@@ -57,12 +81,14 @@ se comprobaron contra TIDAL real ese mismo día. Queda por comprobar a mano:
   un `session.view_all` que no existe. Habría que pedir la ruta de `_more.api_path`
   a mano, como ya se hace con los enlaces de Explorar (`library._page_at`).
 
-- **Sacar objetos de verdad de `TidalAmp`.** 2635 líneas y 182 métodos en `app.py`;
-  `_setting_changed` es de lo más enredado. No en mixins (ver «Descartado»), sino
-  objetos con su propio diseño: reproducción, carátula, presentación de la cola y
-  aplicación de ajustes, dejando `TidalAmp` como raíz de composición. Es un rediseño
-  grande que no arregla ningún fallo, así que solo cuando haya tiempo para hacerlo
-  bien.
+- **Sacar objetos de verdad de `TidalAmp`.** **3393 líneas y 214 métodos** en `app.py`
+  a 2026-09-20, y la cuenta sube en cada versión: eran 2635 y 182 cuando se escribió
+  esta entrada, y la `0.15.0` le sumó `_gave_up`, `action_credits` y el reparto de
+  `_now_playing`. `_setting_changed` sigue siendo lo más enredado. No en mixins (ver
+  «Descartado»), sino objetos con su propio diseño: reproducción, carátula,
+  presentación de la cola y aplicación de ajustes, dejando `TidalAmp` como raíz de
+  composición. Es un rediseño grande que no arregla ningún fallo, así que solo cuando
+  haya tiempo para hacerlo bien — pero cada versión que pasa lo encarece.
 
 - **Una guarda común para los workers al cerrar.** Un worker de hilo que termina
   después de salir llama a `call_from_thread` contra un loop que se cierra: en la app
