@@ -14,7 +14,6 @@ import pytest
 from tidalamp import desktop, distro, mpris
 from tidalamp.backends.linux import desktop as linux_desktop
 from tidalamp.backends.linux import distro as linux_distro
-from tidalamp.backends.linux import mpris as linux_mpris
 from tidalamp.backends.windows import desktop as windows_desktop
 from tidalamp.backends.windows import distro as windows_distro
 from tidalamp.backends.windows import media as windows_media
@@ -48,6 +47,9 @@ def _public(cls) -> dict[str, object]:
 
 
 def test_the_media_backends_have_the_same_public_face():
+    pytest.importorskip("dbus_fast")  # the D-Bus backend imports it
+    from tidalamp.backends.linux import mpris as linux_mpris
+
     linux, windows = (
         _public(linux_mpris.MprisService),
         _public(windows_media.MprisService),

@@ -10,6 +10,7 @@ import asyncio
 from pathlib import Path
 
 import pytest
+from conftest import linux_only
 
 from tidalamp import config, i18n, player
 from tidalamp.backends.windows import desktop as windows_desktop
@@ -184,6 +185,7 @@ def test_an_mpv_path_to_nothing_says_so(monkeypatch, tmp_path):
         player._find_mpv()
 
 
+@linux_only
 def test_linux_without_the_setting_runs_plain_mpv(monkeypatch):
     monkeypatch.setattr(config, "MPV_PATH", "")
     monkeypatch.setattr(player.shutil, "which", lambda name: "/usr/bin/mpv")

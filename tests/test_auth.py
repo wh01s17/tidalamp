@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pytest
+from conftest import linux_only
 
 from tidalamp import auth
 from tidalamp.auth import NotLoggedIn, ensure_fresh, load_session
@@ -190,6 +191,7 @@ def test_a_saved_session_is_readable_by_its_owner_alone(session_file, monkeypatc
     assert mode(session_file.parent) == 0o700
 
 
+@linux_only
 def test_a_session_left_readable_by_an_older_version_is_closed_on_load(
     session_file, monkeypatch
 ):
@@ -262,6 +264,7 @@ def test_logout_deletes_folders_whole(tmp_path):
     assert not folder.exists()
 
 
+@linux_only
 def test_a_file_that_cannot_be_deleted_is_reported_and_the_rest_still_go(tmp_path):
     """A session left on disk is not a logout: the app must not say it was."""
     locked = tmp_path / "locked"

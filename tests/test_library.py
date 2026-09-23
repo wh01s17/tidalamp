@@ -6,7 +6,7 @@ from __future__ import annotations
 from types import SimpleNamespace
 
 import pytest
-from conftest import FakeTrack
+from conftest import FakeTrack, linux_only
 from tidalapi.types import ItemOrder, OrderDirection
 
 from tidalamp import library
@@ -958,6 +958,7 @@ def test_the_order_picked_for_a_level_survives_a_restart():
     assert library.chosen(tracks) is None
 
 
+@linux_only
 def test_an_order_that_cannot_be_written_still_holds_and_says_why(tmp_path, monkeypatch):
     """Not written is not forgotten: the order holds for the session, and the
     error goes back to the app, which says so, instead of being swallowed."""

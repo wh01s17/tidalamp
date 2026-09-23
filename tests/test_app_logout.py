@@ -7,6 +7,7 @@ from __future__ import annotations
 import asyncio
 
 from app_helpers import FakeMpv, config_text, isolate_config, isolate_runtime, settle
+from conftest import linux_only
 
 from tidalamp import auth
 from tidalamp.app import ConfigScreen, TidalAmp
@@ -149,6 +150,7 @@ def test_ticking_the_box_alone_deletes_nothing(monkeypatch, tmp_path):
     assert asked == [] and closed == []
 
 
+@linux_only
 def test_a_logout_that_failed_does_not_close_the_app(monkeypatch, tmp_path):
     _session, _settings, _asked, closed, seen = _run(
         monkeypatch, tmp_path, ["up", "enter"], stuck=True

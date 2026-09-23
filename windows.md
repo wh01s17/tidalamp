@@ -1281,7 +1281,16 @@ Cada una puede costar una tarde si no se conoce de antemano.
   `mypy --platform win32` limpio y la paridad de backends en tests. **Falta el
   criterio de hecho**, que solo se cumple en Windows: arrancar, reproducir y relanzar
   un `mpv.exe` matado. El pipe no ha corrido nunca; su primera prueba es F2.
-- [ ] F2 · suite en Windows y matriz de CI
+- [~] F2 · suite en Windows y matriz de CI. **Preparada, sin ejecutar** (2026-09-23):
+  el mpv falso sirve un named pipe con `_winapi`, la fixture `ipc` da un pipe por
+  test, `SIGKILL` pasó a `proc.kill()`, marcadores `linux_only`/`windows_only` en
+  `conftest.py`, `tools/import_all.py` en lugar del heredoc, matriz con
+  `windows-latest` en 3.11 y 3.14, y mypy dos veces. La primera ejecución en
+  `windows-latest` dirá lo que falta.
+  - *Pendiente de §8.4:* los seis tests que simulan un fallo de escritura con `chmod`
+    (`test_settings`, `test_queue`, `test_library`, `test_config`, `test_auth`,
+    `test_app_logout`) van con `@linux_only` para no fallar en Windows. Lo bueno es
+    cambiarlos por un `monkeypatch` que lance `PermissionError`, y quitar la marca.
 - [ ] F3 · terminal: carátulas, sextantes, espectro, paleta
 - [ ] F4 · audio WASAPI, permisos, acceso directo
 - [ ] F5 · SMTC

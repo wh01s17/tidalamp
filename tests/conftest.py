@@ -7,6 +7,7 @@ plain stand-ins that expose only the attributes the code under test reads.
 from __future__ import annotations
 
 import os
+import sys
 
 # Before importing anything of the package. A handful of strings are built
 # when their module is imported — `BINDINGS` lists, the browser's hint bar —
@@ -37,7 +38,15 @@ _CONFIG_GLOBALS = (
     "AUTOPLAY",
     "DEBUG",
     "KEYS",
+    "MPV_PATH",
 )
+
+# What only one system has. `skipif` and not deleting: when the other system
+# grows an implementation, the test comes back for free.
+linux_only = pytest.mark.skipif(
+    not sys.platform.startswith("linux"), reason="sólo en Linux"
+)
+windows_only = pytest.mark.skipif(sys.platform != "win32", reason="sólo en Windows")
 
 
 class FakeTrack:

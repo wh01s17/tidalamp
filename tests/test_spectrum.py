@@ -19,6 +19,8 @@ FAKE = Path(__file__).parent / "fake_cava.py"
 
 @pytest.fixture
 def cava_env(tmp_path, monkeypatch):
+    if sys.platform == "win32":
+        pytest.skip("el cava falso va por un script con shebang; cava en Windows es F3")
     shim = tmp_path / "bin"
     shim.mkdir()
     (shim / "cava").write_text(f'#!/bin/sh\nexec "{sys.executable}" "{FAKE}" "$@"\n')

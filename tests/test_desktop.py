@@ -7,8 +7,12 @@ file by hand, tidalamp was missing from the application menu.
 from __future__ import annotations
 
 import pytest
+from conftest import linux_only
 
 from tidalamp.backends.linux import desktop
+
+# The Linux backend: PipeWire, freedesktop menus.
+pytestmark = linux_only
 
 
 @pytest.fixture

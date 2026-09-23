@@ -6,6 +6,10 @@ of commands ``player.Mpv`` sends, and — importantly — it also emits async
 events on the same socket, which is the part of the protocol that has bitten
 us before (the reply we want is not necessarily the first line back).
 
+It serves whatever ``--input-ipc-server`` names: a Unix socket, or on Windows
+a named pipe made with the same `_winapi` calls the player's client uses, so
+the transport that ships is the one under test on both systems.
+
 Three environment variables make it misbehave the ways a real one can:
 ``FAKE_MPV_HANG_ON`` names a command it receives and then never answers,
 ``FAKE_MPV_EOF_ON`` one on which it closes the socket, and ``FAKE_MPV_SPLIT``
@@ -143,13 +147,68 @@ def send(conn, payload: bytes) -> None:
         time.sleep(0.001)
 
 
+class _PipeConnection:
+    """The server end of a Windows named pipe, with a socket's three calls.
+
+    A plain blocking handle: this side does one thing at a time, which is
+    what the fake has always done over the socket too.
+    """
+
+    # Byte-type pipe, read in bytes, blocking: all three are zero, and
+    # `_winapi` does not name them.
+    _BYTE_PIPE = 0
+
+    def __init__(self, name: str) -> None:
+        import _winapi
+
+        self._winapi = _winapi
+        self._handle = _winapi.CreateNamedPipe(
+            name,
+            _winapi.PIPE_ACCESS_DUPLEX | _winapi.FILE_FLAG_FIRST_PIPE_INSTANCE,
+            self._BYTE_PIPE | _winapi.PIPE_WAIT,
+            1,
+            65536,
+            65536,
+            _winapi.NMPWAIT_WAIT_FOREVER,
+            _winapi.NULL,
+        )
+        try:
+            _winapi.ConnectNamedPipe(self._handle, overlapped=False)
+        except OSError as exc:
+            # The client got in between creating the pipe and waiting on it.
+            if getattr(exc, "winerror", None) != _winapi.ERROR_PIPE_CONNECTED:
+                raise
+
+    def recv(self, size: int) -> bytes:
+        try:
+            data, _error = self._winapi.ReadFile(self._handle, size)
+        except BrokenPipeError:
+            return b""
+        return bytes(data)
+
+    def sendall(self, payload: bytes) -> None:
+        self._winapi.WriteFile(self._handle, payload)
+
+    def close(self) -> None:
+        with contextlib.suppress(OSError):
+            self._winapi.CloseHandle(self._handle)
+
+
+def _accept(address: str):
+    """Wait for the player and hand back the connection, pipe or socket."""
+    if address.startswith("\\\\.\\pipe\\"):
+        return _PipeConnection(address)
+    server = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    server.bind(address)
+    server.listen(1)
+    conn, _ = server.accept()
+    return conn
+
+
 def serve(path):
     hang_on = os.environ.get("FAKE_MPV_HANG_ON", "")
     eof_on = os.environ.get("FAKE_MPV_EOF_ON", "")
-    server = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-    server.bind(path)
-    server.listen(1)
-    conn, _ = server.accept()
+    conn = _accept(path)
     buf = b""
     while True:
         chunk = conn.recv(65536)
@@ -197,8 +256,9 @@ def main():
     try:
         serve(path)
     finally:
-        with contextlib.suppress(OSError):
-            os.unlink(path)
+        if not path.startswith("\\\\.\\pipe\\"):
+            with contextlib.suppress(OSError):
+                os.unlink(path)
 
 
 if __name__ == "__main__":

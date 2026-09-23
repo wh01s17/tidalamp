@@ -6,6 +6,7 @@ import importlib.util
 from pathlib import Path
 
 import pytest
+from conftest import linux_only
 
 from tidalamp import config
 
@@ -90,6 +91,7 @@ def test_a_broken_file_falls_back_instead_of_refusing_to_start(monkeypatch, tmp_
     assert settings.KEYS == {}
 
 
+@linux_only
 def test_an_unreadable_file_falls_back_too(monkeypatch, tmp_path):
     path = tmp_path / "config.toml"
     path.write_text("quality = 'HIGH'", encoding="utf-8")
@@ -312,6 +314,7 @@ def test_an_unknown_column_name_costs_that_column_and_nothing_else(monkeypatch):
     assert config.columns() == ("artist", "year")
 
 
+@linux_only
 def test_a_write_that_fails_halfway_leaves_the_old_file_whole(tmp_path, monkeypatch):
     import os
 

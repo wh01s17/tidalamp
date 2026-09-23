@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pytest
+from conftest import linux_only
 
 from tidalamp import settings as settings_module
 from tidalamp.settings import BANDS, GAIN_LIMIT, Settings
@@ -146,6 +147,7 @@ def test_flat_bands_are_the_flat_preset_and_not_manual():
     assert Settings().preset == "flat"
 
 
+@linux_only
 def test_a_failed_save_is_handed_back_not_swallowed(tmp_path, monkeypatch):
     import os
 

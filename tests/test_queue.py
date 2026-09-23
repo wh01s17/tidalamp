@@ -1,4 +1,5 @@
 import pytest
+from conftest import linux_only
 
 from tidalamp.queue import Entry, Queue, Repeat
 
@@ -286,6 +287,7 @@ def test_insert_next_of_nothing_changes_nothing(entries):
     assert len(q) == len(entries)
 
 
+@linux_only
 def test_a_failed_save_comes_back_instead_of_vanishing(tmp_path, monkeypatch, entries):
     """With a full disk the queue used to be lost without a trace: the
     `OSError` was swallowed. It is still not fatal, but it is handed back."""

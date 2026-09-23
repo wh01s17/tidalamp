@@ -7,8 +7,12 @@ whatever the machine running them happens to have plugged in.
 from __future__ import annotations
 
 import pytest
+from conftest import linux_only
 
 from tidalamp.backends.linux import audio
+
+# The Linux backend: PipeWire, freedesktop menus.
+pytestmark = linux_only
 
 PACTL_SINKS = """Sink #3367
 \tState: RUNNING

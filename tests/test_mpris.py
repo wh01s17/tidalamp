@@ -7,6 +7,10 @@ import shutil
 import subprocess
 
 import pytest
+
+# D-Bus is Linux: dbus-fast is not even installed anywhere else.
+pytest.importorskip("dbus_fast")
+
 from dbus_fast.aio import MessageBus
 
 from tidalamp.backends.linux import mpris

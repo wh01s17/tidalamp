@@ -7,11 +7,19 @@ on:
 
 jobs:
   pytest:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
+        os: [ubuntu-latest]
         python: ["3.11", "3.12", "3.13", "3.14"]
+        # Windows at the two ends of the range: the named pipe, AppData, the
+        # stand-in backends. See windows.md, phase F2.
+        include:
+          - os: windows-latest
+            python: "3.11"
+          - os: windows-latest
+            python: "3.14"
     steps:
       - uses: actions/checkout@v4
 
@@ -22,6 +30,7 @@ jobs:
       # The MPRIS integration test spins up its own session bus; without the
       # daemon it skips instead of failing, and we would rather it run.
       - name: Install dbus-daemon
+        if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y dbus
 
       - name: Install the package
@@ -35,7 +44,13 @@ jobs:
   # any other job noticing — the covers went missing on a fresh clone exactly
   # that way. The skips in the suite are the signal, not a problem.
   bare:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        # Windows too: that is where one `import dbus_fast` too many would
+        # break the install.
+        os: [ubuntu-latest, windows-latest]
     steps:
       - uses: actions/checkout@v4
 
@@ -47,16 +62,10 @@ jobs:
         run: python -m pip install -e .
 
       - name: Import every module
-        run: |
-          python - <<'PY'
-          import importlib, pkgutil
-          import tidalamp
-          for module in pkgutil.iter_modules(tidalamp.__path__):
-              importlib.import_module(f"tidalamp.{module.name}")
-          PY
+        run: python tools/import_all.py
 
       - name: The console script runs
-        run: tidalamp --help > /dev/null
+        run: tidalamp --help
 
       - name: Run the suite
         run: |
@@ -81,5 +90,10 @@ jobs:
       - name: Format
         run: ruff format --check .
 
-      - name: Types
-        run: mypy
+      # Each pass drops the other system's branches and checks its own;
+      # without the second, the Windows code is never checked here.
+      - name: Types (Linux)
+        run: mypy --platform linux
+
+      - name: Types (Windows)
+        run: mypy --platform win32

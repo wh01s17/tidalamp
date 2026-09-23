@@ -4,32 +4,19 @@ from __future__ import annotations
 
 import contextlib
 import shutil
-import signal
 import sys
 import tempfile
 import time
+import uuid
 from pathlib import Path
 
 import pytest
+from conftest import linux_only
 
-from tidalamp import player
+from tidalamp import config, player
 from tidalamp.player import Mpv, MpvNotFound
 
 FAKE = Path(__file__).parent / "fake_mpv.py"
-
-
-@pytest.fixture
-def socket_path():
-    """The socket goes in a short temporary directory, not in `tmp_path`.
-
-    Under a sandbox, pytest's `tmp_path` can run past the 107 bytes a Unix
-    socket path takes: the fake mpv could not create it, and every test
-    waited out the 5 s connect timeout before failing, so the suite looked
-    hung.
-    """
-    directory = tempfile.mkdtemp(prefix="tidalamp-")
-    yield Path(directory) / "mpv.sock"
-    shutil.rmtree(directory, ignore_errors=True)
 
 
 # The fake is run by the interpreter running the tests, named as mpv's command:
@@ -38,8 +25,29 @@ FAKE_COMMAND = [sys.executable, str(FAKE)]
 
 
 @pytest.fixture
-def mpv(socket_path, monkeypatch):
-    monkeypatch.setattr(player, "IPC_SOCKET", socket_path)
+def ipc(monkeypatch):
+    """Somewhere of this test's own for the fake mpv to serve: a named pipe
+    on Windows, else a Unix socket in a short temporary directory.
+
+    Short, and not in `tmp_path`: under a sandbox, pytest's `tmp_path` can run
+    past the 107 bytes a Unix socket path takes. The fake mpv could not
+    create it, every test waited out the 5 s connect timeout before failing,
+    and the suite looked hung.
+    """
+    if sys.platform == "win32":
+        name = rf"\\.\pipe\tidalamp-test-{uuid.uuid4().hex}"
+        monkeypatch.setattr(config, "IPC_PIPE", name)
+        yield name
+        return
+    directory = tempfile.mkdtemp(prefix="tidalamp-")
+    path = Path(directory) / "mpv.sock"
+    monkeypatch.setattr(player, "IPC_SOCKET", path)
+    yield str(path)
+    shutil.rmtree(directory, ignore_errors=True)
+
+
+@pytest.fixture
+def mpv(ipc, monkeypatch):
     monkeypatch.setattr(player, "ensure_dirs", lambda: None)
 
     instance = Mpv(command=FAKE_COMMAND)
@@ -48,6 +56,7 @@ def mpv(socket_path, monkeypatch):
         instance.close()
 
 
+@linux_only
 def test_a_socket_path_too_long_says_so_instead_of_timing_out(monkeypatch):
     """A long XDG_CACHE_HOME used to give «mpv did not open its IPC socket in
     time» after five seconds, which blames mpv for a path it cannot bind."""
@@ -113,7 +122,7 @@ def test_rms_reads_the_astats_filter(mpv):
 
 def test_alive_turns_false_when_mpv_dies(mpv):
     assert mpv.alive is True
-    mpv._proc.send_signal(signal.SIGKILL)
+    mpv._proc.kill()
     deadline = time.monotonic() + 3
     while mpv.alive and time.monotonic() < deadline:
         time.sleep(0.05)
@@ -122,7 +131,7 @@ def test_alive_turns_false_when_mpv_dies(mpv):
 
 def test_restart_brings_it_back_with_the_same_volume(mpv):
     mpv.volume = 33
-    mpv._proc.send_signal(signal.SIGKILL)
+    mpv._proc.kill()
     mpv._proc.wait(timeout=3)
     mpv.restart()
     assert mpv.alive is True
@@ -194,9 +203,8 @@ def test_the_cache_is_asked_for_rather_than_left_to_auto(mpv):
 
 
 @pytest.fixture
-def unruly(socket_path, monkeypatch):
+def unruly(ipc, monkeypatch):
     """The same fake mpv, started with the environment a test gave it."""
-    monkeypatch.setattr(player, "IPC_SOCKET", socket_path)
     monkeypatch.setattr(player, "ensure_dirs", lambda: None)
     monkeypatch.setattr(Mpv, "TIMEOUT", 0.3)
     started: list[Mpv] = []
