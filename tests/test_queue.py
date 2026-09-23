@@ -1,5 +1,4 @@
 import pytest
-from conftest import linux_only
 
 from tidalamp.queue import Entry, Queue, Repeat
 
@@ -287,25 +286,18 @@ def test_insert_next_of_nothing_changes_nothing(entries):
     assert len(q) == len(entries)
 
 
-@linux_only
 def test_a_failed_save_comes_back_instead_of_vanishing(tmp_path, monkeypatch, entries):
     """With a full disk the queue used to be lost without a trace: the
     `OSError` was swallowed. It is still not fatal, but it is handed back."""
-    import os
-
     import tidalamp.queue as queue_module
 
-    if os.geteuid() == 0:
-        pytest.skip("root writes into a read-only directory")
-    locked = tmp_path / "locked"
-    locked.mkdir()
-    locked.chmod(0o500)
-    monkeypatch.setattr(queue_module, "QUEUE_FILE", locked / "queue.json")
+    def full(*args, **kwargs):
+        raise OSError(28, "No space left on device")
+
+    monkeypatch.setattr(queue_module, "QUEUE_FILE", tmp_path / "queue.json")
     monkeypatch.setattr(queue_module, "ensure_dirs", lambda: None)
-    try:
-        assert isinstance(make(entries).save(), OSError)
-    finally:
-        locked.chmod(0o700)
+    monkeypatch.setattr(queue_module, "write_atomically", full)
+    assert isinstance(make(entries).save(), OSError)
 
 
 def test_a_save_that_works_returns_nothing(queue_file, entries):

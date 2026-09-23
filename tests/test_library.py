@@ -6,7 +6,7 @@ from __future__ import annotations
 from types import SimpleNamespace
 
 import pytest
-from conftest import FakeTrack, linux_only
+from conftest import FakeTrack
 from tidalapi.types import ItemOrder, OrderDirection
 
 from tidalamp import library
@@ -958,24 +958,18 @@ def test_the_order_picked_for_a_level_survives_a_restart():
     assert library.chosen(tracks) is None
 
 
-@linux_only
 def test_an_order_that_cannot_be_written_still_holds_and_says_why(tmp_path, monkeypatch):
     """Not written is not forgotten: the order holds for the session, and the
     error goes back to the app, which says so, instead of being swallowed."""
-    import os
 
-    if os.geteuid() == 0:
-        pytest.skip("root writes into a read-only directory")
-    locked = tmp_path / "locked"
-    locked.mkdir()
-    locked.chmod(0o500)
-    monkeypatch.setattr(library, "ORDERS_FILE", locked / "library-orders.json")
+    def refused(*args, **kwargs):
+        raise PermissionError("read-only")
+
+    monkeypatch.setattr(library, "ORDERS_FILE", tmp_path / "library-orders.json")
+    monkeypatch.setattr(library, "write_atomically", refused)
     tracks = {row.key: row for row in library.root(FakeSession())}["fav:tracks"]
-    try:
-        assert isinstance(library.remember(tracks, library.Order("name")), OSError)
-        assert library.chosen(tracks) == library.Order("name")
-    finally:
-        locked.chmod(0o700)
+    assert isinstance(library.remember(tracks, library.Order("name")), OSError)
+    assert library.chosen(tracks) == library.Order("name")
 
 
 def a_disc(ident: int, name: str) -> SimpleNamespace:

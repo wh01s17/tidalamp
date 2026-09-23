@@ -20,21 +20,44 @@ python -m venv .venv
 You need `mpv` on the system. `cava` is optional (a real spectrum) and so is
 `dbus-daemon` — without it the MPRIS integration skips itself rather than failing.
 
+On Windows the same, with `.venv\Scripts\pip` and `.venv\Scripts\python`. The suite
+does not need mpv there either: it runs a fake one over a named pipe. If a test fails
+with a `FileNotFoundError` that makes no sense, suspect the 260-character path limit
+and enable long paths, or run from a shorter directory.
+
 ## What has to pass before a commit
 
 ```sh
 .venv/bin/ruff format .
 .venv/bin/ruff check .
-.venv/bin/mypy
+.venv/bin/mypy --platform linux
+.venv/bin/mypy --platform win32
 .venv/bin/python -m pytest -q --cov
 ```
 
-All four run in CI. Coverage has a floor of 70%, which is a floor and not a target: it
+All of it runs in CI, the suite on Linux and on Windows. mypy runs once per system
+because each pass drops the other's branches: without the second, the Windows code
+is never checked from Linux. That is also why platform code tests `sys.platform`
+literally and never through a constant of our own, which mypy cannot see through. Coverage has a floor of 70%, which is a floor and not a target: it
 exists so that a change which empties the tests fails instead of passing quietly.
 
 `tidalamp/backends/linux/mpris.py` is excluded from mypy on purpose: its annotations are D-Bus
 signatures (`"b"`, `"a{sv}"`), not Python types, and no checker can read them. In
 exchange, that module has contract tests against a real bus in `tests/test_mpris.py`.
+
+## Linux and Windows
+
+What differs between the two lives in `tidalamp/backends/<system>/`, behind a facade
+(`audio`, `mpris`, `desktop`, `distro`) that picks the backend and re-exports its
+public names. `tests/test_backend_parity.py` checks that both backends offer the
+same names with the same signatures. Patch a backend's internals on the backend
+module: the facade only holds references. The plan, with its phases and traps, is
+`windows.md`.
+
+A test that only makes sense on one system is marked `@linux_only` or
+`@windows_only` (from `conftest.py`) rather than deleted, so that it comes back the
+day the other system has it. Do not simulate a write failure with `chmod`: it
+protects nothing on Windows or from root. Make the write raise instead.
 
 ## How the tests are written here
 

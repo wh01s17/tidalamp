@@ -91,15 +91,18 @@ def test_a_broken_file_falls_back_instead_of_refusing_to_start(monkeypatch, tmp_
     assert settings.KEYS == {}
 
 
-@linux_only
 def test_an_unreadable_file_falls_back_too(monkeypatch, tmp_path):
     path = tmp_path / "config.toml"
     path.write_text("quality = 'HIGH'", encoding="utf-8")
-    path.chmod(0o000)
-    try:
-        assert config.read_file(path) == {}
-    finally:
-        path.chmod(0o644)
+    real = Path.open
+
+    def unreadable(self, *args, **kwargs):
+        if self == path:
+            raise PermissionError("unreadable")
+        return real(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "open", unreadable)
+    assert config.read_file(path) == {}
 
 
 # ------------------------------------------------------------------------ keys

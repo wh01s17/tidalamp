@@ -5,9 +5,9 @@ closes."""
 from __future__ import annotations
 
 import asyncio
+from pathlib import Path
 
 from app_helpers import FakeMpv, config_text, isolate_config, isolate_runtime, settle
-from conftest import linux_only
 
 from tidalamp import auth
 from tidalamp.app import ConfigScreen, TidalAmp
@@ -32,8 +32,15 @@ def _run(monkeypatch, tmp_path, keys: list[str], stuck: bool = False):
     settings.mkdir()
     (settings / "queue.json").write_text("[]")
     if stuck:
-        # A folder that cannot be written to: a session that stays put.
-        locked.chmod(0o500)
+        # A session that will not be deleted, as when another program holds it.
+        real = Path.unlink
+
+        def unlink(self, missing_ok=False):
+            if self == session:
+                raise PermissionError("in use")
+            real(self, missing_ok=missing_ok)
+
+        monkeypatch.setattr(Path, "unlink", unlink)
     asked: list[bool] = []
 
     def forgotten(data_too: bool = False):
@@ -67,10 +74,7 @@ def _run(monkeypatch, tmp_path, keys: list[str], stuck: bool = False):
             elif application.screen is screen:
                 seen["config"] = config_text(application)
 
-    try:
-        asyncio.run(scenario())
-    finally:
-        locked.chmod(0o700)
+    asyncio.run(scenario())
     return session, settings, asked, closed, seen
 
 
@@ -150,7 +154,6 @@ def test_ticking_the_box_alone_deletes_nothing(monkeypatch, tmp_path):
     assert asked == [] and closed == []
 
 
-@linux_only
 def test_a_logout_that_failed_does_not_close_the_app(monkeypatch, tmp_path):
     _session, _settings, _asked, closed, seen = _run(
         monkeypatch, tmp_path, ["up", "enter"], stuck=True

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 from conftest import linux_only
 
@@ -266,19 +268,22 @@ def test_logout_deletes_folders_whole(tmp_path):
     assert not folder.exists()
 
 
-@linux_only
-def test_a_file_that_cannot_be_deleted_is_reported_and_the_rest_still_go(tmp_path):
+def test_a_file_that_cannot_be_deleted_is_reported_and_the_rest_still_go(
+    tmp_path, monkeypatch
+):
     """A session left on disk is not a logout: the app must not say it was."""
-    locked = tmp_path / "locked"
-    locked.mkdir()
-    stuck = locked / "session.json"
+    stuck = tmp_path / "session.json"
     stuck.write_text("x")
     after = tmp_path / "config.toml"
     after.write_text("x")
-    locked.chmod(0o500)
-    try:
-        assert isinstance(auth.logout((stuck, after)), OSError)
-        assert stuck.exists()
-        assert not after.exists()
-    finally:
-        locked.chmod(0o700)
+    real = Path.unlink
+
+    def unlink(self, missing_ok=False):
+        if self == stuck:
+            raise PermissionError("in use")
+        real(self, missing_ok=missing_ok)
+
+    monkeypatch.setattr(Path, "unlink", unlink)
+    assert isinstance(auth.logout((stuck, after)), OSError)
+    assert stuck.exists()
+    assert not after.exists()

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import pytest
-from conftest import linux_only
 
 from tidalamp import settings as settings_module
 from tidalamp.settings import BANDS, GAIN_LIMIT, Settings
@@ -147,18 +146,13 @@ def test_flat_bands_are_the_flat_preset_and_not_manual():
     assert Settings().preset == "flat"
 
 
-@linux_only
 def test_a_failed_save_is_handed_back_not_swallowed(tmp_path, monkeypatch):
-    import os
+    # The write itself refuses: a read-only folder would need chmod, which
+    # protects nothing on Windows and nothing from root.
+    def refused(*args, **kwargs):
+        raise PermissionError("read-only")
 
-    if os.geteuid() == 0:
-        pytest.skip("root writes into a read-only directory")
-    locked = tmp_path / "locked"
-    locked.mkdir()
-    locked.chmod(0o500)
-    monkeypatch.setattr(settings_module, "SETTINGS_FILE", locked / "settings.json")
+    monkeypatch.setattr(settings_module, "SETTINGS_FILE", tmp_path / "settings.json")
     monkeypatch.setattr(settings_module, "ensure_dirs", lambda: None)
-    try:
-        assert isinstance(Settings().save(), OSError)
-    finally:
-        locked.chmod(0o700)
+    monkeypatch.setattr(settings_module, "write_atomically", refused)
+    assert isinstance(Settings().save(), OSError)
