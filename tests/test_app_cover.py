@@ -98,7 +98,9 @@ def test_resizing_asks_for_the_cover_again_at_the_new_size(monkeypatch):
             application.query_one(Artwork).show(a_cover())
 
             await pilot.resize_terminal(180, 100)
-            await pilot.pause()
+            await wait_for(
+                pilot, lambda: application.query_one(Artwork).rows == 20, what="20 filas"
+            )
             assert application.query_one(Artwork).rows == 20
             assert asked == ["http://example/cover.jpg"]
 
@@ -509,7 +511,14 @@ def test_the_centred_wordmark_gets_a_row_between_it_and_the_band(monkeypatch):
             assert display.size.height == 10
 
             await pilot.resize_terminal(82, 24)
-            await pilot.pause()
+            await wait_for(
+                pilot,
+                lambda: (
+                    application.query_one("#display").region.y
+                    == application.query_one("#titlebar", Static).region.bottom
+                ),
+                what="el display bajo la barra de título",
+            )
             title = application.query_one("#titlebar", Static)
             assert application.query_one("#display").region.y == title.region.bottom
 

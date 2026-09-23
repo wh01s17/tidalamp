@@ -2602,6 +2602,10 @@ Cosas que ya costaron tiempo una vez:
   antes que las filas y la acción caía sobre la pista equivocada. Tras
   `open_browser` u `open_menu_on_b`, `await opened(pilot)`.
 
+- **Un `resize_terminal` tampoco se espera con un `pause`.** El relayout que sigue a un
+  cambio de tamaño tarda más de una vuelta en un runner lento: `wait_for` sobre lo que
+  el test va a mirar. Los ocho sitios que lo hacían fallaron en Windows de uno en uno.
+
 - **`allowed-rates` no basta para que el DAC siga a la pista.** PipeWire sólo elige
   rate nuevo con el driver parado, y un mpv persistente nunca lo deja parar entre
   pistas: la primera fija el rate y las demás se remuestrean. Mirar el DAC en la

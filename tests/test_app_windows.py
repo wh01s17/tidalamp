@@ -19,6 +19,7 @@ from app_helpers import (
     transport,
     type_into_filter,
     visible_labels,
+    wait_for,
 )
 from rich.cells import cell_len
 from textual.screen import Screen
@@ -765,7 +766,11 @@ def test_a_document_window_is_no_wider_than_what_it_holds(monkeypatch):
             assert box.size.width <= 96
             # And still the whole width when there is none to spare.
             await pilot.resize_terminal(76, 20)
-            await pilot.pause()
+            await wait_for(
+                pilot,
+                lambda: application.screen.query_one("#help-box").size.width >= 50,
+                what="la ayuda a lo ancho",
+            )
             assert application.screen.query_one("#help-box").size.width >= 50
 
     asyncio.run(scenario())
@@ -1321,11 +1326,11 @@ def test_the_notice_appears_and_clears_as_the_window_is_resized(monkeypatch):
             assert notice.display is False
 
             await pilot.resize_terminal(59, 40)
-            await pilot.pause()
+            await wait_for(pilot, lambda: notice.display, what="el aviso")
             assert notice.display is True
 
             await pilot.resize_terminal(100, 40)
-            await pilot.pause()
+            await wait_for(pilot, lambda: not notice.display, what="sin aviso")
             assert notice.display is False
 
     asyncio.run(scenario())

@@ -359,7 +359,7 @@ def test_falling_back_from_split_redraws_a_pixel_cover_where_it_now_is(
             erased.clear()
 
             await pilot.resize_terminal(150, 44)
-            await pilot.pause()
+            await wait_for(pilot, lambda: not application.split, what="una columna")
             assert not application.split
             assert erased, "la colocación vieja se borra"
             assert art.cover is not None, "y la carátula sigue puesta"
