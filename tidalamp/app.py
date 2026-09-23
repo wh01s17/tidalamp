@@ -33,7 +33,7 @@ from .layouts import Layout, backdrop_for, layout_for
 from .layouts import label as theme_label
 from .library import Row
 from .lyrics import LyricsDocument, LyricsUnavailable, load_lyrics
-from .mpris import MprisService
+from .mpris import MediaService, MprisService
 from .net import with_retries
 from .player import Mpv
 from .queue import Entry, Queue, Repeat
@@ -386,7 +386,7 @@ class TidalAmp(App):
         self._recovering = False
         self._probing = False
         self._mpv_retry_at = 0.0
-        self.mpris = MprisService(self)
+        self.mpris: MediaService = MprisService(self)
         self._mpris_ready = False
         # How this terminal can draw a cover, decided once from the environment.
         self.art_protocol = artwork.detect_protocol(configured=config.ARTWORK)

@@ -23,8 +23,11 @@ import contextlib
 import logging
 import os
 import re
+import sys
 import tempfile
+import time
 import tomllib
+from collections.abc import Mapping
 from pathlib import Path
 
 log = logging.getLogger("tidalamp.config")
@@ -34,13 +37,46 @@ def _xdg(var: str, default: str) -> Path:
     return Path(os.environ.get(var) or Path.home() / default)
 
 
-CONFIG_DIR = _xdg("XDG_CONFIG_HOME", ".config") / "tidalamp"
-CACHE_DIR = _xdg("XDG_CACHE_HOME", ".cache") / "tidalamp"
-STATE_DIR = _xdg("XDG_STATE_HOME", ".local/state") / "tidalamp"
+def _dirs(environ: Mapping[str, str], platform: str) -> tuple[Path, Path, Path]:
+    """Where the config, the cache and the state go: XDG, or AppData on Windows.
+
+    An XDG variable wins on Windows too. Whoever sets one there does it on
+    purpose (WSL, portable dotfiles), and the tests isolate themselves that
+    way on every system. Without one, Windows keeps what roams with the user
+    in `%APPDATA%` and the rest in `%LOCALAPPDATA%`.
+    """
+    home = Path.home()
+    if platform == "win32":
+        roaming = Path(environ.get("APPDATA") or home / "AppData/Roaming")
+        local = Path(environ.get("LOCALAPPDATA") or home / "AppData/Local")
+        defaults = (
+            roaming / "tidalamp",
+            local / "tidalamp/cache",
+            local / "tidalamp/state",
+        )
+    else:
+        defaults = (
+            home / ".config/tidalamp",
+            home / ".cache/tidalamp",
+            home / ".local/state/tidalamp",
+        )
+    config, cache, state = (
+        Path(environ[var]) / "tidalamp" if environ.get(var) else default
+        for var, default in zip(
+            ("XDG_CONFIG_HOME", "XDG_CACHE_HOME", "XDG_STATE_HOME"), defaults, strict=True
+        )
+    )
+    return config, cache, state
+
+
+CONFIG_DIR, CACHE_DIR, STATE_DIR = _dirs(os.environ, sys.platform)
 
 SESSION_FILE = CONFIG_DIR / "session.json"
 CONFIG_FILE = CONFIG_DIR / "config.toml"
 IPC_SOCKET = CACHE_DIR / "mpv.sock"
+# Windows has no Unix sockets; mpv takes a named pipe there. The pid keeps
+# two tidalamps apart, as the suffixed MPRIS name does on Linux.
+IPC_PIPE = rf"\\.\pipe\tidalamp-mpv-{os.getpid()}"
 QUEUE_FILE = STATE_DIR / "queue.json"
 LOG_FILE = STATE_DIR / "tidalamp.log"
 
@@ -86,6 +122,7 @@ ENV_VARS: dict[str, str] = {
     "replaygain": "TIDALAMP_REPLAYGAIN",
     "library_view": "TIDALAMP_LIBRARY_VIEW",
     "jamendo_id": "TIDALAMP_JAMENDO_ID",
+    "mpv_path": "TIDALAMP_MPV_PATH",
 }
 
 
@@ -224,6 +261,10 @@ LIBRARY_VIEW = setting("library_view", "TIDALAMP_LIBRARY_VIEW", "list")
 # the Internet Archive.
 JAMENDO_ID = setting("jamendo_id", "TIDALAMP_JAMENDO_ID", "561f5c40")
 
+# The mpv to run, when the one on the PATH is not it or there is none: a full
+# path to the executable. Empty looks for it (`player._find_mpv`).
+MPV_PATH = setting("mpv_path", "TIDALAMP_MPV_PATH", "")
+
 # Key overrides, action name to key. Empty means "the defaults in app.py".
 KEYS: dict[str, str] = {
     str(action): str(key) for action, key in (FILE.get("keys") or {}).items()
@@ -297,7 +338,7 @@ def reload() -> None:
     """
     global FILE, DEFAULT_QUALITY, ARTWORK, LANGUAGE, THEME, PALETTE, COLUMNS
     global DEBUG, TRANSPARENCY, KEYS, VISUALIZER, ARRANGEMENT, BACKDROP, COVER_SHAPE
-    global AUTOPLAY, REPLAYGAIN, LIBRARY_VIEW, JAMENDO_ID
+    global AUTOPLAY, REPLAYGAIN, LIBRARY_VIEW, JAMENDO_ID, MPV_PATH
     FILE = read_file()
     DEFAULT_QUALITY = setting("quality", "TIDALAMP_QUALITY", "HI_RES_LOSSLESS")
     ARTWORK = setting("artwork", "TIDALAMP_ART", "auto")
@@ -314,6 +355,7 @@ def reload() -> None:
     AUTOPLAY = flag("autoplay", "TIDALAMP_AUTOPLAY")
     REPLAYGAIN = setting("replaygain", "TIDALAMP_REPLAYGAIN", "off")
     JAMENDO_ID = setting("jamendo_id", "TIDALAMP_JAMENDO_ID", "561f5c40")
+    MPV_PATH = setting("mpv_path", "TIDALAMP_MPV_PATH", "")
     LIBRARY_VIEW = setting("library_view", "TIDALAMP_LIBRARY_VIEW", "list")
     KEYS = {str(action): str(key) for action, key in (FILE.get("keys") or {}).items()}
 
@@ -325,7 +367,8 @@ def write_atomically(path: Path, text: str) -> None:
     a full disk in between left half a JSON behind, and the next start lost the
     queue or the settings along with it. The text goes to a temporary file in
     the same directory, reaches the disk, and replaces the old one in a single
-    ``os.replace``. The file keeps its mode, and a new one is 0644.
+    ``os.replace``. The file keeps its mode, and a new one is 0644 (on
+    Windows the mode only carries the read-only bit).
     """
     path.parent.mkdir(parents=True, exist_ok=True)
     try:
@@ -341,11 +384,29 @@ def write_atomically(path: Path, text: str) -> None:
             stream.flush()
             os.fsync(stream.fileno())
         os.chmod(temporary, mode)
-        os.replace(temporary, path)
+        _replace(temporary, path)
     except BaseException:
         with contextlib.suppress(OSError):
             os.unlink(temporary)
         raise
+
+
+# On Windows `os.replace` fails while another process has the target open, and
+# an antivirus scanning the file is enough. It lets go within milliseconds.
+REPLACE_TRIES = 3
+REPLACE_WAIT = 0.05
+
+
+def _replace(source: str, target: Path) -> None:
+    """`os.replace`, given a moment on Windows when the target is held open."""
+    for attempt in range(REPLACE_TRIES):
+        try:
+            os.replace(source, target)
+            return
+        except PermissionError:
+            if sys.platform != "win32" or attempt == REPLACE_TRIES - 1:
+                raise
+            time.sleep(REPLACE_WAIT)
 
 
 def ensure_dirs() -> None:

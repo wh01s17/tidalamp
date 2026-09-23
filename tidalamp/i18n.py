@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import locale
 import os
+import sys
 
 # Spanish source -> English. Every string wrapped in _() must appear here;
 # tests/test_i18n.py walks the AST and fails when one does not.
@@ -1065,6 +1066,9 @@ ENGLISH: dict[str, str] = {
     ),
     "{package} no está instalado ({command})": ("{package} is not installed ({command})"),
     "{package} no está instalado": "{package} is not installed",
+    "mpv_path no apunta a un ejecutable: {path}": (
+        "mpv_path does not point to an executable: {path}"
+    ),
     "mpv no abrió el socket IPC a tiempo": "mpv did not open its IPC socket in time",
     "la ruta del socket de mpv es demasiado larga "
     "({length} bytes, máximo {limit}): {path}": (
@@ -1262,13 +1266,44 @@ def _language(env: dict[str, str] | None = None) -> str:
             # priority environment variable.
             return codes[0]
     if env is None:
-        try:
-            locale_code = locale.getlocale(locale.LC_MESSAGES)[0]
-        except (ValueError, AttributeError):
-            locale_code = None
+        locale_code = _system_language()
         if locale_code:
             return locale_code.split("_")[0].lower()
     return "es"
+
+
+def _system_language() -> str:
+    """The language the system itself is in, as ``en_US``, or "".
+
+    Windows has no ``LC_MESSAGES``, and the `AttributeError` used to swallow
+    that without a word: an English Windows got the Spanish interface. It
+    also answers `locale.getlocale()` with names like ``Spanish_Spain``, so
+    it is asked for its UI language instead.
+    """
+    if sys.platform == "win32":
+        return _windows_ui_language()
+    try:
+        return locale.getlocale(locale.LC_MESSAGES)[0] or ""
+    except (ValueError, AttributeError):
+        return ""
+
+
+def _windows_ui_language() -> str:
+    """The Windows display language, as ``en_US``; "" when it cannot say."""
+    if sys.platform != "win32":
+        return ""
+    import ctypes
+
+    try:
+        lcid = ctypes.windll.kernel32.GetUserDefaultUILanguage()
+    except (AttributeError, OSError):
+        return ""
+    return from_lcid(lcid)
+
+
+def from_lcid(lcid: int) -> str:
+    """A Windows language id to a locale name: 0x0409 is ``en_US``."""
+    return locale.windows_locale.get(lcid, "")
 
 
 def selected(env: dict[str, str] | None = None) -> str:

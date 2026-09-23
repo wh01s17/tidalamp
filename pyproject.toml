@@ -25,7 +25,8 @@ dependencies = [
     "tidalapi>=0.8.11",
     "textual>=0.80",
     "typer>=0.12",
-    "dbus-fast>=5.0.22",
+    # MPRIS is D-Bus, and D-Bus is Linux: nothing to install anywhere else.
+    "dbus-fast>=5.0.22; sys_platform == 'linux'",
     "requests>=2.31",
 ]
 

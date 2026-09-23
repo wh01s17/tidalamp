@@ -737,6 +737,7 @@ autoplay = false              # when the queue ends, carry on with the last trac
 replaygain = "off"            # normalised volume: off, track, or album
 library_view = "list"         # the library as a list, or as a grid of covers
 jamendo_id = "561f5c40"       # which app Jamendo serves the lofi station to
+mpv_path = ""                 # the mpv to run, when the one on the PATH is not it
 debug = false                 # log to ~/.local/state/tidalamp/tidalamp.log
 
 [keys]
@@ -746,8 +747,8 @@ quit = "ctrl+q"
 
 Precedence is **environment → file → default**. `TIDALAMP_QUALITY`, `TIDALAMP_ART`,
 `TIDALAMP_LANG`, `TIDALAMP_COLUMNS`, `TIDALAMP_THEME`, `TIDALAMP_PALETTE`,
-`TIDALAMP_VISUALIZER`, `TIDALAMP_LIBRARY_VIEW`, `TIDALAMP_JAMENDO_ID` and
-`TIDALAMP_DEBUG` therefore override the file for one-off runs; the settings window
+`TIDALAMP_VISUALIZER`, `TIDALAMP_LIBRARY_VIEW`, `TIDALAMP_JAMENDO_ID`,
+`TIDALAMP_MPV_PATH` and `TIDALAMP_DEBUG` therefore override the file for one-off runs; the settings window
 labels a row whose value is being shadowed that way, rather than showing a value the
 app is not using. A syntax error in the file does not prevent startup; it is logged
 and the defaults take over.

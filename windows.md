@@ -1246,6 +1246,16 @@ Cada una puede costar una tarde si no se conoce de antemano.
     distinto. Probar en los dos antes de cerrar F3.
 16. **PyInstaller no falla al empaquetar si falta un `.tcss`**: falla al abrir. Por eso el
     smoke test del release (§10.3).
+17. **winget no pone mpv en el `PATH`.** El paquete `shinchiro.mpv` (0.41.0, un Inno
+    Setup reempaquetado por `0GMou/mpv2winget`) instala en
+    `%ProgramFiles%\MPV Player\mpv.exe` y no toca el `PATH`: con solo
+    `shutil.which`, quien siguiera el mensaje de «instala mpv» vería el mismo mensaje
+    otra vez. `backends/windows/mpv.py` mira ahí. Comprobado leyendo el `.iss`
+    (2026-09-23); §7.1 decía `%ProgramFiles%\mpv` y `WinGet\Links`, que no son de
+    este paquete.
+18. **`GetOverlappedResult` de una lectura no lanza con `ERROR_BROKEN_PIPE` ni con
+    `ERROR_MORE_DATA`**: los devuelve como código, igual que los trata
+    `multiprocessing.connection`. El esquema de §7.1 los esperaba como excepción.
 
 ---
 
@@ -1264,7 +1274,13 @@ Cada una puede costar una tarde si no se conoce de antemano.
 
 - [x] F0 · backends y fachadas, transporte extraído, `command` inyectable (Linux idéntico)
 - [x] `stream.py` · `mkstemp` (PR aparte, arregla Linux también)
-- [ ] F1 · arranque en Windows
+- [~] F1 · arranque en Windows. **Código escrito y comprobado desde Linux**
+  (2026-09-23): rutas en `AppData`, `NamedPipe` con E/S solapada, búsqueda de
+  `mpv.exe`, `CREATE_NO_WINDOW`, `mpris` y `desktop` neutros, `distro` con
+  winget/scoop/choco, idioma por LCID, UTF-8 en la CLI, `dbus-fast` solo en Linux.
+  `mypy --platform win32` limpio y la paridad de backends en tests. **Falta el
+  criterio de hecho**, que solo se cumple en Windows: arrancar, reproducir y relanzar
+  un `mpv.exe` matado. El pipe no ha corrido nunca; su primera prueba es F2.
 - [ ] F2 · suite en Windows y matriz de CI
 - [ ] F3 · terminal: carátulas, sextantes, espectro, paleta
 - [ ] F4 · audio WASAPI, permisos, acceso directo

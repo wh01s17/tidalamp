@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import contextlib
+import io
 import os
 import sys
 
@@ -157,7 +159,20 @@ def launch(
         tui()
 
 
+def _utf8_output() -> None:
+    """Windows writes a redirected stdout in the ANSI code page, where the
+    «», ñ and — of every message come out broken. A console already gets
+    UTF-8, and so does Linux, which is left as it is."""
+    if sys.platform != "win32":
+        return
+    for stream in (sys.stdout, sys.stderr):
+        if isinstance(stream, io.TextIOWrapper):
+            with contextlib.suppress(OSError, ValueError):
+                stream.reconfigure(encoding="utf-8")
+
+
 def main() -> None:
+    _utf8_output()
     setup_logging()
     try:
         app()

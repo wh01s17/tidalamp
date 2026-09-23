@@ -5,6 +5,12 @@ versioning is [semantic](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **`mpv_path`** (`TIDALAMP_MPV_PATH`): the full path of the mpv to run, for when the
+  one on the PATH is not the one you want, or there is none. A path that leads nowhere
+  is named on startup rather than failing somewhere inside mpv.
+
 ### Fixed
 
 - Every hi-res track left a file descriptor open for as long as tidalamp ran: the

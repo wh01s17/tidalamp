@@ -235,6 +235,15 @@ tidalamp/
                 tidalamp y, en Omarchy, abre como `omarchy-tui-install`.
     mpris.py    Servicio MPRIS2 en D-Bus. Habla con la app por el Protocol
                 PlayerBackend, así que no conoce Textual ni tidalapi.
+  backends/windows/
+    pipe.py     El `Transport` de mpv sobre un named pipe, con E/S solapada.
+                Sólo importa en Windows; el resto de este paquete, en cualquiera.
+    mpv.py      Dónde está `mpv.exe`, que rara vez está en el PATH.
+    distro.py   winget, scoop o choco, con los ids leídos de sus índices.
+    media.py    Sin integración todavía (SMTC es la fase F5): no hace nada.
+    desktop.py  Sin acceso directo todavía (fase F4): nunca lo ofrece.
+  media.py      El contrato entre la app y la integración de medios: los
+                Protocol PlayerBackend y MediaService.
   cli.py        Entrypoint typer: login / tui / config / search, y `--version`.
 
 packaging/
@@ -2293,6 +2302,23 @@ delata en los metadatos, y el Archive no tiene un campo que lo diga; si aparece 
 artista que no debería estar, la cura es una palabra más en `JUNK` o en `VOCALS`, no
 una lista de identificadores. Con Jamendo el problema no existe: el artista marcó la
 casilla.
+
+### Windows - `backends/`, `player.py`, `config.py`, `i18n.py`
+
+El plan entero, con fases, trampas y estado, está en `windows.md`; aquí va lo que ya
+es código y por qué.
+
+- [x] **F0, sin cambiar Linux.** `audio`, `mpris`, `desktop` y `distro` son fachadas
+      sobre `backends/linux/`, y `Mpv` habla con mpv por un `Transport`
+      (`_UnixSocket`) con el comando inyectable. La suite no cambió ni un assert.
+- [x] **F1, escrita desde Linux.** Rutas en `%APPDATA%`/`%LOCALAPPDATA%` salvo que
+      haya una variable XDG; el pipe `\\.\pipe\tidalamp-mpv-<pid>`; `mpv.exe`
+      buscado donde lo dejan los gestores; `CREATE_NO_WINDOW`; `os.replace`
+      reintentado ante un fichero abierto; el idioma por el LCID de la interfaz;
+      UTF-8 en la salida redirigida; `dbus-fast` sólo en Linux. `mypy --platform
+      win32` limpio. **Sin probar en Windows**: es lo que falta para darla por hecha.
+- [x] **`mpv_path`**, en las dos plataformas: la ruta del mpv que se quiere, y un
+      error claro si no lleva a nada.
 
 ### Revisión antes de la 0.8.0 (2026-09-11)
 

@@ -15,13 +15,14 @@ import logging
 import shutil
 import socket
 import subprocess
+import sys
 import threading
 import time
 from collections.abc import Sequence
 from pathlib import Path
 from typing import Any, Protocol
 
-from . import distro
+from . import config, distro
 from .config import IPC_SOCKET, ensure_dirs
 from .i18n import _
 
@@ -55,6 +56,12 @@ _TIMED_OUT = b""
 
 # The longest path a Unix socket takes: `sun_path` is 108 bytes and ends in NUL.
 SOCKET_PATH_MAX = 107
+
+# Windows opens a console window for a console program like mpv, and it would
+# flash up on every start and every restart. Nothing to hide elsewhere.
+_NO_WINDOW = 0
+if sys.platform == "win32":
+    _NO_WINDOW = subprocess.CREATE_NO_WINDOW
 
 
 class MpvNotFound(RuntimeError):
@@ -132,6 +139,8 @@ class _UnixSocket:
         self._path.unlink(missing_ok=True)
 
     def connect(self, timeout: float) -> None:
+        if sys.platform == "win32":  # never given one there: see _transport()
+            raise OSError("no Unix sockets on Windows")
         deadline = time.monotonic() + timeout
         while time.monotonic() < deadline:
             if self._path.exists():
@@ -167,6 +176,42 @@ class _UnixSocket:
         self._path.unlink(missing_ok=True)
 
 
+def _find_mpv() -> list[str]:
+    """The command that runs mpv: the `mpv_path` setting, else the system's.
+
+    On Linux the one on the PATH, run as plain ``mpv`` as it always was. On
+    Windows mpv is seldom on the PATH, so it is looked for where the package
+    managers put it (`backends.windows.mpv`).
+    """
+    if config.MPV_PATH:
+        if not Path(config.MPV_PATH).is_file():
+            raise MpvNotFound(
+                _("mpv_path no apunta a un ejecutable: {path}").format(
+                    path=config.MPV_PATH
+                )
+            )
+        return [config.MPV_PATH]
+    if sys.platform == "win32":
+        from .backends.windows.mpv import find
+
+        found = find()
+        if found is None:
+            raise MpvNotFound(distro.missing("mpv"))
+        return [found]
+    if shutil.which("mpv") is None:
+        raise MpvNotFound(distro.missing("mpv"))
+    return ["mpv"]
+
+
+def _transport(timeout: float) -> Transport:
+    """How this system reaches mpv: a named pipe on Windows, else a socket."""
+    if sys.platform == "win32":
+        from .backends.windows.pipe import NamedPipe
+
+        return NamedPipe(config.IPC_PIPE)
+    return _UnixSocket(IPC_SOCKET, timeout)
+
+
 class Mpv:
     # mpv would happily amplify past 100 (its own `volume-max` is 130), but
     # that is digital gain on an already-normalised stream: it clips. The
@@ -189,17 +234,13 @@ class Mpv:
         transport: Transport | None = None,
     ) -> None:
         """``command`` is what gets run as mpv, before its options: by default
-        the ``mpv`` on the PATH. ``transport`` is how it is reached: by default
-        a Unix socket at `IPC_SOCKET`. Both are there for the tests, and for
-        the systems where neither default holds."""
-        if command is None:
-            if shutil.which("mpv") is None:
-                raise MpvNotFound(distro.missing("mpv"))
-            command = ["mpv"]
-        self._executable = list(command)
+        whatever `_find_mpv` finds. ``transport`` is how it is reached: by
+        default a Unix socket at `IPC_SOCKET`, a named pipe on Windows. Both
+        can be given, which is how the tests run their fake mpv anywhere."""
+        self._executable = list(command) if command is not None else _find_mpv()
         ensure_dirs()
         self._lock = threading.Lock()
-        self._transport = transport or _UnixSocket(IPC_SOCKET, self.TIMEOUT)
+        self._transport = transport or _transport(self.TIMEOUT)
         self._buf = b""
         self._request_id = 0
         # Kept so a respawned mpv comes back with the user's volume rather
@@ -239,6 +280,7 @@ class Mpv:
             ],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
+            creationflags=_NO_WINDOW,
         )
 
     def _connect(self, timeout: float = 5.0) -> None:
