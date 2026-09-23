@@ -17,17 +17,23 @@ Lo de aquí no bloquea publicar. `plan.md` §5 y §6 mandan sobre el estado gene
 
 ## Para la próxima versión
 
-Descubrir, la vista de cuadrícula, la gestión de playlists propias y las páginas que
-llegan solas entraron en la `0.11.0` (publicada el 2026-09-15): ver
-`CHANGELOG.md` y `plan.md` §4. La `0.11.1` (publicada el 2026-09-16) sólo arregla
-el título de la ventana de letras, y la `0.11.2` (publicada el 2026-09-17) que el DAC
-siga el rate de cada pista y no sólo el de la primera. La `0.12.0` (publicada el
-2026-09-17) ofrece añadir tidalamp al menú de aplicaciones, la `0.13.0` (publicada el
-2026-09-17) trae cerrar sesión desde `o`, la `0.14.0` (publicada el 2026-09-19) la
-letra al lado de la carátula en pantalla completa, y la `0.15.0` (publicada el
-2026-09-20) «Lofi sin copyright», sus créditos en `k`, los nombres que se deslizan en
-la cola de pantalla completa y el arreglo de las cargas que fallan. Las escrituras en tus playlists
-se comprobaron contra TIDAL real ese mismo día. Queda por comprobar a mano:
+- **Compatibilidad con Windows**, en el mismo repo. El plan entero, con fases, trampas
+  y estado, está en `windows.md`; aquí solo se apunta que es lo siguiente.
+
+- **Una guarda común para los workers al cerrar**, antes de empezar con Windows. Un
+  worker de hilo que termina después de salir llama a `call_from_thread` contra un
+  loop que se cierra: en la app cuesta una excepción dentro de ese hilo, sin efecto
+  visible, y en los tests es la carrera por la que `app_helpers.isolate_runtime`
+  desactiva el worker del sink. Señalado por Codex (2026-09-12).
+  - *Por qué ahora:* estaba esperando a que un fallo lo pidiera, y Windows lo pide. Los
+    callbacks de SMTC llegan en hilos de WinRT y solo pueden hablar con la app por
+    `call_from_thread` (`windows.md` §7.2 y trampa 13). Hoy hay 62 llamadas.
+  - *Comprobación:* un worker que termina después de `exit()` no lanza, y
+    `isolate_runtime` puede dejar el worker del sink encendido.
+
+La última publicada es la `0.15.0` (2026-09-20); lo que trae cada versión está en
+`CHANGELOG.md`. Queda por comprobar a mano, mejor antes de la fase F3 de Windows, que
+toca carátulas, temas y sextantes y necesita capturas de Linux con las que comparar:
 
 - **Ver la disposición compacta en un terminal real.** Por debajo de 80x26 la
   interfaz quita la carátula y la fila de balance, y hasta ahora solo lo cubren tests
@@ -89,16 +95,12 @@ se comprobaron contra TIDAL real ese mismo día. Queda por comprobar a mano:
   presentación de la cola y aplicación de ajustes, dejando `TidalAmp` como raíz de
   composición. Es un rediseño grande que no arregla ningún fallo, así que solo cuando
   haya tiempo para hacerlo bien — pero cada versión que pasa lo encarece.
-
-- **Una guarda común para los workers al cerrar.** Un worker de hilo que termina
-  después de salir llama a `call_from_thread` contra un loop que se cierra: en la app
-  cuesta una excepción dentro de ese hilo, sin efecto visible, y en los tests es la
-  carrera por la que `app_helpers.isolate_runtime` desactiva el worker del sink.
-  Señalado por Codex (2026-09-12). Razonable y pequeño, pero sin un fallo que lo
-  pida: cuando aparezca uno.
-- La separación de `TidalAmp` (arriba) la señaló también Codex (2026-09-12), con la
-  misma conclusión: objetos con diseño propio. Vigilar además que `Mpv._request` (53
-  líneas, cada rama con su test) no crezca hasta ser otro núcleo.
+  - Codex llegó a la misma conclusión (2026-09-12): objetos con diseño propio. Vigilar
+    además que `Mpv._request` (53 líneas, cada rama con su test) no crezca hasta ser
+    otro núcleo.
+  - *Después de Windows, no antes.* `windows.md` está pensado para que `app.py` apenas
+    cambie, y las fachadas de su fase F0 (MPRIS y audio como backends) ya son un primer
+    paso en esta dirección. Hacer las dos cosas a la vez se pisaría.
 
 - **Seleccionar varias pistas en la cola** para quitarlas o moverlas juntas; hoy se
   hace de a una. Interesa, pero sin versión decidida.
@@ -111,12 +113,11 @@ No se borran: quedan escritos con el motivo para no volver a discutirlos desde c
   «Lofi sin copyright». La API responde sin clave y tiene emisoras lofi de sobra, pero
   no hay forma de verificar qué emiten, así que la fila dejaría de merecer su nombre.
   Además una emisora no tiene duración ni portada: habría que tocar el transporte, la
-  barra de posición y la cola para una fila que no se puede prometer. El mantenedor
-  eligió quedarse sólo con el Internet Archive.
+  barra de posición y la cola para una fila que no se puede prometer. La fila se quedó
+  con pistas de catálogo: Jamendo, y el Internet Archive de respaldo.
 - **Otras fuentes para «Lofi sin copyright»** (2026-09-20), miradas al rediseñarla como
-  emisora. **Jamendo** tiene taxonomía de géneros de verdad y URLs de stream, pero pide
-  registrar un `client_id`, que es la misma puerta que §2 cierra para TIDAL, y ataría el
-  proyecto a la cuenta de una persona. **Free Music Archive** tiene la API muerta: su
+  emisora. Jamendo, que al principio se descartó por pedir un `client_id`, acabó
+  entrando en la `0.15.0` como fuente principal. **Free Music Archive** tiene la API muerta: su
   `/api/get/tracks.json` contesta 404. **ccMixter** sí responde y tiene metadatos CC
   buenos, pero es una comunidad de remixes —sus lofi son casi todos BY-NC, que el filtro
   de licencia no deja pasar— y manda cabeceras tan grandes que `undici` se atraganta
