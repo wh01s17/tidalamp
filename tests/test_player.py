@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import contextlib
-import os
 import shutil
 import signal
 import sys
@@ -33,17 +32,17 @@ def socket_path():
     shutil.rmtree(directory, ignore_errors=True)
 
 
+# The fake is run by the interpreter running the tests, named as mpv's command:
+# the same on every system, where a shebang script on the PATH is not.
+FAKE_COMMAND = [sys.executable, str(FAKE)]
+
+
 @pytest.fixture
-def mpv(tmp_path, socket_path, monkeypatch):
-    shim = tmp_path / "bin"
-    shim.mkdir()
-    (shim / "mpv").write_text(f'#!/bin/sh\nexec "{sys.executable}" "{FAKE}" "$@"\n')
-    (shim / "mpv").chmod(0o755)
-    monkeypatch.setenv("PATH", f"{shim}:{os.environ['PATH']}")
+def mpv(socket_path, monkeypatch):
     monkeypatch.setattr(player, "IPC_SOCKET", socket_path)
     monkeypatch.setattr(player, "ensure_dirs", lambda: None)
 
-    instance = Mpv()
+    instance = Mpv(command=FAKE_COMMAND)
     yield instance
     with contextlib.suppress(Exception):
         instance.close()
@@ -195,13 +194,8 @@ def test_the_cache_is_asked_for_rather_than_left_to_auto(mpv):
 
 
 @pytest.fixture
-def unruly(tmp_path, socket_path, monkeypatch):
+def unruly(socket_path, monkeypatch):
     """The same fake mpv, started with the environment a test gave it."""
-    shim = tmp_path / "bin"
-    shim.mkdir()
-    (shim / "mpv").write_text(f'#!/bin/sh\nexec "{sys.executable}" "{FAKE}" "$@"\n')
-    (shim / "mpv").chmod(0o755)
-    monkeypatch.setenv("PATH", f"{shim}:{os.environ['PATH']}")
     monkeypatch.setattr(player, "IPC_SOCKET", socket_path)
     monkeypatch.setattr(player, "ensure_dirs", lambda: None)
     monkeypatch.setattr(Mpv, "TIMEOUT", 0.3)
@@ -210,7 +204,7 @@ def unruly(tmp_path, socket_path, monkeypatch):
     def start(**env: str) -> Mpv:
         for name, value in env.items():
             monkeypatch.setenv(name, value)
-        started.append(Mpv())
+        started.append(Mpv(command=FAKE_COMMAND))
         return started[-1]
 
     yield start

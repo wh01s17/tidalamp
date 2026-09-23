@@ -3,6 +3,9 @@
 We spawn one long-lived ``mpv --idle`` process and talk to it through a unix
 socket, which keeps playback alive across track changes and gives us the
 position/volume properties the Winamp display needs.
+
+How the bytes reach mpv is a `Transport`: the protocol on top of it (request
+ids, stalls, restarts) is the same whatever carries it.
 """
 
 from __future__ import annotations
@@ -14,7 +17,9 @@ import socket
 import subprocess
 import threading
 import time
-from typing import Any
+from collections.abc import Sequence
+from pathlib import Path
+from typing import Any, Protocol
 
 from . import distro
 from .config import IPC_SOCKET, ensure_dirs
@@ -56,6 +61,112 @@ class MpvNotFound(RuntimeError):
     pass
 
 
+class Transport(Protocol):
+    """One connection to mpv's JSON IPC, with the semantics of a blocking socket.
+
+    `recv` answers like `socket.recv` on purpose: `Mpv._readline` tells a slow
+    mpv from a dead one by what comes back, and that must not depend on the
+    transport. The object outlives connections: `restart` disconnects it and
+    connects it again to the new mpv.
+    """
+
+    @property
+    def address(self) -> str:
+        """What mpv is told in ``--input-ipc-server``."""
+        ...
+
+    @property
+    def connected(self) -> bool: ...
+
+    def prepare(self) -> None:
+        """Before spawning mpv: check the address can work, clear leftovers.
+
+        Raises MpvNotFound with the reason when it cannot."""
+
+    def connect(self, timeout: float) -> None:
+        """Wait until mpv accepts; MpvNotFound if it never does."""
+
+    def recv(self, timeout: float) -> bytes:
+        """Up to 64 KiB. TimeoutError if nothing came, b"" on EOF, OSError if
+        the connection is broken."""
+        ...
+
+    def sendall(self, data: bytes) -> None:
+        """OSError if the connection is broken."""
+
+    def disconnect(self) -> None:
+        """Drop the connection. Idempotent; keeps what `prepare` set up."""
+
+    def close(self) -> None:
+        """Disconnect for good, and clear what `prepare` would. Idempotent."""
+
+
+class _UnixSocket:
+    """The transport on Linux: a Unix socket at `IPC_SOCKET`."""
+
+    def __init__(self, path: Path, timeout: float) -> None:
+        self._path = path
+        self._timeout = timeout
+        self._sock: socket.socket | None = None
+
+    @property
+    def address(self) -> str:
+        return str(self._path)
+
+    @property
+    def connected(self) -> bool:
+        return self._sock is not None
+
+    def prepare(self) -> None:
+        # A Unix socket path is cut at 108 bytes, NUL included. mpv cannot
+        # create one past that, and `connect` would then wait its full
+        # timeout and blame mpv for being slow (plan.md §7).
+        length = len(bytes(self._path))
+        if length > SOCKET_PATH_MAX:
+            raise MpvNotFound(
+                _(
+                    "la ruta del socket de mpv es demasiado larga "
+                    "({length} bytes, máximo {limit}): {path}"
+                ).format(length=length, limit=SOCKET_PATH_MAX, path=self._path)
+            )
+        self._path.unlink(missing_ok=True)
+
+    def connect(self, timeout: float) -> None:
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            if self._path.exists():
+                try:
+                    sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+                    sock.connect(str(self._path))
+                    sock.settimeout(self._timeout)
+                    self._sock = sock
+                    return
+                except OSError:
+                    pass
+            time.sleep(0.05)
+        raise MpvNotFound(_("mpv no abrió el socket IPC a tiempo"))
+
+    def recv(self, timeout: float) -> bytes:
+        if self._sock is None:
+            raise OSError("not connected")
+        self._sock.settimeout(timeout)
+        return self._sock.recv(65536)
+
+    def sendall(self, data: bytes) -> None:
+        if self._sock is None:
+            raise OSError("not connected")
+        self._sock.sendall(data)
+
+    def disconnect(self) -> None:
+        if self._sock is not None:
+            self._sock.close()
+            self._sock = None
+
+    def close(self) -> None:
+        self.disconnect()
+        self._path.unlink(missing_ok=True)
+
+
 class Mpv:
     # mpv would happily amplify past 100 (its own `volume-max` is 130), but
     # that is digital gain on an already-normalised stream: it clips. The
@@ -72,12 +183,23 @@ class Mpv:
     # How long a stalled mpv is given before the app restarts it.
     STALL_LIMIT = 5.0
 
-    def __init__(self) -> None:
-        if shutil.which("mpv") is None:
-            raise MpvNotFound(distro.missing("mpv"))
+    def __init__(
+        self,
+        command: Sequence[str] | None = None,
+        transport: Transport | None = None,
+    ) -> None:
+        """``command`` is what gets run as mpv, before its options: by default
+        the ``mpv`` on the PATH. ``transport`` is how it is reached: by default
+        a Unix socket at `IPC_SOCKET`. Both are there for the tests, and for
+        the systems where neither default holds."""
+        if command is None:
+            if shutil.which("mpv") is None:
+                raise MpvNotFound(distro.missing("mpv"))
+            command = ["mpv"]
+        self._executable = list(command)
         ensure_dirs()
         self._lock = threading.Lock()
-        self._sock: socket.socket | None = None
+        self._transport = transport or _UnixSocket(IPC_SOCKET, self.TIMEOUT)
         self._buf = b""
         self._request_id = 0
         # Kept so a respawned mpv comes back with the user's volume rather
@@ -94,21 +216,10 @@ class Mpv:
     # ------------------------------------------------------------------ setup
 
     def _spawn(self) -> subprocess.Popen:
-        # A Unix socket path is cut at 108 bytes, NUL included. mpv cannot
-        # create one past that, and `_connect` would then wait its full
-        # timeout and blame mpv for being slow (plan.md §7).
-        length = len(bytes(IPC_SOCKET))
-        if length > SOCKET_PATH_MAX:
-            raise MpvNotFound(
-                _(
-                    "la ruta del socket de mpv es demasiado larga "
-                    "({length} bytes, máximo {limit}): {path}"
-                ).format(length=length, limit=SOCKET_PATH_MAX, path=IPC_SOCKET)
-            )
-        IPC_SOCKET.unlink(missing_ok=True)
+        self._transport.prepare()
         return subprocess.Popen(
             [
-                "mpv",
+                *self._executable,
                 "--idle=yes",
                 "--no-video",
                 "--no-terminal",
@@ -116,7 +227,7 @@ class Mpv:
                 # A system-wide mpv-mpris would otherwise publish a second,
                 # duplicate player on the bus. We expose MPRIS ourselves.
                 "--load-scripts=no",
-                f"--input-ipc-server={IPC_SOCKET}",
+                f"--input-ipc-server={self._transport.address}",
                 f"--af={_AUDIO_FILTER}",
                 f"--demuxer-lavf-o={_PROTOCOL_OPTION}",
                 "--cache=yes",
@@ -131,25 +242,13 @@ class Mpv:
         )
 
     def _connect(self, timeout: float = 5.0) -> None:
-        deadline = time.monotonic() + timeout
-        while time.monotonic() < deadline:
-            if IPC_SOCKET.exists():
-                try:
-                    sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-                    sock.connect(str(IPC_SOCKET))
-                    sock.settimeout(self.TIMEOUT)
-                    self._sock = sock
-                    return
-                except OSError:
-                    pass
-            time.sleep(0.05)
-        raise MpvNotFound(_("mpv no abrió el socket IPC a tiempo"))
+        self._transport.connect(timeout)
 
     @property
     def alive(self) -> bool:
         """False once the mpv process is gone. Without this the UI would keep
         polling a dead socket and simply freeze at the last known position."""
-        return self._proc.poll() is None and self._sock is not None
+        return self._proc.poll() is None and self._transport.connected
 
     @property
     def stalled(self) -> bool:
@@ -180,9 +279,7 @@ class Mpv:
         to find no socket and give up, not queue behind them.
         """
         with self._lock:
-            if self._sock is not None:
-                self._sock.close()
-                self._sock = None
+            self._transport.disconnect()
             self._buf = b""
             self._stalled_since = None
             self.failure = ""
@@ -214,19 +311,19 @@ class Mpv:
         time means mpv is stuck, and the player stalls; a reply with an error
         is just a command mpv refused.
         """
-        if self._sock is None:
+        if not self._transport.connected:
             return False, None
         if self._stalled_since is not None and not probe:
             return False, None
         with self._lock:
-            if self._sock is None:
+            if not self._transport.connected:
                 return False, None
             self._request_id += 1
             rid = self._request_id
             body = dict(command) if isinstance(command, dict) else list(command)
             payload = json.dumps({"command": body, "request_id": rid}) + "\n"
             try:
-                self._sock.sendall(payload.encode())
+                self._transport.sendall(payload.encode())
             except OSError as exc:
                 self._lose(f"send: {exc}")
                 return False, None
@@ -259,13 +356,12 @@ class Mpv:
         """One line off the socket: None when the socket is gone, `_TIMED_OUT`
         when nothing complete arrived in ``timeout``. A line split across
         several reads is put back together in `_buf`."""
-        sock = self._sock
+        transport = self._transport
         while b"\n" not in self._buf:
-            if sock is None or timeout <= 0:
-                return None if sock is None else _TIMED_OUT
+            if not transport.connected or timeout <= 0:
+                return None if not transport.connected else _TIMED_OUT
             try:
-                sock.settimeout(timeout)
-                chunk = sock.recv(65536)
+                chunk = transport.recv(timeout)
             except TimeoutError:
                 return _TIMED_OUT
             except OSError:
@@ -282,9 +378,7 @@ class Mpv:
         """The socket is gone: drop it, so `alive` turns False and the app
         restarts mpv instead of polling a corpse. Called with the lock held."""
         log.warning("mpv perdió el socket (%s)", reason)
-        if self._sock is not None:
-            self._sock.close()
-            self._sock = None
+        self._transport.disconnect()
         self._buf = b""
         self.failure = _("mpv cerró la conexión")
 
@@ -461,10 +555,9 @@ class Mpv:
         try:
             self._command("quit")
         finally:
-            if self._sock is not None:
-                self._sock.close()
+            self._transport.disconnect()
             try:
                 self._proc.wait(timeout=2)
             except subprocess.TimeoutExpired:
                 self._proc.kill()
-            IPC_SOCKET.unlink(missing_ok=True)
+            self._transport.close()

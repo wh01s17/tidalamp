@@ -166,7 +166,10 @@ tidalamp/
                 (entorno → fichero → defecto). Sin dependencias internas.
   auth.py       Device flow y persistencia de sesión. Lanza NotLoggedIn.
   stream.py     Track -> Playable (URL o playlist HLS local). Lanza StreamUnavailable.
-  player.py     Clase Mpv: spawn del proceso, socket IPC, transporte, medición RMS.
+  player.py     Clase Mpv: spawn del proceso, IPC JSON, transporte, medición RMS.
+                El IPC va por un `Transport` (`_UnixSocket` en Linux) y el
+                comando de mpv se puede inyectar: así los tests lanzan el mpv
+                falso igual en cualquier sistema.
   widgets.py    TimeDisplay, SeekBar, Slider, Spinner, Artwork. Reexporta los de
                 `analyzer.py` y `scrolling.py`. Sin lógica de negocio.
   analyzer.py   Analyzer (cinco formas) y EqualizerBars: los que pintan bandas.
