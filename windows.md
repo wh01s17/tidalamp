@@ -422,6 +422,7 @@ para usar `command=`, y eso puede ir en el mismo PR.
    ```python
    import _winapi
 
+
    class NamedPipe:
        """mpv's JSON IPC over a Windows named pipe, with real timeouts."""
 
@@ -440,8 +441,11 @@ para usar `command=`, y eso puede ir en el mismo PR.
                    self._handle = _winapi.CreateFile(
                        self.address,
                        _winapi.GENERIC_READ | _winapi.GENERIC_WRITE,
-                       0, _winapi.NULL, _winapi.OPEN_EXISTING,
-                       _winapi.FILE_FLAG_OVERLAPPED, _winapi.NULL,
+                       0,
+                       _winapi.NULL,
+                       _winapi.OPEN_EXISTING,
+                       _winapi.FILE_FLAG_OVERLAPPED,
+                       _winapi.NULL,
                    )
                    return
                except FileNotFoundError:
@@ -467,6 +471,7 @@ para usar `command=`, y eso puede ir en el mismo PR.
            except BrokenPipeError:
                return b""  # mpv closed its end: EOF, like socket.recv
            return data
+
        ...
    ```
 
