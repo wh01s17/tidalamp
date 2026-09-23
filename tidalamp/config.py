@@ -123,6 +123,7 @@ ENV_VARS: dict[str, str] = {
     "library_view": "TIDALAMP_LIBRARY_VIEW",
     "jamendo_id": "TIDALAMP_JAMENDO_ID",
     "mpv_path": "TIDALAMP_MPV_PATH",
+    "exclusive": "TIDALAMP_EXCLUSIVE",
 }
 
 
@@ -265,6 +266,13 @@ JAMENDO_ID = setting("jamendo_id", "TIDALAMP_JAMENDO_ID", "561f5c40")
 # path to the executable. Empty looks for it (`player._find_mpv`).
 MPV_PATH = setting("mpv_path", "TIDALAMP_MPV_PATH", "")
 
+# Windows only: mpv takes the output device for itself (WASAPI exclusive
+# mode) and opens it at the track's own rate, which is how 24/96 reaches the
+# DAC as 24/96 there. Off by default, and not lightly: while it is on nothing
+# else can play, notifications included, and an app that silences them
+# without asking is a bug report waiting to arrive.
+EXCLUSIVE = flag("exclusive", "TIDALAMP_EXCLUSIVE")
+
 # Key overrides, action name to key. Empty means "the defaults in app.py".
 KEYS: dict[str, str] = {
     str(action): str(key) for action, key in (FILE.get("keys") or {}).items()
@@ -338,7 +346,7 @@ def reload() -> None:
     """
     global FILE, DEFAULT_QUALITY, ARTWORK, LANGUAGE, THEME, PALETTE, COLUMNS
     global DEBUG, TRANSPARENCY, KEYS, VISUALIZER, ARRANGEMENT, BACKDROP, COVER_SHAPE
-    global AUTOPLAY, REPLAYGAIN, LIBRARY_VIEW, JAMENDO_ID, MPV_PATH
+    global AUTOPLAY, REPLAYGAIN, LIBRARY_VIEW, JAMENDO_ID, MPV_PATH, EXCLUSIVE
     FILE = read_file()
     DEFAULT_QUALITY = setting("quality", "TIDALAMP_QUALITY", "HI_RES_LOSSLESS")
     ARTWORK = setting("artwork", "TIDALAMP_ART", "auto")
@@ -356,6 +364,7 @@ def reload() -> None:
     REPLAYGAIN = setting("replaygain", "TIDALAMP_REPLAYGAIN", "off")
     JAMENDO_ID = setting("jamendo_id", "TIDALAMP_JAMENDO_ID", "561f5c40")
     MPV_PATH = setting("mpv_path", "TIDALAMP_MPV_PATH", "")
+    EXCLUSIVE = flag("exclusive", "TIDALAMP_EXCLUSIVE")
     LIBRARY_VIEW = setting("library_view", "TIDALAMP_LIBRARY_VIEW", "list")
     KEYS = {str(action): str(key) for action, key in (FILE.get("keys") or {}).items()}
 

@@ -115,6 +115,24 @@ class ConfigScreen(ModalScreen[None]):
 
     # ------------------------------------------------------------------ rows
 
+    def _stack_rows(self, group: str) -> list[Option]:
+        """The audio stack's own rows: PipeWire's where its rates are ours to
+        manage, and WASAPI's exclusive mode where they are not (Windows)."""
+        if audio.MANAGES_RATES:
+            return [
+                Option(_("Rates hi-res en PipeWire"), action="rates", group=group),
+                Option(_("Reiniciar PipeWire"), action="restart", group=group),
+            ]
+        return [
+            Option(
+                _("Modo exclusivo"),
+                key="exclusive",
+                choices=self.SWITCH,
+                note=_("cada pista llega al DAC a su frecuencia; no suena nada más"),
+                group=group,
+            )
+        ]
+
     def _options(self) -> list[Option]:
         """Every row, in the order they are drawn, grouped by what they are
         about rather than by the order they happened to be written in.
@@ -148,8 +166,7 @@ class ConfigScreen(ModalScreen[None]):
                 note=_("ReplayGain de TIDAL: por pista o por disco; sin recortar"),
                 group=audio,
             ),
-            Option(_("Rates hi-res en PipeWire"), action="rates", group=audio),
-            Option(_("Reiniciar PipeWire"), action="restart", group=audio),
+            *self._stack_rows(audio),
             Option(
                 _("Tema"),
                 key="theme",
@@ -792,7 +809,7 @@ class ConfigScreen(ModalScreen[None]):
 
 # The module attribute each config key is resolved into.
 # Settings the file holds as booleans while the screen cycles "true"/"false".
-_FLAGS = ("debug", "transparency", "autoplay")
+_FLAGS = ("debug", "transparency", "autoplay", "exclusive")
 
 
 _ATTRIBUTES = {
@@ -810,6 +827,7 @@ _ATTRIBUTES = {
     "autoplay": "AUTOPLAY",
     "replaygain": "REPLAYGAIN",
     "library_view": "LIBRARY_VIEW",
+    "exclusive": "EXCLUSIVE",
 }
 
 

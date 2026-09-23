@@ -19,6 +19,7 @@ import re
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 from ...config import _xdg, write_atomically
 from ...i18n import _
@@ -36,6 +37,10 @@ RATES_FILE = CONF_DIR / "10-tidalamp-rates.conf"
 RATES = (44100, 48000, 88200, 96000, 176400, 192000, 352800, 384000)
 
 SERVICES = ("pipewire", "pipewire-pulse", "wireplumber")
+
+# Whether this backend manages the stack's rates: PipeWire's allowed rates and
+# the forced one. The settings window offers those rows only where it does.
+MANAGES_RATES = True
 
 _TIMEOUT = 5
 
@@ -77,6 +82,10 @@ class Sink:
     def bluetooth(self) -> bool:
         """Bluetooth cannot carry lossless: worth saying before hi-res is asked for."""
         return self.name.startswith("bluez_")
+
+
+def use_player(player: Any) -> None:
+    """Nothing to do: PipeWire itself says what the sink is doing."""
 
 
 def sink() -> Sink:

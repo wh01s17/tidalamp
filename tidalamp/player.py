@@ -203,6 +203,15 @@ def _find_mpv() -> list[str]:
     return ["mpv"]
 
 
+def _exclusive_option() -> list[str]:
+    """WASAPI exclusive mode, when the setting asks for it. Windows only: it
+    is the one system where the setting is offered, and Linux keeps exactly
+    the arguments it always had."""
+    if sys.platform == "win32" and config.EXCLUSIVE:
+        return ["--audio-exclusive=yes"]
+    return []
+
+
 def _transport(timeout: float) -> Transport:
     """How this system reaches mpv: a named pipe on Windows, else a socket."""
     if sys.platform == "win32":
@@ -261,6 +270,7 @@ class Mpv:
         return subprocess.Popen(
             [
                 *self._executable,
+                *_exclusive_option(),
                 "--idle=yes",
                 "--no-video",
                 "--no-terminal",
@@ -435,6 +445,15 @@ class Mpv:
 
     def set(self, prop: str, value: Any) -> None:
         self._command("set_property", prop, value)
+
+    def set_exclusive(self, on: bool) -> None:
+        """Take the output device for ourselves, or give it back, now.
+
+        An audio output option: it only reaches the device when the output is
+        opened again, which ``ao-reload`` does without stopping the track.
+        """
+        self.set("audio-exclusive", "yes" if on else "no")
+        self._command("ao-reload")
 
     def set_filter(self, label: str, graph: str | None) -> None:
         """Install (or drop) a labelled lavfi filter.

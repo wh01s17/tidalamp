@@ -1069,6 +1069,16 @@ ENGLISH: dict[str, str] = {
     ),
     "{package} no está instalado ({command})": ("{package} is not installed ({command})"),
     "{package} no está instalado": "{package} is not installed",
+    "Modo exclusivo": "Exclusive mode",
+    "cada pista llega al DAC a su frecuencia; no suena nada más": (
+        "each track reaches the DAC at its own rate; nothing else plays"
+    ),
+    "modo exclusivo: sólo suena tidalamp, a la frecuencia de cada pista": (
+        "exclusive mode: only tidalamp plays, at each track's own rate"
+    ),
+    "modo exclusivo desactivado: suena todo, remuestreado": (
+        "exclusive mode off: everything plays, resampled"
+    ),
     "mpv_path no apunta a un ejecutable: {path}": (
         "mpv_path does not point to an executable: {path}"
     ),

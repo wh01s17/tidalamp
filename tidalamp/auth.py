@@ -11,6 +11,7 @@ import json
 import logging
 import os
 import shutil
+import sys
 from pathlib import Path
 
 import tidalapi
@@ -94,7 +95,16 @@ def _tighten(path: Path) -> None:
     It holds the access and the refresh token, and tidalapi writes it with a
     plain ``open("w")``, so under the usual umask 022 it came out 0644:
     readable by every user on the machine.
+
+    Nothing on Windows, where a mode only carries the read-only bit and would
+    protect nothing. The protection there is the ACL `%APPDATA%` inherits:
+    the user, SYSTEM and the Administrators, which is what 0600 gives on
+    Linux in practice, where root reads it too. `icacls` would add a process
+    to every start and fail on managed machines without changing who can
+    read the file.
     """
+    if sys.platform == "win32":
+        return
     os.chmod(path.parent, 0o700)
     if path.exists():
         os.chmod(path, 0o600)

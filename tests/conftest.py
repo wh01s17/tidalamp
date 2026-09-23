@@ -39,6 +39,7 @@ _CONFIG_GLOBALS = (
     "DEBUG",
     "KEYS",
     "MPV_PATH",
+    "EXCLUSIVE",
 )
 
 # What only one system has. `skipif` and not deleting: when the other system

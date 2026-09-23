@@ -349,6 +349,8 @@ class TidalAmp(App):
         super().__init__()
         self.session = session
         self.mpv = mpv
+        # Windows asks mpv what the output is; Linux asks PipeWire and ignores it.
+        audio.use_player(mpv)
         self.queue = Queue()
         self.settings = Settings.load()
         self._lyrics_cache: dict[int, LyricsDocument] = {}
@@ -3131,6 +3133,15 @@ class TidalAmp(App):
             self.status = _("vista de la biblioteca: {value}").format(
                 value=config.LIBRARY_VIEW
             )
+        elif name == "exclusive":
+            self.mpv.set_exclusive(config.EXCLUSIVE)
+            self.status = (
+                _("modo exclusivo: sólo suena tidalamp, a la frecuencia de cada pista")
+                if config.EXCLUSIVE
+                else _("modo exclusivo desactivado: suena todo, remuestreado")
+            )
+            # The output was opened again, maybe at another rate.
+            self._refresh_sink_worker()
         elif name == "autoplay":
             self.status = (
                 _("reproducción automática activada")

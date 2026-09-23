@@ -87,7 +87,11 @@ class FakeMpv:
         self.queued: list[tuple[str, float]] = []
         self.restarts = 0
         self.probes = 0
+        self.exclusive: list[bool] = []
         self._volume = 100
+
+    def set_exclusive(self, on: bool) -> None:
+        self.exclusive.append(on)
 
     @property
     def volume(self) -> int:

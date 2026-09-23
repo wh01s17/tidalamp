@@ -79,3 +79,42 @@ def test_no_integration_is_said_and_not_fatal(monkeypatch):
     ready, status = _started(monkeypatch, FakeMedia(error="sin bus de sesión"))
     assert ready is False
     assert status == "MPRIS no disponible (sin bus de sesión)"
+
+
+# ------------------------------------------- the audio stack's own rows
+
+
+def test_windows_offers_exclusive_mode_instead_of_pipewire(monkeypatch):
+    from tidalamp.screens import config_window
+
+    monkeypatch.setattr(config_window.audio, "MANAGES_RATES", False)
+    rows = config_window.ConfigScreen()._stack_rows("Audio")
+    assert [(row.key, row.action) for row in rows] == [("exclusive", "")]
+
+
+def test_linux_keeps_its_pipewire_rows(monkeypatch):
+    from tidalamp.screens import config_window
+
+    monkeypatch.setattr(config_window.audio, "MANAGES_RATES", True)
+    rows = config_window.ConfigScreen()._stack_rows("Audio")
+    assert [row.action for row in rows] == ["rates", "restart"]
+
+
+def test_exclusive_mode_applies_at_once_and_says_what_it_costs(monkeypatch):
+    from tidalamp import config
+
+    isolate_runtime(monkeypatch)
+    seen: list[tuple[list[bool], str]] = []
+
+    async def scenario() -> None:
+        mpv = FakeMpv()
+        application = TidalAmp(object(), mpv)
+        async with application.run_test(size=(100, 40)) as pilot:
+            await pilot.pause()
+            monkeypatch.setattr(config, "EXCLUSIVE", True)
+            application._setting_changed("exclusive")
+            seen.append((list(mpv.exclusive), application.status))
+
+    asyncio.run(scenario())
+    assert seen[0][0] == [True]
+    assert "sólo suena tidalamp" in seen[0][1]

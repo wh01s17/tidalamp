@@ -292,3 +292,172 @@ def test_the_palette_note_does_not_promise_omarchy_on_windows(monkeypatch):
 
     monkeypatch.setattr(config_window.sys, "platform", "win32")
     assert "Omarchy sólo existe en Linux" in config_window._palette_note()
+
+
+# --------------------------------------------------- audio and launcher (F4)
+
+
+class ReportingMpv:
+    """What the Windows audio backend asks mpv, answered from a table."""
+
+    def __init__(self, **properties) -> None:
+        self.properties = properties
+
+    def get(self, name: str):
+        return self.properties.get(name)
+
+
+def test_the_output_is_what_mpv_opened(monkeypatch):
+    from tidalamp.backends.windows import audio as windows_audio
+
+    monkeypatch.setattr(windows_audio, "_player", None)
+    windows_audio.use_player(
+        ReportingMpv(
+            **{
+                "audio-device": "wasapi/{d3b}",
+                "audio-out-params": {"samplerate": 96000, "format": "s32"},
+                "audio-device-list": [
+                    {"name": "auto", "description": "Autoselect device"},
+                    {"name": "wasapi/{d3b}", "description": "FiiO BTR15"},
+                ],
+            }
+        )
+    )
+    found = windows_audio.sink()
+    assert (found.name, found.description, found.rate, found.sample_format) == (
+        "wasapi/{d3b}",
+        "FiiO BTR15",
+        96000,
+        "s32",
+    )
+
+
+def test_before_mpv_opens_an_output_there_is_nothing_to_say(monkeypatch):
+    from tidalamp.backends.windows import audio as windows_audio
+
+    monkeypatch.setattr(windows_audio, "_player", None)
+    assert windows_audio.sink() == windows_audio.Sink()
+    windows_audio.use_player(ReportingMpv())
+    assert windows_audio.sink().rate == 0
+
+
+def test_there_is_never_a_rate_to_force_on_windows():
+    from tidalamp.backends.windows import audio as windows_audio
+
+    output = windows_audio.Sink(name="wasapi/{d3b}", rate=48000)
+    assert windows_audio.MANAGES_RATES is False
+    assert windows_audio.rate_to_force(output, 96000, (96000,), (96000,), 1) == 0
+    assert windows_audio.force_rate(96000) is False
+    assert windows_audio.allowed_rates() == ()
+
+
+def test_exclusive_mode_is_asked_of_mpv_on_windows_only(monkeypatch):
+    monkeypatch.setattr(config, "EXCLUSIVE", True)
+    monkeypatch.setattr(player.sys, "platform", "win32")
+    assert player._exclusive_option() == ["--audio-exclusive=yes"]
+    monkeypatch.setattr(player.sys, "platform", "linux")
+    assert player._exclusive_option() == []
+
+
+def test_exclusive_mode_is_off_until_asked_for(monkeypatch):
+    monkeypatch.setattr(player.sys, "platform", "win32")
+    monkeypatch.setattr(config, "EXCLUSIVE", False)
+    assert player._exclusive_option() == []
+
+
+def test_the_session_is_left_to_the_acl_on_windows(monkeypatch, tmp_path):
+    from tidalamp import auth
+
+    monkeypatch.setattr(auth.sys, "platform", "win32")
+    monkeypatch.setattr(auth.os, "chmod", lambda *a: pytest.fail("chmod en Windows"))
+    auth._tighten(tmp_path / "session.json")
+
+
+@pytest.fixture
+def start_menu(monkeypatch, tmp_path):
+    """A Start menu of the test's own, with the launcher allowed to be offered."""
+    monkeypatch.setattr(windows_desktop.sys, "platform", "win32")
+    monkeypatch.delenv("TIDALAMP_NO_DESKTOP_ENTRY", raising=False)
+    monkeypatch.setenv("APPDATA", str(tmp_path / "Roaming"))
+    monkeypatch.setenv("PROGRAMDATA", str(tmp_path / "ProgramData"))
+    # No Windows Terminal unless a test says so; and never the real `which`,
+    # which takes its Windows path once sys.platform says win32.
+    monkeypatch.setattr(windows_desktop.shutil, "which", lambda name: None)
+    runs: list[dict] = []
+
+    def run(argv, **kwargs):
+        runs.append({"argv": argv, "env": kwargs["env"]})
+        Path(kwargs["env"]["TIDALAMP_LNK"]).write_bytes(b"L\x00\x00\x00")
+
+    monkeypatch.setattr(windows_desktop.subprocess, "run", run)
+    return {"marker": tmp_path / "state" / "desktop-entry", "runs": runs}
+
+
+def test_the_shortcut_is_offered_once(start_menu):
+    marker = start_menu["marker"]
+    assert windows_desktop.offer(marker=marker, executable=r"C:\bin\tidalamp.exe")
+    windows_desktop.decline(marker)
+    assert not windows_desktop.offer(marker=marker, executable=r"C:\bin\tidalamp.exe")
+
+
+def test_a_shortcut_already_there_settles_it(start_menu):
+    menu = windows_desktop.data_dirs()[1]
+    menu.mkdir(parents=True)
+    (menu / "tidalamp.LNK").write_bytes(b"")
+    marker = start_menu["marker"]
+    assert not windows_desktop.offer(marker=marker, executable=r"C:\bin\tidalamp.exe")
+    assert marker.exists()
+
+
+def test_the_shortcut_opens_windows_terminal_when_there_is_one(start_menu, monkeypatch):
+    monkeypatch.setattr(
+        windows_desktop.shutil, "which", lambda name: r"C:\WindowsApps\wt.exe"
+    )
+    made = windows_desktop.create(
+        marker=start_menu["marker"], executable=r"C:\Program Files\tidalamp.exe"
+    )
+    env = start_menu["runs"][0]["env"]
+    assert made == windows_desktop.data_dirs()[0] / "TidalAmp.lnk"
+    assert env["TIDALAMP_LNK_TARGET"] == r"C:\WindowsApps\wt.exe"
+    assert env["TIDALAMP_LNK_ARGUMENTS"] == r'"C:\Program Files\tidalamp.exe" tui'
+    assert env["TIDALAMP_LNK_ICON"].endswith("tidalamp.ico")
+
+
+def test_without_windows_terminal_the_shortcut_runs_tidalamp_itself(
+    start_menu, monkeypatch
+):
+    monkeypatch.setattr(windows_desktop.shutil, "which", lambda name: None)
+    windows_desktop.create(marker=start_menu["marker"], executable=r"C:\t\tidalamp.exe")
+    env = start_menu["runs"][0]["env"]
+    assert (env["TIDALAMP_LNK_TARGET"], env["TIDALAMP_LNK_ARGUMENTS"]) == (
+        r"C:\t\tidalamp.exe",
+        "tui",
+    )
+
+
+def test_no_value_ever_reaches_powershell_as_code(start_menu, monkeypatch):
+    """The script is fixed text; paths arrive through the environment."""
+    monkeypatch.setattr(windows_desktop.shutil, "which", lambda name: None)
+    sneaky = r"C:\it's\$(evil)\tidalamp.exe"
+    windows_desktop.create(marker=start_menu["marker"], executable=sneaky)
+    argv = start_menu["runs"][0]["argv"]
+    assert argv[-1] == windows_desktop._SCRIPT
+    assert not any(sneaky in part for part in argv)
+
+
+def test_a_shortcut_that_cannot_be_made_does_not_stop_the_player(start_menu, monkeypatch):
+    def fails(argv, **kwargs):
+        raise windows_desktop.subprocess.CalledProcessError(1, argv)
+
+    monkeypatch.setattr(windows_desktop.subprocess, "run", fails)
+    marker = start_menu["marker"]
+    assert windows_desktop.create(marker=marker, executable=r"C:\t\tidalamp.exe") is None
+    assert not marker.exists()
+
+
+def test_a_logout_that_takes_the_data_takes_the_shortcut(start_menu, monkeypatch):
+    monkeypatch.setattr(windows_desktop.shutil, "which", lambda name: None)
+    made = windows_desktop.create(
+        marker=start_menu["marker"], executable=r"C:\t\tidalamp.exe"
+    )
+    assert windows_desktop.user_launchers() == [made]

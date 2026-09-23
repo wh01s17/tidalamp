@@ -11,14 +11,17 @@ import inspect
 
 import pytest
 
-from tidalamp import desktop, distro, mpris
+from tidalamp import audio, desktop, distro, mpris
+from tidalamp.backends.linux import audio as linux_audio
 from tidalamp.backends.linux import desktop as linux_desktop
 from tidalamp.backends.linux import distro as linux_distro
+from tidalamp.backends.windows import audio as windows_audio
 from tidalamp.backends.windows import desktop as windows_desktop
 from tidalamp.backends.windows import distro as windows_distro
 from tidalamp.backends.windows import media as windows_media
 
 PAIRS = [
+    (audio, linux_audio, windows_audio),
     (distro, linux_distro, windows_distro),
     (desktop, linux_desktop, windows_desktop),
 ]
@@ -35,7 +38,11 @@ PAIRS = [
 )
 def test_windows_offers_every_name_the_facade_exports(facade, linux, windows, name):
     ours, theirs = getattr(linux, name), getattr(windows, name)
-    assert inspect.signature(theirs) == inspect.signature(ours)
+    if callable(ours):
+        assert inspect.signature(theirs) == inspect.signature(ours)
+    else:
+        # A constant, such as MANAGES_RATES: the same kind of value.
+        assert type(theirs) is type(ours)
 
 
 def _public(cls) -> dict[str, object]:

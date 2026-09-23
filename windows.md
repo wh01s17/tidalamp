@@ -1301,7 +1301,19 @@ Cada una puede costar una tarde si no se conoce de antemano.
   método; sin consola, y `winget install karlstav.cava` en el aviso. La nota de la
   paleta no promete Omarchy en Windows. **Falta verlo**: portada y colores en Windows
   Terminal y en conhost, y el espectro de cava real (checklist §12).
-- [ ] F4 · audio WASAPI, permisos, acceso directo
+- [~] F4 · audio WASAPI, permisos, acceso directo. **Código y tests hechos**
+  (2026-09-23). `backends/windows/audio.py` pregunta a mpv (`audio-device`,
+  `audio-out-params`) a través de `audio.use_player`, que en Linux no hace nada;
+  `MANAGES_RATES` quita las filas de PipeWire y pone «Modo exclusivo» (`exclusive`,
+  apagado por defecto, `--audio-exclusive=yes` al lanzar y `ao-reload` en caliente,
+  sólo en Windows). `auth._tighten` no toca nada en Windows. El acceso directo
+  `TidalAmp.lnk` en el menú Inicio, con la misma política que el `.desktop`, abre
+  Windows Terminal si lo hay; PowerShell lo escribe con un script fijo que lee los
+  valores del entorno. **Falta verlo**: 24/96 a 96 kHz con `exclusive`, las
+  notificaciones sin él, y que el acceso directo aparezca y abra (checklist §12).
+  - *Límite conocido:* en modo compartido, la línea OUT dice la frecuencia a la que
+    mpv entrega (la del formato del dispositivo), no la de la pista, así que no
+    avisa del remuestreo como en Linux.
 - [ ] F5 · SMTC
 - [~] F6 · `.exe` en el release. Receta (`packaging/windows/tidalamp.spec`), icono
   `.ico`, prueba de humo y job `windows-exe` escritos (2026-09-23). La receta y la
