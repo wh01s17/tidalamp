@@ -21,6 +21,10 @@ class FakeMedia:
         self.shared = shared
         self.error = error
 
+    @property
+    def label(self) -> str:
+        return "MPRIS"
+
     async def start(self) -> str:
         if self.error:
             raise RuntimeError(self.error)

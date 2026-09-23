@@ -298,6 +298,10 @@ class MprisService:
         self.bus_name: str = BUS_NAME
 
     @property
+    def label(self) -> str:
+        return "MPRIS"
+
+    @property
     def shared(self) -> bool:
         """Whether another tidalamp held the plain name and we took a suffixed one."""
         return self.bus_name != BUS_NAME

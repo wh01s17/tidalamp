@@ -976,7 +976,9 @@ class TidalAmp(App):
         try:
             name = await self.mpris.start()
         except Exception as exc:
-            self.status = _("MPRIS no disponible ({error})").format(error=exc)
+            self.status = _("{name} no disponible ({error})").format(
+                name=self.mpris.label, error=exc
+            )
             return
         self._mpris_ready = True
         if self.mpris.shared:

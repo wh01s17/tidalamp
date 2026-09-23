@@ -1314,7 +1314,17 @@ Cada una puede costar una tarde si no se conoce de antemano.
   - *Límite conocido:* en modo compartido, la línea OUT dice la frecuencia a la que
     mpv entrega (la del formato del dispositivo), no la de la pista, así que no
     avisa del remuestreo como en Linux.
-- [ ] F5 · SMTC
+- [~] F5 · SMTC. **Código y tests hechos, sin el spike** (2026-09-23).
+  `backends/windows/media.py`: un `MediaPlayer` con su `CommandManager` apagado presta
+  sus controles; título, artista, álbum, portada, estado y línea de tiempo al panel,
+  sólo cuando cambian; teclas multimedia y la barra del panel vuelven al bucle de la app
+  con `call_soon_threadsafe`. Paquetes modulares de pywinrt 3.2 (`winrt-runtime`,
+  `winrt-Windows.Foundation`, `.Media`, `.Media.Playback`, `.Storage.Streams`), con
+  wheels de 3.9 a 3.14, sólo en Windows. Sin ellos, o si WinRT falla, «controles
+  multimedia no disponibles» y la música sigue. Los tests usan un WinRT falso. **Falta
+  lo que el plan pedía primero**: ver en una máquina real que los controles de un
+  `MediaPlayer` aparecen desde una app lanzada en un terminal y sin empaquetar. Si no,
+  el plan B es la ventana oculta (§7.2).
 - [~] F6 · `.exe` en el release. Receta (`packaging/windows/tidalamp.spec`), icono
   `.ico`, prueba de humo y job `windows-exe` escritos (2026-09-23). La receta y la
   prueba de humo se probaron construyendo en Linux. **Falta el primer run en

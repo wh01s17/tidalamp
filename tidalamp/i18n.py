@@ -46,7 +46,8 @@ ENGLISH: dict[str, str] = {
     "sin repetición": "repeat off",
     "repetir cola": "repeat queue",
     "repetir pista": "repeat track",
-    "MPRIS no disponible ({error})": "MPRIS unavailable ({error})",
+    "{name} no disponible ({error})": "{name} unavailable ({error})",
+    "controles multimedia": "media controls",
     "MPRIS como {name} (ya había otra instancia)": (
         "MPRIS as {name} (another instance was already running)"
     ),

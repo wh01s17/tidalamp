@@ -46,6 +46,11 @@ class MediaService(Protocol):
     """What the app needs from the desktop's media integration."""
 
     @property
+    def label(self) -> str:
+        """What the user knows it as, for the line that says it is missing."""
+        ...
+
+    @property
     def shared(self) -> bool:
         """Whether another tidalamp already held the name, and this one took
         another. Always False where there is no name to share."""

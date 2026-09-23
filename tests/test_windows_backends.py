@@ -6,7 +6,6 @@ The named pipe itself needs `_winapi` and is tested on Windows."""
 
 from __future__ import annotations
 
-import asyncio
 from pathlib import Path
 
 import pytest
@@ -15,7 +14,6 @@ from conftest import linux_only
 from tidalamp import config, i18n, player
 from tidalamp.backends.windows import desktop as windows_desktop
 from tidalamp.backends.windows import distro as windows_distro
-from tidalamp.backends.windows import media as windows_media
 from tidalamp.backends.windows import mpv as windows_mpv
 from tidalamp.player import MpvNotFound
 
@@ -220,23 +218,6 @@ def test_english_windows_gets_the_english_interface(monkeypatch):
 
 
 # ------------------------------------------------- what is still to come
-
-
-def test_the_media_stand_in_starts_names_nothing_and_is_no_second_instance():
-    service = windows_media.MprisService(object())
-    assert asyncio.run(service.start()) == ""
-    assert service.shared is False
-    service.publish()
-    service.publish_tracks()
-    service.seeked(1.0)
-    asyncio.run(service.stop())
-
-
-def test_the_start_menu_is_never_offered_yet():
-    assert windows_desktop.offer() is False
-    assert windows_desktop.create() is None
-    assert windows_desktop.existing([]) is None
-    assert windows_desktop.user_launchers() == []
 
 
 # ------------------------------------------------------ the terminal (F3)
