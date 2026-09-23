@@ -330,6 +330,11 @@ class MprisService:
         self._last_tracks: list[str] | None = None
         self.bus_name: str = BUS_NAME
 
+    @property
+    def shared(self) -> bool:
+        """Whether another tidalamp held the plain name and we took a suffixed one."""
+        return self.bus_name != BUS_NAME
+
     async def start(self) -> str:
         """Connect and claim a bus name. Returns the name actually claimed.
 

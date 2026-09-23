@@ -977,7 +977,7 @@ class TidalAmp(App):
             self.status = _("MPRIS no disponible ({error})").format(error=exc)
             return
         self._mpris_ready = True
-        if name != "org.mpris.MediaPlayer2.tidalamp":
+        if self.mpris.shared:
             # Another tidalamp already holds the plain name.
             self.status = _("MPRIS como {name} (ya había otra instancia)").format(
                 name=name

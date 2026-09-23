@@ -251,6 +251,7 @@ def test_name_collision_claims_a_reachable_instance_name(monkeypatch):
     claimed = asyncio.run(service.start())
 
     assert claimed == "org.mpris.MediaPlayer2.tidalamp.instance4321"
+    assert service.shared is True
     assert bus.requested == [
         "org.mpris.MediaPlayer2.tidalamp",
         "org.mpris.MediaPlayer2.tidalamp.instance4321",
@@ -296,6 +297,7 @@ def test_real_bus_exposes_properties_controls_signals_and_collision(
         client = None
         try:
             assert await primary.start() == mpris.BUS_NAME
+            assert primary.shared is False
             instance_name = await secondary.start()
             assert instance_name.startswith(f"{mpris.BUS_NAME}.instance")
 
