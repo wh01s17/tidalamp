@@ -1262,7 +1262,7 @@ Cada una puede costar una tarde si no se conoce de antemano.
 
 ## 15. Estado
 
-- [ ] F0 · backends y fachadas, transporte extraído, `command` inyectable (Linux idéntico)
+- [x] F0 · backends y fachadas, transporte extraído, `command` inyectable (Linux idéntico)
 - [x] `stream.py` · `mkstemp` (PR aparte, arregla Linux también)
 - [ ] F1 · arranque en Windows
 - [ ] F2 · suite en Windows y matriz de CI
