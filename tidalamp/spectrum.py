@@ -13,6 +13,12 @@ run; not worth it yet.
 
 Nothing here is required: if cava is missing, dies, or the sink cannot be
 opened, the caller keeps the RMS meter.
+
+On Windows cava listens through ``winscap``, WASAPI's loopback capture, which
+is the same thing seen from there: whatever the output device plays. Its raw
+output to ``/dev/stdout`` works as it does on Linux; cava's Windows build
+maps that name to the standard output handle (checked in its source,
+2026-09-23: cava.c, OUTPUT_RAW).
 """
 
 from __future__ import annotations
@@ -20,6 +26,7 @@ from __future__ import annotations
 import logging
 import shutil
 import subprocess
+import sys
 import threading
 from pathlib import Path
 
@@ -52,6 +59,25 @@ class SpectrumUnavailable(RuntimeError):
     pass
 
 
+def input_method(platform: str = sys.platform) -> str:
+    """How cava hears the machine: PulseAudio's API (PipeWire speaks it too),
+    or WASAPI's loopback on Windows."""
+    return "winscap" if platform == "win32" else "pulse"
+
+
+METHOD = input_method()
+
+# A console program opens a console window on Windows; not this one.
+_NO_WINDOW = 0
+if sys.platform == "win32":
+    _NO_WINDOW = subprocess.CREATE_NO_WINDOW
+
+
+def _command() -> list[str] | None:
+    """What runs cava, or None when it is not installed."""
+    return ["cava"] if shutil.which("cava") is not None else None
+
+
 class Cava:
     """A cava process whose latest frame can be read at any time.
 
@@ -63,19 +89,21 @@ class Cava:
         self,
         bars: int = 19,
         framerate: int = 30,
-        method: str = "pulse",
+        method: str = METHOD,
         source: str = "auto",
     ) -> None:
-        if shutil.which("cava") is None:
+        command = _command()
+        if command is None:
             raise SpectrumUnavailable(distro.missing("cava"))
         self.bars = bars
         self._frame = [0.0] * bars
         self._lock = threading.Lock()
         self._config = self._write_config(bars, framerate, method, source)
         self._proc = subprocess.Popen(
-            ["cava", "-p", str(self._config)],
+            [*command, "-p", str(self._config)],
             stdout=subprocess.PIPE,
             stderr=subprocess.DEVNULL,
+            creationflags=_NO_WINDOW,
         )
         self._thread = threading.Thread(target=self._read_frames, daemon=True)
         self._thread.start()

@@ -128,8 +128,13 @@ def test_no_manager_drops_the_parenthetical(monkeypatch):
 
 
 def test_a_package_no_manager_is_known_for_is_not_guessed(monkeypatch):
-    _managers(monkeypatch, "winget")
+    _managers(monkeypatch, "scoop")
     assert windows_distro.install_command("cava") == ""
+
+
+def test_cava_comes_from_winget(monkeypatch):
+    _managers(monkeypatch, "winget", "scoop")
+    assert windows_distro.install_command("cava") == "winget install karlstav.cava"
 
 
 # ------------------------------------------------------- finding mpv.exe
@@ -232,3 +237,58 @@ def test_the_start_menu_is_never_offered_yet():
     assert windows_desktop.create() is None
     assert windows_desktop.existing([]) is None
     assert windows_desktop.user_launchers() == []
+
+
+# ------------------------------------------------------ the terminal (F3)
+
+
+@pytest.mark.parametrize(
+    ("env", "expected"),
+    [
+        # Windows Terminal sets no TERM. Half blocks until sixel has been seen
+        # working there: sixel sent to a terminal that cannot read it fills
+        # the screen with garbage, and half blocks never fail.
+        ({"WT_SESSION": "c0ffee"}, "blocks"),
+        # conhost sets nothing at all.
+        ({}, "blocks"),
+        # WezTerm says who it is on Windows too, and speaks kitty graphics.
+        ({"TERM_PROGRAM": "WezTerm"}, "kitty"),
+        # Asked for, sixel is honoured anywhere.
+        ({"WT_SESSION": "c0ffee", "TIDALAMP_ART": "sixel"}, "sixel"),
+    ],
+)
+def test_the_cover_on_windows_terminals(env, expected):
+    from tidalamp import artwork
+
+    assert artwork.detect_protocol(env=env) == artwork.Protocol(expected)
+
+
+@pytest.mark.parametrize(
+    ("env", "expected"),
+    [
+        # Cascadia may or may not carry the sextants: a box of tofu per cell
+        # is worse than the quadrants every font has.
+        ({"WT_SESSION": "c0ffee"}, False),
+        ({"WT_SESSION": "c0ffee", "TIDALAMP_SEXTANTS": "1"}, True),
+        # WezTerm draws them itself, whatever the font.
+        ({"TERM_PROGRAM": "WezTerm"}, True),
+    ],
+)
+def test_sextants_on_windows_terminals(env, expected):
+    from tidalamp import artwork
+
+    assert artwork.draws_sextants(env=env) is expected
+
+
+def test_cava_listens_through_wasapi_loopback_on_windows():
+    from tidalamp import spectrum
+
+    assert spectrum.input_method("win32") == "winscap"
+    assert spectrum.input_method("linux") == "pulse"
+
+
+def test_the_palette_note_does_not_promise_omarchy_on_windows(monkeypatch):
+    from tidalamp.screens import config_window
+
+    monkeypatch.setattr(config_window.sys, "platform", "win32")
+    assert "Omarchy sólo existe en Linux" in config_window._palette_note()

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
@@ -160,7 +161,7 @@ class ConfigScreen(ModalScreen[None]):
                 _("Paleta"),
                 key="palette",
                 choices=available_palettes(),
-                note=_("auto sigue Omarchy; las demás funcionan en cualquier Linux"),
+                note=_palette_note(),
                 group=looks,
             ),
             Option(
@@ -810,6 +811,13 @@ _ATTRIBUTES = {
     "replaygain": "REPLAYGAIN",
     "library_view": "LIBRARY_VIEW",
 }
+
+
+def _palette_note() -> str:
+    """What `auto` means here: Omarchy's palette is only ever on Linux."""
+    if sys.platform == "win32":
+        return _("auto es classic: la paleta de Omarchy sólo existe en Linux")
+    return _("auto sigue Omarchy; las demás funcionan en cualquier Linux")
 
 
 def _home(path: Path) -> str:

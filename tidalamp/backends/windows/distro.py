@@ -15,7 +15,8 @@ user to it or to nothing.
 - scoop: `mpv` lives in the `extras` bucket, not in `main`.
 - choco: `mpv`, last updated 2024-09. Last of the three for that reason.
 
-cava has no entry: whether its Windows build feeds the spectrum is phase F3.
+- cava: winget's `karlstav.cava` (1.0.0), portable, linked into the PATH. Not
+  in scoop's main or extras.
 """
 
 from __future__ import annotations
@@ -26,7 +27,10 @@ from ...i18n import _
 
 # Package manager to the command that installs each package through it.
 _COMMANDS: dict[str, dict[str, str]] = {
-    "winget": {"mpv": "winget install shinchiro.mpv"},
+    "winget": {
+        "mpv": "winget install shinchiro.mpv",
+        "cava": "winget install karlstav.cava",
+    },
     "scoop": {"mpv": "scoop bucket add extras; scoop install extras/mpv"},
     "choco": {"mpv": "choco install mpv"},
 }

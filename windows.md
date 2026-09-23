@@ -1242,6 +1242,10 @@ Cada una puede costar una tarde si no se conoce de antemano.
 13. **Callbacks de WinRT en otro hilo.** Tocar la app desde ahí sin `call_from_thread`
     corrompe el estado de Textual de forma intermitente.
 14. **`MAX_PATH` = 260.** Aparece como `FileNotFoundError` sin sentido en los tests.
+19. **cava en Windows sí saca el raw por stdout.** `raw_target = /dev/stdout` no es una
+    ruta allí, pero su código lo trata aparte y usa `GetStdHandle(STD_OUTPUT_HANDLE)`.
+    El método de entrada es `winscap` (loopback de WASAPI): oye lo mismo que `pulse`
+    en Linux, todo lo que suena, no sólo mpv.
 15. **conhost no es Windows Terminal.** Colores, redimensionado y sixel se comportan
     distinto. Probar en los dos antes de cerrar F3.
 16. **PyInstaller no falla al empaquetar si falta un `.tcss`**: falla al abrir. Por eso el
@@ -1289,7 +1293,14 @@ Cada una puede costar una tarde si no se conoce de antemano.
   que vuelve unos ms antes. Los seis tests que simulaban con `chmod` un fallo de
   escritura hacen ahora que la escritura lance, y corren en los dos sistemas; con
   `@linux_only` quedan los que miran modos de fichero y el lanzador `.desktop`.
-- [ ] F3 · terminal: carátulas, sextantes, espectro, paleta
+- [~] F3 · terminal: carátulas, sextantes, espectro, paleta. **Código y tests hechos**
+  (2026-09-23). La detección de carátula y sextantes ya se portaba bien en Windows
+  (medios bloques y cuadrantes en Windows Terminal y conhost; kitty y sextantes en
+  WezTerm), y ahora lo fijan tests. cava: su build de Windows acepta `winscap` y manda
+  el raw a stdout igual que en Linux (leído en su código), así que sólo cambia el
+  método; sin consola, y `winget install karlstav.cava` en el aviso. La nota de la
+  paleta no promete Omarchy en Windows. **Falta verlo**: portada y colores en Windows
+  Terminal y en conhost, y el espectro de cava real (checklist §12).
 - [ ] F4 · audio WASAPI, permisos, acceso directo
 - [ ] F5 · SMTC
 - [~] F6 · `.exe` en el release. Receta (`packaging/windows/tidalamp.spec`), icono
