@@ -11,6 +11,7 @@ from app_helpers import (
     isolate_config,
     isolate_runtime,
     open_browser,
+    opened,
     settle,
 )
 from rich.cells import cell_len
@@ -94,7 +95,7 @@ def test_the_footer_drops_whole_hints_instead_of_cropping_one(monkeypatch):
         application = TidalAmp(object(), FakeMpv())
         async with application.run_test(size=(100, 30)) as pilot:
             open_browser(application)
-            await pilot.pause()
+            await opened(pilot)
             hint = application.screen.query_one("#browser-hint")
             line = hint.render_line(0).text
 

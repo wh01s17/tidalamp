@@ -178,6 +178,7 @@ def mode(path) -> int:
     return path.stat().st_mode & 0o777
 
 
+@linux_only
 def test_a_saved_session_is_readable_by_its_owner_alone(session_file, monkeypatch):
     import os
 
@@ -231,6 +232,7 @@ def test_a_plain_logout_forgets_the_session_alone(tmp_path, monkeypatch):
     assert auth.forgotten() == (tmp_path / "session.json",)
 
 
+@linux_only
 def test_the_data_box_takes_every_folder_and_the_menu_launchers(tmp_path, monkeypatch):
     """The queue came back after such a logout, and `omarchy-tui-install`'s
     launcher kept the first start from asking about the menu."""

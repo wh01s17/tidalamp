@@ -6,7 +6,7 @@ from __future__ import annotations
 import asyncio
 from types import SimpleNamespace
 
-from app_helpers import FakeMpv, isolate_runtime, open_browser, settle
+from app_helpers import FakeMpv, isolate_runtime, open_browser, opened, settle
 from conftest import FakeTrack
 from test_library import FakeSession
 
@@ -95,7 +95,7 @@ def test_s_and_d_say_no_inside_a_mix(monkeypatch):
         async with application.run_test(size=(120, 40)) as pilot:
             await pilot.pause()
             open_browser(application, [mix])
-            await pilot.pause()
+            await opened(pilot)
             browser = application.screen
             await pilot.press("enter")
             await settle(pilot, lambda: len(browser._stack) > 1)

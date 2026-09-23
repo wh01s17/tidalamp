@@ -11,6 +11,7 @@ from app_helpers import (
     a_deftones_track,
     isolate_runtime,
     open_menu_on_b,
+    opened,
     settle,
     track_rows,
     transport,
@@ -218,7 +219,7 @@ def test_enter_on_a_track_offers_the_four_things_worth_doing(monkeypatch):
         application = TidalAmp(object(), FakeMpv())
         async with application.run_test(size=(100, 30)) as pilot:
             open_menu_on_b(application, track_rows())
-            await pilot.pause()
+            await opened(pilot)
             await pilot.press("enter")
             await pilot.pause()
 
@@ -254,7 +255,7 @@ def test_play_next_adds_only_that_track_after_the_current_one(monkeypatch):
                 start=0,
             )
             open_menu_on_b(application, track_rows())
-            await pilot.pause()
+            await opened(pilot)
             await pilot.press("down")
             await pilot.press("enter")
             await pilot.pause()

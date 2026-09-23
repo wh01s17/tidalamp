@@ -14,6 +14,7 @@ from app_helpers import (
     isolate_runtime,
     transport,
     use_theme,
+    wait_for,
 )
 from rich.cells import cell_len
 from rich.text import Text
@@ -360,8 +361,11 @@ def test_the_frameless_layout_does_not_start_on_row_zero(monkeypatch):
 
             # And gives it back where there is nothing to spare.
             await pilot.resize_terminal(82, 24)
-            await pilot.pause()
-            assert application.query_one("#titlebar", Static).region.y == 0
+            await wait_for(
+                pilot,
+                lambda: application.query_one("#titlebar", Static).region.y == 0,
+                what="la barra de título en la fila 0",
+            )
 
     asyncio.run(scenario())
 

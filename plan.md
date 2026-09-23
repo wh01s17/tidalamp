@@ -654,12 +654,16 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
       espera. Con la app en marcha es la de Textual tal cual, excepciones incluidas. La
       corrutina que ya no va a correr se cierra, o Python avisa al salir («coroutine
       ... was never awaited»).
-      - *Lo que cambió en los tests:* `settle` ya no espera a todos los workers, que
-        era un apaño para esta carrera. `isolate_runtime` sigue apagando el worker del
+      - *Lo que cambió en los tests:* `isolate_runtime` sigue apagando el worker del
         sink, pero por aislamiento y no por la carrera: sondea `SINK_SETTLE` (4 s) y
         pisa el sink que un test pone a mano. `test_app_threads.py` lo deja encendido y
         cierra la app a mitad de una lectura: sin la guarda, `_set_sink` corre con la
         app ya cerrada.
+      - *Un error por el camino:* se quitó también la espera de `settle` a los
+        workers, tomándola por un apaño de esta carrera. No lo era: los tests leían
+        lo que un worker entrega después del primer resultado. En Linux pasaban por
+        suerte de tiempos; el primer runner de Windows (2026-09-23) lo destapó. La
+        espera volvió, con su motivo escrito en `settle`.
       - *Lo que no cubre:* un callback asíncrono durante el que la app se cierra
         mientras espera. Uno síncrono corre entero en el hilo de la UI y la app no
         puede cerrarse a mitad; los de hoy son todos síncronos.
@@ -2588,9 +2592,15 @@ Cosas que ya costaron tiempo una vez:
 
 - **Nada de `pilot.pause(0.3)` para esperar a un tick.** Los ticks de la app corren
   cada 0,1 s y 0,25 s y un runner cargado se los salta. Se espera a la condición con
-  `app_helpers.wait_for`, que tiene un plazo en segundos; `settle` da un número fijo
-  de vueltas y es para el resultado de un worker, no para un tick. Para
+  `app_helpers.wait_for`, que tiene un plazo en segundos. `settle` también, pero es
+  para el resultado de un worker y además espera a los workers, así que no sirve para
+  un tick. Para
   comprobar que algo no pasa, se llama al tick a mano.
+
+- **Un navegador recién abierto no tiene filas todavía.** Las carga en un worker. Un
+  `pilot.pause()` bastaba aquí; en el runner de Windows el `down` siguiente llegaba
+  antes que las filas y la acción caía sobre la pista equivocada. Tras
+  `open_browser` u `open_menu_on_b`, `await opened(pilot)`.
 
 - **`allowed-rates` no basta para que el DAC siga a la pista.** PipeWire sólo elige
   rate nuevo con el driver parado, y un mpv persistente nunca lo deja parar entre

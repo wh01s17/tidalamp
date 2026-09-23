@@ -23,6 +23,7 @@ Python version breaks it, the damage stays in this file.
 from __future__ import annotations
 
 import contextlib
+import math
 import sys
 import time
 from typing import Any
@@ -97,11 +98,18 @@ class NamedPipe:
             except BrokenPipeError:
                 return b""  # mpv closed its end: EOF, as socket.recv says it
             self._waiting = error == _winapi.ERROR_IO_PENDING
-        if self._waiting:
+        # The wait can come back a little early, as Windows' clock ticks in
+        # steps of about 15 ms: a timeout is only a timeout once the whole
+        # of it has gone by, as it is for a socket.
+        deadline = time.monotonic() + timeout
+        while self._waiting:
+            remaining = deadline - time.monotonic()
             waited = _winapi.WaitForMultipleObjects(
-                [self._pending.event], False, max(0, int(timeout * 1000))
+                [self._pending.event], False, max(0, math.ceil(remaining * 1000))
             )
-            if waited == _winapi.WAIT_TIMEOUT:
+            if waited != _winapi.WAIT_TIMEOUT:
+                break
+            if time.monotonic() >= deadline:
                 raise TimeoutError  # the read stays pending for the next call
         read, self._pending = self._pending, None
         # For a read, a broken pipe and a message longer than the buffer come

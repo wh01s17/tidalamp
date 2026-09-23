@@ -10,6 +10,7 @@ from app_helpers import (
     isolate_runtime,
     lit,
     open_menu_on_b,
+    opened,
     settle,
     track_rows,
     transport,
@@ -415,7 +416,7 @@ def test_radio_replaces_the_queue_with_the_station_behind_its_seed(monkeypatch):
         application = TidalAmp(object(), FakeMpv())
         async with application.run_test(size=(100, 30)) as pilot:
             open_menu_on_b(application, track_rows())
-            await pilot.pause()
+            await opened(pilot)
             await pilot.press("down")
             await pilot.press("enter")
             await pilot.pause()
@@ -445,7 +446,7 @@ def test_a_track_with_no_radio_says_so_and_leaves_the_queue_alone(monkeypatch):
         application = TidalAmp(object(), FakeMpv())
         async with application.run_test(size=(100, 30)) as pilot:
             open_menu_on_b(application, track_rows())
-            await pilot.pause()
+            await opened(pilot)
             await pilot.press("down")
             await pilot.press("enter")
             await pilot.pause()
@@ -520,7 +521,7 @@ def test_go_to_the_album_from_a_search_opens_it_on_top_of_the_results(monkeypatc
         application = TidalAmp(object(), FakeMpv())
         async with application.run_test(size=(100, 30)) as pilot:
             open_menu_on_b(application, track_rows())
-            await pilot.pause()
+            await opened(pilot)
             browser = application.screen
             await pilot.press("enter")
             await pilot.pause()

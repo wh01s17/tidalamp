@@ -12,6 +12,7 @@ from app_helpers import (
     isolate_runtime,
     open_browser,
     open_menu_on_b,
+    opened,
     queue_lines,
     settle,
     track_rows,
@@ -301,7 +302,7 @@ def test_slash_opens_a_filter_bar_and_leaves_the_level_on_screen(monkeypatch):
             # once, which test_paging covers.
             monkeypatch.setattr(BrowserScreen, "_page_on", lambda self: None)
             open_browser(application, search=True)
-            await pilot.pause()
+            await opened(pilot)
             screen = application.screen
             assert screen.query_one("#browser-filter-bar").display is False
 
@@ -328,7 +329,7 @@ def test_typing_narrows_the_level_and_says_how_much_is_left(monkeypatch):
             # once, which test_paging covers.
             monkeypatch.setattr(BrowserScreen, "_page_on", lambda self: None)
             open_browser(application, search=True)
-            await pilot.pause()
+            await opened(pilot)
             screen = application.screen
             await pilot.press("slash")
             await type_into_filter(pilot, "sober")
@@ -353,7 +354,7 @@ def test_the_filter_reaches_what_the_line_does_not_show(monkeypatch):
             # once, which test_paging covers.
             monkeypatch.setattr(BrowserScreen, "_page_on", lambda self: None)
             open_browser(application, search=True)
-            await pilot.pause()
+            await opened(pilot)
             screen = application.screen
             await pilot.press("slash")
             await type_into_filter(pilot, "lateralus")
@@ -379,7 +380,7 @@ def test_the_more_row_survives_the_filter(monkeypatch):
             # once, which test_paging covers.
             monkeypatch.setattr(BrowserScreen, "_page_on", lambda self: None)
             open_browser(application, search=True)
-            await pilot.pause()
+            await opened(pilot)
             screen = application.screen
             await pilot.press("slash")
             await type_into_filter(pilot, "nada de esto existe")
@@ -401,7 +402,7 @@ def test_a_page_pulled_under_a_filter_lands_where_it_belongs(monkeypatch):
         application = TidalAmp(object(), FakeMpv())
         async with application.run_test(size=(100, 30)) as pilot:
             open_browser(application)
-            await pilot.pause()
+            await opened(pilot)
             screen = application.screen
             await pilot.press("slash")
             await type_into_filter(pilot, "sober")
@@ -433,7 +434,7 @@ def test_escape_drops_the_filter_before_it_closes_the_window(monkeypatch):
         application = TidalAmp(object(), FakeMpv())
         async with application.run_test(size=(100, 30)) as pilot:
             open_browser(application)
-            await pilot.pause()
+            await opened(pilot)
             screen = application.screen
             await pilot.press("slash")
             await type_into_filter(pilot, "sober")
@@ -464,7 +465,7 @@ def test_the_filter_belongs_to_the_level_it_was_typed_in(monkeypatch):
         application = TidalAmp(object(), FakeMpv())
         async with application.run_test(size=(100, 30)) as pilot:
             open_browser(application, rows)
-            await pilot.pause()
+            await opened(pilot)
             screen = application.screen
             await pilot.press("slash")
             await type_into_filter(pilot, "sinfonia")
@@ -486,7 +487,7 @@ def test_escaping_the_menu_leaves_the_browser_open_and_the_queue_alone(monkeypat
         application = TidalAmp(object(), FakeMpv())
         async with application.run_test(size=(100, 30)) as pilot:
             open_menu_on_b(application, track_rows())
-            await pilot.pause()
+            await opened(pilot)
             await pilot.press("enter")
             await pilot.pause()
             await pilot.press("escape")
@@ -506,7 +507,7 @@ def test_play_now_still_queues_the_whole_level_from_the_chosen_track(monkeypatch
         application = TidalAmp(object(), FakeMpv())
         async with application.run_test(size=(100, 30)) as pilot:
             open_menu_on_b(application, track_rows())
-            await pilot.pause()
+            await opened(pilot)
             await pilot.press("down")  # cursor on B
             await pilot.press("enter")
             await pilot.pause()
@@ -940,7 +941,7 @@ def test_favourite_from_the_menu_touches_tidal_and_not_the_queue(monkeypatch):
         application = TidalAmp(object(), FakeMpv())
         async with application.run_test(size=(100, 30)) as pilot:
             open_menu_on_b(application, track_rows())
-            await pilot.pause()
+            await opened(pilot)
             await pilot.press("down")
             await pilot.press("enter")
             await pilot.pause()
@@ -962,7 +963,7 @@ def test_the_menu_arrow_keys_pick_the_same_actions_as_the_letters(monkeypatch):
             await pilot.pause()
             application.queue.replace([Entry(id=8, title="sonando", artist="x")], start=0)
             open_menu_on_b(application, track_rows())
-            await pilot.pause()
+            await opened(pilot)
             await pilot.press("enter")
             await pilot.pause()
 
@@ -985,7 +986,7 @@ def test_the_menu_cursor_wraps_at_both_ends(monkeypatch):
         application = TidalAmp(object(), FakeMpv())
         async with application.run_test(size=(100, 30)) as pilot:
             open_menu_on_b(application, track_rows())
-            await pilot.pause()
+            await opened(pilot)
             await pilot.press("enter")
             await pilot.pause()
             screen = application.screen
@@ -1010,7 +1011,7 @@ def test_enter_on_a_level_still_opens_it_instead_of_the_menu(monkeypatch):
         async with application.run_test(size=(100, 30)) as pilot:
             rows = [Row(label="Un álbum", loader=lambda: track_rows(), key="album:1")]
             open_menu_on_b(application, rows)
-            await pilot.pause()
+            await opened(pilot)
             await pilot.press("enter")
             await settle(
                 pilot, lambda: len(application.screen.query_one(RowList).rows) == 3
@@ -1647,7 +1648,7 @@ def test_m_on_an_album_plays_every_page_of_it(monkeypatch):
         application = TidalAmp(object(), FakeMpv())
         async with application.run_test(size=(100, 30)) as pilot:
             open_menu_on_b(application, two_page_album())
-            await pilot.pause()
+            await opened(pilot)
             await pilot.press("m")
             await pilot.pause()
             assert isinstance(application.screen, TrackActionsScreen)
@@ -1670,7 +1671,7 @@ def test_m_on_an_album_queues_it_next(monkeypatch):
             application.queue.replace([Entry(id=8, title="sonando", artist="x")], start=0)
             application.queue.append([Entry(id=9, title="después", artist="x")])
             open_menu_on_b(application, two_page_album())
-            await pilot.pause()
+            await opened(pilot)
             await pilot.press("m")
             await pilot.pause()
             await pilot.press("c")
@@ -1704,7 +1705,7 @@ def test_m_on_an_album_adds_all_of_it_to_a_playlist(monkeypatch):
         application = TidalAmp(object(), FakeMpv())
         async with application.run_test(size=(100, 30)) as pilot:
             open_menu_on_b(application, two_page_album())
-            await pilot.pause()
+            await opened(pilot)
             await pilot.press("m")
             await pilot.pause()
             await pilot.press("l")
@@ -1733,7 +1734,7 @@ def test_m_on_an_album_can_favourite_the_album_itself(monkeypatch):
         application = TidalAmp(object(), FakeMpv())
         async with application.run_test(size=(100, 30)) as pilot:
             open_menu_on_b(application, two_page_album())
-            await pilot.pause()
+            await opened(pilot)
             await pilot.press("m")
             await pilot.pause()
             await pilot.press("v")
@@ -1752,7 +1753,7 @@ def test_the_container_menu_offers_no_radio(monkeypatch):
         application = TidalAmp(object(), FakeMpv())
         async with application.run_test(size=(100, 30)) as pilot:
             open_menu_on_b(application, two_page_album())
-            await pilot.pause()
+            await opened(pilot)
             await pilot.press("m")
             await pilot.pause()
             menu = application.screen
@@ -1778,7 +1779,7 @@ def test_m_on_a_track_opens_the_track_menu(monkeypatch):
         application = TidalAmp(object(), FakeMpv())
         async with application.run_test(size=(100, 30)) as pilot:
             open_menu_on_b(application, track_rows())
-            await pilot.pause()
+            await opened(pilot)
             await pilot.press("m")
             await pilot.pause()
 
@@ -1802,7 +1803,7 @@ def test_a_on_an_album_appends_every_page_of_it(monkeypatch):
         application = TidalAmp(object(), FakeMpv())
         async with application.run_test(size=(100, 30)) as pilot:
             open_menu_on_b(application, two_page_album())
-            await pilot.pause()
+            await opened(pilot)
             await pilot.press("a")
             await settle(pilot, lambda: len(application.queue) == 3)
 

@@ -16,14 +16,29 @@ from tidalamp.queue import Entry, Queue
 from tidalamp.settings import Settings
 
 
-async def settle(pilot, done, tries: int = 100) -> None:
-    """Pump the event loop until a worker's result has landed."""
-    for _ in range(tries):
+async def settle(pilot, done, timeout: float = 10.0) -> None:
+    """Pump the event loop until a worker's result has landed, then wait for
+    the workers themselves.
+
+    The second half matters: `done` can turn true on the first of several
+    things a worker hands back, and a test that reads the rest right after
+    is reading a race. It passed on a quick machine and failed on Windows CI
+    (2026-09-23), the lyrics of the next track read before they had loaded.
+    It costs nothing because `isolate_runtime` keeps the one long-running
+    worker, the sink's, switched off. A deadline in seconds and not a count
+    of rounds, for the same reason as `wait_for`.
+    """
+    loop = asyncio.get_running_loop()
+    deadline = loop.time() + timeout
+    while True:
+        # Paused first: `done` often asks for widgets the screen has yet to mount.
         await pilot.pause()
         if done():
-            return
+            break
+        if loop.time() > deadline:
+            raise AssertionError("el worker no terminó")
         await asyncio.sleep(0.01)
-    raise AssertionError("el worker no terminó")
+    await pilot.app.workers.wait_for_complete()
 
 
 async def wait_for(pilot, condition, timeout: float = 10.0, what: str = "") -> None:
@@ -239,6 +254,23 @@ def track_rows() -> list[Row]:
         Row(label=name, detail="1:40", entry=Entry(id=i, title=name, artist="TOOL"))
         for i, name in enumerate(("A", "B", "C"))
     ]
+
+
+async def opened(pilot) -> None:
+    """Wait for the browser just pushed to have its first level loaded.
+
+    It loads in a worker. A single pause was enough on a quick machine, and
+    on Windows CI the `down` a test pressed next landed before the rows did:
+    the cursor stayed on A and the action went to the wrong track.
+    """
+    from tidalamp.screens import BrowserScreen
+
+    await settle(
+        pilot,
+        lambda: (
+            isinstance(pilot.app.screen, BrowserScreen) and bool(pilot.app.screen._stack)
+        ),
+    )
 
 
 def open_menu_on_b(application, rows):
