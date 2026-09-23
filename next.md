@@ -21,7 +21,7 @@ Lo de aquí no bloquea publicar. `plan.md` §5 y §6 mandan sobre el estado gene
   y estado, está en `windows.md`; aquí solo se apunta que es lo siguiente.
 
 La última publicada es la `0.15.0` (2026-09-20); lo que trae cada versión está en
-`CHANGELOG.md`. Queda por comprobar a mano, mejor antes de la fase F3 de Windows, que
+`CHANGELOG.md`. Queda por comprobar a mano, antes de la fase F3 de Windows, que
 toca carátulas, temas y sextantes y necesita capturas de Linux con las que comparar:
 
 - **Ver la disposición compacta en un terminal real.** Por debajo de 80x26 la
@@ -46,27 +46,6 @@ toca carátulas, temas y sextantes y necesita capturas de Linux con las que comp
   - *Comprobación:* capturas entre 60x18 y 79x25 (por ejemplo 72x20 y 79x25) en los
     cuatro temas. Qué mirar: lo mismo que §9.5, que la fila del transporte no se salga
     ni se parta y que las barras de título llenen su fila.
-
-- **Escuchar «Lofi sin copyright» de verdad, un rato largo.** Es lo único de la
-  `0.15.0` que ninguna máquina puede comprobar: que mpv decodifica las URLs está
-  medido, que *suene* a lofi no. El mantenedor ya rechazó la primera selección
-  (`chillout` traía ambient de netlabel de 2006) y el arreglo fue pedir `chillhop` con
-  suelo de fecha en 2016, pero eso se validó **leyendo títulos y años**, no oyendo.
-  - *Qué mirar:* si se cuela alguna voz —Jamendo dice cuáles son instrumentales, pero
-    es una casilla que marca el artista—, si algún artista cansa aunque el tope sean
-    cuatro pistas, y si la mezcla del día aguanta dos horas de fondo sin distraer.
-  - *La cura si algo no encaja:* una palabra más en `archive.JUNK` o `archive.VOCALS`,
-    o retocar `jamendo.TAGS` y `jamendo.SINCE`. No una lista de identificadores: los
-    catálogos crecen y esa lista sólo describiría el día en que se escribió.
-  - *Lo que no tiene cura:* el sonido de «lofi hip hop radio» es el catálogo de un
-    sello y nada de eso es Creative Commons. Por eso la fila dice **experimental**.
-
-- **Ver deslizarse la cola de pantalla completa.** Los tests miden celdas: que una
-  fila que no cabe enseñe su final, que la que cabe no se mueva, que el número y la
-  duración no se vayan, y que el ancho no cambie nunca. Lo que no miden es el ritmo.
-  - *Qué mirar:* que a 0,3 s por celda se lea mientras se mueve y no maree con treinta
-    filas a la vez, y que las cortas esperando a las largas no se note raro.
-  - *Dónde:* `w`, luego `tab` para abrir la cola, con una cola larga de nombres largos.
 
 ## Sin fecha
 
