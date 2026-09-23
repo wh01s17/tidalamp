@@ -21,6 +21,7 @@ from tidalamp import artwork
 from tidalamp import audio as audio_module
 from tidalamp.app import ConfigScreen, TidalAmp
 from tidalamp.artwork import Protocol
+from tidalamp.backends.linux import audio as linux_audio
 from tidalamp.screens import (
     BROWSER_HINTS,
 )
@@ -131,7 +132,7 @@ def test_the_screen_says_when_pipewire_resamples_the_stream(monkeypatch, tmp_pat
         "sink",
         lambda: audio_module.Sink(name="s", description="Mi DAC", rate=48000),
     )
-    monkeypatch.setattr(audio_module, "allowed_rates", lambda: audio_module.RATES)
+    monkeypatch.setattr(audio_module, "allowed_rates", lambda: linux_audio.RATES)
     mpv = FakeMpv()
     mpv.samplerate = 44100
 

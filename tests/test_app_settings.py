@@ -20,6 +20,7 @@ from tidalamp import audio as audio_module
 from tidalamp import columns as columns_module
 from tidalamp import library
 from tidalamp.app import ConfigScreen, RowList, TidalAmp
+from tidalamp.backends.linux import audio as linux_audio
 from tidalamp.queue import Entry
 from tidalamp.screens import (
     ChoiceScreen,
@@ -420,8 +421,8 @@ def test_the_rates_row_writes_and_removes_the_drop_in(monkeypatch, tmp_path):
     isolate_runtime(monkeypatch)
     isolate_config(monkeypatch, tmp_path)
     dropin = tmp_path / "pipewire.conf.d" / "rates.conf"
-    monkeypatch.setattr(audio_module, "CONF_DIR", dropin.parent)
-    monkeypatch.setattr(audio_module, "RATES_FILE", dropin)
+    monkeypatch.setattr(linux_audio, "CONF_DIR", dropin.parent)
+    monkeypatch.setattr(linux_audio, "RATES_FILE", dropin)
 
     async def scenario() -> None:
         application = TidalAmp(object(), FakeMpv())
@@ -535,8 +536,8 @@ def test_a_running_dac_is_forced_to_the_rate_of_the_next_track(monkeypatch):
         "sink",
         lambda: audio_module.Sink(name="alsa_output.usb", rate=state["rate"], index=80),
     )
-    monkeypatch.setattr(audio_module, "allowed_rates", lambda: audio_module.RATES)
-    monkeypatch.setattr(audio_module, "hardware_rates", lambda name: audio_module.RATES)
+    monkeypatch.setattr(audio_module, "allowed_rates", lambda: linux_audio.RATES)
+    monkeypatch.setattr(audio_module, "hardware_rates", lambda name: linux_audio.RATES)
     monkeypatch.setattr(audio_module, "streams_on", lambda sink: 1)
     monkeypatch.setattr(audio_module, "force_rate", fake_force)
     monkeypatch.setattr(app_module, "SINK_SETTLE", 0.3)
@@ -573,7 +574,7 @@ def test_the_rate_is_not_forced_under_another_application(monkeypatch):
         "sink",
         lambda: audio_module.Sink(name="alsa_output.usb", rate=48000, index=80),
     )
-    monkeypatch.setattr(audio_module, "allowed_rates", lambda: audio_module.RATES)
+    monkeypatch.setattr(audio_module, "allowed_rates", lambda: linux_audio.RATES)
     monkeypatch.setattr(audio_module, "hardware_rates", lambda name: ())
     monkeypatch.setattr(audio_module, "streams_on", lambda sink: 2)
     monkeypatch.setattr(audio_module, "force_rate", lambda rate: forced.append(rate))
@@ -639,8 +640,8 @@ def test_the_arrows_leave_quality_rates_and_restart_alone(monkeypatch, tmp_path)
     isolate_runtime(monkeypatch)
     isolate_config(monkeypatch, tmp_path)
     dropin = tmp_path / "pipewire.conf.d" / "rates.conf"
-    monkeypatch.setattr(audio_module, "CONF_DIR", dropin.parent)
-    monkeypatch.setattr(audio_module, "RATES_FILE", dropin)
+    monkeypatch.setattr(linux_audio, "CONF_DIR", dropin.parent)
+    monkeypatch.setattr(linux_audio, "RATES_FILE", dropin)
     restarts: list[str] = []
     monkeypatch.setattr(audio_module, "restart", lambda: restarts.append("x") or "hecho")
 

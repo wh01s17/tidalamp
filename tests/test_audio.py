@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import pytest
 
-from tidalamp import audio
+from tidalamp.backends.linux import audio
 
 PACTL_SINKS = """Sink #3367
 \tState: RUNNING

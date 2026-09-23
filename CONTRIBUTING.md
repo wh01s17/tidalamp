@@ -32,7 +32,7 @@ You need `mpv` on the system. `cava` is optional (a real spectrum) and so is
 All four run in CI. Coverage has a floor of 70%, which is a floor and not a target: it
 exists so that a change which empties the tests fails instead of passing quietly.
 
-`tidalamp/mpris.py` is excluded from mypy on purpose: its annotations are D-Bus
+`tidalamp/backends/linux/mpris.py` is excluded from mypy on purpose: its annotations are D-Bus
 signatures (`"b"`, `"a{sv}"`), not Python types, and no checker can read them. In
 exchange, that module has contract tests against a real bus in `tests/test_mpris.py`.
 

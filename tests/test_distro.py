@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from tidalamp import distro
+from tidalamp.backends.linux import distro
 
 
 def _os_release(monkeypatch, tmp_path, text: str | None):

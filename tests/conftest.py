@@ -137,7 +137,8 @@ def private_session(tmp_path_factory, monkeypatch):
     through the settings window without pointing them somewhere else wiped
     whoever ran the suite, launcher included.
     """
-    from tidalamp import auth, config, desktop
+    from tidalamp import auth, config
+    from tidalamp.backends.linux import desktop
 
     folder = tmp_path_factory.mktemp("session")
     monkeypatch.setattr(auth, "SESSION_FILE", folder / "session.json")

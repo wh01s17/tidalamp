@@ -89,7 +89,7 @@ ignore = [
 # dbus-fast reads the D-Bus signature out of the annotation, so it has to stay
 # a string literal: "b", "a{sv}", "ao". Un-quoting them breaks the service at
 # import time, and they are not forward references to anything.
-"tidalamp/mpris.py" = ["UP037", "F722"]
+"tidalamp/backends/linux/mpris.py" = ["UP037", "F722"]
 
 [tool.mypy]
 python_version = "3.11"
@@ -106,7 +106,7 @@ warn_redundant_casts = true
 # module is checked by its own contract tests instead — see tests/test_mpris.py,
 # which exercises every method and property over a real bus.
 [[tool.mypy.overrides]]
-module = "tidalamp.mpris"
+module = "tidalamp.backends.linux.mpris"
 ignore_errors = true
 
 [tool.coverage.run]

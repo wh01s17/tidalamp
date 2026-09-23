@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import pytest
 
-from tidalamp import desktop
+from tidalamp.backends.linux import desktop
 
 
 @pytest.fixture

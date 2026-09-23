@@ -9,7 +9,7 @@ import subprocess
 import pytest
 from dbus_fast.aio import MessageBus
 
-from tidalamp import mpris
+from tidalamp.backends.linux import mpris
 
 
 class FakeBackend:

@@ -152,6 +152,7 @@ Estas son las decisiones que **no** hay que volver a litigar sin motivo nuevo:
 | **Textual para la TUI**                                  | Tiene CSS, que hace tratable clonar la estética de Winamp.                                                                                                                                                                                                       |
 | **GPL-3.0-or-later** (2026-09-08)                        | Aplicación de usuario final en un ecosistema copyleft (mpv es GPL, `tidalapi` LGPL-3). Mantiene libre cualquier versión redistribuida. La LGPL de `tidalapi` no obligaba a nada —en Python se importa, no se enlaza—, así que fue elección, no imposición.       |
 | **No cruzar la línea del DRM**                           | `stream.py` rechaza los manifiestos cifrados en vez de descifrarlos, y no se descarga audio a disco. Es lo que mantiene el proyecto fuera de las leyes anti-elusión (DMCA §1201 y equivalentes); el README lo declara y los parches que lo crucen no se aceptan. |
+| **Windows en el mismo repo, con backends y fachadas** (2026-09-23) | Lo atado a Linux es un 9 % del paquete y está concentrado en seis módulos. Un fork (`tidalamp-win`) se desfasó antes de empezar. `audio`, `mpris`, `desktop` y `distro` son fachadas que eligen su backend en `tidalamp/backends/<sistema>/` con un `sys.platform` literal, el único que mypy entiende, y reexportan una lista explícita. La app y las pantallas no ven el backend. Plan completo en `windows.md`. |
 
 Alternativas descartadas y su motivo: `tidal-hifi` + MPRIS (mete un Electron de por
 medio), Puppeteer sobre `listen.tidal.com` (Widevine, frágil), Mopidy (demasiadas
@@ -211,20 +212,25 @@ tidalamp/
   i18n.py       Español como fuente y fallback, catálogo inglés y detección de locale.
   about.py      Créditos, licencia, repositorio y notas de versión, más el mapa de
                 atajos que pinta la ayuda. Datos puros: sin Textual.
-  audio.py      La pila de audio bajo mpv: sink por defecto, ritmos que permite
+  audio.py      Fachadas: eligen el backend del sistema y reexportan su API
+  mpris.py      pública, una lista explícita. La app y las pantallas importan
+  desktop.py    estas; ver `backends/__init__.py`.
+  distro.py
+  backends/linux/
+    audio.py    La pila de audio bajo mpv: sink por defecto, ritmos que permite
                 PipeWire, ritmos que acepta el DAC, el drop-in que los desbloquea y
                 `clock.force-rate`, para que el DAC siga a cada pista y no sólo a la
                 primera.
                 Todo por subprocess, y todo contesta con lo que encontró en vez de
                 lanzar: nada de esto está en el camino que reproduce música.
-  distro.py     Lee `/etc/os-release` para decir el comando que instala lo que
+    distro.py   Lee `/etc/os-release` para decir el comando que instala lo que
                 falta («sudo pacman -S mpv») en el sistema donde se está
                 ejecutando, en vez de un genérico que no sirve en ninguno.
-  desktop.py    El lanzador del menú: `offer()` dice si preguntar en el primer
+    desktop.py  El lanzador del menú: `offer()` dice si preguntar en el primer
                 arranque, `create()` escribe `tidalamp.desktop` y el icono, y
                 `decline()` guarda el no. Respeta cualquier lanzador que ya abra
                 tidalamp y, en Omarchy, abre como `omarchy-tui-install`.
-  mpris.py      Servicio MPRIS2 en D-Bus. Habla con la app por el Protocol
+    mpris.py    Servicio MPRIS2 en D-Bus. Habla con la app por el Protocol
                 PlayerBackend, así que no conoce Textual ni tidalapi.
   cli.py        Entrypoint typer: login / tui / config / search, y `--version`.
 
