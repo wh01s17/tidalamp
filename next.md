@@ -21,8 +21,9 @@ Lo de aquí no bloquea publicar. `plan.md` §5 y §6 mandan sobre el estado gene
   y estado, está en `windows.md`; aquí solo se apunta que es lo siguiente.
 
 La última publicada es la `0.15.0` (2026-09-20); lo que trae cada versión está en
-`CHANGELOG.md`. Queda por comprobar a mano, antes de la fase F3 de Windows, que
-toca carátulas, temas y sextantes y necesita capturas de Linux con las que comparar:
+`CHANGELOG.md`.
+
+## Sin fecha
 
 - **Ver la disposición compacta en un terminal real.** Por debajo de 80x26 la
   interfaz quita la carátula y la fila de balance, y hasta ahora solo lo cubren tests
@@ -42,12 +43,12 @@ toca carátulas, temas y sextantes y necesita capturas de Linux con las que comp
   - El cuadradito oscuro que se veía a la izquierda de la línea de estado, en esa
     captura y también a tamaño normal, era el spinner `#busy` parado: su relleno
     dibujaba dos celdas de su propio fondo. Arreglado (clase `-idle`, sin relleno).
-  - *Por mirar:* los otros tres temas.
+  - *Por mirar:* los otros tres temas. Pasó a «Sin fecha» el 2026-09-23: el
+    mantenedor lo deja para otro día. Si llega antes la fase F3 de Windows, que toca
+    carátulas, temas y sextantes, conviene tener estas capturas de Linux antes.
   - *Comprobación:* capturas entre 60x18 y 79x25 (por ejemplo 72x20 y 79x25) en los
     cuatro temas. Qué mirar: lo mismo que §9.5, que la fila del transporte no se salga
     ni se parta y que las barras de título llenen su fila.
-
-## Sin fecha
 
 - **«más…» en las categorías de Inicio.** Una categoría de la página de inicio trae
   los diez primeros que TIDAL pone en la página, y la lista completa está detrás de
