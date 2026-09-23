@@ -441,6 +441,13 @@ El tag y el Release no son lo mismo. El tag ya existe y publicó PyPI; ahora se 
 página pública con las notas de la versión. GitHub añadirá automáticamente descargas
 `.zip` y `.tar.gz` del código correspondiente al tag.
 
+**El borrador ya existe.** El job `windows-exe` de `release.yml` crea el Release como
+borrador con `tidalamp-vX.Y.Z-windows-x64.zip` y su `.sha256` adjuntos, después de
+pasar la prueba de humo (`packaging/windows/smoke.py`). Espera a que termine y
+**edita ese borrador** en vez de crear otro: rellena título y notas como se explica
+abajo y publícalo. Si el job falló, el zip no está; se arregla antes de publicar, o
+se publica sin él y se dice en las notas.
+
 ### 7.1. Desde la web
 
 1. Abre `https://github.com/wh01s17/tidalamp/releases`.

@@ -1292,6 +1292,9 @@ Cada una puede costar una tarde si no se conoce de antemano.
 - [ ] F3 · terminal: carátulas, sextantes, espectro, paleta
 - [ ] F4 · audio WASAPI, permisos, acceso directo
 - [ ] F5 · SMTC
-- [ ] F6 · `.exe` en el release
+- [~] F6 · `.exe` en el release. Receta (`packaging/windows/tidalamp.spec`), icono
+  `.ico`, prueba de humo y job `windows-exe` escritos (2026-09-23). La receta y la
+  prueba de humo se probaron construyendo en Linux. **Falta el primer run en
+  `windows-latest`**: Actions, `release`, **Run workflow**.
 - [ ] F7 · documentación, skills, capturas
 - [ ] `tidalamp-win` archivado

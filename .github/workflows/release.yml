@@ -3,6 +3,9 @@ name: release
 on:
   push:
     tags: ["v*"]
+  # By hand: builds and checks the Windows zip without publishing anything,
+  # to try the recipe before a release needs it.
+  workflow_dispatch:
 
 jobs:
   build:
@@ -15,6 +18,7 @@ jobs:
           python-version: "3.13"
 
       - name: Check the tag matches the version in pyproject.toml
+        if: startsWith(github.ref, 'refs/tags/')
         run: |
           version=$(python -c 'import tomllib,pathlib; print(tomllib.loads(pathlib.Path("pyproject.toml").read_text())["project"]["version"])')
           tag="${GITHUB_REF_NAME#v}"
@@ -36,6 +40,7 @@ jobs:
 
   publish:
     needs: build
+    if: startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
     # Trusted Publishing: PyPI trusts this workflow through OIDC, so there is
     # no long-lived API token to store or rotate.
@@ -49,3 +54,50 @@ jobs:
           path: dist/
 
       - uses: pypa/gh-action-pypi-publish@release/v1
+
+  # tidalamp.exe for whoever has no Python, zipped and attached to the GitHub
+  # Release. See windows.md §10. The wheel on PyPI stays the first way in.
+  windows-exe:
+    needs: build
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install the package and PyInstaller
+        run: python -m pip install . pyinstaller
+
+      - name: Build
+        run: pyinstaller packaging/windows/tidalamp.spec --noconfirm
+
+      # PyInstaller builds happily without a module or a stylesheet, and the
+      # program fails when it reaches it. Run it as far as it goes first.
+      - name: Smoke test
+        run: python packaging/windows/smoke.py dist/tidalamp
+
+      - name: Zip
+        shell: pwsh
+        run: |
+          $name = "tidalamp-$env:GITHUB_REF_NAME-windows-x64.zip" -replace '/', '-'
+          Compress-Archive -Path dist/tidalamp -DestinationPath $name
+          (Get-FileHash $name -Algorithm SHA256).Hash.ToLower() + "  " + $name | Out-File -Encoding ascii "$name.sha256"
+          Get-Content "$name.sha256"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-zip
+          path: tidalamp-*-windows-x64.zip*
+
+      # As a draft: the notes are written by hand (publish.md §7), and the
+      # draft is where they go, with the zip already on it.
+      - name: Attach to the release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          files: tidalamp-*-windows-x64.zip*

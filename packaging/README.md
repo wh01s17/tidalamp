@@ -90,6 +90,30 @@ El AUR exige que `PKGBUILD` y `.SRCINFO` vayan en el mismo commit y que la raíz
 repositorio sea el propio `PKGBUILD`; por eso se copian, en vez de subir este
 directorio tal cual.
 
+## Windows: el `.exe`
+
+Para quien no tiene Python. `packaging/windows/tidalamp.spec` es la receta de
+PyInstaller, versionada: una carpeta con `tidalamp.exe` (onedir, no onefile: arranca
+al momento y levanta menos sospechas en los antivirus), consola, el icono
+`tidalamp/tidalamp.ico` y los datos del paquete en su sitio. mpv no va dentro.
+
+El job `windows-exe` de `release.yml` la construye en `windows-latest`, pasa
+`packaging/windows/smoke.py` (arranca `tidalamp tui` sin sesión, que importa el
+reproductor entero, y busca las hojas de estilo y los emblemas) y adjunta el zip y su
+SHA-256 a un borrador del Release. Se puede lanzar a mano desde Actions
+(**Run workflow**) para probar la receta sin publicar nada; el zip queda como
+artefacto del run.
+
+En local, la misma receta sirve en Linux para probarla:
+
+```sh
+pip install pyinstaller
+pyinstaller packaging/windows/tidalamp.spec --noconfirm
+python packaging/windows/smoke.py dist/tidalamp
+```
+
+Sin firma de código, SmartScreen avisa en las primeras descargas. No lo bloquea.
+
 ## mpv no se instala con pip
 
 Quien haga `pip install tidalamp` sin `mpv` en el sistema se encuentra un `MpvNotFound`
