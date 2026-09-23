@@ -2,13 +2,17 @@
 
 from __future__ import annotations
 
+import asyncio
 import contextlib
 import functools
+import inspect
 import logging
+import threading
 import time
 from collections.abc import Callable
+from concurrent.futures import CancelledError
 from pathlib import Path
-from typing import NamedTuple, cast
+from typing import Any, NamedTuple, cast
 
 import tidalapi
 from rich.cells import cell_len
@@ -211,6 +215,10 @@ def unknown_key_actions() -> list[str]:
 # seconds, and is silent: there is nothing to subscribe to.
 SINK_SETTLE = 4.0
 SINK_POLL = 0.4
+
+# How often a thread waiting on the UI looks up to see whether the app has
+# stopped under it. Only a call made as the app closes ever waits this long.
+THREAD_CALL_POLL = 0.1
 
 CLOCK_WIDTH = 24
 READOUT_WIDTH = 30
@@ -780,6 +788,60 @@ class TidalAmp(App):
         self._refresh_modes(relayout=True)
         self._refresh_playlist_title()
         self.screen.refresh()
+
+    def call_from_thread(
+        self, callback: Callable[..., Any], *args: Any, **kwargs: Any
+    ) -> Any:
+        """Textual's, for a thread worker that finishes after the app has.
+
+        Nothing stops a worker from finishing while the app closes, and then
+        Textual's version raises inside that thread ("App is not running"),
+        runs the callback against widgets that are already gone, or, when the
+        loop stops before getting to it, waits for it forever and holds
+        asyncio.run() on the thread. Once the app has stopped there is no
+        screen left to update, so the call is dropped and returns None, which
+        no caller reads. While the app runs this is Textual's call unchanged,
+        exceptions included.
+        """
+        loop = self._loop
+        if loop is None or not self.is_running:
+            return None
+        if threading.get_ident() == self._thread_id:
+            raise RuntimeError("call_from_thread must run off the app's thread")
+
+        async def run_callback() -> Any:
+            if not self.is_running:
+                return None
+            with self._context():
+                result = callback(*args, **kwargs)
+                if inspect.isawaitable(result):
+                    result = await result
+                return result
+
+        pending = run_callback()
+        try:
+            future = asyncio.run_coroutine_threadsafe(pending, loop)
+        except RuntimeError:  # the loop closed between the check and here
+            pending.close()
+            return None
+        while True:
+            try:
+                return future.result(timeout=THREAD_CALL_POLL)
+            except TimeoutError:
+                if not loop.is_running():
+                    # Never going to be run: close it, or Python says so on
+                    # the way out ("coroutine ... was never awaited").
+                    future.cancel()
+                    with contextlib.suppress(RuntimeError, ValueError):
+                        pending.close()
+                    return None
+                if not self.is_running:
+                    future.cancel()
+                    return None
+            except CancelledError:
+                if self.is_running:
+                    raise
+                return None
 
     def on_mount(self) -> None:
         self._check_size()

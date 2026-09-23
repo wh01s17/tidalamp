@@ -20,17 +20,6 @@ Lo de aquí no bloquea publicar. `plan.md` §5 y §6 mandan sobre el estado gene
 - **Compatibilidad con Windows**, en el mismo repo. El plan entero, con fases, trampas
   y estado, está en `windows.md`; aquí solo se apunta que es lo siguiente.
 
-- **Una guarda común para los workers al cerrar**, antes de empezar con Windows. Un
-  worker de hilo que termina después de salir llama a `call_from_thread` contra un
-  loop que se cierra: en la app cuesta una excepción dentro de ese hilo, sin efecto
-  visible, y en los tests es la carrera por la que `app_helpers.isolate_runtime`
-  desactiva el worker del sink. Señalado por Codex (2026-09-12).
-  - *Por qué ahora:* estaba esperando a que un fallo lo pidiera, y Windows lo pide. Los
-    callbacks de SMTC llegan en hilos de WinRT y solo pueden hablar con la app por
-    `call_from_thread` (`windows.md` §7.2 y trampa 13). Hoy hay 62 llamadas.
-  - *Comprobación:* un worker que termina después de `exit()` no lanza, y
-    `isolate_runtime` puede dejar el worker del sink encendido.
-
 La última publicada es la `0.15.0` (2026-09-20); lo que trae cada versión está en
 `CHANGELOG.md`. Queda por comprobar a mano, mejor antes de la fase F3 de Windows, que
 toca carátulas, temas y sextantes y necesita capturas de Linux con las que comparar:

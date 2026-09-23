@@ -21,10 +21,6 @@ async def settle(pilot, done, tries: int = 100) -> None:
     for _ in range(tries):
         await pilot.pause()
         if done():
-            # The callback can make `done` true just before the thread worker
-            # itself returns. Waiting for the Worker prevents asyncio.run()
-            # from closing its executor while call_from_thread() is in flight.
-            await pilot.app.workers.wait_for_complete()
             return
         await asyncio.sleep(0.01)
     raise AssertionError("el worker no terminó")
@@ -147,10 +143,9 @@ def isolate_runtime(monkeypatch) -> None:
     monkeypatch.setattr(Settings, "load", classmethod(lambda cls: Settings()))
     monkeypatch.setattr(TidalAmp, "_start_spectrum", lambda self: None)
     monkeypatch.setattr(TidalAmp, "_start_mpris", no_mpris)
-    # The app-level audio worker is unrelated to these UI tests. Letting it
-    # race the end of run_test() can leave call_from_thread() waiting on an
-    # event loop that is already closing, which makes asyncio.run() wait for
-    # its default executor indefinitely on Python 3.14.
+    # The app-level audio worker is unrelated to these UI tests: it polls the
+    # sink for SINK_SETTLE seconds and would overwrite the one a test sets by
+    # hand. Closing the app under it is covered in test_app_threads.
     monkeypatch.setattr(TidalAmp, "_refresh_sink_worker", lambda self: None)
     monkeypatch.setattr(ConfigScreen, "_probe", probe_audio)
     monkeypatch.setattr(audio_module, "sink", lambda: audio_module.Sink())

@@ -621,6 +621,30 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
       pulsar `⌫` con B cargando, en pantalla sigue A, así que se vuelve a la raíz, no
       a A; y hay que esperar a que el worker termine antes de salir de `run_test`, o
       la respuesta cae durante el cierre y el test vuelve a depender del reloj.
+- [x] **Un worker que acaba después que la app no toca nada.** `TidalAmp` sobrescribe
+      `call_from_thread`, así que la guarda cubre las 62 llamadas de la app y de las
+      pantallas sin tocar ninguna, y cubrirá los callbacks de SMTC en Windows
+      (`windows.md` §7.2). El de Textual tenía tres maneras de fallar si la app se
+      cerraba con un worker de hilo en marcha, las tres reproducidas antes del arreglo:
+      lanzar `RuntimeError: App is not running` dentro del hilo (con `app.run()`),
+      ejecutar el callback contra widgets ya desmontados (con `run_test`, cuyo loop
+      sigue vivo: `NoMatches`), o, si el loop se paraba antes de llegar al callback,
+      esperar en `future.result()` para siempre y dejar a `asyncio.run()` esperando al
+      executor, que es donde viven los workers de hilo. Ahora, con la app parada, la
+      llamada se descarta y devuelve `None`, que ningún llamador lee; se comprueba antes
+      de programarla, al empezar a ejecutarla y cada `THREAD_CALL_POLL` (0,1 s) mientras
+      espera. Con la app en marcha es la de Textual tal cual, excepciones incluidas. La
+      corrutina que ya no va a correr se cierra, o Python avisa al salir («coroutine
+      ... was never awaited»).
+      - *Lo que cambió en los tests:* `settle` ya no espera a todos los workers, que
+        era un apaño para esta carrera. `isolate_runtime` sigue apagando el worker del
+        sink, pero por aislamiento y no por la carrera: sondea `SINK_SETTLE` (4 s) y
+        pisa el sink que un test pone a mano. `test_app_threads.py` lo deja encendido y
+        cierra la app a mitad de una lectura: sin la guarda, `_set_sink` corre con la
+        app ya cerrada.
+      - *Lo que no cubre:* un callback asíncrono durante el que la app se cierra
+        mientras espera. Uno síncrono corre entero en el hilo de la UI y la app no
+        puede cerrarse a mitad; los de hoy son todos síncronos.
 - [x] Instrumentación de la rama de manifiesto: `stream.resolve()` registra si tomó
       `BTS` o `MPD`, y `Playable.manifest` lo expone.
 
@@ -2527,7 +2551,8 @@ Cosas que ya costaron tiempo una vez:
 
 - **Nada de `pilot.pause(0.3)` para esperar a un tick.** Los ticks de la app corren
   cada 0,1 s y 0,25 s y un runner cargado se los salta. Se espera a la condición con
-  `app_helpers.wait_for`; `settle` no sirve para eso porque espera a los workers. Para
+  `app_helpers.wait_for`, que tiene un plazo en segundos; `settle` da un número fijo
+  de vueltas y es para el resultado de un worker, no para un tick. Para
   comprobar que algo no pasa, se llama al tick a mano.
 
 - **`allowed-rates` no basta para que el DAC siga a la pista.** PipeWire sólo elige

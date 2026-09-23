@@ -11,6 +11,10 @@ versioning is [semantic](https://semver.org/).
   temporary playlist handed to mpv was created open and never closed. And a playlist
   that cannot be deleted on exit (still held by mpv, say) no longer stops the rest from
   being cleaned up.
+- Quitting while a background task was still finishing (reading the output device,
+  loading a library level) could leave that task raising inside its thread, or, at
+  worst, keep tidalamp from exiting while it waited for an answer from a screen that
+  was already gone. A task that finishes after the app has closed now just stops.
 
 ## [0.15.0] - 2026-09-20
 
