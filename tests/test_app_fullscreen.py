@@ -6,7 +6,7 @@ import asyncio
 import io
 
 import pytest
-from app_helpers import FakeMpv, isolate_runtime, settle
+from app_helpers import FakeMpv, isolate_runtime, settle, wait_for
 from rich.cells import cell_len
 
 from tidalamp import app as app_module
@@ -306,12 +306,16 @@ def test_sixel_is_not_drawn_past_the_size_tidal_serves(monkeypatch):
                 application.art_protocol = protocol
                 a_queue_playing(application)
                 await pilot.press("w")
-                await pilot.pause()
-                art = application.screen.query_one(FullArtwork)
+
+                def rows(application: TidalAmp = application) -> int:
+                    """The cover's rows once the view is up; 0 until then."""
+                    found = application.screen.query(FullArtwork)
+                    return found.first().rows if found else 0
+
                 if capped:
-                    assert art.rows == SIXEL_ROWS == 64
+                    await wait_for(pilot, lambda: rows() == SIXEL_ROWS == 64)
                 else:
-                    assert art.rows > SIXEL_ROWS
+                    await wait_for(pilot, lambda: rows() > SIXEL_ROWS)
 
     asyncio.run(scenario())
 

@@ -5,6 +5,9 @@ package, and pytest puts it on the path."""
 from __future__ import annotations
 
 import asyncio
+import contextlib
+
+from textual.worker import WorkerCancelled
 
 from tidalamp import app as app_module
 from tidalamp import audio as audio_module
@@ -38,7 +41,12 @@ async def settle(pilot, done, timeout: float = 10.0) -> None:
         if loop.time() > deadline:
             raise AssertionError("el worker no terminó")
         await asyncio.sleep(0.01)
-    await pilot.app.workers.wait_for_complete()
+    # One at a time, because a cancelled one counts as done: an exclusive
+    # worker is cancelled by the next of its group, and waiting on the lot
+    # raised for it (Windows CI, 2026-09-23). One that failed still fails.
+    for worker in list(pilot.app.workers):
+        with contextlib.suppress(WorkerCancelled):
+            await worker.wait()
 
 
 async def wait_for(pilot, condition, timeout: float = 10.0, what: str = "") -> None:

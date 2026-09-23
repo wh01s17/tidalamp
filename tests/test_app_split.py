@@ -110,12 +110,14 @@ def test_split_falls_back_to_stacked_where_it_does_not_fit(monkeypatch, tmp_path
             assert "160" in application.status
 
             await pilot.resize_terminal(170, 34)
-            await pilot.pause()
-            assert application.split
+            await wait_for(pilot, lambda: application.split, what="dos columnas")
 
             await pilot.resize_terminal(170, 20)
-            await pilot.pause()
-            assert not application.split, "demasiado bajo para dos columnas"
+            await wait_for(
+                pilot,
+                lambda: not application.split,
+                what="demasiado bajo para dos columnas",
+            )
 
     asyncio.run(scenario())
 
