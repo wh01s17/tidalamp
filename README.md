@@ -1,7 +1,8 @@
 # tidalamp
 
-A terminal TIDAL client for Linux with a retro player interface. No official API app
-registration and no browser in the middle: device flow + mpv.
+A terminal TIDAL client for Linux, with Windows in preview, and a retro player
+interface. No official API app registration and no browser in the middle: device flow +
+mpv.
 
 ![The same tidalamp layout cycling through six palettes](https://raw.githubusercontent.com/wh01s17/tidalamp/main/img/tidalamp-banner.svg?v=0.15.0)
 
@@ -20,6 +21,7 @@ Authorize once through the link it prints, and the session is kept at
 ## Contents
 
 - [Installation](#installation)
+  - [Windows (preview)](#windows-preview)
 - [Hi-res, all the way to the DAC](#hi-res-all-the-way-to-the-dac)
 - [Keys](#keys)
 - [Queue and library](#queue-and-library)
@@ -87,6 +89,36 @@ tidalamp says so once in the status line at startup.
 The first launch has to be from a terminal (`tidalamp login`, then `tidalamp`). The
 player then asks whether to add itself to the application menu: see
 [In the application menu](#in-the-application-menu).
+
+### Windows (preview)
+
+The test suite runs on Windows, but real playback there has not been tried yet. What
+follows is how it is meant to work; reports are welcome.
+
+```powershell
+winget install shinchiro.mpv       # or: scoop install extras/mpv, choco install mpv
+pipx install "tidalamp[art]"       # or: uv tool install "tidalamp[art]"
+tidalamp
+```
+
+winget's mpv lands in `Program Files\MPV Player` and stays off the PATH; tidalamp looks
+there, and in scoop's and Chocolatey's folders, by itself. If yours is elsewhere, set
+`mpv_path` (or `TIDALAMP_MPV_PATH`) to the full path of `mpv.exe`. `cava` is
+`winget install karlstav.cava`. Without Python, the GitHub Release carries a
+`tidalamp-vX.Y.Z-windows-x64.zip` from the next version on: unzip it and run
+`tidalamp.exe`. It is not signed, so SmartScreen warns on the first run.
+
+Use **Windows Terminal**: the old console window works, with poorer colours. What is
+different on Windows:
+
+- the settings, cache and state live in `%APPDATA%\tidalamp` and
+  `%LOCALAPPDATA%\tidalamp`;
+- the cover is drawn in half blocks unless you ask for `sixel` (Windows Terminal 1.22
+  or newer) or run WezTerm, which gets kitty graphics;
+- there is no PipeWire to configure: the settings window offers **Exclusive mode**
+  instead (see [The audio stack](#the-audio-stack));
+- the media keys and the Windows media panel take the place of MPRIS, and the menu
+  entry is a Start menu shortcut that opens in Windows Terminal.
 
 ### Arch Linux (AUR)
 
@@ -738,6 +770,7 @@ replaygain = "off"            # normalised volume: off, track, or album
 library_view = "list"         # the library as a list, or as a grid of covers
 jamendo_id = "561f5c40"       # which app Jamendo serves the lofi station to
 mpv_path = ""                 # the mpv to run, when the one on the PATH is not it
+exclusive = false             # Windows: WASAPI exclusive mode, see The audio stack
 debug = false                 # log to ~/.local/state/tidalamp/tidalamp.log
 
 [keys]
@@ -748,7 +781,7 @@ quit = "ctrl+q"
 Precedence is **environment → file → default**. `TIDALAMP_QUALITY`, `TIDALAMP_ART`,
 `TIDALAMP_LANG`, `TIDALAMP_COLUMNS`, `TIDALAMP_THEME`, `TIDALAMP_PALETTE`,
 `TIDALAMP_VISUALIZER`, `TIDALAMP_LIBRARY_VIEW`, `TIDALAMP_JAMENDO_ID`,
-`TIDALAMP_MPV_PATH` and `TIDALAMP_DEBUG` therefore override the file for one-off runs; the settings window
+`TIDALAMP_MPV_PATH`, `TIDALAMP_EXCLUSIVE` and `TIDALAMP_DEBUG` therefore override the file for one-off runs; the settings window
 labels a row whose value is being shadowed that way, rather than showing a value the
 app is not using. A syntax error in the file does not prevent startup; it is logged
 and the defaults take over.
@@ -797,6 +830,15 @@ window adds a warning line.
 The window also names the output and warns when it is Bluetooth, which cannot carry
 lossless whatever the rates say. Both actions are reversible: the row toggles the file
 back off, and deleting it by hand does the same.
+
+**On Windows** the audio engine does the same thing PipeWire does by default: in
+shared mode it resamples everything to the device's format (Sound settings,
+Properties, Advanced), and no application can avoid it. **Exclusive mode** in the
+settings window lets mpv take the device and open it at each track's own rate, which
+is how 24/96 reaches the DAC as 24/96. It is off by default because, while it is on,
+nothing else can play, notifications included. It applies at once without stopping
+the track. In shared mode the `OUT` badge shows the rate mpv hands the device, not the
+track's, so it cannot warn about the resampling the way it does on Linux.
 
 ### Language
 
@@ -955,6 +997,12 @@ list it and jump to any row.
 If there is no session bus, playback still starts and the status bar reports that
 MPRIS is unavailable.
 
+**On Windows** the same state goes to the media panel over the volume flyout and to
+the keyboard's media keys, through System Media Transport Controls: title, artist,
+album, cover, position, and play, pause, stop, next and previous. Without its
+packages, or if Windows refuses, the status bar says the media controls are
+unavailable and playback carries on.
+
 The speed goes over MPRIS too: `Rate` reads and sets it, between `MinimumRate` 0.25
 and `MaximumRate` 2. A desktop may send any number in that range; it lands on the
 nearest quarter, the speeds the `b` window offers, and 0 is ignored.
@@ -974,6 +1022,9 @@ whether to add it:
 If a launcher for tidalamp already exists, under any name (the AUR package's, or one
 made with `omarchy-tui-install`), nothing is asked. To take it out of the menu, delete
 the file: it will not be offered again.
+
+On Windows the same question offers a `TidalAmp` shortcut in the Start menu, opening
+in Windows Terminal when it is installed, with the same rules.
 
 **Menu shortcut**, under General in the settings window (`o`), does the same at any
 time, even after a no: it says `created` or `not created`, Enter offers to create it,
@@ -1030,8 +1081,9 @@ a file.
 
 ## Platform support
 
-tidalamp is a Linux application. Real playback has been tested on Arch Linux with
-Omarchy, and the automated test suite runs on Ubuntu.
+tidalamp is a Linux application, with Windows in preview. Real playback has been
+tested on Arch Linux with Omarchy, and the automated test suite runs on Ubuntu and on
+Windows.
 
 | Platform                                                | Status                                                                                                      |
 | ------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
@@ -1040,7 +1092,7 @@ Omarchy, and the automated test suite runs on Ubuntu.
 | Fedora, openSUSE, and other desktop Linux distributions | Expected to work through PyPI, but not yet tested with real playback                                      |
 | WSL2                                                    | Best effort; audio must be configured separately and desktop integration may be unavailable                |
 | macOS                                                   | Unsupported and untested; the core may run, but the Linux desktop and audio integrations will not          |
-| Windows                                                 | Not compatible: mpv is controlled through a Unix socket and desktop integration uses D-Bus/MPRIS           |
+| Windows 10 and 11                                       | Preview: the suite runs on Windows, real playback not yet tried. See [Windows (preview)](#windows-preview) |
 | BSD and Android/Termux                                  | Unsupported and untested                                                                                   |
 
 A missing D-Bus session only disables MPRIS and desktop media controls; it does not

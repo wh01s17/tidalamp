@@ -240,8 +240,11 @@ tidalamp/
                 Sólo importa en Windows; el resto de este paquete, en cualquiera.
     mpv.py      Dónde está `mpv.exe`, que rara vez está en el PATH.
     distro.py   winget, scoop o choco, con los ids leídos de sus índices.
-    media.py    Sin integración todavía (SMTC es la fase F5): no hace nada.
-    desktop.py  Sin acceso directo todavía (fase F4): nunca lo ofrece.
+    audio.py    Lo que mpv dice del dispositivo WASAPI; nada que forzar.
+    media.py    SMTC: el panel multimedia y las teclas, con el contrato de MPRIS.
+    desktop.py  El acceso directo `TidalAmp.lnk` en el menú Inicio.
+packaging/windows/
+  tidalamp.spec La receta de PyInstaller del `.exe`, y `smoke.py`, que lo prueba.
   media.py      El contrato entre la app y la integración de medios: los
                 Protocol PlayerBackend y MediaService.
   cli.py        Entrypoint typer: login / tui / config / search, y `--version`.
@@ -2323,6 +2326,16 @@ es código y por qué.
       win32` limpio. **Sin probar en Windows**: es lo que falta para darla por hecha.
 - [x] **`mpv_path`**, en las dos plataformas: la ruta del mpv que se quiere, y un
       error claro si no lleva a nada.
+- [x] **F2, la suite en Windows.** Verde en `windows-latest` (3.11 y 3.14) desde
+      `462146d`; el named pipe funcionó a la primera, lo que fallaba eran tiempos
+      de los tests (ver §7).
+- [x] **F3 a F6, escritas y probadas desde Linux** (2026-09-23): cava por
+      `winscap`, la detección de terminal fijada con tests, el audio por lo que dice
+      mpv y el modo exclusivo, el `.lnk`, SMTC y el `.exe` en el release. Cada una
+      con lo que falta ver en Windows en `windows.md` §15 y §12.
+- [ ] **El clasificador de Windows en PyPI**, cuando la checklist manual de
+      `windows.md` §12 se haya hecho en una máquina real: un clasificador es una
+      promesa, y todavía nadie ha oído sonar tidalamp en Windows.
 
 ### Revisión antes de la 0.8.0 (2026-09-11)
 

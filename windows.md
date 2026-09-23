@@ -1329,5 +1329,9 @@ Cada una puede costar una tarde si no se conoce de antemano.
   `.ico`, prueba de humo y job `windows-exe` escritos (2026-09-23). La receta y la
   prueba de humo se probaron construyendo en Linux. **Falta el primer run en
   `windows-latest`**: Actions, `release`, **Run workflow**.
-- [ ] F7 · documentación, skills, capturas
+- [~] F7 · documentación, skills, capturas. README («Windows (preview)», la pila de
+  audio, SMTC, el acceso directo, la tabla de plataformas), CHANGELOG, CONTRIBUTING,
+  `plan.md`, `next.md`, `publish.md`, `packaging/README.md` y las skills
+  `tidalamp-mpv-ipc` y `tidalamp-mpris-contract` al día (2026-09-23). **Falta la
+  captura** en Windows Terminal, que pide una máquina real.
 - [ ] `tidalamp-win` archivado

@@ -7,6 +7,16 @@ versioning is [semantic](https://semver.org/).
 
 ### Added
 
+- **Windows, in preview.** The suite runs on Windows 10/11 in CI; real playback there
+  has not been tried yet, so reports are welcome. mpv is reached over a named pipe
+  and found where winget, scoop or Chocolatey put it, settings live under
+  `%APPDATA%` and `%LOCALAPPDATA%`, the media keys and the Windows media panel take
+  MPRIS's place, the menu entry is a Start menu shortcut that opens in Windows
+  Terminal, and the settings window offers **Exclusive mode** (`exclusive`,
+  `TIDALAMP_EXCLUSIVE`, off by default) so a hi-res track can reach the DAC at its own
+  rate. The interface follows the Windows display language. From this version on the
+  GitHub Release also carries a `tidalamp.exe` zip for machines without Python. See
+  the README's [Windows (preview)](README.md#windows-preview). Nothing changes on Linux.
 - **`mpv_path`** (`TIDALAMP_MPV_PATH`): the full path of the mpv to run, for when the
   one on the PATH is not the one you want, or there is none. A path that leads nowhere
   is named on startup rather than failing somewhere inside mpv.

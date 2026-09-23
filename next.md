@@ -17,8 +17,13 @@ Lo de aquí no bloquea publicar. `plan.md` §5 y §6 mandan sobre el estado gene
 
 ## Para la próxima versión
 
-- **Compatibilidad con Windows**, en el mismo repo. El plan entero, con fases, trampas
-  y estado, está en `windows.md`; aquí solo se apunta que es lo siguiente.
+- **Probar Windows en una máquina real.** El código de las siete fases está escrito y
+  la suite pasa en `windows-latest`, pero nadie ha reproducido música en Windows.
+  Falta la checklist de `windows.md` §12, en este orden de riesgo: SMTC (§7.2, la
+  pieza con más incertidumbre), el named pipe con un mpv de verdad (matar `mpv.exe`
+  y que vuelva), el modo exclusivo a 96 kHz, la portada en Windows Terminal y en
+  conhost, y el `.exe` del release (Actions, `release`, **Run workflow**). Después,
+  el clasificador de PyPI.
 
 La última publicada es la `0.15.0` (2026-09-20); lo que trae cada versión está en
 `CHANGELOG.md`.
