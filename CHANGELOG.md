@@ -5,6 +5,13 @@ versioning is [semantic](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- Every hi-res track left a file descriptor open for as long as tidalamp ran: the
+  temporary playlist handed to mpv was created open and never closed. And a playlist
+  that cannot be deleted on exit (still held by mpv, say) no longer stops the rest from
+  being cleaned up.
+
 ## [0.15.0] - 2026-09-20
 
 ### Added

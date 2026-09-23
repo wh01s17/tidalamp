@@ -23,7 +23,9 @@ and we say so instead of failing with a codec error.
 
 from __future__ import annotations
 
+import contextlib
 import logging
+import os
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
@@ -140,9 +142,11 @@ def _to_fmp4_hls(playlist: str) -> str:
 
 def _write_hls(playlist: str, track_id: int) -> str:
     ensure_dirs()
-    path = Path(
-        tempfile.mkstemp(dir=CACHE_DIR, prefix=f"track-{track_id}-", suffix=".m3u8")[1]
+    fd, name = tempfile.mkstemp(
+        dir=CACHE_DIR, prefix=f"track-{track_id}-", suffix=".m3u8"
     )
+    os.close(fd)
+    path = Path(name)
     path.write_text(playlist, encoding="utf-8")
     return str(path)
 
@@ -268,4 +272,7 @@ def cleanup_playlists() -> None:
     if not CACHE_DIR.exists():
         return
     for stale in CACHE_DIR.glob("track-*.m3u8"):
-        stale.unlink(missing_ok=True)
+        # mpv may still hold the current one open, and Windows refuses to
+        # delete an open file: that is no reason to stop cleaning the rest.
+        with contextlib.suppress(OSError):
+            stale.unlink(missing_ok=True)

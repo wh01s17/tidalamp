@@ -3,6 +3,7 @@ without hitting TIDAL."""
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 import pytest
@@ -230,3 +231,35 @@ def test_the_mpd_branch_writes_the_rewritten_playlist(cache_dir):
     playable = resolve(track_with(FakeManifest(is_mpd=True, hls=TIDALAPI_HLS)))
     written = Path(playable.url).read_text(encoding="utf-8")
     assert "#EXT-X-MAP:" in written
+
+
+def test_writing_a_playlist_does_not_leak_its_descriptor(cache_dir, monkeypatch):
+    opened = []
+    real = stream.tempfile.mkstemp
+
+    def spy(*args, **kwargs):
+        fd, name = real(*args, **kwargs)
+        opened.append(fd)
+        return fd, name
+
+    monkeypatch.setattr(stream.tempfile, "mkstemp", spy)
+    resolve(track_with(FakeManifest(is_mpd=True, hls="x")))
+    assert len(opened) == 1
+    with pytest.raises(OSError):
+        os.fstat(opened[0])
+
+
+def test_cleanup_goes_on_past_a_playlist_it_cannot_delete(cache_dir, monkeypatch):
+    for _ in range(2):
+        resolve(track_with(FakeManifest(is_mpd=True, hls="x")))
+    stuck = sorted(cache_dir.glob("track-*.m3u8"))[0]
+    real = Path.unlink
+
+    def unlink(self, missing_ok=False):
+        if self == stuck:
+            raise PermissionError("in use")
+        real(self, missing_ok=missing_ok)
+
+    monkeypatch.setattr(Path, "unlink", unlink)
+    cleanup_playlists()
+    assert list(cache_dir.glob("track-*.m3u8")) == [stuck]
