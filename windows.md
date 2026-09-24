@@ -1325,10 +1325,12 @@ Cada una puede costar una tarde si no se conoce de antemano.
   lo que el plan pedía primero**: ver en una máquina real que los controles de un
   `MediaPlayer` aparecen desde una app lanzada en un terminal y sin empaquetar. Si no,
   el plan B es la ventana oculta (§7.2).
-- [~] F6 · `.exe` en el release. Receta (`packaging/windows/tidalamp.spec`), icono
-  `.ico`, prueba de humo y job `windows-exe` escritos (2026-09-23). La receta y la
-  prueba de humo se probaron construyendo en Linux. **Falta el primer run en
-  `windows-latest`**: Actions, `release`, **Run workflow**.
+- [x] F6 · `.exe` en el release. Construido en `windows-latest` y con la prueba de
+  humo en verde (run `35947336411`, `1984aad`, 2026-09-24): `tidalamp.exe tui` sin
+  sesión importa el reproductor entero y acaba en «login», y las hojas de estilo y los
+  emblemas están. Zip de 18,6 MB. El primer intento falló porque el `.gitignore`
+  excluía `*.spec` y la receta nunca había entrado en git. **Falta abrirlo** en una
+  máquina sin Python (checklist §12).
 - [~] F7 · documentación, skills, capturas. README («Windows (preview)», la pila de
   audio, SMTC, el acceso directo, la tabla de plataformas), CHANGELOG, CONTRIBUTING,
   `plan.md`, `next.md`, `publish.md`, `packaging/README.md` y las skills
