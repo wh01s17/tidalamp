@@ -1248,8 +1248,9 @@ tidalamp
       (`CREATE_NO_WINDOW` en `player.py` y `spectrum.py`)
 - [ ] La interfaz está en el idioma de Windows (`i18n._windows_ui_language`)
 - [ ] Se ofrece el acceso directo **una vez**. «Sí» crea
-      `%APPDATA%\Microsoft\Windows\Start Menu\Programs\TidalAmp.lnk`, aparece en el
-      menú Inicio con el icono y abre en Windows Terminal. Un «no» no vuelve a
+      `%APPDATA%\Microsoft\Windows\Start Menu\Programs\TidalAmp.lnk` y otro
+      `TidalAmp.lnk` en el escritorio (el de verdad, aunque OneDrive lo haya movido);
+      los dos llevan el icono y abren en Windows Terminal. Un «no» no vuelve a
       preguntarse (`backends/windows/desktop.py`)
 - [ ] `tidalamp config` crea `%APPDATA%\tidalamp\config.toml`
 
@@ -1351,8 +1352,10 @@ En una máquina, o un usuario, sin Python instalado:
 
 - [ ] `o`, Cerrar sesión, con la casilla de borrar los datos: desaparecen
       `%APPDATA%\tidalamp`, las carpetas `cache` y `state` de
-      `%LOCALAPPDATA%\tidalamp` (la carpeta en sí puede quedar, vacía) y el acceso
-      directo, y **nada** más (`auth.forgotten`)
+      `%LOCALAPPDATA%\tidalamp` (la carpeta en sí puede quedar, vacía) y los dos
+      accesos directos, el del menú Inicio y el del escritorio, y **nada** más
+      (`auth.forgotten`, `desktop.user_launchers`). La ventana lo dice antes de
+      aceptar
 
 ### 12.9 Y en Linux, nada ha cambiado
 
