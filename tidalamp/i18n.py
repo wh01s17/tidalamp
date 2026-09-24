@@ -282,6 +282,19 @@ ENGLISH: dict[str, str] = {
     "«{name}» no viene de TIDAL, que es de donde salen las letras": (
         "“{name}” does not come from TIDAL, which is where the lyrics come from"
     ),
+    # --- 0.18.0, in the help's list of changes
+    "Windows: el reproductor llega al borde de Windows Terminal.": (
+        "Windows: the player reaches the edge of Windows Terminal."
+    ),
+    "Windows: el acceso directo también va al escritorio.": (
+        "Windows: the shortcut goes on the desktop too."
+    ),
+    "Windows: elige el dispositivo de salida en o; auto dice cuál es.": (
+        "Windows: choose the output device in o; auto says which it is."
+    ),
+    "Windows: sin el DAC suena por el predeterminado, y vuelve a él.": (
+        "Windows: without the DAC it plays through the default, and goes back."
+    ),
     # --- 0.17.0, in the help's list of changes
     "Windows: si falta mpv o cava, se instalan con winget al arrancar.": (
         "Windows: a missing mpv or cava is installed with winget on start."

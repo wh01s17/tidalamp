@@ -65,6 +65,16 @@ def releases() -> tuple[Release, ...]:
     """Newest first. Translated at call time, not at import time."""
     return (
         Release(
+            "0.18.0",
+            "2026-09-24",
+            (
+                _("Windows: el reproductor llega al borde de Windows Terminal."),
+                _("Windows: el acceso directo también va al escritorio."),
+                _("Windows: elige el dispositivo de salida en o; auto dice cuál es."),
+                _("Windows: sin el DAC suena por el predeterminado, y vuelve a él."),
+            ),
+        ),
+        Release(
             "0.17.0",
             "2026-09-24",
             (

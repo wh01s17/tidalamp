@@ -5,6 +5,8 @@ versioning is [semantic](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.18.0] - 2026-09-24
+
 ### Added
 
 - **Windows: the shortcut goes on the desktop too.** Saying yes to the shortcut, on
