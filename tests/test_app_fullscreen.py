@@ -102,11 +102,21 @@ def test_the_controls_are_clickable_and_act_on_the_player(monkeypatch):
             await pilot.pause()
             a_queue_playing(application)
             await pilot.press("w")
-            await pilot.pause()
+            # Where each control sits is known once the view has its final
+            # size; read before that, the click missed (Windows CI).
+            await wait_for(
+                pilot,
+                lambda: (
+                    bool(application.screen.query(FullArtwork))
+                    and application.screen.query_one(FullArtwork).rows
+                    > app_module.Artwork.MAX_ROWS
+                ),
+                what="la vista a su tamaño",
+            )
             screen = application.screen
             start, end, _action = next(h for h in screen._hits if h[2] == "shuffle")
             await pilot.click("#fs-controls", offset=((start + end) // 2, 0))
-            await pilot.pause()
+            await wait_for(pilot, lambda: application.queue.shuffle, what="shuffle")
             assert application.queue.shuffle is True
 
     asyncio.run(scenario())
@@ -130,7 +140,13 @@ def test_the_pixel_cover_stays_up_here_and_hides_under_a_window(monkeypatch):
             await pilot.press("w")
             screen = application.screen
             art = screen.query_one(FullArtwork)
-            await settle(pilot, lambda: art.cover is not None)
+            # The first cover can be drawn before the box has grown to the
+            # view's size (Windows CI): wait for the one that fills it.
+            await wait_for(
+                pilot,
+                lambda: art.cover is not None and art.rows > app_module.Artwork.MAX_ROWS,
+                what="la carátula a su tamaño",
+            )
             assert art.cover.protocol is artwork.Protocol.KITTY
             assert art.rows > app_module.Artwork.MAX_ROWS
 
