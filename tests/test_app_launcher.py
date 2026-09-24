@@ -39,7 +39,8 @@ def test_the_first_start_asks_and_yes_creates_the_launcher(monkeypatch, tmp_path
     application, calls = _first_start(monkeypatch, tmp_path, ["enter"])
 
     assert calls == ["create"]
-    assert "menú de aplicaciones" in application.status
+    # The backend's words: Windows speaks of the Start menu and the desktop.
+    assert application.status == desktop.created()
 
 
 def test_no_is_remembered(monkeypatch, tmp_path):
@@ -119,7 +120,7 @@ def test_the_settings_row_creates_the_launcher_when_there_is_none(monkeypatch, t
             await pilot.press("enter")
             await settle(pilot, lambda: application.screen is screen)
             assert calls == ["create"]
-            assert "menú de aplicaciones" in application.status
+            assert application.status == desktop.created()
             await settle(pilot, lambda: "creado" in config_text(application))
 
     asyncio.run(scenario())

@@ -9,7 +9,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-from conftest import linux_only
+from conftest import linux_only, windows_only
 
 from tidalamp import config, i18n, player
 from tidalamp.backends.windows import desktop as windows_desktop
@@ -364,6 +364,9 @@ def start_menu(monkeypatch, tmp_path):
     # No Windows Terminal unless a test says so; and never the real `which`,
     # which takes its Windows path once sys.platform says win32.
     monkeypatch.setattr(windows_desktop.shutil, "which", lambda name: None)
+    desktop = tmp_path / "Desktop"
+    desktop.mkdir()
+    monkeypatch.setattr(windows_desktop, "_desktop_folder", lambda: desktop)
     runs: list[dict] = []
 
     def run(argv, **kwargs):
@@ -371,7 +374,11 @@ def start_menu(monkeypatch, tmp_path):
         Path(kwargs["env"]["TIDALAMP_LNK"]).write_bytes(b"L\x00\x00\x00")
 
     monkeypatch.setattr(windows_desktop.subprocess, "run", run)
-    return {"marker": tmp_path / "state" / "desktop-entry", "runs": runs}
+    return {
+        "marker": tmp_path / "state" / "desktop-entry",
+        "runs": runs,
+        "desktop": desktop,
+    }
 
 
 def test_the_shortcut_is_offered_once(start_menu):
@@ -436,12 +443,82 @@ def test_a_shortcut_that_cannot_be_made_does_not_stop_the_player(start_menu, mon
     assert not marker.exists()
 
 
-def test_a_logout_that_takes_the_data_takes_the_shortcut(start_menu, monkeypatch):
+def test_a_logout_that_takes_the_data_takes_both_shortcuts(start_menu, monkeypatch):
     monkeypatch.setattr(windows_desktop.shutil, "which", lambda name: None)
     made = windows_desktop.create(
         marker=start_menu["marker"], executable=r"C:\t\tidalamp.exe"
     )
-    assert windows_desktop.user_launchers() == [made]
+    assert windows_desktop.user_launchers() == [
+        made,
+        start_menu["desktop"] / "TidalAmp.lnk",
+    ]
+
+
+def test_a_yes_puts_the_same_shortcut_on_the_desktop_too(start_menu, monkeypatch):
+    """Where a Windows user looks for what they just installed."""
+    monkeypatch.setattr(
+        windows_desktop.shutil, "which", lambda name: r"C:\WindowsApps\wt.exe"
+    )
+    made = windows_desktop.create(
+        marker=start_menu["marker"], executable=r"C:\t\tidalamp.exe"
+    )
+    menu, desktop = (run["env"] for run in start_menu["runs"])
+    assert made == windows_desktop.data_dirs()[0] / "TidalAmp.lnk"
+    assert desktop["TIDALAMP_LNK"] == str(start_menu["desktop"] / "TidalAmp.lnk")
+    for key in ("TIDALAMP_LNK_TARGET", "TIDALAMP_LNK_ARGUMENTS", "TIDALAMP_LNK_ICON"):
+        assert desktop[key] == menu[key]
+
+
+def test_a_shortcut_already_on_the_desktop_is_left_alone(start_menu):
+    (start_menu["desktop"] / "tidalamp.LNK").write_bytes(b"mine")
+    windows_desktop.create(marker=start_menu["marker"], executable=r"C:\t\tidalamp.exe")
+    assert len(start_menu["runs"]) == 1
+    assert (start_menu["desktop"] / "tidalamp.LNK").read_bytes() == b"mine"
+
+
+def test_a_desktop_that_refuses_the_shortcut_keeps_the_menus(start_menu, monkeypatch):
+    """The Start menu's is the one that counts: a yes is still a yes."""
+    desktop_link = str(start_menu["desktop"] / "TidalAmp.lnk")
+
+    def run(argv, **kwargs):
+        if kwargs["env"]["TIDALAMP_LNK"] == desktop_link:
+            raise windows_desktop.subprocess.CalledProcessError(1, argv)
+        Path(kwargs["env"]["TIDALAMP_LNK"]).write_bytes(b"L\x00\x00\x00")
+
+    monkeypatch.setattr(windows_desktop.subprocess, "run", run)
+    marker = start_menu["marker"]
+    made = windows_desktop.create(marker=marker, executable=r"C:\t\tidalamp.exe")
+    assert made == windows_desktop.data_dirs()[0] / "TidalAmp.lnk"
+    assert marker.exists()
+
+
+def test_without_a_desktop_to_find_only_the_menu_gets_one(start_menu, monkeypatch):
+    monkeypatch.setattr(windows_desktop, "_desktop_folder", lambda: None)
+    made = windows_desktop.create(
+        marker=start_menu["marker"], executable=r"C:\t\tidalamp.exe"
+    )
+    assert made is not None
+    assert len(start_menu["runs"]) == 1
+
+
+def test_only_windows_speaks_of_the_desktop():
+    from tidalamp.backends.linux import desktop as linux_desktop
+
+    assert "ESCRITORIO" in windows_desktop.question()
+    assert "escritorio" in windows_desktop.created()
+    assert linux_desktop.question() == "¿AÑADIR TIDALAMP AL MENÚ DE APLICACIONES?"
+    assert linux_desktop.created() == "tidalamp ya está en el menú de aplicaciones"
+    # The logout's «borrar también los datos» takes both, and says so.
+    assert "del menú Inicio y del escritorio" in windows_desktop.data_note()
+    assert linux_desktop.data_note().endswith("y el acceso directo del menú.")
+
+
+@windows_only
+def test_the_desktop_is_asked_of_the_shell():
+    """OneDrive can move it out of the profile, so it is not guessed."""
+    found = windows_desktop._desktop_folder()
+    assert found is not None
+    assert found.is_dir()
 
 
 # ---------------------------------------------------------------- winget

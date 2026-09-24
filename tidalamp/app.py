@@ -954,7 +954,7 @@ class TidalAmp(App):
         """First start: ask whether tidalamp should appear in the menu."""
         self.push_screen(
             ChoiceScreen(
-                _("¿AÑADIR TIDALAMP AL MENÚ DE APLICACIONES?"),
+                desktop.question(),
                 [
                     ("create", _("sí, crear el acceso directo")),
                     ("decline", _("no, y no volver a preguntar")),
@@ -967,7 +967,7 @@ class TidalAmp(App):
     def _launcher_answered(self, value: object) -> None:
         if value == "create":
             if desktop.create() is not None:
-                self.status = _("tidalamp ya está en el menú de aplicaciones")
+                self.status = desktop.created()
             else:
                 self.status = _("no se pudo crear el acceso directo; mira el log")
         elif value == "decline":

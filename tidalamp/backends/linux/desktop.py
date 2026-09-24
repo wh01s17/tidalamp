@@ -24,6 +24,7 @@ from importlib import resources
 from pathlib import Path
 
 from ...config import STATE_DIR, _xdg, write_atomically
+from ...i18n import _
 
 log = logging.getLogger("tidalamp.desktop")
 
@@ -34,6 +35,24 @@ MARKER = STATE_DIR / "desktop-entry"
 ICON_NAME = "tidalamp"
 
 _EXEC = re.compile(r"^Exec=.*\btidalamp\b", re.MULTILINE)
+
+
+def question() -> str:
+    """What the first start asks."""
+    return _("¿AÑADIR TIDALAMP AL MENÚ DE APLICACIONES?")
+
+
+def created() -> str:
+    """What the status line says once the launcher is written."""
+    return _("tidalamp ya está en el menú de aplicaciones")
+
+
+def data_note() -> str:
+    """What the logout window says the data is, the menu's launcher among it."""
+    return _(
+        "Los datos son la configuración, la cola, el ecualizador,\n"
+        "la caché y el acceso directo del menú."
+    )
 
 
 def data_dirs() -> list[Path]:

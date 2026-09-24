@@ -5,6 +5,15 @@ versioning is [semantic](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **Windows: the shortcut goes on the desktop too.** Saying yes to the shortcut, on
+  the first start or from the settings, now also puts one on the desktop, found
+  where Windows keeps it even when OneDrive has moved it. The Start menu's is the one
+  that counts: a desktop that refuses it only leaves a line in the log, and one
+  already there is left alone. A logout that takes the data takes both, and its
+  window says so.
+
 ### Fixed
 
 - **Windows: the player did not reach the right edge of Windows Terminal.** The

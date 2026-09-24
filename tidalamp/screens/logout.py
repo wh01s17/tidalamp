@@ -10,6 +10,7 @@ from textual.containers import Vertical
 from textual.screen import ModalScreen
 from textual.widgets import Static
 
+from .. import desktop
 from ..i18n import _
 
 
@@ -39,11 +40,15 @@ class LogoutScreen(ModalScreen[object]):
         self.data_too = False
         # On «cancelar», like Restart PipeWire: ↵ by reflex must not log out.
         self.cursor = self.CANCEL
-        self._message = _(
-            "Se borra la sesión guardada y tidalamp se cierra.\n"
-            "Para volver a entrar hará falta: tidalamp login\n\n"
-            "Los datos son la configuración, la cola, el ecualizador,\n"
-            "la caché y el acceso directo del menú."
+        # The data's half from the launcher's backend: Windows has two
+        # shortcuts to take, the Start menu's and the desktop's.
+        self._message = (
+            _(
+                "Se borra la sesión guardada y tidalamp se cierra.\n"
+                "Para volver a entrar hará falta: tidalamp login"
+            )
+            + "\n\n"
+            + desktop.data_note()
         )
         self._hint = _(" ↑↓ elegir  ↵ marcar o aplicar  esc cerrar")
 

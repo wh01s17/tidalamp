@@ -336,14 +336,24 @@ ENGLISH: dict[str, str] = {
     ),
     (
         "Se borra la sesión guardada y tidalamp se cierra.\n"
-        "Para volver a entrar hará falta: tidalamp login\n\n"
+        "Para volver a entrar hará falta: tidalamp login"
+    ): (
+        "The saved session is deleted and tidalamp closes.\n"
+        "To come back you will need: tidalamp login"
+    ),
+    (
         "Los datos son la configuración, la cola, el ecualizador,\n"
         "la caché y el acceso directo del menú."
     ): (
-        "The saved session is deleted and tidalamp closes.\n"
-        "To come back you will need: tidalamp login\n\n"
         "The data is the settings, the queue, the equaliser,\n"
         "the cache and the menu shortcut."
+    ),
+    (
+        "Los datos son la configuración, la cola, el ecualizador,\n"
+        "la caché y los accesos directos del menú Inicio y del escritorio."
+    ): (
+        "The data is the settings, the queue, the equaliser,\n"
+        "the cache and the shortcuts in the Start menu and on the desktop."
     ),
     " ↑↓ elegir  ↵ marcar o aplicar  esc cerrar": (
         " ↑↓ choose  ↵ tick or apply  esc close"
@@ -375,6 +385,12 @@ ENGLISH: dict[str, str] = {
     ),
     "tidalamp ya está en el menú de aplicaciones": (
         "tidalamp is now in the application menu"
+    ),
+    "¿AÑADIR TIDALAMP AL MENÚ INICIO Y AL ESCRITORIO?": (
+        "ADD TIDALAMP TO THE START MENU AND THE DESKTOP?"
+    ),
+    "tidalamp ya está en el menú Inicio y en el escritorio": (
+        "tidalamp is now in the Start menu and on the desktop"
     ),
     "no se pudo crear el acceso directo; mira el log": (
         "could not create the shortcut; see the log"

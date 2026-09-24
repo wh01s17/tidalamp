@@ -666,7 +666,7 @@ class ConfigScreen(ModalScreen[None]):
             return
         self.app.push_screen(
             ChoiceScreen(
-                _("¿AÑADIR TIDALAMP AL MENÚ DE APLICACIONES?"),
+                desktop.question(),
                 [
                     ("create", _("sí, crear el acceso directo")),
                     ("cancel", _("cancelar")),
@@ -681,7 +681,7 @@ class ConfigScreen(ModalScreen[None]):
         created = desktop.create()
         if created is not None:
             self._launcher = created
-            self.player.status = _("tidalamp ya está en el menú de aplicaciones")
+            self.player.status = desktop.created()
         else:
             self.player.status = _("no se pudo crear el acceso directo; mira el log")
         self._render_list()
