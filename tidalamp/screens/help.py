@@ -20,6 +20,22 @@ if TYPE_CHECKING:  # The screens report back to the app; the app owns them.
     pass
 
 
+class _Page(Static):
+    """The help's page, which draws only the lines that fit its height.
+
+    It redraws itself when that height changes. The screen used to guess
+    when (one refresh after the search box closed) and a slow runner beat
+    the guess: the page had grown the box's row and still showed the old
+    number of lines, one short at the bottom (CI, Windows, Python 3.14,
+    2026-09-24). `Measured` in app.py is the same lesson.
+    """
+
+    def on_resize(self, event) -> None:
+        screen = self.screen
+        if isinstance(screen, HelpScreen):
+            screen._render_window()
+
+
 class HelpScreen(ModalScreen[None]):
     """Every key the app answers to, plus who wrote it and what changed.
 
@@ -88,7 +104,7 @@ class HelpScreen(ModalScreen[None]):
     def compose(self) -> ComposeResult:
         with Vertical(id="help-box"):
             yield Static("", id="help-title", markup=False)
-            yield Static("", id="help-body", markup=False)
+            yield _Page("", id="help-body", markup=False)
             # Under the text, the way the queue's and the browser's are: the
             # page narrows under the eyes of whoever is typing.
             with Horizontal(id="help-filter-bar"):
@@ -230,10 +246,9 @@ class HelpScreen(ModalScreen[None]):
         self.query_one("#help-filter-bar", Horizontal).display = False
         self.set_focus(None)
         self._render_tabs()
+        # The page gains the row the box was using, and only the next layout
+        # knows it: `_Page` draws it again then.
         self._render_window()
-        # The page just gained the row the box was using, and only the next
-        # layout knows it: drawn now, it came out a line short.
-        self.call_after_refresh(self._render_window)
 
     # ------------------------------------------------------------- content
 

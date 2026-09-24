@@ -1509,7 +1509,13 @@ def test_the_help_can_be_searched_and_says_how_at_the_bottom(monkeypatch):
             await pilot.pause()
             assert isinstance(application.screen, HelpScreen)
             assert not screen.query_one("#help-filter-bar").display
-            assert body() == everything, "vuelve la página entera, a su alto"
+            # Once the layout has given the page the box's row, however long
+            # that takes: a page left a line short never gets there.
+            await wait_for(
+                pilot,
+                lambda: body() == everything,
+                what="vuelve la página entera, a su alto",
+            )
 
             await pilot.press("escape")
             await pilot.pause()

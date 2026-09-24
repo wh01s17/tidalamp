@@ -37,6 +37,9 @@ versioning is [semantic](https://semver.org/).
   ⌫ before a slow level arrived took you back, and a moment later the level you had
   left was put on screen anyway. It depended on how soon the loading started, which
   is why it showed up only now and then; the level is now dropped every time.
+- **The help could come back a line short** after closing its search box, until
+  scrolled: the page redrew before it had taken back the box's row. It now redraws
+  whenever its own height changes.
 
 ## [0.17.0] - 2026-09-24
 
