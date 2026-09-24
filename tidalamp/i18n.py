@@ -282,6 +282,19 @@ ENGLISH: dict[str, str] = {
     "«{name}» no viene de TIDAL, que es de donde salen las letras": (
         "“{name}” does not come from TIDAL, which is where the lyrics come from"
     ),
+    # --- 0.17.0, in the help's list of changes
+    "Windows: si falta mpv o cava, se instalan con winget al arrancar.": (
+        "Windows: a missing mpv or cava is installed with winget on start."
+    ),
+    "Windows: al cerrar la terminal, mpv ya no se queda sonando.": (
+        "Windows: closing the terminal no longer leaves mpv playing."
+    ),
+    "Windows: carátulas en el .exe, y en sixel enteras y sin parpadeo.": (
+        "Windows: covers in the .exe, and sixel ones whole and steady."
+    ),
+    "Windows: la pausa ya no es un emoji azul.": (
+        "Windows: pause is no longer a blue emoji."
+    ),
     # --- 0.16.0, in the help's list of changes
     "Windows en vista previa: pipx install o el tidalamp.exe del Release.": (
         "Windows, in preview: pipx install, or tidalamp.exe from the Release."

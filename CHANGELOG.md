@@ -5,6 +5,8 @@ versioning is [semantic](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.17.0] - 2026-09-24
+
 ### Added
 
 - **Windows: tidalamp installs mpv and cava for you.** Started without them, it asks

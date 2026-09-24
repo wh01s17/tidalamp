@@ -65,6 +65,16 @@ def releases() -> tuple[Release, ...]:
     """Newest first. Translated at call time, not at import time."""
     return (
         Release(
+            "0.17.0",
+            "2026-09-24",
+            (
+                _("Windows: si falta mpv o cava, se instalan con winget al arrancar."),
+                _("Windows: al cerrar la terminal, mpv ya no se queda sonando."),
+                _("Windows: carátulas en el .exe, y en sixel enteras y sin parpadeo."),
+                _("Windows: la pausa ya no es un emoji azul."),
+            ),
+        ),
+        Release(
             "0.16.0",
             "2026-09-23",
             (
