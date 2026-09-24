@@ -17,15 +17,6 @@ Lo de aquí no bloquea publicar. `plan.md` §5 y §6 mandan sobre el estado gene
 
 ## Para la próxima versión
 
-- **Cerrar la publicación de la 0.16.0**, ya desde Windows (`publish.md` §12):
-  - el checksum del tarball del tag en `packaging/aur/PKGBUILD` y `.SRCINFO`, en
-    lugar de `SKIP`, y su commit `build(aur): finalize v0.16.0 checksum`;
-  - completar el borrador del GitHub Release que dejó el job `windows-exe` (notas del
-    CHANGELOG en inglés, zip ya adjunto) y publicarlo (`publish.md` §7);
-  - el commit de «publicada», como el de la 0.15.0 (`02dc6ea`): el estado de
-    `publish.md` (versiones publicadas), el de `plan.md` §5 y la fecha aquí.
-  - Lo que necesita Arch (`makepkg`, `namcap`, el AUR) espera a volver a Linux.
-
 - **Probar Windows en una máquina real**, siguiendo `windows.md` §12 paso a paso: cada
   apartado dice qué comando lanzar, qué mirar y en qué fichero está el código si falla.
   Por riesgo, lo primero es SMTC (§12.4) y el named pipe con un mpv de verdad (§12.3).
@@ -35,8 +26,9 @@ Lo de aquí no bloquea publicar. `plan.md` §5 y §6 mandan sobre el estado gene
   - *Después de §12:* el clasificador de Windows en PyPI, quitar «preview» del README,
     y una captura en Windows Terminal (`windows.md`, «Después de §12»).
 
-La `0.16.0` está preparada (2026-09-23) y sale con su tag; hasta entonces la última
-publicada es la `0.15.0`. Lo que trae cada versión está en
+La última publicada es la `0.16.0` (2026-09-23), en PyPI y en GitHub con el zip de
+Windows; su checksum del AUR está en `6f08341`, y lo demás del AUR espera al registro
+(`plan.md` §6). Lo que trae cada versión está en
 `CHANGELOG.md`.
 
 ## Sin fecha

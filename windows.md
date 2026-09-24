@@ -8,7 +8,10 @@ que se decidió, y en español porque lo lee el mantenedor (ver `CONTRIBUTING.md
 
 **Punto de partida:** `tidalamp` v0.15.0 (`02dc6ea`). Ni una línea de Windows todavía.
 
-**Estado (2026-09-23, v0.16.0):** las siete fases están escritas. La suite pasa en
+**Estado (2026-09-24):** publicada la **0.16.0**, la primera con Windows, en vista
+previa: `pipx install "tidalamp[art]"` desde PyPI, o el zip con `tidalamp.exe` en
+<https://github.com/wh01s17/tidalamp/releases/tag/v0.16.0>. Las siete fases están
+escritas. La suite pasa en
 `windows-latest` (3.11 y 3.14) y el `.exe` se construye y pasa su prueba de humo en
 CI. **Nadie ha reproducido música en una máquina Windows todavía**: eso es §12, y es
 lo siguiente. Quien lo haga y quiera arreglar algo desde Windows tiene el entorno en
