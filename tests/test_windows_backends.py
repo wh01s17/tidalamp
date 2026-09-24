@@ -346,6 +346,103 @@ def test_exclusive_mode_is_off_until_asked_for(monkeypatch):
     assert player._exclusive_option() == []
 
 
+# ------------------------------------------------------- the output device
+
+_OUTPUTS = [
+    {"name": "auto", "description": "Autoselect device"},
+    {"name": "wasapi/{jbl}", "description": "Altavoces (JBL Charge 3 Stereo)"},
+    {"name": "wasapi/{fiio}", "description": "FiiO BTR15"},
+    {"name": "openal", "description": "Default (openal)"},
+]
+
+
+def test_auto_says_which_device_it_is_playing_to(monkeypatch):
+    """mpv only says «Autoselect device»; with exclusive mode on, the user
+    has to know which output tidalamp is taking whole."""
+    from tidalamp.backends.windows import audio as windows_audio
+
+    monkeypatch.setattr(windows_audio, "system_default", lambda: "wasapi/{jbl}")
+    windows_audio.use_player(
+        ReportingMpv(**{"audio-device": "auto", "audio-device-list": _OUTPUTS})
+    )
+    found = windows_audio.sink()
+    assert (found.name, found.description) == (
+        "auto",
+        "Altavoces (JBL Charge 3 Stereo)",
+    )
+
+
+def test_only_wasapi_outputs_are_offered(monkeypatch):
+    """Exclusive mode is WASAPI's; openal is another road to the same devices."""
+    from tidalamp.backends.windows import audio as windows_audio
+
+    monkeypatch.setattr(windows_audio, "_player", None)
+    assert windows_audio.devices() == []
+    windows_audio.use_player(ReportingMpv(**{"audio-device-list": _OUTPUTS}))
+    assert windows_audio.devices() == [
+        ("wasapi/{jbl}", "Altavoces (JBL Charge 3 Stereo)"),
+        ("wasapi/{fiio}", "FiiO BTR15"),
+    ]
+
+
+def test_a_device_is_connected_when_windows_lists_it_active(monkeypatch):
+    from tidalamp.backends.windows import audio as windows_audio
+
+    monkeypatch.setattr(windows_audio, "_endpoints", lambda: ("{jbl}", ["{jbl}"]))
+    assert windows_audio.system_default() == "wasapi/{jbl}"
+    assert windows_audio.connected("wasapi/{JBL}")
+    assert not windows_audio.connected("wasapi/{fiio}")
+
+
+def test_a_windows_that_cannot_be_asked_takes_no_choice_away(monkeypatch):
+    from tidalamp.backends.windows import audio as windows_audio
+
+    monkeypatch.setattr(windows_audio, "_endpoints", lambda: None)
+    assert windows_audio.system_default() == ""
+    assert windows_audio.connected("wasapi/{fiio}")
+
+
+def test_the_device_is_asked_of_mpv_on_windows_only(monkeypatch):
+    from tidalamp.backends.windows import audio as windows_audio
+
+    monkeypatch.setattr(windows_audio, "connected", lambda name: True)
+    monkeypatch.setattr(config, "AUDIO_DEVICE", "wasapi/{fiio}")
+    monkeypatch.setattr(player.sys, "platform", "win32")
+    assert player._device_option() == ["--audio-device=wasapi/{fiio}"]
+    monkeypatch.setattr(player.sys, "platform", "linux")
+    assert player._device_option() == []
+
+
+def test_auto_leaves_the_device_to_mpv(monkeypatch):
+    monkeypatch.setattr(player.sys, "platform", "win32")
+    monkeypatch.setattr(config, "AUDIO_DEVICE", "auto")
+    assert player._device_option() == []
+
+
+def test_a_device_switched_off_plays_through_the_default(monkeypatch):
+    """Asked for a device that is not there, mpv opens nothing and plays in
+    silence («Could not open/initialize audio device -> no sound»)."""
+    from tidalamp.backends.windows import audio as windows_audio
+
+    monkeypatch.setattr(windows_audio, "connected", lambda name: False)
+    monkeypatch.setattr(config, "AUDIO_DEVICE", "wasapi/{jbl}")
+    monkeypatch.setattr(player.sys, "platform", "win32")
+    assert player._device_option() == []
+
+
+@windows_only
+def test_windows_names_its_default_output_the_way_mpv_does():
+    from tidalamp.backends.windows import audio as windows_audio
+
+    found = windows_audio._endpoints()
+    assert found is not None
+    default, active = found
+    if not active:
+        pytest.skip("no audio output on this machine")
+    assert all(guid.startswith("{") and guid.endswith("}") for guid in active)
+    assert default in active
+
+
 def test_the_session_is_left_to_the_acl_on_windows(monkeypatch, tmp_path):
     from tidalamp import auth
 

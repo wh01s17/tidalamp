@@ -111,6 +111,10 @@ class ConfigScreen(ModalScreen[None]):
         self._allowed: tuple[int, ...] = ()
         self._hardware: tuple[int, ...] = ()
         self._stream_rate = 0
+        # The outputs mpv can play to, as (name, description), and the one
+        # the system has as its default. Probed with the audio stack.
+        self._devices: list[tuple[str, str]] = []
+        self._default_device = ""
         # The launcher already in a menu folder, if any. Probed with the audio
         # stack, off the UI loop: it reads every entry in those folders.
         self._launcher: Path | None = None
@@ -130,7 +134,8 @@ class ConfigScreen(ModalScreen[None]):
 
     def _stack_rows(self, group: str) -> list[Option]:
         """The audio stack's own rows: PipeWire's where its rates are ours to
-        manage, and WASAPI's exclusive mode where they are not (Windows)."""
+        manage, and WASAPI's device and exclusive mode where they are not
+        (Windows). The device comes first: exclusive mode takes all of it."""
         if audio.MANAGES_RATES:
             return [
                 Option(_("Rates hi-res en PipeWire"), action="rates", group=group),
@@ -138,12 +143,18 @@ class ConfigScreen(ModalScreen[None]):
             ]
         return [
             Option(
+                _("Dispositivo"),
+                key="audio_device",
+                note=_("la salida de mpv; auto sigue la predeterminada de Windows"),
+                group=group,
+            ),
+            Option(
                 _("Modo exclusivo"),
                 key="exclusive",
                 choices=self.SWITCH,
                 note=_("cada pista llega al DAC a su frecuencia; no suena nada más"),
                 group=group,
-            )
+            ),
         ]
 
     def _options(self) -> list[Option]:
@@ -329,8 +340,10 @@ class ConfigScreen(ModalScreen[None]):
         hardware = audio.hardware_rates(found[0].name)
         stream = getattr(getattr(self.app, "mpv", None), "samplerate", 0)
         launcher = desktop.existing(desktop.data_dirs())
+        outputs = (audio.devices(), audio.system_default())
         self.app.call_from_thread(self._probed, found[0], found[1], hardware, stream)
         self.app.call_from_thread(self._launcher_probed, launcher)
+        self.app.call_from_thread(self._devices_probed, *outputs)
 
     def _probed(self, found, allowed, hardware, stream_rate: int = 0) -> None:
         self._sink, self._allowed, self._hardware = found, allowed, hardware
@@ -340,6 +353,26 @@ class ConfigScreen(ModalScreen[None]):
     def _launcher_probed(self, launcher: Path | None) -> None:
         self._launcher = launcher
         self._render_list()
+
+    def _devices_probed(self, devices: list[tuple[str, str]], default: str) -> None:
+        self._devices, self._default_device = devices, default
+        self._render_list()
+
+    def _device_name(self, name: str) -> str:
+        """An output by its description, the way Windows shows it.
+
+        `auto` carries the device it stands for right now, which is the
+        point of the row: with exclusive mode on, that device is taken
+        whole. A device the list does not have is one that is not plugged
+        in, and mpv plays to the default until it is.
+        """
+        described = dict(self._devices)
+        if name in ("", "auto"):
+            current = described.get(self._default_device)
+            return _("auto · {name}").format(name=current) if current else "auto"
+        if not self._devices:
+            return name
+        return described.get(name) or _("no conectado; suena por el predeterminado")
 
     def watch_cursor(self) -> None:
         self._glide_restart()
@@ -371,6 +404,8 @@ class ConfigScreen(ModalScreen[None]):
             # steps through those, never through the labels.
             if option.key in ("theme", "palette", "backdrop"):
                 return label(self._stored(option))
+            if option.key == "audio_device":
+                return self._device_name(self._stored(option))
             return self._stored(option)
         if option.action == "rates":
             if audio.rates_configured():
@@ -545,9 +580,11 @@ class ConfigScreen(ModalScreen[None]):
 
         The three where a stray arrow cost the most: the quality changed
         under the next track, PipeWire's rates were written or removed, or
-        PipeWire was restarted and the audio cut. Only ↵ opens them now.
+        PipeWire was restarted and the audio cut. Only ↵ opens them now. The
+        output device too: an arrow would have moved the sound to another
+        speaker, and a list of names reads better than stepping through them.
         """
-        return option.key == "quality" or option.action in (
+        return option.key in ("quality", "audio_device") or option.action in (
             "rates",
             "restart",
             "launcher",
@@ -578,6 +615,26 @@ class ConfigScreen(ModalScreen[None]):
                     _("CALIDAD"),
                     [(value, labels.get(value, value)) for value in self.QUALITIES],
                     config.DEFAULT_QUALITY,
+                ),
+                lambda value: self._set(option, value),
+            )
+        elif option.key == "audio_device":
+            default = dict(self._devices).get(self._default_device)
+            self.app.push_screen(
+                ChoiceScreen(
+                    _("DISPOSITIVO DE SALIDA"),
+                    [
+                        (
+                            "auto",
+                            _("auto: el predeterminado de Windows ({name})").format(
+                                name=default
+                            )
+                            if default
+                            else _("auto: el predeterminado de Windows"),
+                        ),
+                        *self._devices,
+                    ],
+                    config.AUDIO_DEVICE,
                 ),
                 lambda value: self._set(option, value),
             )
@@ -841,6 +898,7 @@ _ATTRIBUTES = {
     "replaygain": "REPLAYGAIN",
     "library_view": "LIBRARY_VIEW",
     "exclusive": "EXCLUSIVE",
+    "audio_device": "AUDIO_DEVICE",
 }
 
 

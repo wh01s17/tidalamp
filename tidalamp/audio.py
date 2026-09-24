@@ -15,6 +15,7 @@ if sys.platform == "win32":
         Sink,
         allowed_rates,
         clamped,
+        devices,
         force_rate,
         hardware_rates,
         rate_to_force,
@@ -23,6 +24,7 @@ if sys.platform == "win32":
         restart,
         sink,
         streams_on,
+        system_default,
         use_player,
         write_rates,
     )
@@ -32,6 +34,7 @@ else:
         Sink,
         allowed_rates,
         clamped,
+        devices,
         force_rate,
         hardware_rates,
         rate_to_force,
@@ -40,6 +43,7 @@ else:
         restart,
         sink,
         streams_on,
+        system_default,
         use_player,
         write_rates,
     )
@@ -49,6 +53,7 @@ __all__ = [
     "Sink",
     "allowed_rates",
     "clamped",
+    "devices",
     "force_rate",
     "hardware_rates",
     "rate_to_force",
@@ -57,6 +62,7 @@ __all__ = [
     "restart",
     "sink",
     "streams_on",
+    "system_default",
     "use_player",
     "write_rates",
 ]

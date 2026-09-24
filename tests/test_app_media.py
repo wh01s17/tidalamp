@@ -88,12 +88,18 @@ def test_no_integration_is_said_and_not_fatal(monkeypatch):
 # ------------------------------------------- the audio stack's own rows
 
 
-def test_windows_offers_exclusive_mode_instead_of_pipewire(monkeypatch):
+def test_windows_offers_the_device_and_exclusive_mode_instead_of_pipewire(
+    monkeypatch,
+):
+    """The device first: exclusive mode takes all of it."""
     from tidalamp.screens import config_window
 
     monkeypatch.setattr(config_window.audio, "MANAGES_RATES", False)
     rows = config_window.ConfigScreen()._stack_rows("Audio")
-    assert [(row.key, row.action) for row in rows] == [("exclusive", "")]
+    assert [(row.key, row.action) for row in rows] == [
+        ("audio_device", ""),
+        ("exclusive", ""),
+    ]
 
 
 def test_linux_keeps_its_pipewire_rows(monkeypatch):
@@ -102,6 +108,55 @@ def test_linux_keeps_its_pipewire_rows(monkeypatch):
     monkeypatch.setattr(config_window.audio, "MANAGES_RATES", True)
     rows = config_window.ConfigScreen()._stack_rows("Audio")
     assert [row.action for row in rows] == ["rates", "restart"]
+
+
+def test_the_device_row_says_what_auto_stands_for(monkeypatch):
+    from tidalamp import config
+    from tidalamp.screens import config_window
+
+    monkeypatch.setattr(config, "AUDIO_DEVICE", "auto")
+    screen = config_window.ConfigScreen()
+    row = config_window.Option("Dispositivo", key="audio_device")
+    assert screen._value(row) == "auto"
+    screen._devices = [("wasapi/{jbl}", "JBL Charge 3"), ("wasapi/{fiio}", "FiiO")]
+    screen._default_device = "wasapi/{jbl}"
+    assert screen._value(row) == "auto · JBL Charge 3"
+    monkeypatch.setattr(config, "AUDIO_DEVICE", "wasapi/{fiio}")
+    assert screen._value(row) == "FiiO"
+    monkeypatch.setattr(config, "AUDIO_DEVICE", "wasapi/{gone}")
+    assert screen._value(row) == "no conectado; suena por el predeterminado"
+
+
+def test_the_device_is_picked_from_a_list_and_never_by_an_arrow():
+    """An arrow would have moved the sound to another speaker."""
+    from tidalamp.screens import config_window
+
+    row = config_window.Option("Dispositivo", key="audio_device")
+    assert config_window.ConfigScreen._picked(row)
+
+
+def test_changing_the_device_moves_the_sound_at_once(monkeypatch):
+    from tidalamp import config
+
+    isolate_runtime(monkeypatch)
+    seen: list[tuple[list[str], str]] = []
+
+    async def scenario() -> None:
+        mpv = FakeMpv()
+        application = TidalAmp(object(), mpv)
+        async with application.run_test(size=(100, 40)) as pilot:
+            await pilot.pause()
+            monkeypatch.setattr(config, "AUDIO_DEVICE", "wasapi/{fiio}")
+            application._setting_changed("audio_device")
+            seen.append((list(mpv.devices), application.status))
+            monkeypatch.setattr(config, "AUDIO_DEVICE", "auto")
+            application._setting_changed("audio_device")
+            seen.append((list(mpv.devices), application.status))
+
+    asyncio.run(scenario())
+    assert seen[0] == (["wasapi/{fiio}"], "dispositivo de salida cambiado")
+    assert seen[1][0] == ["wasapi/{fiio}", "auto"]
+    assert "predeterminado de Windows" in seen[1][1]
 
 
 def test_exclusive_mode_applies_at_once_and_says_what_it_costs(monkeypatch):

@@ -13,6 +13,13 @@ versioning is [semantic](https://semver.org/).
   that counts: a desktop that refuses it only leaves a line in the log, and one
   already there is left alone. A logout that takes the data takes both, and its
   window says so.
+- **Windows: choose the output device**, in the settings (`o`, Audio, «Device»), from
+  the list of the machine's outputs, or `audio_device` in the file. `auto`, the
+  default, follows the one Windows plays to, and now says which it is, there and on
+  the `OUT` line, instead of mpv's «Autoselect device»: with exclusive mode on,
+  tidalamp takes that device whole. Changing it moves the sound at once, without
+  stopping the track, and a device that is not connected (a speaker switched off)
+  plays through the default rather than in silence.
 
 ### Fixed
 

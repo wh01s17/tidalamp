@@ -88,10 +88,14 @@ class FakeMpv:
         self.restarts = 0
         self.probes = 0
         self.exclusive: list[bool] = []
+        self.devices: list[str] = []
         self._volume = 100
 
     def set_exclusive(self, on: bool) -> None:
         self.exclusive.append(on)
+
+    def set_device(self, name: str) -> None:
+        self.devices.append(name)
 
     @property
     def volume(self) -> int:

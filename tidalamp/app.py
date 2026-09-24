@@ -3204,6 +3204,16 @@ class TidalAmp(App):
             self.status = _("vista de la biblioteca: {value}").format(
                 value=config.LIBRARY_VIEW
             )
+        elif name == "audio_device":
+            self.mpv.set_device(config.AUDIO_DEVICE)
+            # By name the line would show a guid; OUT says which one it is.
+            self.status = (
+                _("dispositivo de salida: el predeterminado de Windows")
+                if config.AUDIO_DEVICE in ("", "auto")
+                else _("dispositivo de salida cambiado")
+            )
+            # mpv opened the output again, on another device and maybe rate.
+            self._refresh_sink_worker()
         elif name == "exclusive":
             self.mpv.set_exclusive(config.EXCLUSIVE)
             self.status = (

@@ -212,6 +212,24 @@ def _exclusive_option() -> list[str]:
     return []
 
 
+def _device_option() -> list[str]:
+    """The output the setting names. Windows only, like exclusive mode.
+
+    A device that is not connected is left out, and mpv opens the system's
+    default instead: asked for a speaker that is switched off, mpv opens
+    nothing and plays in silence, with nothing on screen to say why.
+    """
+    if sys.platform == "win32" and config.AUDIO_DEVICE not in ("", "auto"):
+        from .backends.windows.audio import connected
+
+        if connected(config.AUDIO_DEVICE):
+            return [f"--audio-device={config.AUDIO_DEVICE}"]
+        log.warning(
+            "%s no está conectado; mpv usa la salida por defecto", config.AUDIO_DEVICE
+        )
+    return []
+
+
 def _transport(timeout: float) -> Transport:
     """How this system reaches mpv: a named pipe on Windows, else a socket."""
     if sys.platform == "win32":
@@ -271,6 +289,7 @@ class Mpv:
             [
                 *self._executable,
                 *_exclusive_option(),
+                *_device_option(),
                 "--idle=yes",
                 "--no-video",
                 "--no-terminal",
@@ -461,6 +480,14 @@ class Mpv:
         """
         self.set("audio-exclusive", "yes" if on else "no")
         self._command("ao-reload")
+
+    def set_device(self, name: str) -> None:
+        """Play to ``name`` from now on; `auto` is the system's default.
+
+        mpv opens the output again by itself when this property changes,
+        without stopping the track.
+        """
+        self.set("audio-device", name or "auto")
 
     def set_filter(self, label: str, graph: str | None) -> None:
         """Install (or drop) a labelled lavfi filter.

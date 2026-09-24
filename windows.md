@@ -1298,9 +1298,15 @@ su pantalla, como el FiiO BTR15:
 - [ ] Desactivarlo devuelve lo anterior sin reiniciar nada
 - [ ] Con `exclusive = true` en el fichero, arranca ya en exclusivo
 - [ ] La ventana `o` no ofrece las filas de PipeWire
+- [ ] **Dispositivo** en `o`, Audio: `auto · <nombre>` dice el predeterminado de
+      Windows, y `OUT` también. Elegir otro de la lista mueve el sonido allí sin
+      cortar la pista; con exclusivo, el que se toma entero es ese
+- [ ] Con un dispositivo elegido y apagado (un altavoz Bluetooth), tidalamp arranca
+      y suena por el predeterminado, y la fila dice «no conectado»
 
-Código: `player._exclusive_option`, `Mpv.set_exclusive`, `app._setting_changed`
-(«exclusive») y `backends/windows/audio.py`.
+Código: `player._exclusive_option`, `player._device_option`, `Mpv.set_exclusive`,
+`Mpv.set_device`, `app._setting_changed` («exclusive», «audio_device») y
+`backends/windows/audio.py` (`devices`, `system_default`, `connected`).
 
 ### 12.6 La terminal
 
@@ -1455,6 +1461,22 @@ Cada una puede costar una tarde si no se conoce de antemano.
     conhost de Windows 10 entienda OSC 111, y sin él el prompt se quedaría morado.
     Con opacidad o acrílico en el perfil, el margen sale algo más translúcido que las
     celdas: WT sólo aplica la transparencia al fondo por defecto.
+26. **`auto` no dice qué dispositivo es, y uno ausente es silencio.** mpv lista
+    `auto` como «Autoselect device», y es lo que salía en `OUT`; con modo
+    exclusivo hay que saber qué salida se toma entera. El predeterminado se le
+    pregunta a Windows (`IMMDeviceEnumerator`, por ctypes, sin dependencias): el id
+    de un endpoint es `{0.0.0.00000000}.{guid}` y mpv nombra el dispositivo
+    `wasapi/{guid}`, así que basta cruzar el guid. Comprobado con el mpv 0.41 de
+    winget (2026-09-24): su `auto` abre el mismo que devuelve
+    `GetDefaultAudioEndpoint(eRender, eMultimedia)`; cambiar `audio-device` en
+    marcha reabre la salida sin parar la pista, sin `ao-reload`; y con
+    `--audio-device` de un dispositivo que no está, mpv dice «Could not
+    open/initialize audio device -> no sound» y reproduce en silencio. Por eso
+    `player._device_option` deja fuera el que Windows no tiene activo, y mpv abre el
+    predeterminado. Sólo se ofrecen las salidas `wasapi/`: el exclusivo es de
+    WASAPI, y `openal` es otra vía a los mismos dispositivos. En Linux no hay fila
+    ni argumento: la salida es el sink por defecto de PipeWire, cuyo rate gestiona
+    el backend.
 
 ---
 

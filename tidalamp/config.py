@@ -124,6 +124,7 @@ ENV_VARS: dict[str, str] = {
     "jamendo_id": "TIDALAMP_JAMENDO_ID",
     "mpv_path": "TIDALAMP_MPV_PATH",
     "exclusive": "TIDALAMP_EXCLUSIVE",
+    "audio_device": "TIDALAMP_AUDIO_DEVICE",
 }
 
 
@@ -273,6 +274,12 @@ MPV_PATH = setting("mpv_path", "TIDALAMP_MPV_PATH", "")
 # without asking is a bug report waiting to arrive.
 EXCLUSIVE = flag("exclusive", "TIDALAMP_EXCLUSIVE")
 
+# Windows only: the output mpv plays to, by mpv's name for it
+# (`wasapi/{guid}`). `auto` follows the system's default output. Chosen from a
+# list in the settings, because exclusive mode takes the whole device and the
+# user has to be able to see, and say, which one that is.
+AUDIO_DEVICE = setting("audio_device", "TIDALAMP_AUDIO_DEVICE", "auto")
+
 # Key overrides, action name to key. Empty means "the defaults in app.py".
 KEYS: dict[str, str] = {
     str(action): str(key) for action, key in (FILE.get("keys") or {}).items()
@@ -347,6 +354,7 @@ def reload() -> None:
     global FILE, DEFAULT_QUALITY, ARTWORK, LANGUAGE, THEME, PALETTE, COLUMNS
     global DEBUG, TRANSPARENCY, KEYS, VISUALIZER, ARRANGEMENT, BACKDROP, COVER_SHAPE
     global AUTOPLAY, REPLAYGAIN, LIBRARY_VIEW, JAMENDO_ID, MPV_PATH, EXCLUSIVE
+    global AUDIO_DEVICE
     FILE = read_file()
     DEFAULT_QUALITY = setting("quality", "TIDALAMP_QUALITY", "HI_RES_LOSSLESS")
     ARTWORK = setting("artwork", "TIDALAMP_ART", "auto")
@@ -365,6 +373,7 @@ def reload() -> None:
     JAMENDO_ID = setting("jamendo_id", "TIDALAMP_JAMENDO_ID", "561f5c40")
     MPV_PATH = setting("mpv_path", "TIDALAMP_MPV_PATH", "")
     EXCLUSIVE = flag("exclusive", "TIDALAMP_EXCLUSIVE")
+    AUDIO_DEVICE = setting("audio_device", "TIDALAMP_AUDIO_DEVICE", "auto")
     LIBRARY_VIEW = setting("library_view", "TIDALAMP_LIBRARY_VIEW", "list")
     KEYS = {str(action): str(key) for action, key in (FILE.get("keys") or {}).items()}
 

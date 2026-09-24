@@ -1125,6 +1125,21 @@ ENGLISH: dict[str, str] = {
     "cada pista llega al DAC a su frecuencia; no suena nada más": (
         "each track reaches the DAC at its own rate; nothing else plays"
     ),
+    "Dispositivo": "Device",
+    "la salida de mpv; auto sigue la predeterminada de Windows": (
+        "mpv's output; auto follows Windows's default"
+    ),
+    "auto · {name}": "auto · {name}",
+    "no conectado; suena por el predeterminado": (
+        "not connected; playing through the default"
+    ),
+    "DISPOSITIVO DE SALIDA": "OUTPUT DEVICE",
+    "auto: el predeterminado de Windows ({name})": "auto: Windows's default ({name})",
+    "auto: el predeterminado de Windows": "auto: Windows's default",
+    "dispositivo de salida: el predeterminado de Windows": (
+        "output device: Windows's default"
+    ),
+    "dispositivo de salida cambiado": "output device changed",
     "modo exclusivo: sólo suena tidalamp, a la frecuencia de cada pista": (
         "exclusive mode: only tidalamp plays, at each track's own rate"
     ),

@@ -113,6 +113,17 @@ def sink() -> Sink:
     )
 
 
+def devices() -> list[tuple[str, str]]:
+    """No outputs to choose from here: mpv plays to PipeWire's default sink,
+    the one whose rate this backend manages, and the desktop picks it."""
+    return []
+
+
+def system_default() -> str:
+    """Not asked: see `devices`."""
+    return ""
+
+
 def streams_on(target: Sink) -> int:
     """How many playback streams the sink is carrying. -1 when unknown."""
     if target.index < 0:
