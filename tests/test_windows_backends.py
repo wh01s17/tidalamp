@@ -605,6 +605,14 @@ def test_only_windows_speaks_of_the_desktop():
     assert "escritorio" in windows_desktop.created()
     assert linux_desktop.question() == "¿AÑADIR TIDALAMP AL MENÚ DE APLICACIONES?"
     assert linux_desktop.created() == "tidalamp ya está en el menú de aplicaciones"
+    assert windows_desktop.setting() == (
+        "Accesos directos",
+        "añade tidalamp al menú Inicio y al escritorio",
+    )
+    assert linux_desktop.setting() == (
+        "Acceso directo en el menú",
+        "añade tidalamp al menú de aplicaciones",
+    )
     # The logout's «borrar también los datos» takes both, and says so.
     assert "del menú Inicio y del escritorio" in windows_desktop.data_note()
     assert linux_desktop.data_note().endswith("y el acceso directo del menú.")

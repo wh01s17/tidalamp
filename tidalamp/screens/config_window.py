@@ -282,9 +282,9 @@ class ConfigScreen(ModalScreen[None]):
                 group=general,
             ),
             Option(
-                _("Acceso directo en el menú"),
+                desktop.setting()[0],
                 action="launcher",
-                note=_("añade tidalamp al menú de aplicaciones"),
+                note=desktop.setting()[1],
                 group=general,
             ),
             Option(

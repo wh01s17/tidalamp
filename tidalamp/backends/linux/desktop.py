@@ -47,6 +47,11 @@ def created() -> str:
     return _("tidalamp ya está en el menú de aplicaciones")
 
 
+def setting() -> tuple[str, str]:
+    """The settings window's row: its name, and what it does."""
+    return _("Acceso directo en el menú"), _("añade tidalamp al menú de aplicaciones")
+
+
 def data_note() -> str:
     """What the logout window says the data is, the menu's launcher among it."""
     return _(

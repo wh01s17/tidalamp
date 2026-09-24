@@ -21,6 +21,7 @@ if sys.platform == "win32":
         existing,
         offer,
         question,
+        setting,
         user_launchers,
     )
 else:
@@ -33,6 +34,7 @@ else:
         existing,
         offer,
         question,
+        setting,
         user_launchers,
     )
 
@@ -45,5 +47,6 @@ __all__ = [
     "existing",
     "offer",
     "question",
+    "setting",
     "user_launchers",
 ]

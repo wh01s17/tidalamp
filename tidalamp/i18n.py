@@ -386,6 +386,10 @@ ENGLISH: dict[str, str] = {
     "tidalamp ya está en el menú de aplicaciones": (
         "tidalamp is now in the application menu"
     ),
+    "Accesos directos": "Shortcuts",
+    "añade tidalamp al menú Inicio y al escritorio": (
+        "adds tidalamp to the Start menu and the desktop"
+    ),
     "¿AÑADIR TIDALAMP AL MENÚ INICIO Y AL ESCRITORIO?": (
         "ADD TIDALAMP TO THE START MENU AND THE DESKTOP?"
     ),

@@ -69,6 +69,11 @@ def created() -> str:
     return _("tidalamp ya está en el menú Inicio y en el escritorio")
 
 
+def setting() -> tuple[str, str]:
+    """The settings window's row: its name, and what it does."""
+    return _("Accesos directos"), _("añade tidalamp al menú Inicio y al escritorio")
+
+
 def data_note() -> str:
     """What the logout window says the data is. Both shortcuts go with it,
     the Start menu's and the desktop's (`user_launchers`)."""
