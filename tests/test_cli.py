@@ -160,3 +160,69 @@ def test_tui_without_a_session_offers_no_launcher(monkeypatch):
     monkeypatch.setattr(desktop, "offer", lambda: pytest.fail("ofreció el lanzador"))
 
     assert runner.invoke(cli.app, ["tui"]).exit_code == 1
+
+
+# ------------------------------------------------ installing with winget
+
+
+class _Console:
+    """A stdin that is a terminal, as it is when someone runs the .exe."""
+
+    def isatty(self) -> bool:
+        return True
+
+
+@pytest.fixture
+def winget(tmp_path, monkeypatch):
+    """winget present, nothing installed, every answer yes: what ran is
+    recorded instead of running."""
+    from tidalamp import spectrum
+    from tidalamp.backends.windows import mpv as windows_mpv
+    from tidalamp.backends.windows import winget as winget_module
+
+    installed: list[str] = []
+    monkeypatch.setattr(cli.sys, "stdin", _Console())
+    monkeypatch.setattr(winget_module, "available", lambda: True)
+    monkeypatch.setattr(winget_module, "install", installed.append)
+    monkeypatch.setattr(winget_module, "DECLINED", tmp_path / "declined")
+    monkeypatch.setattr(windows_mpv, "find", lambda: None)
+    monkeypatch.setattr(spectrum, "available", lambda: False)
+    monkeypatch.setattr(config, "MPV_PATH", "")
+    monkeypatch.setattr(cli.typer, "confirm", lambda *a, **k: True)
+    return installed
+
+
+def test_a_missing_mpv_is_installed_on_a_yes_instead_of_ending_in_an_error(winget):
+    """The .exe used to stop at «mpv is not installed (winget install …)» and
+    leave the typing to the user."""
+    cli._offer_installs("win32")
+    assert winget == ["mpv", "cava"]
+
+
+def test_mpv_already_there_is_not_offered(winget, monkeypatch):
+    from tidalamp.backends.windows import mpv as windows_mpv
+
+    monkeypatch.setattr(windows_mpv, "find", lambda: r"C:\mpv\mpv.exe")
+    cli._offer_installs("win32")
+    assert winget == ["cava"]
+
+
+def test_a_no_to_cava_is_not_asked_again(winget, monkeypatch):
+    asked: list[str] = []
+
+    def no(text, **_kwargs):
+        asked.append(text)
+        return False
+
+    monkeypatch.setattr(cli.typer, "confirm", no)
+    cli._offer_installs("win32")
+    cli._offer_installs("win32")
+    assert winget == []
+    assert len(asked) == 3, "mpv twice, since nothing plays without it; cava once"
+
+
+def test_nothing_is_asked_without_a_console_or_off_windows(winget, monkeypatch):
+    cli._offer_installs("linux")
+    monkeypatch.setattr(cli.sys, "stdin", None)
+    cli._offer_installs("win32")
+    assert winget == []

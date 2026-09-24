@@ -587,7 +587,7 @@ ENGLISH: dict[str, str] = {
         "the language changes when tidalamp restarts"
     ),
     # --- track action menu
-    "reproducir o pausar (▶ / ⏸)": "play or pause (▶ / ⏸)",
+    "reproducir o pausar (▶ / {pause})": "play or pause (▶ / {pause})",
     "Menú de pista: ahora, a continuación, radio y favoritos.": (
         "Track menu: play now, play next, radio and favourites."
     ),
@@ -1083,6 +1083,15 @@ ENGLISH: dict[str, str] = {
     ),
     "{package} no está instalado ({command})": ("{package} is not installed ({command})"),
     "{package} no está instalado": "{package} is not installed",
+    "¿Instalarlo ahora con winget?": "Install it now with winget?",
+    "mpv no está instalado, y sin él no suena nada.": (
+        "mpv is not installed, and nothing plays without it."
+    ),
+    "cava no está instalado: sin él, el visualizador mide el nivel "
+    "en lugar de dibujar el espectro.": (
+        "cava is not installed: without it the visualiser shows the level "
+        "instead of drawing the spectrum."
+    ),
     "Modo exclusivo": "Exclusive mode",
     "cada pista llega al DAC a su frecuencia; no suena nada más": (
         "each track reaches the DAC at its own rate; nothing else plays"

@@ -5,6 +5,24 @@ versioning is [semantic](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **Windows: tidalamp installs mpv and cava for you.** Started without them, it asks
+  in the console whether to run `winget install` and does it, instead of stopping at
+  the command for you to type. mpv is asked for on every start until it is there,
+  since nothing plays without it; cava, the real spectrum, until you say no once.
+
+### Fixed
+
+- **Windows: closing the terminal left mpv playing**, with nothing left to stop it
+  but the Task Manager. mpv and cava are now tied to tidalamp's process and end with
+  it, however it ends: a closed window, a crash, a `taskkill`.
+- **Windows: the `.exe` drew no cover**, in any mode. The 0.16.0 zip was built
+  without Pillow; the release now builds it with, and its smoke test fails without.
+- **Windows: the pause button was a blue emoji.** The terminal's font has no `⏸`,
+  and the fallback Windows finds is Segoe UI Emoji; it is `‖` there now. Linux keeps
+  `⏸`.
+
 ## [0.16.0] - 2026-09-23
 
 ### Added

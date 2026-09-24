@@ -89,7 +89,7 @@ def test_the_shortcuts_come_from_the_resolver_not_from_the_defaults():
     sections = about.shortcuts(keys)
     assert "play" in asked
     rows = [row for section in sections for row in section.rows]
-    assert ("ctrl+j", "reproducir o pausar (▶ / ⏸)") in rows
+    assert ("ctrl+j", f"reproducir o pausar (▶ / {about.PAUSE})") in rows
 
 
 def test_every_section_has_a_title_and_rows():
@@ -98,3 +98,10 @@ def test_every_section_has_a_title_and_rows():
         assert section.rows
         for key, description in section.rows:
             assert key and description
+
+
+def test_pause_is_not_an_emoji_on_windows():
+    """In Windows Terminal «⏸» fell back to Segoe UI Emoji and the transport
+    showed a blue emoji button. Linux keeps the glyph it always had."""
+    assert about.pause_glyph("win32") == "‖"
+    assert about.pause_glyph("linux") == "⏸"

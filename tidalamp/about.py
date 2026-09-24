@@ -10,6 +10,7 @@ Nothing here imports Textual, so it stays testable without an app.
 
 from __future__ import annotations
 
+import sys
 from dataclasses import dataclass, field
 
 from . import __version__
@@ -19,6 +20,20 @@ REPO_URL = "https://github.com/wh01s17/tidalamp"
 AUTHOR = "wh01s17"
 LICENSE = "GPL-3.0-or-later"
 LICENSE_URL = "https://www.gnu.org/licenses/gpl-3.0.html"
+
+
+def pause_glyph(platform: str = sys.platform) -> str:
+    """The pause sign of the transport and the help.
+
+    «⏸» where the terminal's font draws it. On Windows it does not (Consolas
+    lacks it, for one), and the fallback Windows finds is Segoe UI Emoji: a
+    blue emoji button in the middle of the theme. «‖» is in Consolas, and
+    takes one cell like «▶», so the button keeps its width.
+    """
+    return "‖" if platform == "win32" else "⏸"
+
+
+PAUSE = pause_glyph()
 
 
 def version() -> str:
@@ -315,7 +330,7 @@ def shortcuts(keys) -> tuple[Section, ...]:
         Section(
             _("Reproducción"),
             (
-                (key("play"), _("reproducir o pausar (▶ / ⏸)")),
+                (key("play"), _("reproducir o pausar (▶ / {pause})").format(pause=PAUSE)),
                 (key("stop"), _("detener")),
                 (key("prev"), _("pista anterior")),
                 (key("next"), _("pista siguiente")),

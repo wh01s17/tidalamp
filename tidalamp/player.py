@@ -267,7 +267,7 @@ class Mpv:
 
     def _spawn(self) -> subprocess.Popen:
         self._transport.prepare()
-        return subprocess.Popen(
+        proc = subprocess.Popen(
             [
                 *self._executable,
                 *_exclusive_option(),
@@ -292,6 +292,13 @@ class Mpv:
             stderr=subprocess.DEVNULL,
             creationflags=_NO_WINDOW,
         )
+        if sys.platform == "win32":
+            # Closing the terminal does not take mpv with it there, and it
+            # would play on with no app left to stop it (backends/windows/job.py).
+            from .backends.windows.job import tie
+
+            tie(proc)
+        return proc
 
     def _connect(self, timeout: float = 5.0) -> None:
         self._transport.connect(timeout)

@@ -74,8 +74,24 @@ if sys.platform == "win32":
 
 
 def _command() -> list[str] | None:
-    """What runs cava, or None when it is not installed."""
-    return ["cava"] if shutil.which("cava") is not None else None
+    """What runs cava, or None when it is not installed.
+
+    On Windows also where winget links it, which this process does not have on
+    its PATH when winget installed it a moment ago (`cli._offer_installs`)."""
+    if shutil.which("cava") is not None:
+        return ["cava"]
+    if sys.platform == "win32":
+        from .backends.windows.winget import linked
+
+        found = linked("cava.exe")
+        if found is not None:
+            return [found]
+    return None
+
+
+def available() -> bool:
+    """Whether cava is installed where we can find it."""
+    return _command() is not None
 
 
 class Cava:
@@ -105,6 +121,11 @@ class Cava:
             stderr=subprocess.DEVNULL,
             creationflags=_NO_WINDOW,
         )
+        if sys.platform == "win32":
+            # Like mpv: it would outlive a closed terminal (backends/windows/job.py).
+            from .backends.windows.job import tie
+
+            tie(self._proc)
         self._thread = threading.Thread(target=self._read_frames, daemon=True)
         self._thread.start()
 

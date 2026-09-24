@@ -13,7 +13,9 @@ the transport that ships is the one under test on both systems.
 Three environment variables make it misbehave the ways a real one can:
 ``FAKE_MPV_HANG_ON`` names a command it receives and then never answers,
 ``FAKE_MPV_EOF_ON`` one on which it closes the socket, and ``FAKE_MPV_SPLIT``
-sends every reply a few bytes at a time.
+sends every reply a few bytes at a time. A fourth, ``FAKE_MPV_LINGER``, makes
+it stay up once its client is gone, as a real ``mpv --idle`` does: by default
+it exits then, so a test that forgets to close it leaves nothing behind.
 """
 
 from __future__ import annotations
@@ -213,6 +215,8 @@ def serve(path):
     while True:
         chunk = conn.recv(65536)
         if not chunk:
+            if os.environ.get("FAKE_MPV_LINGER"):
+                time.sleep(3600)
             return
         buf += chunk
         while b"\n" in buf:

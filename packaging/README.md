@@ -99,7 +99,7 @@ al momento y levanta menos sospechas en los antivirus), consola, el icono
 
 El job `windows-exe` de `release.yml` la construye en `windows-latest`, pasa
 `packaging/windows/smoke.py` (arranca `tidalamp tui` sin sesión, que importa el
-reproductor entero, y busca las hojas de estilo y los emblemas) y adjunta el zip y su
+reproductor entero, y busca las hojas de estilo, los emblemas y Pillow) y adjunta el zip y su
 SHA-256 a un borrador del Release. Se puede lanzar a mano desde Actions
 (**Run workflow**) para probar la receta sin publicar nada; el zip queda como
 artefacto del run.
@@ -107,7 +107,7 @@ artefacto del run.
 En local, la misma receta sirve en Linux para probarla:
 
 ```sh
-pip install pyinstaller
+pip install ".[art]" pyinstaller     # sin [art] no hay Pillow, y sin Pillow no hay carátula
 pyinstaller packaging/windows/tidalamp.spec --noconfirm
 python packaging/windows/smoke.py dist/tidalamp
 ```

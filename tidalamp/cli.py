@@ -57,6 +57,7 @@ def tui() -> None:
         typer.secho(str(exc), fg=typer.colors.RED)
         raise typer.Exit(1) from exc
 
+    _offer_installs()
     try:
         mpv = Mpv()
     except MpvNotFound as exc:
@@ -71,6 +72,47 @@ def tui() -> None:
         application.run()
     finally:
         mpv.close()
+
+
+def _offer_installs(platform: str = sys.platform) -> None:
+    """On Windows, offer to install with winget what is missing: mpv, without
+    which nothing plays, every time; cava, the real spectrum, until a no.
+
+    Asked here, in the console, before the interface takes it over: winget
+    shows its progress there, and the mpv installer asks for elevation.
+    Linux has no such thing: the message says which command to run.
+    """
+    if platform != "win32" or sys.stdin is None or not sys.stdin.isatty():
+        return
+    from . import spectrum
+    from .backends.windows import mpv as windows_mpv
+    from .backends.windows import winget
+
+    if not winget.available():
+        return
+
+    def offer(package: str) -> bool:
+        if not typer.confirm(_("¿Instalarlo ahora con winget?"), default=True):
+            return False
+        typer.echo(" ".join(winget.command(package)))
+        winget.install(package)
+        return True
+
+    if not settings.MPV_PATH and windows_mpv.find() is None:
+        typer.secho(
+            _("mpv no está instalado, y sin él no suena nada."),
+            fg=typer.colors.YELLOW,
+        )
+        offer("mpv")
+    if not spectrum.available() and not winget.declined("cava"):
+        typer.echo(
+            _(
+                "cava no está instalado: sin él, el visualizador mide el nivel "
+                "en lugar de dibujar el espectro."
+            )
+        )
+        if not offer("cava"):
+            winget.decline("cava")
 
 
 @app.command(

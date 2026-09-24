@@ -1297,7 +1297,8 @@ class TidalAmp(App):
             prev = "◀" if self._compact else "◀◀"
             # «⏸», the pause of the media keys, in one cell like «▶»: two
             # heavy bars would be two, and the button must not change width.
-            play = "⏸" if playing else "▶"
+            # «‖» on Windows, where «⏸» comes out an emoji (`about.pause_glyph`).
+            play = about.PAUSE if playing else "▶"
             stop = "■"
             nxt = "▶" if self._compact else "▶▶"
             on, off = "⬤", "◯"

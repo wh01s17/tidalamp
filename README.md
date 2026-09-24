@@ -96,10 +96,14 @@ The test suite runs on Windows, but real playback there has not been tried yet. 
 follows is how it is meant to work; reports are welcome.
 
 ```powershell
-winget install shinchiro.mpv       # or: scoop install extras/mpv, choco install mpv
 pipx install "tidalamp[art]"       # or: uv tool install "tidalamp[art]"
 tidalamp
 ```
+
+Without mpv, tidalamp offers to install it with winget on the first start (and cava,
+for the real spectrum), and does so on a yes: the mpv installer asks for administrator
+rights. You can also install it yourself beforehand: `winget install shinchiro.mpv`,
+`scoop install extras/mpv` or `choco install mpv`.
 
 winget's mpv lands in `Program Files\MPV Player` and stays off the PATH; tidalamp looks
 there, and in scoop's and Chocolatey's folders, by itself. If yours is elsewhere, set

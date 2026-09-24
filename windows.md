@@ -1117,11 +1117,20 @@ Se queda en `ubuntu-latest` (ruff y mypy son estáticos), pero mypy corre dos ve
 - **Icono del ejecutable:** `icon="tidalamp/tidalamp.ico"`.
 - **Resolución de rutas:** cualquier código que use `__file__` para encontrar un recurso
   hay que revisarlo; en el `.exe` debe usarse `importlib.resources`.
-- **mpv no va dentro, de momento.** Es GPL, pesa ~30 MB y se actualiza por su cuenta.
-  El `.exe` lo busca como en §7.1 y, si falta, `distro.missing("mpv")` dice cómo
-  instalarlo. Si más adelante se quiere un paquete «todo incluido», que sea un segundo
-  zip (`-with-mpv`) con la licencia de mpv al lado, y que `Mpv` busque primero junto a
-  `sys.executable`.
+- **mpv no va dentro: se instala con winget al primer arranque** (decidido el
+  2026-09-24, probando el zip de la 0.16.0). Es GPL, pesa ~30 MB y se actualiza por su
+  cuenta; meterlo en el zip obliga a fijar un build de shinchiro (nocturnos, que
+  caducan) y a acompañarlo de licencia y fuentes. En su lugar, `cli._offer_installs`
+  pregunta en la consola, antes de abrir la interfaz, y lanza
+  `winget install --id shinchiro.mpv --exact` a la vista (su instalador pide UAC).
+  mpv se pregunta en cada arranque hasta que esté; cava (`karlstav.cava`) hasta el
+  primer «no», que se guarda en `%LOCALAPPDATA%\tidalamp\state\declined`. Sin winget,
+  o sin consola, lo de siempre: `distro.missing("mpv")` dice el comando. Mecanismo en
+  `backends/windows/winget.py`. Si algún día se quiere un zip «todo incluido», que sea
+  un segundo zip (`-with-mpv`) y que `Mpv` busque primero junto a `sys.executable`.
+- **Pillow va dentro.** El zip de la 0.16.0 se construyó con `pip install .`, sin
+  `[art]`: sin decodificador no hay carátula en ningún modo y ningún error lo dice.
+  `release.yml` instala `.[art]` y `smoke.py` falla si falta `PIL/_imaging*`.
 
 ### 10.3 `release.yml`
 
@@ -1137,7 +1146,7 @@ toca. Se añade uno en paralelo:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
-      - run: python -m pip install . pyinstaller
+      - run: python -m pip install ".[art]" pyinstaller
       - run: pyinstaller packaging/windows/tidalamp.spec --noconfirm
       - name: Smoke test
         run: dist/tidalamp/tidalamp.exe --version
@@ -1386,6 +1395,21 @@ Cada una puede costar una tarde si no se conoce de antemano.
 18. **`GetOverlappedResult` de una lectura no lanza con `ERROR_BROKEN_PIPE` ni con
     `ERROR_MORE_DATA`**: los devuelve como código, igual que los trata
     `multiprocessing.connection`. El esquema de §7.1 los esperaba como excepción.
+20. **Cerrar la terminal no cierra mpv.** En Linux el SIGHUP llega a todo el grupo de
+    procesos; en Windows el `CTRL_CLOSE_EVENT` sólo a los procesos de *esa* consola, y
+    mpv, lanzado con `CREATE_NO_WINDOW`, tiene una oculta propia. Python muere sin
+    limpiar nada (ni `close()` ni `atexit`) y mpv sigue sonando. Arreglo:
+    `backends/windows/job.py` mete mpv y cava en un *job object* con
+    `JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE`; el kernel cierra nuestro handle al morir el
+    proceso, sea como sea, y se lleva a los hijos. tidalamp **no** entra en el job: lo
+    heredaría todo lo que lance, incluido el navegador del login. El test
+    (`tests/test_job_windows.py`) necesita `FAKE_MPV_LINGER`: el mpv falso sale solo
+    al perder al cliente y ocultaba el fallo.
+21. **`⏸` sale como emoji azul en Windows Terminal.** La fuente del terminal no lo
+    tiene y el respaldo que encuentra Windows es Segoe UI Emoji, en color.
+    `about.pause_glyph` pone `‖` en Windows: una celda, como `▶`. Comprobado que
+    Consolas trae `‖` y no `⏸` (2026-09-24); la Cascadia de Windows Terminal está en
+    `WindowsApps` y no se deja leer.
 
 ---
 

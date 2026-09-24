@@ -51,6 +51,10 @@ def main(folder: str) -> int:
             failures.append(f"missing stylesheet: {sheet}.tcss")
     if not any(root.rglob("tidalamp/emblems/*.png")):
         failures.append("missing emblems")
+    # Imported only when a cover is drawn, and its absence is not an error:
+    # the cover is just never there. The 0.16.0 zip shipped that way.
+    if not any(root.rglob("PIL/_imaging*")):
+        failures.append("missing Pillow: no cover can be drawn")
 
     for failure in failures:
         print(f"FAIL {failure}", file=sys.stderr)

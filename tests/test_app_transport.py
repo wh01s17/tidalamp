@@ -18,8 +18,8 @@ from app_helpers import (
     wait_for,
 )
 
+from tidalamp import about, artwork
 from tidalamp import app as app_module
-from tidalamp import artwork
 from tidalamp import audio as audio_module
 from tidalamp.app import TidalAmp
 from tidalamp.player import Mpv
@@ -116,13 +116,13 @@ def test_play_and_pause_are_one_button_showing_what_it_will_do(monkeypatch):
             # Stopped: the button offers to play, and there is no second one.
             drawn = transport(application)
             assert "x ▶" in drawn
-            assert drawn.count("⏸") == 0
+            assert drawn.count(about.PAUSE) == 0
 
             application.queue.replace(
                 [Entry(id=1, title="t", artist="a", duration=9)], start=0
             )
             mpv.idle = False
-            await wait_for(pilot, lambda: "x ⏸" in transport(application))
+            await wait_for(pilot, lambda: f"x {about.PAUSE}" in transport(application))
             drawn = transport(application)
             assert drawn.count("▶") == 2, "los dos del ▶▶ de «siguiente», y ninguno más"
 

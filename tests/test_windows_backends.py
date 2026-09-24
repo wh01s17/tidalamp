@@ -442,3 +442,58 @@ def test_a_logout_that_takes_the_data_takes_the_shortcut(start_menu, monkeypatch
         marker=start_menu["marker"], executable=r"C:\t\tidalamp.exe"
     )
     assert windows_desktop.user_launchers() == [made]
+
+
+# ---------------------------------------------------------------- winget
+
+
+def test_winget_installs_the_exact_ids_distro_names():
+    from tidalamp.backends.windows import winget
+
+    for package, identifier in winget.IDS.items():
+        call = winget.command(package)
+        assert call[:4] == ["winget", "install", "--id", identifier]
+        assert "--exact" in call
+        assert identifier in windows_distro._COMMANDS["winget"][package]
+
+
+def test_winget_install_answers_by_exit_code_and_survives_no_winget():
+    import subprocess
+
+    from tidalamp.backends.windows import winget
+
+    def ran(code):
+        return lambda args: subprocess.CompletedProcess(args, code)
+
+    def gone(args):
+        raise FileNotFoundError(args[0])
+
+    assert winget.install("mpv", run=ran(0))
+    assert not winget.install("mpv", run=ran(1))
+    assert not winget.install("mpv", run=gone)
+
+
+def test_cava_just_installed_is_found_although_the_path_is_stale(tmp_path):
+    """winget adds its Links folder to the PATH of processes started later;
+    the one that ran it would not find cava until restarted."""
+    from tidalamp.backends.windows import winget
+
+    links = tmp_path / "Microsoft/WinGet/Links"
+    env = {"LOCALAPPDATA": str(tmp_path)}
+    assert winget.linked("cava.exe", env) is None
+    links.mkdir(parents=True)
+    (links / "cava.exe").write_bytes(b"")
+    assert winget.linked("cava.exe", env) == str(links / "cava.exe")
+    assert winget.linked("cava.exe", {}) is None
+
+
+def test_a_declined_package_is_remembered_alone(tmp_path):
+    from tidalamp.backends.windows import winget
+
+    marker = tmp_path / "state" / "declined"
+    assert not winget.declined("cava", marker)
+    winget.decline("cava", marker)
+    winget.decline("cava", marker)
+    assert winget.declined("cava", marker)
+    assert not winget.declined("mpv", marker)
+    assert marker.read_text(encoding="utf-8") == "cava\n"
