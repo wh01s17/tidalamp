@@ -3,8 +3,9 @@
 Esta es la guía completa para crear una versión de tidalamp y publicarla en los tres
 lugares que usa el proyecto:
 
-1. **PyPI**, para instalarla con `pipx` o `pip` en distribuciones Linux.
-2. **GitHub Releases**, como página pública de la versión y sus notas.
+1. **PyPI**, para instalarla con `pipx` o `pip`, en Linux y en Windows.
+2. **GitHub Releases**, como página pública de la versión y sus notas, con el zip de
+   `tidalamp.exe` para Windows que adjunta el job `windows-exe`.
 3. **AUR**, para instalarla en Arch Linux con todas sus dependencias del sistema.
 
 El orden importa. Primero se prepara y valida el código, después se crea el tag —que
@@ -698,6 +699,74 @@ crear la cuenta y completar esa configuración. El ciclo normal es:
 Una corrección exclusiva del `PKGBUILD` no necesita versión nueva de PyPI ni nuevo
 GitHub Release: incrementa sólo `pkgrel`, regenera `.SRCINFO`, prueba y publica el
 commit en el AUR.
+
+## 12. Desde Windows
+
+Todo lo anterior está escrito para bash en Linux. Desde Windows se puede publicar igual,
+con PowerShell, salvo lo que necesita `makepkg`. Las variables:
+
+```powershell
+$TIDALAMP_VERSION = "0.16.0"
+$TIDALAMP_TAG = "v$TIDALAMP_VERSION"
+```
+
+**§3.2, la versión en cinco sitios.** Los cuatro primeros se editan a mano igual. El
+`?v=` del README:
+
+```powershell
+(Get-Content README.md -Raw) -replace '\?v=[0-9.]+(["\)])', "?v=$TIDALAMP_VERSION`$1" |
+  Set-Content README.md -NoNewline -Encoding utf8
+```
+
+En `packaging/aur/PKGBUILD`, `pkgver`, `pkgrel=1` y `sha256sums=('SKIP')`.
+
+**§3.4, `.SRCINFO` sin `makepkg`.** Es texto: en `packaging/aur/.SRCINFO` cambia a
+mano la versión en las líneas `pkgver =` y `source =` (dos veces en esta última: el
+nombre del fichero y la URL del tag) y deja `sha256sums = SKIP`. Nada más cambia de
+una versión a otra mientras no cambien las dependencias; si cambian, regenéralo desde
+Linux.
+
+**§4, validar:**
+
+```powershell
+.venv\Scripts\ruff check .
+.venv\Scripts\ruff format --check .
+.venv\Scripts\mypy --platform linux
+.venv\Scripts\mypy --platform win32
+.venv\Scripts\python -m pytest -q
+git diff --check
+
+$build = Join-Path $env:TEMP "tidalamp-build"
+Remove-Item $build -Recurse -ErrorAction SilentlyContinue
+.venv\Scripts\python -m pip install build twine
+.venv\Scripts\python -m build --outdir $build
+.venv\Scripts\python -m twine check "$build\*"
+
+$venv = Join-Path $env:TEMP "tidalamp-wheel"
+python -m venv $venv
+& "$venv\Scripts\pip" install (Get-ChildItem "$build\tidalamp-*.whl").FullName
+& "$venv\Scripts\tidalamp" --help
+```
+
+Desde Windows se valida además lo que Linux no ve: que el wheel instala los paquetes
+`winrt-*` y no `dbus-fast`.
+
+**§5 a §7**, el commit, el tag, PyPI y el Release: los mismos comandos de `git` y `gh`.
+El job `windows-exe` construye el zip, le pasa la prueba de humo y lo deja en un
+borrador del Release (§7).
+
+**§8.1, el checksum del AUR sin `updpkgsums`.** Con el tag ya publicado:
+
+```powershell
+$url = "https://github.com/wh01s17/tidalamp/archive/refs/tags/$TIDALAMP_TAG.tar.gz"
+Invoke-WebRequest $url -OutFile "$env:TEMP\tidalamp.tar.gz"
+(Get-FileHash "$env:TEMP\tidalamp.tar.gz" -Algorithm SHA256).Hash.ToLower()
+```
+
+Ese hash sustituye a `SKIP` en `PKGBUILD` (`sha256sums=('...')`) y en `.SRCINFO`
+(`sha256sums = ...`), y va al commit de §8.3. **§8.2 y §8.4 en adelante** (construir
+el paquete, `namcap`, subir al AUR) necesitan Arch: quedan para cuando se vuelva a
+Linux, y no bloquean ni PyPI ni el Release.
 
 ## Referencias oficiales
 

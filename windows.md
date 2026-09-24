@@ -8,10 +8,17 @@ que se decidió, y en español porque lo lee el mantenedor (ver `CONTRIBUTING.md
 
 **Punto de partida:** `tidalamp` v0.15.0 (`02dc6ea`). Ni una línea de Windows todavía.
 
+**Estado (2026-09-23, v0.16.0):** las siete fases están escritas. La suite pasa en
+`windows-latest` (3.11 y 3.14) y el `.exe` se construye y pasa su prueba de humo en
+CI. **Nadie ha reproducido música en una máquina Windows todavía**: eso es §12, y es
+lo siguiente. Quien lo haga y quiera arreglar algo desde Windows tiene el entorno en
+`CONTRIBUTING.md` («Setting up», «Windows») y, en §12, qué fichero mirar para cada
+fallo. El estado fase a fase está en §15.
+
 **Qué sustituye:** el fork `wh01s17/tidalamp-win` (copia de la v0.13.0 con un plan de
-migración propio). Ese plan sigue siendo la mejor fuente para los detalles de Windows y
-buena parte de este documento lo reutiliza, pero su premisa —un fork duro— se descarta.
-§1 explica por qué.
+migración propio). Buena parte de este documento reutiliza su plan, pero su premisa —un
+fork duro— se descartó; §1 explica por qué. **El fork ya no existe**: el mantenedor lo
+borró de GitHub y del disco el 2026-09-23. Lo que tenía de útil está aquí.
 
 ---
 
@@ -29,7 +36,7 @@ buena parte de este documento lo reutiliza, pero su premisa —un fork duro— s
 9. [CI](#9-ci)
 10. [Empaquetado y el `.exe`](#10-empaquetado-y-el-exe)
 11. [Documentación y skills que hay que actualizar](#11-documentación-y-skills-que-hay-que-actualizar)
-12. [Checklist manual en Windows](#12-checklist-manual-en-windows)
+12. [Probar en Windows, paso a paso](#12-probar-en-windows-paso-a-paso)
 13. [Trampas conocidas](#13-trampas-conocidas)
 14. [Qué hacer con `tidalamp-win`](#14-qué-hacer-con-tidalamp-win)
 15. [Estado](#15-estado)
@@ -1179,31 +1186,147 @@ Capturas (`img/*.webp`): una en Windows Terminal para el README. No bloquea nada
 
 ---
 
-## 12. Checklist manual en Windows
+## 12. Probar en Windows, paso a paso
 
 La suite verde no demuestra ninguno de estos puntos. Se hace en una máquina Windows real
-(o una VM con audio) antes de publicar la primera versión con soporte.
+con audio, en este orden: cada paso da por bueno el anterior. Marca cada casilla aquí
+mismo al comprobarla, con la fecha, y apunta lo que no salió como se esperaba.
 
-- [ ] `pip install tidalamp` (y `uv tool install tidalamp`) sin errores en 3.11 y 3.14
-- [ ] `tidalamp --version` responde sin sesión y sin mpv
-- [ ] Sin mpv instalado, el mensaje dice el comando de winget/scoop/choco correcto
-- [ ] `tidalamp login` muestra la URL con acentos y `«»` bien, también con la salida redirigida
+**Qué recoger cuando algo falla.** Lanza con el registro de depuración y adjunta el log:
+
+```powershell
+$env:TIDALAMP_DEBUG = "1"; tidalamp
+# el log: %LOCALAPPDATA%\tidalamp\state\tidalamp.log
+```
+
+Más una captura de la ventana y el texto exacto de la línea de estado. La versión de
+Windows (`winver`), la de Python (`python --version`) y la terminal (Windows Terminal o
+conhost) van en cada informe.
+
+### 12.1 Instalar
+
+```powershell
+winget install shinchiro.mpv
+winget install karlstav.cava                 # opcional: el espectro
+pipx install "tidalamp[art]"                 # o: uv tool install "tidalamp[art]"
+```
+
+- [ ] Instala sin errores. `pip` baja los paquetes `winrt-*` y **no** `dbus-fast`
+- [ ] `tidalamp --version` dice `tidalamp 0.16.0` sin sesión y sin mpv
+- [ ] En una terminal **nueva**, `tidalamp tui` sin haber hecho login dice cómo hacerlo
+- [ ] Sin mpv (antes de instalarlo, o renombrando `Program Files\MPV Player`), el aviso
+      dice `winget install shinchiro.mpv`. Si mpv no aparece estando instalado:
+      `backends/windows/mpv.py` (`PLACES`), y el ajuste `mpv_path` como salida
+
+### 12.2 Primer arranque
+
+```powershell
+tidalamp login
+tidalamp
+```
+
+- [ ] `tidalamp login` muestra la URL, y los acentos y `«»` salen bien. También con la
+      salida redirigida: `tidalamp login > login.txt` y abrir el fichero
+      (`cli._utf8_output`)
+- [ ] Abre sin que parpadee una consola negra, ni al arrancar ni al relanzar mpv
+      (`CREATE_NO_WINDOW` en `player.py` y `spectrum.py`)
+- [ ] La interfaz está en el idioma de Windows (`i18n._windows_ui_language`)
+- [ ] Se ofrece el acceso directo **una vez**. «Sí» crea
+      `%APPDATA%\Microsoft\Windows\Start Menu\Programs\TidalAmp.lnk`, aparece en el
+      menú Inicio con el icono y abre en Windows Terminal. Un «no» no vuelve a
+      preguntarse (`backends/windows/desktop.py`)
 - [ ] `tidalamp config` crea `%APPDATA%\tidalamp\config.toml`
-- [ ] `tidalamp tui` abre sin parpadeo de consola negra
-- [ ] Reproduce; la posición avanza; `z` `x` `c` `v` responden
-- [ ] Cambio de pista sin corte (gapless: `--prefetch-playlist=yes`)
-- [ ] Matar `mpv.exe` desde el Administrador de tareas → la app lo relanza con el mismo volumen
-- [ ] Dos instancias a la vez no se pisan el pipe
-- [ ] 24/96 llega a 96 kHz con `exclusive`; sin `exclusive`, las notificaciones siguen sonando
-- [ ] La portada se ve (medios bloques como mínimo) en Windows Terminal **y** en conhost
-- [ ] El visualizador de espectro funciona o cae al medidor RMS sin error visible
-- [ ] Se ofrece el acceso directo una vez; un «no» no se repite; abre en Windows Terminal
-- [ ] Interfaz en inglés en un Windows en inglés y en español en uno en español
-- [ ] «Cerrar sesión» con la casilla borra config, cola, caché y acceso directo, y **nada** fuera de `%APPDATA%`/`%LOCALAPPDATA%`
-- [ ] `%LOCALAPPDATA%\tidalamp\cache` no acumula `.m3u8` tras varias sesiones
-- [ ] (F5) Título y artista en el panel multimedia; las teclas multimedia funcionan
-- [ ] (F6) El zip del release se descomprime y `tidalamp.exe tui` funciona en una máquina sin Python
-- [ ] **En Linux, nada ha cambiado**: una sesión normal en Omarchy/Arch con MPRIS, espectro y tasas de PipeWire
+
+### 12.3 Reproducir: mpv por el named pipe
+
+- [ ] `/`, buscar, `↵`: suena. La posición avanza; `z` `x` `c` `v` responden
+- [ ] El paso de una pista a otra no tiene corte (gapless)
+- [ ] **Matar `mpv.exe`** en el Administrador de tareas: en unos segundos vuelve a
+      sonar desde donde iba y con el mismo volumen. Es el camino de `Mpv.restart()`
+- [ ] Dos tidalamp a la vez: cada uno suena y ninguno se lleva el pipe del otro
+      (`config.IPC_PIPE` lleva el pid)
+- [ ] Tras varias sesiones con pistas hi-res, `%LOCALAPPDATA%\tidalamp\cache` no
+      acumula ficheros `.m3u8`
+
+Si mpv no responde o la app lo relanza sin parar: `backends/windows/pipe.py`, y las
+trampas 1 a 3 y 18 de §13. `tests/test_player.py` corre contra el pipe de verdad en
+Windows: `.venv\Scripts\python -m pytest tests/test_player.py -q`.
+
+### 12.4 Teclas multimedia y panel de Windows (SMTC)
+
+La pieza con más incertidumbre del plan (§7.2).
+
+- [ ] Con algo sonando, el panel multimedia (el que sale sobre el control de volumen,
+      o `Win+A`) muestra título, artista, álbum y portada
+- [ ] Las teclas multimedia del teclado: reproducir/pausa, siguiente, anterior
+- [ ] Los botones del panel hacen lo mismo, y su barra de posición mueve la pista
+- [ ] La línea de estado **no** dice «controles multimedia no disponibles». Si lo dice,
+      apunta el texto entre paréntesis: es el error de WinRT
+
+Si no aparece nada: el problema conocido es que SMTC pide una ventana, y la salida que
+usa `backends/windows/media.py` (los controles de un `MediaPlayer`) podría no valer
+para un programa lanzado desde una terminal y sin empaquetar. El plan B es una ventana
+oculta con su propio bucle de mensajes (§7.2), bastante más trabajo. Prueba antes con
+el `.exe` del zip (§12.7), que es un programa «de verdad» para Windows.
+
+### 12.5 Audio: modo exclusivo
+
+Con una pista 24/96 (se ve en la insignia `SRC`) y un DAC que enseñe la frecuencia en
+su pantalla, como el FiiO BTR15:
+
+- [ ] Sin modo exclusivo (`o`, Audio): suena, la insignia `OUT` dice la frecuencia del
+      formato del dispositivo en Windows (Sonido → Propiedades → Opciones avanzadas), y
+      las notificaciones del sistema **siguen sonando** a la vez
+- [ ] Activar **Modo exclusivo** en `o`: la pista sigue sin cortarse, `OUT` pasa a
+      96 kHz y el DAC marca 96K. Las notificaciones ya no suenan
+- [ ] Desactivarlo devuelve lo anterior sin reiniciar nada
+- [ ] Con `exclusive = true` en el fichero, arranca ya en exclusivo
+- [ ] La ventana `o` no ofrece las filas de PipeWire
+
+Código: `player._exclusive_option`, `Mpv.set_exclusive`, `app._setting_changed`
+(«exclusive») y `backends/windows/audio.py`.
+
+### 12.6 La terminal
+
+- [ ] En **Windows Terminal**: la portada se ve en medios bloques, sin cuadros vacíos, y
+      los colores del tema son los de siempre
+- [ ] Con `TIDALAMP_ART=sixel` en Windows Terminal (1.22 o más nueva): la portada con
+      sixel. Si se ve bien, se puede proponer como opción por defecto ahí
+- [ ] Con `TIDALAMP_SEXTANTS=1`: si la fuente los trae, la portada con más detalle; si
+      salen cuadros vacíos, la fuente no los tiene y el valor por defecto acierta
+- [ ] En **conhost** (la consola clásica, `conhost.exe` desde Ejecutar): abre, se ve y
+      responde, aunque con peores colores
+- [ ] El espectro: con cava instalado, la fila del analizador se mueve con la música; sin
+      él, el medidor RMS, y ningún error a la vista (`spectrum.py`, método `winscap`)
+
+Código: `artwork.detect_protocol` y `artwork.draws_sextants`.
+
+### 12.7 El `.exe` sin Python
+
+En una máquina, o un usuario, sin Python instalado:
+
+- [ ] El zip del Release de la 0.16.0 se descomprime y `tidalamp.exe` abre la interfaz
+- [ ] SmartScreen avisa la primera vez (no está firmado) y deja seguir
+- [ ] Todo §12.3 y §12.4 vuelve a funcionar desde el `.exe`
+
+### 12.8 Cerrar sesión
+
+- [ ] `o`, Cerrar sesión, con la casilla de borrar los datos: desaparecen
+      `%APPDATA%\tidalamp`, las carpetas `cache` y `state` de
+      `%LOCALAPPDATA%\tidalamp` (la carpeta en sí puede quedar, vacía) y el acceso
+      directo, y **nada** más (`auth.forgotten`)
+
+### 12.9 Y en Linux, nada ha cambiado
+
+- [ ] De vuelta en Omarchy/Arch: una sesión normal con MPRIS, espectro, tasas de
+      PipeWire y el lanzador, como antes de la 0.16.0
+
+### Después de §12
+
+Con todo marcado: el clasificador `Operating System :: Microsoft :: Windows` en
+`pyproject.toml`, quitar «preview» del README (frase de entrada, «Windows (preview)» y
+la tabla de plataformas) y del CHANGELOG de la versión siguiente, una captura en
+Windows Terminal para el README.
 
 ---
 
@@ -1265,10 +1388,12 @@ Cada una puede costar una tarde si no se conoce de antemano.
 
 ## 14. Qué hacer con `tidalamp-win`
 
-- Su `windows.md` es la fuente de muchos detalles de este documento; no hay nada en ese
-  repo que no esté aquí o que no esté desfasado.
-- **Archivarlo en GitHub** (Settings → Archive) con un README de una línea que apunte a
-  este repo, en vez de borrarlo: así no rompe enlaces y deja claro que no es el camino.
+**Hecho, de otra manera** (2026-09-23): el mantenedor borró el repositorio de GitHub y
+la copia del disco, en lugar de archivarlo como proponía este apartado. No queda nada
+que enlazar ni que mantener.
+
+- Su `windows.md` fue la fuente de muchos detalles de este documento; no había nada en
+  ese repo que no esté aquí o que no estuviera desfasado.
 - No reservar el nombre `tidalamp-win` en PyPI: el paquete es `tidalamp` en todas las
   plataformas.
 
@@ -1336,4 +1461,5 @@ Cada una puede costar una tarde si no se conoce de antemano.
   `plan.md`, `next.md`, `publish.md`, `packaging/README.md` y las skills
   `tidalamp-mpv-ipc` y `tidalamp-mpris-contract` al día (2026-09-23). **Falta la
   captura** en Windows Terminal, que pide una máquina real.
-- [ ] `tidalamp-win` archivado
+- [x] `tidalamp-win` retirado: borrado de GitHub y del disco por el mantenedor
+  (2026-09-23)

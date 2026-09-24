@@ -11,6 +11,8 @@
 
 ## Setting up
 
+### Linux
+
 ```sh
 python -m venv .venv
 .venv/bin/pip install -e ".[dev]"
@@ -20,10 +22,58 @@ python -m venv .venv
 You need `mpv` on the system. `cava` is optional (a real spectrum) and so is
 `dbus-daemon` — without it the MPRIS integration skips itself rather than failing.
 
-On Windows the same, with `.venv\Scripts\pip` and `.venv\Scripts\python`. The suite
-does not need mpv there either: it runs a fake one over a named pipe. If a test fails
-with a `FileNotFoundError` that makes no sense, suspect the 260-character path limit
-and enable long paths, or run from a shorter directory.
+### Windows
+
+In PowerShell, from Windows 10 or 11. Python 3.11 or newer, Git and mpv, once:
+
+```powershell
+winget install Python.Python.3.13 Git.Git shinchiro.mpv
+winget install karlstav.cava          # optional: the real spectrum
+```
+
+Open a new terminal afterwards, so the PATH includes what was just installed.
+winget's mpv installer leaves it off the PATH (in `Program Files\MPV Player`);
+tidalamp finds it there on its own.
+
+```powershell
+git clone https://github.com/wh01s17/tidalamp.git
+cd tidalamp
+python -m venv .venv
+.venv\Scripts\python -m pip install -e ".[dev]"
+.venv\Scripts\python -m pytest -q
+```
+
+If PowerShell refuses to run scripts, nothing here needs it: every command above
+calls `python.exe` directly and never `Activate.ps1`. On Windows some 50 tests are
+skipped, the ones marked `@linux_only` (PipeWire, D-Bus, file modes, the `.desktop`
+launcher); none should fail. The suite takes a few minutes, a little longer than on
+Linux. It needs no mpv: it runs a fake one over a named pipe.
+
+To run the player from the checkout:
+
+```powershell
+.venv\Scripts\tidalamp login
+.venv\Scripts\tidalamp
+$env:TIDALAMP_DEBUG = "1"; .venv\Scripts\tidalamp     # with the debug log
+```
+
+Where things live on Windows (on Linux, the XDG directories):
+
+| | Path |
+| --- | --- |
+| Settings and session | `%APPDATA%\tidalamp\` (`config.toml`, `session.json`) |
+| Queue, state, debug log | `%LOCALAPPDATA%\tidalamp\state\` (`tidalamp.log`) |
+| Cache (covers, playlists for mpv) | `%LOCALAPPDATA%\tidalamp\cache\` |
+| The Start menu shortcut | `%APPDATA%\Microsoft\Windows\Start Menu\Programs\TidalAmp.lnk` |
+
+Line endings are LF everywhere, Windows included: `.gitattributes` makes Git check
+files out that way, so do not set `core.autocrlf`. If a test fails with a
+`FileNotFoundError` that makes no sense, suspect the 260-character path limit and
+enable long paths, or clone to a shorter directory such as `C:\src`.
+
+The agent skills under `.agents/skills/` are not in the repository (`.gitignore`);
+a fresh clone on Windows does not have them. `windows.md` and this file say what
+they said.
 
 ## What has to pass before a commit
 
@@ -34,6 +84,9 @@ and enable long paths, or run from a shorter directory.
 .venv/bin/mypy --platform win32
 .venv/bin/python -m pytest -q --cov
 ```
+
+On Windows the same five, as `.venv\Scripts\ruff`, `.venv\Scripts\mypy` and
+`.venv\Scripts\python -m pytest`. mypy checks both systems from either one.
 
 All of it runs in CI, the suite on Linux and on Windows. mypy runs once per system
 because each pass drops the other's branches: without the second, the Windows code

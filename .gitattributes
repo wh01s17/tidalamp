@@ -1,0 +1,11 @@
+# One line ending for everyone: LF in the repository and in every checkout,
+# Windows included. Without this, Git on Windows turns text files to CRLF on
+# checkout, and a commit made there can touch every line of a file.
+* text=auto eol=lf
+
+# Never treat these as text.
+*.png binary
+*.ico binary
+*.webp binary
+*.gif binary
+*.tar.gz binary

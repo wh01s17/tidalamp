@@ -17,15 +17,26 @@ Lo de aquí no bloquea publicar. `plan.md` §5 y §6 mandan sobre el estado gene
 
 ## Para la próxima versión
 
-- **Probar Windows en una máquina real.** El código de las siete fases está escrito y
-  la suite pasa en `windows-latest`, pero nadie ha reproducido música en Windows.
-  Falta la checklist de `windows.md` §12, en este orden de riesgo: SMTC (§7.2, la
-  pieza con más incertidumbre), el named pipe con un mpv de verdad (matar `mpv.exe`
-  y que vuelva), el modo exclusivo a 96 kHz, la portada en Windows Terminal y en
-  conhost, y el `.exe` del release (Actions, `release`, **Run workflow**). Después,
-  el clasificador de PyPI.
+- **Cerrar la publicación de la 0.16.0**, ya desde Windows (`publish.md` §12):
+  - el checksum del tarball del tag en `packaging/aur/PKGBUILD` y `.SRCINFO`, en
+    lugar de `SKIP`, y su commit `build(aur): finalize v0.16.0 checksum`;
+  - completar el borrador del GitHub Release que dejó el job `windows-exe` (notas del
+    CHANGELOG en inglés, zip ya adjunto) y publicarlo (`publish.md` §7);
+  - el commit de «publicada», como el de la 0.15.0 (`02dc6ea`): el estado de
+    `publish.md` (versiones publicadas), el de `plan.md` §5 y la fecha aquí.
+  - Lo que necesita Arch (`makepkg`, `namcap`, el AUR) espera a volver a Linux.
 
-La última publicada es la `0.15.0` (2026-09-20); lo que trae cada versión está en
+- **Probar Windows en una máquina real**, siguiendo `windows.md` §12 paso a paso: cada
+  apartado dice qué comando lanzar, qué mirar y en qué fichero está el código si falla.
+  Por riesgo, lo primero es SMTC (§12.4) y el named pipe con un mpv de verdad (§12.3).
+  Lo que se compruebe se marca allí mismo con la fecha; lo que falle, con el log de
+  `TIDALAMP_DEBUG=1`. El entorno para arreglar cosas desde Windows está en
+  `CONTRIBUTING.md` («Setting up», «Windows»).
+  - *Después de §12:* el clasificador de Windows en PyPI, quitar «preview» del README,
+    y una captura en Windows Terminal (`windows.md`, «Después de §12»).
+
+La `0.16.0` está preparada (2026-09-23) y sale con su tag; hasta entonces la última
+publicada es la `0.15.0`. Lo que trae cada versión está en
 `CHANGELOG.md`.
 
 ## Sin fecha
