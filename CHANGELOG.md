@@ -33,6 +33,10 @@ versioning is [semantic](https://semver.org/).
   profile's background, so the player stood in a dark frame with a band on the right.
   tidalamp now gives Windows Terminal the player's own ground for that margin while it
   runs, and hands the profile's back on the way out.
+- **Going back in the library while a level loaded could still open it.** Pressing
+  ⌫ before a slow level arrived took you back, and a moment later the level you had
+  left was put on screen anyway. It depended on how soon the loading started, which
+  is why it showed up only now and then; the level is now dropped every time.
 
 ## [0.17.0] - 2026-09-24
 

@@ -188,18 +188,17 @@ class BrowserScreen(ModalScreen[tuple | None]):
         self._render_hint()
         if self._goto is not None:
             self._busy(self._goto_busy or _("cargando…"))
-            self._open_at(self._goto)
+            self._open_at(self._goto, self._left)
             return
         self._busy(_("cargando {level}…").format(level=self._root_title.lower()))
-        self._load(self._root_title, self._root_loader, self._root_key)
+        self._load(self._left, self._root_title, self._root_loader, self._root_key)
 
     @work(thread=True, exclusive=True)
-    def _open_at(self, goto: Callable[[], Row]) -> None:
+    def _open_at(self, goto: Callable[[], Row], left: int) -> None:
         """The root and the level ``goto`` finds, pushed together once both
         are in. Pushing the root first showed the library, with no spinner,
         for as long as the artist took to arrive: it looked like the wrong
         window had opened."""
-        left = self._left
         try:
             rows = self._root_loader()
         except Exception as exc:
@@ -217,10 +216,9 @@ class BrowserScreen(ModalScreen[tuple | None]):
         self.app.call_from_thread(self._if_current, left, self._push, *found)
 
     @work(thread=True, exclusive=True)
-    def _go_worker(self, goto: Callable[[], Row]) -> None:
+    def _go_worker(self, goto: Callable[[], Row], left: int) -> None:
         """Open the level ``goto`` finds on top of the one on screen; a
         failure leaves that level where it is and says why."""
-        left = self._left
         try:
             found = self._find(goto)
         except Exception as exc:
@@ -235,6 +233,12 @@ class BrowserScreen(ModalScreen[tuple | None]):
         the level arrived a moment later and was pushed anyway, back over the
         one the user had gone back to. And a worker that finished as the
         window closed landed on a screen with no widgets left, which raised.
+
+        ``left`` is read by whoever asks for the level, on the UI thread, and
+        handed to the worker. Read by the worker itself it was the count of
+        whenever its thread got going: a ⌫ that came first was already in
+        it, and the stale level was pushed anyway (CI, Windows, Python 3.11,
+        2026-09-24).
         """
         if self.is_mounted and left == self._left:
             then(*args)
@@ -261,8 +265,9 @@ class BrowserScreen(ModalScreen[tuple | None]):
         self.query_one(Spinner).stop()
 
     @work(thread=True, exclusive=True)
-    def _load(self, title: str, loader, key: str = "", source: Row | None = None) -> None:
-        left = self._left
+    def _load(
+        self, left: int, title: str, loader, key: str = "", source: Row | None = None
+    ) -> None:
         try:
             rows = loader()
         except Exception as exc:
@@ -390,7 +395,7 @@ class BrowserScreen(ModalScreen[tuple | None]):
         # The title stays put: losing it to say "loading" costs the user the
         # one label that says where they are.
         self._busy(_("cargando más…"))
-        self._load_more(marker, marker.more)
+        self._load_more(marker, marker.more, self._left)
 
     def _list(self) -> RowList | GridList:
         """Whichever of the two is showing the level: both answer to the same
@@ -495,11 +500,10 @@ class BrowserScreen(ModalScreen[tuple | None]):
             return
         self._resting = True
         self._busy(_("cargando el resto del nivel…"))
-        self._rest_worker(marker)
+        self._rest_worker(marker, self._left)
 
     @work(thread=True, exclusive=True, group="paging")
-    def _rest_worker(self, marker: Row) -> None:
-        left = self._left
+    def _rest_worker(self, marker: Row, left: int) -> None:
         loaded = sum(1 for row in self._level() if row.more is None)
         current: Row | None = marker
         while current is not None and current.more is not None:
@@ -656,7 +660,7 @@ class BrowserScreen(ModalScreen[tuple | None]):
         self._stack.pop()
         self._empty = _("cargando…")
         self._busy(_("recargando {level}…").format(level=title))
-        self._load(title, loader, key, source)
+        self._load(self._left, title, loader, key, source)
 
     def action_sort(self) -> None:
         """Choose how the level on screen is ordered.
@@ -695,7 +699,7 @@ class BrowserScreen(ModalScreen[tuple | None]):
         self._stack.pop()
         self._empty = _("cargando…")
         self._busy(_("orden: {order}").format(order=library.order_label(order)))
-        self._load(title, loader, key, source)
+        self._load(self._left, title, loader, key, source)
 
     def action_help(self) -> None:
         """The help window, with the browser's keys and nothing else."""
@@ -794,7 +798,7 @@ class BrowserScreen(ModalScreen[tuple | None]):
             widget.empty_text = self._empty
             self._busy(_("abriendo {label}…").format(label=row.label))
             key, loader = self._level_of(row)
-            self._load(row.label, loader, key, row)
+            self._load(self._left, row.label, loader, key, row)
             return
         # A track offers more than one thing worth doing, so ask instead of
         # assuming. `a` still means what ↵ used to do on its own.
@@ -1106,14 +1110,14 @@ class BrowserScreen(ModalScreen[tuple | None]):
             _("buscando el artista…") if kind == "artist" else _("buscando el álbum…")
         )
         self._go_worker(
-            partial(library.go_to, self.player.session, entry, kind, artist_id)
+            partial(library.go_to, self.player.session, entry, kind, artist_id),
+            self._left,
         )
 
     # A group of its own: exclusive in the default one, a page fetched as
     # the cursor nears the end would cancel the level the user just opened.
     @work(thread=True, exclusive=True, group="paging")
-    def _load_more(self, marker: Row, more) -> None:
-        left = self._left
+    def _load_more(self, marker: Row, more, left: int) -> None:
         try:
             rows = more()
         except Exception as exc:

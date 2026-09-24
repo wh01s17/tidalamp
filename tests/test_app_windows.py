@@ -1263,6 +1263,37 @@ def test_going_back_stops_a_spinner_for_a_level_nobody_is_waiting_for(monkeypatc
     asyncio.run(scenario())
 
 
+def test_a_level_asked_for_before_going_back_is_dropped_however_late_it_starts(
+    monkeypatch,
+):
+    """The test above, without the luck. The worker used to read the count
+    of ⌫ when its thread got going; on a slow runner (CI, Windows, Python
+    3.11) the ⌫ was in it already and the stale level was pushed anyway.
+    Here the thread starts after the ⌫ every time."""
+    isolate_runtime(monkeypatch)
+
+    async def scenario() -> list[str]:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test() as pilot:
+            screen = BrowserScreen("MI BIBLIOTECA", lambda: [Row(label="A", loader=list)])
+            application.push_screen(screen)
+            await pilot.pause()
+            spinner = application.screen.query_one(Spinner)
+            await settle(pilot, lambda: not spinner.busy)
+            await pilot.press("enter")
+            await settle(pilot, lambda: len(screen._stack) == 2)
+
+            # B is asked for on A; then ⌫, before its thread has started.
+            asked = screen._left
+            screen.action_back()
+            screen._load(asked, "B", list)
+            await settle(pilot, lambda: all(w.is_finished for w in application.workers))
+            await pilot.pause()
+            return [level[0] for level in screen._stack]
+
+    assert asyncio.run(scenario()) == ["MI BIBLIOTECA"]
+
+
 def test_reload_drops_the_cached_level_and_asks_again(monkeypatch):
     """The cache lasts the session; `R` is the way to see a new playlist."""
     isolate_runtime(monkeypatch)
