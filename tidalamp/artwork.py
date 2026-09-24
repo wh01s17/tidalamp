@@ -24,6 +24,7 @@ import hashlib
 import logging
 import os
 import re
+import sys
 from collections.abc import Mapping
 from dataclasses import dataclass
 from enum import StrEnum
@@ -750,6 +751,32 @@ _RUNS = re.compile(rb"(.)\1{3,}", re.DOTALL)
 
 def _run_length(line: bytes) -> bytes:
     return _RUNS.sub(lambda m: b"!%d%c" % (len(m.group(0)), m.group(1)[0]), line)
+
+
+def sixel_erased_by_text(platform: str = sys.platform) -> bool:
+    """Whether writing text into the cells under a sixel image erases it.
+
+    Windows Terminal keeps a sixel in the text grid, as the VT340 did: a cell
+    written after the image loses its part of it. Textual draws a widget top
+    to bottom, so an image sent on the first line lost every row below it to
+    the blank lines that followed, and only a strip of cover was left.
+    Where it is so, the widget sends the image after its last line instead
+    (`sixel_from_below`). Linux keeps what it always did.
+    """
+    return platform == "win32"
+
+
+def sixel_from_below(escape: str, width: int, climb: int) -> str:
+    """``escape`` sent from the end of a box's last line, to its top-left.
+
+    The cursor is saved, taken ``width`` cells left and ``climb`` rows up,
+    and put back afterwards, so the rest of the line is drawn where the
+    compositor expects it.
+    """
+    save, restore = "\033" + "7", "\033" + "8"  # DECSC, DECRC
+    up = f"\033[{climb}A" if climb > 0 else ""
+    left = f"\033[{width}D" if width > 0 else ""
+    return f"{save}{left}{up}{escape}{restore}"
 
 
 def sixel_escape(image, colors: int = 255) -> str:

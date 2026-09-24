@@ -1410,6 +1410,23 @@ Cada una puede costar una tarde si no se conoce de antemano.
     `about.pause_glyph` pone `‖` en Windows: una celda, como `▶`. Comprobado que
     Consolas trae `‖` y no `⏸` (2026-09-24); la Cascadia de Windows Terminal está en
     `WindowsApps` y no se deja leer.
+22. **Un sixel en Windows Terminal se ve sólo como una franja.** WT guarda el sixel en
+    la rejilla de texto, como el VT340: escribir en una celda borra su trozo de imagen.
+    `Artwork` mandaba la imagen en la primera línea y Textual pintaba después las
+    líneas en blanco de debajo, que la borraban. En Windows
+    (`artwork.sixel_erased_by_text`) va al final de la última línea, tras sus
+    blancos, subiendo el cursor al origen de la caja y devolviéndolo con DECSC/DECRC
+    (`artwork.sixel_from_below`). kitty no lo necesita: pinta por encima del texto.
+    En Linux sigue como estaba; si foot o mlterm hacen lo mismo, el arreglo vale igual.
+23. **Con eso, la carátula sixel parpadeaba a cada tecla.** Cada repintado de la caja
+    son blancos (que borran la imagen) y luego la imagen, y Windows Terminal enseñaba
+    el estado de en medio. Textual envuelve cada frame en la salida sincronizada
+    (modo 2026) sólo si el terminal dice que la tiene, y **sólo lo pregunta en el
+    driver de Linux**. `TidalAmp._ask_for_synchronized_output` hace la pregunta en
+    Windows; la respuesta entra por el mismo `XTermParser` (el driver de Windows lee
+    con `ENABLE_VIRTUAL_TERMINAL_INPUT`) y Textual la activa solo. Con
+    `TIDALAMP_DEBUG=1`, el log dice «el terminal acepta frames enteros (modo 2026)»
+    si contestó que sí: es lo primero que mirar si vuelve a parpadear.
 
 ---
 

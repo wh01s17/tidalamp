@@ -554,3 +554,14 @@ def test_kitty_gets_the_picture_at_its_own_size_not_stretched():
     assert stretched is not None and stretched.size == (400, 400)
     cover = artwork.render(buffer.getvalue(), 40, 20, Protocol.KITTY)
     assert cover is not None and "c=40,r=20" in cover.escape
+
+
+def test_where_text_erases_a_sixel_it_is_sent_from_below():
+    """Windows Terminal showed one strip of a sixel cover: the blank lines
+    Textual drew after the image erased the rest of it."""
+    assert artwork.sixel_erased_by_text("win32")
+    assert not artwork.sixel_erased_by_text("linux")
+    moved = artwork.sixel_from_below("<sixel>", width=18, climb=8)
+    assert moved == "\x1b7\x1b[18D\x1b[8A<sixel>\x1b8"
+    # A box one line tall climbs nowhere.
+    assert artwork.sixel_from_below("<s>", 4, 0) == "\x1b7\x1b[4D<s>\x1b8"

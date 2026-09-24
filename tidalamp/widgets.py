@@ -16,7 +16,14 @@ from textual.strip import Strip
 from textual.widget import Widget
 
 from .analyzer import Analyzer, EqualizerBars
-from .artwork import Cover, Protocol, kitty_delete, quadrant_cell
+from .artwork import (
+    Cover,
+    Protocol,
+    kitty_delete,
+    quadrant_cell,
+    sixel_erased_by_text,
+    sixel_from_below,
+)
 from .scrolling import Glide, LyricsBoard, LyricsPane, Marquee
 from .theme import palette_for
 
@@ -273,6 +280,9 @@ class Artwork(Widget):
         # is tens of thousands of cells; the cover does not change between
         # repaints, so neither do its lines.
         self._lines: dict[tuple[int, int], Strip] = {}
+        # Where text over a sixel erases it, the image goes out after the last
+        # line rather than on the first (`artwork.sixel_erased_by_text`).
+        self.sixel_last = sixel_erased_by_text()
 
     def resize(self, rows: int) -> bool:
         """Set the box to ``rows`` tall, twice that wide. True if it changed.
@@ -353,8 +363,19 @@ class Artwork(Widget):
             return strip
 
         # Pixel protocols draw the whole cover from one anchor, so the escape
-        # belongs on the first line only; the rest of the box stays blank and
-        # the image floats over it.
+        # belongs on one line only; the rest of the box stays blank and the
+        # image floats over it. On the last line, after its blanks, where the
+        # blanks would otherwise wipe it out.
+        if cover.escape and cover.protocol is Protocol.SIXEL and self.sixel_last:
+            last = max(self.size.height, 1) - 1
+            if y != last:
+                return Strip.blank(width, Style())
+            escape = Segment(
+                sixel_from_below(cover.escape, width, last),
+                Style(),
+                True,  # type: ignore[arg-type]
+            )
+            return Strip([Segment(" " * width, Style()), escape], width)
         if y == 0 and cover.escape:
             # Rich only asks whether `control` is truthy; its type says a list
             # of control codes, and there is no code for "an APC the terminal

@@ -18,6 +18,7 @@ from app_helpers import (
     wait_for,
 )
 from conftest import linux_only
+from textual.messages import TerminalSupportsSynchronizedOutput
 from textual.screen import Screen
 from textual.widgets import Input, Static
 
@@ -774,5 +775,63 @@ def test_the_help_hides_a_kitty_cover_like_the_other_modals(monkeypatch):
             await pilot.pause()
             assert application._art_hidden
             assert application.query_one(Artwork).cover is None
+
+    asyncio.run(scenario())
+
+
+def test_a_sixel_that_text_would_erase_goes_out_after_the_last_line(monkeypatch):
+    """On the first line, the blank lines below it wiped the picture in
+    Windows Terminal and left a strip. kitty floats above the text and stays
+    where it was."""
+    isolate_runtime(monkeypatch)
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(100, 30)) as pilot:
+            art = application.query_one(Artwork)
+            art.sixel_last = True
+            art.show(a_cover(Protocol.SIXEL, escape="<sixel>"))
+            await pilot.pause()
+
+            height, width = art.size.height, art.size.width
+            lines = [list(art.render_line(y)) for y in range(height)]
+            carrying = [y for y, line in enumerate(lines) if any(s.control for s in line)]
+            assert carrying == [height - 1]
+            last = lines[-1]
+            assert last[0].text == " " * width, "the blanks first, then the image"
+            assert last[-1].text == artwork.sixel_from_below("<sixel>", width, height - 1)
+
+            art.show(a_cover(Protocol.KITTY, escape="<kitty>"))
+            await pilot.pause()
+            assert any(s.text == "<kitty>" for s in art.render_line(0))
+
+    asyncio.run(scenario())
+
+
+def test_windows_asks_the_terminal_for_whole_frames(monkeypatch):
+    """Textual only asks on Linux. Without it a sixel cover blinked at every
+    key in Windows Terminal: each repaint showed the blanks before the image."""
+    isolate_runtime(monkeypatch)
+    monkeypatch.setattr(TidalAmp, "is_headless", property(lambda self: False))
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test() as pilot:
+            await pilot.pause()
+            written: list[str] = []
+            driver = application._driver
+            assert driver is not None
+            monkeypatch.setattr(driver, "write", written.append)
+            monkeypatch.setattr(driver, "flush", lambda: None)
+
+            application._ask_for_synchronized_output("linux")
+            assert written == []
+            application._ask_for_synchronized_output("win32")
+            assert written == ["\x1b[?2026$p"]
+
+            # A yes, as Textual's parser turns it into a message.
+            application.post_message(TerminalSupportsSynchronizedOutput())
+            await pilot.pause()
+            assert application._sync_available
 
     asyncio.run(scenario())

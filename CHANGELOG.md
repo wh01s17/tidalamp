@@ -22,6 +22,11 @@ versioning is [semantic](https://semver.org/).
 - **Windows: the pause button was a blue emoji.** The terminal's font has no `⏸`,
   and the fallback Windows finds is Segoe UI Emoji; it is `‖` there now. Linux keeps
   `⏸`.
+- **Windows: a sixel cover showed only its top strip** in Windows Terminal, where
+  text written over a sixel erases it and the blank lines drawn after the image did
+  exactly that. There the image now goes out after the box's last line, and the
+  terminal is asked to take each frame whole (synchronized output, which Textual only
+  asks for on Linux): without it the cover blinked at every key.
 
 ## [0.16.0] - 2026-09-23
 

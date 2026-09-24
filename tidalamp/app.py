@@ -7,6 +7,7 @@ import contextlib
 import functools
 import inspect
 import logging
+import sys
 import threading
 import time
 from collections.abc import Callable
@@ -598,6 +599,27 @@ class TidalAmp(App):
         titlebar = self.query_one("#titlebar", Static)
         titlebar.update(self._title_text(titlebar.size.width))
 
+    def _ask_for_synchronized_output(self, platform: str = sys.platform) -> None:
+        """Ask the terminal whether it can take a frame all at once.
+
+        Textual asks on Linux and never on Windows, so there every frame went
+        out piece by piece. Windows Terminal erases a sixel under any text
+        written over it, and a repaint of the cover box is blank lines first
+        and the image after (`artwork.sixel_from_below`): shown mid-frame, the
+        cover blinked at every key. The answer comes back through Textual's
+        own parser, which turns synchronized output on when it is yes; a
+        terminal that does not know the question says no or nothing.
+        """
+        if platform != "win32" or self._driver is None or self.is_headless:
+            return
+        self._driver.write("\033[?2026$p")
+        self._driver.flush()
+
+    def on_terminal_supports_synchronized_output(self, _message: object) -> None:
+        # Textual's own handler turns it on; this only leaves a trace, which is
+        # the first thing to look for if the cover blinks again.
+        log.info("el terminal acepta frames enteros (modo 2026)")
+
     def _replace_pixel_cover(self) -> None:
         """Take a kitty or sixel cover down and put it straight back.
 
@@ -846,6 +868,7 @@ class TidalAmp(App):
                 return None
 
     def on_mount(self) -> None:
+        self._ask_for_synchronized_output()
         self._check_size()
         self.query_one("#queue-filter-bar", Horizontal).display = False
         playlist = self.query_one("#playlist", RowList)
