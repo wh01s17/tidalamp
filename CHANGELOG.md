@@ -5,6 +5,15 @@ versioning is [semantic](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **Windows: the player did not reach the right edge of Windows Terminal.** The
+  terminal keeps a margin outside the text grid (its padding, the scrollbar's gutter
+  and whatever part of a column the window's width leaves over) and painted it in the
+  profile's background, so the player stood in a dark frame with a band on the right.
+  tidalamp now gives Windows Terminal the player's own ground for that margin while it
+  runs, and hands the profile's back on the way out.
+
 ## [0.17.0] - 2026-09-24
 
 ### Added

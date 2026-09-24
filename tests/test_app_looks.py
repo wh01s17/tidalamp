@@ -769,3 +769,49 @@ def test_reggae_notes_take_green_and_red_in_turn(monkeypatch):
             assert isinstance(application._title_text(80), str)
 
     asyncio.run(scenario())
+
+
+def test_windows_terminal_paints_its_margin_in_the_players_ground(monkeypatch):
+    """Windows Terminal keeps padding, the scrollbar's gutter and the leftover
+    of a cell outside the grid, in the profile's background: the player stood
+    in a dark frame with a band on the right. OSC 11 gives it the panel colour,
+    and the way out gives it its own back so the prompt is not left purple."""
+    isolate_runtime(monkeypatch)
+    monkeypatch.setattr(TidalAmp, "is_headless", property(lambda self: False))
+    # The mount paints it too, when the suite itself runs inside one.
+    monkeypatch.delenv("WT_SESSION", raising=False)
+    colors = dict(DEFAULT_COLORS)
+    colors["panel"] = "#1c1128"
+    monkeypatch.setattr(
+        "tidalamp.app.load_palette",
+        lambda *args, **kwargs: ThemePalette(dict(colors), source="omarchy"),
+    )
+    written: list[str] = []
+    terminal = {"WT_SESSION": "c0ffee"}
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test() as pilot:
+            await pilot.pause()
+            driver = application._driver
+            assert driver is not None
+            monkeypatch.setattr(driver, "write", written.append)
+            monkeypatch.setattr(driver, "flush", lambda: None)
+
+            application._paint_terminal_margin("linux", terminal)
+            application._paint_terminal_margin("win32", {})
+            assert written == []
+            application._paint_terminal_margin("win32", terminal)
+            assert written == ["\x1b]11;rgb:1c/11/28\x1b\\"]
+            # Only when the colour changes: the theme is polled every 2 s.
+            application._paint_terminal_margin("win32", terminal)
+            assert len(written) == 1
+
+            colors["panel"] = "#1a1b26"
+            application._refresh_theme()
+            application._paint_terminal_margin("win32", terminal)
+            assert written[-1] == "\x1b]11;rgb:1a/1b/26\x1b\\"
+
+        assert written[-1] == "\x1b]111\x1b\\"
+
+    asyncio.run(scenario())

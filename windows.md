@@ -1310,6 +1310,10 @@ Código: `player._exclusive_option`, `Mpv.set_exclusive`, `app._setting_changed`
       sixel. Si se ve bien, se puede proponer como opción por defecto ahí
 - [ ] Con `TIDALAMP_SEXTANTS=1`: si la fuente los trae, la portada con más detalle; si
       salen cuadros vacíos, la fuente no los tiene y el valor por defecto acierta
+- [x] En **Windows Terminal**, el marco del terminal (padding, hueco de la barra de
+      desplazamiento, lo que sobra a la derecha y abajo) sale del color del
+      reproductor, y al salir el prompt vuelve a su fondo (trampa 25). Visto por el
+      mantenedor en Windows 10 con Windows Terminal 1.24 (2026-09-24)
 - [ ] En **conhost** (la consola clásica, `conhost.exe` desde Ejecutar): abre, se ve y
       responde, aunque con peores colores
 - [ ] El espectro: con cava instalado, la fila del analizador se mueve con la música; sin
@@ -1438,6 +1442,19 @@ Cada una puede costar una tarde si no se conoce de antemano.
     `WinGet\Links`, donde no está, y la oferta de instalarlo salía en cada arranque.
     `backends/windows/cava.py` mira en las dos, como `mpv.py` para mpv. Comprobado
     en una instalación real (2026-09-24).
+25. **Windows Terminal pinta un marco que no es del programa.** Fuera de la rejilla
+    de texto quedan el *padding* del perfil (8 px, 10 a 125 %), el hueco de la barra
+    de desplazamiento, que reserva también en la pantalla alternativa, y el trozo de
+    columna que sobra del ancho de la ventana. Lo pinta con el fondo del perfil, así
+    que el reproductor parecía no llegar al borde derecho: una franja de 38 px a la
+    derecha y 31 abajo, contra 10 arriba y a la izquierda, medidas en una captura
+    del mantenedor a 1920 px (2026-09-24). La app sí usaba todas las columnas. Con
+    OSC 11 el fondo por defecto pasa a ser el `panel` de la paleta, que es el de
+    `#main` en todos los temas (`TidalAmp._paint_terminal_margin`), y al salir OSC
+    111 devuelve el del perfil. Sólo con `WT_SESSION`: no está comprobado que el
+    conhost de Windows 10 entienda OSC 111, y sin él el prompt se quedaría morado.
+    Con opacidad o acrílico en el perfil, el margen sale algo más translúcido que las
+    celdas: WT sólo aplica la transparencia al fondo por defecto.
 
 ---
 

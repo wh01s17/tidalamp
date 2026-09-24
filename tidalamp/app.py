@@ -7,10 +7,11 @@ import contextlib
 import functools
 import inspect
 import logging
+import os
 import sys
 import threading
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from concurrent.futures import CancelledError
 from pathlib import Path
 from typing import Any, NamedTuple, cast
@@ -21,6 +22,7 @@ from rich.text import Text
 from textual import events, on, work
 from textual.app import App, ComposeResult, ScreenStackError
 from textual.binding import Binding
+from textual.color import Color
 from textual.containers import Horizontal, Vertical
 from textual.css.query import NoMatches
 from textual.reactive import reactive
@@ -355,6 +357,8 @@ class TidalAmp(App):
         self.queue = Queue()
         self.settings = Settings.load()
         self._lyrics_cache: dict[int, LyricsDocument] = {}
+        # The OSC 11 last sent to Windows Terminal, None while it keeps its own.
+        self._terminal_margin: str | None = None
         # The entry the last resolve was started for. A worker's thread is not
         # cancelled with it: an older resolve can finish after a newer one was
         # asked for, and must not start its track over the newer one.
@@ -620,6 +624,44 @@ class TidalAmp(App):
         # the first thing to look for if the cover blinks again.
         log.info("el terminal acepta frames enteros (modo 2026)")
 
+    def _paint_terminal_margin(
+        self, platform: str = sys.platform, environ: Mapping[str, str] = os.environ
+    ) -> None:
+        """Give Windows Terminal the player's ground as its own background.
+
+        Windows Terminal keeps a margin no program can draw in: its padding,
+        the gutter of the scrollbar, which it reserves even on the alternate
+        screen, and the part of a cell the window's width leaves over. It
+        paints that margin in the profile's background, so the player stood
+        in a dark frame with a band on the right as wide as three columns.
+        OSC 11 changes that background; `#main` is on the panel colour in
+        every look, so that is the one it gets. Only in Windows Terminal
+        (``WT_SESSION``): it resets the colour on the way out, and the conhost
+        of Windows 10 is not known to, which would leave the prompt purple.
+        """
+        if (
+            platform != "win32"
+            or "WT_SESSION" not in environ
+            or self._driver is None
+            or self.is_headless
+        ):
+            return
+        ground = Color.parse(self.tidalamp_palette["panel"])
+        code = f"\033]11;rgb:{ground.r:02x}/{ground.g:02x}/{ground.b:02x}\033\\"
+        if code == self._terminal_margin:
+            return
+        self._terminal_margin = code
+        self._driver.write(code)
+        self._driver.flush()
+
+    def on_unmount(self) -> None:
+        # Before Textual leaves the alternate screen, while the driver still
+        # writes: the shell gets its own background back.
+        if self._terminal_margin is not None and self._driver is not None:
+            self._driver.write("\033]111\033\\")
+            self._driver.flush()
+            self._terminal_margin = None
+
     def _replace_pixel_cover(self) -> None:
         """Take a kitty or sixel cover down and put it straight back.
 
@@ -869,6 +911,7 @@ class TidalAmp(App):
 
     def on_mount(self) -> None:
         self._ask_for_synchronized_output()
+        self._paint_terminal_margin()
         self._check_size()
         self.query_one("#queue-filter-bar", Horizontal).display = False
         playlist = self.query_one("#playlist", RowList)
@@ -939,6 +982,7 @@ class TidalAmp(App):
             return
         self.tidalamp_palette = palette
         self.refresh_css(animate=False)
+        self._paint_terminal_margin()
         self._refresh_modes()
         self.screen.refresh()
 
@@ -3118,6 +3162,7 @@ class TidalAmp(App):
         elif name == "palette":
             self.tidalamp_palette = load_palette(name=config.PALETTE)
             self.refresh_css(animate=False)
+            self._paint_terminal_margin()
             self._apply_appearance()
             self.status = _("paleta: {value}").format(value=theme_label(config.PALETTE))
         elif name == "backdrop":
