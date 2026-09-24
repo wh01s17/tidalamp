@@ -1123,8 +1123,10 @@ Se queda en `ubuntu-latest` (ruff y mypy son estáticos), pero mypy corre dos ve
   caducan) y a acompañarlo de licencia y fuentes. En su lugar, `cli._offer_installs`
   pregunta en la consola, antes de abrir la interfaz, y lanza
   `winget install --id shinchiro.mpv --exact` a la vista (su instalador pide UAC).
-  mpv se pregunta en cada arranque hasta que esté; cava (`karlstav.cava`) hasta el
-  primer «no», que se guarda en `%LOCALAPPDATA%\tidalamp\state\declined`. Sin winget,
+  mpv se pregunta en cada arranque hasta que esté; cava (`karlstav.cava`) **una sola
+  vez**, diga lo que diga, apuntado en `%LOCALAPPDATA%\tidalamp\state\offered`. Al
+  principio era «hasta el primer no», y un «sí» cuyo cava no se encontraba después
+  volvía a preguntar en cada arranque (trampa 24). Sin winget,
   o sin consola, lo de siempre: `distro.missing("mpv")` dice el comando. Mecanismo en
   `backends/windows/winget.py`. Si algún día se quiere un zip «todo incluido», que sea
   un segundo zip (`-with-mpv`) y que `Mpv` busque primero junto a `sys.executable`.
@@ -1428,6 +1430,12 @@ Cada una puede costar una tarde si no se conoce de antemano.
     con `ENABLE_VIRTUAL_TERMINAL_INPUT`) y Textual la activa solo. Con
     `TIDALAMP_DEBUG=1`, el log dice «el terminal acepta frames enteros (modo 2026)»
     si contestó que sí: es lo primero que mirar si vuelve a parpadear.
+24. **`karlstav.cava` no es portable.** Es un instalador: deja `cava.exe` en
+    `%LOCALAPPDATA%\cava` y añade esa carpeta al PATH del usuario, que sólo ven los
+    procesos que arrancan después (un terminal abierto antes no la ve). Se buscaba en
+    `WinGet\Links`, donde no está, y la oferta de instalarlo salía en cada arranque.
+    `backends/windows/cava.py` mira en las dos, como `mpv.py` para mpv. Comprobado
+    en una instalación real (2026-09-24).
 
 ---
 

@@ -76,7 +76,7 @@ def tui() -> None:
 
 def _offer_installs(platform: str = sys.platform) -> None:
     """On Windows, offer to install with winget what is missing: mpv, without
-    which nothing plays, every time; cava, the real spectrum, until a no.
+    which nothing plays, every time; cava, the real spectrum, once.
 
     Asked here, in the console, before the interface takes it over: winget
     shows its progress there, and the mpv installer asks for elevation.
@@ -104,15 +104,15 @@ def _offer_installs(platform: str = sys.platform) -> None:
             fg=typer.colors.YELLOW,
         )
         offer("mpv")
-    if not spectrum.available() and not winget.declined("cava"):
+    if not spectrum.available() and not winget.offered("cava"):
         typer.echo(
             _(
                 "cava no está instalado: sin él, el visualizador mide el nivel "
                 "en lugar de dibujar el espectro."
             )
         )
-        if not offer("cava"):
-            winget.decline("cava")
+        winget.mark_offered("cava")
+        offer("cava")
 
 
 @app.command(

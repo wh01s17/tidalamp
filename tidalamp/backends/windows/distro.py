@@ -15,8 +15,9 @@ user to it or to nothing.
 - scoop: `mpv` lives in the `extras` bucket, not in `main`.
 - choco: `mpv`, last updated 2024-09. Last of the three for that reason.
 
-- cava: winget's `karlstav.cava` (1.0.0), portable, linked into the PATH. Not
-  in scoop's main or extras.
+- cava: winget's `karlstav.cava` (1.0.0), an installer into
+  `%LOCALAPPDATA%\\cava` that adds it to the user's PATH (`backends.windows.cava`
+  looks there too). Not in scoop's main or extras.
 """
 
 from __future__ import annotations

@@ -76,14 +76,14 @@ if sys.platform == "win32":
 def _command() -> list[str] | None:
     """What runs cava, or None when it is not installed.
 
-    On Windows also where winget links it, which this process does not have on
-    its PATH when winget installed it a moment ago (`cli._offer_installs`)."""
+    On Windows also where its installer puts it, which a PATH older than the
+    install does not include (`backends.windows.cava`)."""
     if shutil.which("cava") is not None:
         return ["cava"]
     if sys.platform == "win32":
-        from .backends.windows.winget import linked
+        from .backends.windows.cava import find
 
-        found = linked("cava.exe")
+        found = find()
         if found is not None:
             return [found]
     return None

@@ -37,8 +37,10 @@ def wait_for_a_frame(cava, timeout=5.0):
     raise AssertionError("cava no envió ningún frame")
 
 
-def test_missing_cava_is_reported_not_raised_blindly(monkeypatch):
+def test_missing_cava_is_reported_not_raised_blindly(monkeypatch, tmp_path):
     monkeypatch.setattr(spectrum.shutil, "which", lambda _: None)
+    # Nor where Windows installers leave it: the developer's own counts too.
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
     with pytest.raises(SpectrumUnavailable, match="no está instalado"):
         Cava()
 

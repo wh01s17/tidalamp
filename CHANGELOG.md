@@ -10,7 +10,9 @@ versioning is [semantic](https://semver.org/).
 - **Windows: tidalamp installs mpv and cava for you.** Started without them, it asks
   in the console whether to run `winget install` and does it, instead of stopping at
   the command for you to type. mpv is asked for on every start until it is there,
-  since nothing plays without it; cava, the real spectrum, until you say no once.
+  since nothing plays without it; cava, the real spectrum, once, whatever the answer.
+  cava is found where its installer puts it (`%LOCALAPPDATA%\cava`) even from a
+  terminal opened before the install.
 
 ### Fixed
 

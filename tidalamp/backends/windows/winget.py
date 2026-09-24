@@ -14,10 +14,9 @@ Imports on any system, so it is tested on Linux too.
 from __future__ import annotations
 
 import contextlib
-import os
 import shutil
 import subprocess
-from collections.abc import Callable, Mapping
+from collections.abc import Callable
 from pathlib import Path
 
 from ...config import STATE_DIR, write_atomically
@@ -26,9 +25,10 @@ from ...config import STATE_DIR, write_atomically
 # from memory: see backends/windows/distro.py).
 IDS = {"mpv": "shinchiro.mpv", "cava": "karlstav.cava"}
 
-# A no to an optional package is not asked again; mpv is always asked, since
-# nothing plays without it.
-DECLINED = STATE_DIR / "declined"
+# An optional package is offered once, whatever the answer: a no is a no, and
+# a yes whose install failed would otherwise be asked again on every start.
+# mpv is always asked, since nothing plays without it.
+OFFERED = STATE_DIR / "offered"
 
 
 def available() -> bool:
@@ -67,33 +67,19 @@ def install(
         return False
 
 
-def linked(executable: str, environ: Mapping[str, str] | None = None) -> str | None:
-    """Where winget links a portable package's ``executable``, when it is there.
-
-    A portable install (cava's) adds that folder to the PATH, but only for
-    processes started after it: this one, which just ran winget, does not
-    see it."""
-    values = os.environ if environ is None else environ
-    base = values.get("LOCALAPPDATA")
-    if not base:
-        return None
-    path = Path(base) / "Microsoft/WinGet/Links" / executable
-    return str(path) if path.is_file() else None
-
-
-def declined(package: str, marker: Path | None = None) -> bool:
-    """Whether the user already said no to ``package``."""
-    path = DECLINED if marker is None else marker
+def offered(package: str, marker: Path | None = None) -> bool:
+    """Whether ``package`` was already offered, whatever the answer."""
+    path = OFFERED if marker is None else marker
     try:
         return package in path.read_text(encoding="utf-8").split()
     except OSError:
         return False
 
 
-def decline(package: str, marker: Path | None = None) -> None:
-    """Remember a no, so the question is not asked on every start."""
-    path = DECLINED if marker is None else marker
-    if declined(package, path):
+def mark_offered(package: str, marker: Path | None = None) -> None:
+    """Remember an offer, so an optional package is asked about only once."""
+    path = OFFERED if marker is None else marker
+    if offered(package, path):
         return
     try:
         before = path.read_text(encoding="utf-8")

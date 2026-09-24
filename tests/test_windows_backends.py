@@ -473,27 +473,38 @@ def test_winget_install_answers_by_exit_code_and_survives_no_winget():
     assert not winget.install("mpv", run=gone)
 
 
-def test_cava_just_installed_is_found_although_the_path_is_stale(tmp_path):
-    """winget adds its Links folder to the PATH of processes started later;
-    the one that ran it would not find cava until restarted."""
-    from tidalamp.backends.windows import winget
+def test_cava_is_found_where_its_installer_put_it_although_the_path_is_stale(
+    tmp_path,
+):
+    """winget's cava installs to %LOCALAPPDATA%\\cava and adds it to the PATH of
+    processes started later. Looked for only in WinGet\\Links, it was never
+    found, and the offer to install it came back on every start."""
+    from tidalamp.backends.windows import cava
+
+    env = {"LOCALAPPDATA": str(tmp_path)}
+    assert cava.find(env) is None
+    (tmp_path / "cava").mkdir()
+    (tmp_path / "cava" / "cava.exe").write_bytes(b"")
+    assert cava.find(env) == str(tmp_path / "cava" / "cava.exe")
+    assert cava.find({}) is None
+
+
+def test_a_portable_cava_in_winget_links_is_found_too(tmp_path):
+    from tidalamp.backends.windows import cava
 
     links = tmp_path / "Microsoft/WinGet/Links"
-    env = {"LOCALAPPDATA": str(tmp_path)}
-    assert winget.linked("cava.exe", env) is None
     links.mkdir(parents=True)
     (links / "cava.exe").write_bytes(b"")
-    assert winget.linked("cava.exe", env) == str(links / "cava.exe")
-    assert winget.linked("cava.exe", {}) is None
+    assert cava.find({"LOCALAPPDATA": str(tmp_path)}) == str(links / "cava.exe")
 
 
-def test_a_declined_package_is_remembered_alone(tmp_path):
+def test_an_offered_package_is_remembered_alone(tmp_path):
     from tidalamp.backends.windows import winget
 
-    marker = tmp_path / "state" / "declined"
-    assert not winget.declined("cava", marker)
-    winget.decline("cava", marker)
-    winget.decline("cava", marker)
-    assert winget.declined("cava", marker)
-    assert not winget.declined("mpv", marker)
+    marker = tmp_path / "state" / "offered"
+    assert not winget.offered("cava", marker)
+    winget.mark_offered("cava", marker)
+    winget.mark_offered("cava", marker)
+    assert winget.offered("cava", marker)
+    assert not winget.offered("mpv", marker)
     assert marker.read_text(encoding="utf-8") == "cava\n"

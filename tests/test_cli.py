@@ -184,7 +184,7 @@ def winget(tmp_path, monkeypatch):
     monkeypatch.setattr(cli.sys, "stdin", _Console())
     monkeypatch.setattr(winget_module, "available", lambda: True)
     monkeypatch.setattr(winget_module, "install", installed.append)
-    monkeypatch.setattr(winget_module, "DECLINED", tmp_path / "declined")
+    monkeypatch.setattr(winget_module, "OFFERED", tmp_path / "offered")
     monkeypatch.setattr(windows_mpv, "find", lambda: None)
     monkeypatch.setattr(spectrum, "available", lambda: False)
     monkeypatch.setattr(config, "MPV_PATH", "")
@@ -219,6 +219,14 @@ def test_a_no_to_cava_is_not_asked_again(winget, monkeypatch):
     cli._offer_installs("win32")
     assert winget == []
     assert len(asked) == 3, "mpv twice, since nothing plays without it; cava once"
+
+
+def test_cava_is_offered_once_even_when_the_yes_did_not_install_it(winget):
+    """A yes whose cava was then not found (it was looked for in the wrong
+    folder) brought the question back on every start."""
+    cli._offer_installs("win32")
+    cli._offer_installs("win32")
+    assert winget == ["mpv", "cava", "mpv"]
 
 
 def test_nothing_is_asked_without_a_console_or_off_windows(winget, monkeypatch):
