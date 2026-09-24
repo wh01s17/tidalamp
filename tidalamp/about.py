@@ -50,6 +50,16 @@ def releases() -> tuple[Release, ...]:
     """Newest first. Translated at call time, not at import time."""
     return (
         Release(
+            "0.16.0",
+            "2026-09-23",
+            (
+                _("Windows en vista previa: pipx install o el tidalamp.exe del Release."),
+                _("En Windows: teclas multimedia, menú Inicio y modo exclusivo."),
+                _("mpv_path: la ruta de mpv, si el del PATH no es el que quieres."),
+                _("Al salir, lo que queda en segundo plano ya no falla ni la retiene."),
+            ),
+        ),
+        Release(
             "0.15.0",
             "2026-09-20",
             (

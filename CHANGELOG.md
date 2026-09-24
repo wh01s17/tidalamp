@@ -5,6 +5,8 @@ versioning is [semantic](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.16.0] - 2026-09-23
+
 ### Added
 
 - **Windows, in preview.** The suite runs on Windows 10/11 in CI; real playback there

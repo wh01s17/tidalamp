@@ -282,6 +282,19 @@ ENGLISH: dict[str, str] = {
     "«{name}» no viene de TIDAL, que es de donde salen las letras": (
         "“{name}” does not come from TIDAL, which is where the lyrics come from"
     ),
+    # --- 0.16.0, in the help's list of changes
+    "Windows en vista previa: pipx install o el tidalamp.exe del Release.": (
+        "Windows, in preview: pipx install, or tidalamp.exe from the Release."
+    ),
+    "En Windows: teclas multimedia, menú Inicio y modo exclusivo.": (
+        "On Windows: media keys, the Start menu and exclusive mode."
+    ),
+    "mpv_path: la ruta de mpv, si el del PATH no es el que quieres.": (
+        "mpv_path: the path to mpv, when the one on the PATH is not the one."
+    ),
+    "Al salir, lo que queda en segundo plano ya no falla ni la retiene.": (
+        "On quitting, what is left in the background no longer fails or holds it."
+    ),
     # --- 0.15.0, in the help's list of changes
     "«Lofi sin copyright» en la biblioteca: la selección lofi del día.": (
         "“Copyright-free lofi” in the library: the day’s lofi selection."
