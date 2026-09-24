@@ -17,6 +17,7 @@ from app_helpers import (
     use_theme,
     wait_for,
 )
+from conftest import linux_only
 from textual.screen import Screen
 from textual.widgets import Input, Static
 
@@ -725,6 +726,7 @@ def test_transparency_leaves_the_cover_only_what_a_window_can_cover(
     asyncio.run(scenario())
 
 
+@linux_only  # PipeWire: Windows offers exclusive mode instead
 def test_restarting_pipewire_stops_playback_first(monkeypatch, tmp_path):
     """mpv is holding the sink; the daemon must not be pulled from under it."""
     isolate_runtime(monkeypatch)

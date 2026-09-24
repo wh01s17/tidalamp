@@ -13,6 +13,7 @@ from app_helpers import (
     settle,
     transport,
 )
+from conftest import linux_only
 from textual.widgets import Static
 
 from tidalamp import app as app_module
@@ -417,6 +418,7 @@ def test_the_way_out_of_the_settings_survives_a_short_terminal(monkeypatch, tmp_
     asyncio.run(scenario())
 
 
+@linux_only  # PipeWire: Windows offers exclusive mode instead
 def test_the_rates_row_writes_and_removes_the_drop_in(monkeypatch, tmp_path):
     isolate_runtime(monkeypatch)
     isolate_config(monkeypatch, tmp_path)
@@ -513,6 +515,7 @@ def test_the_output_rate_is_followed_until_pipewire_settles(monkeypatch):
     assert seen == [44100, 96000]
 
 
+@linux_only  # PipeWire: Windows offers exclusive mode instead
 def test_a_running_dac_is_forced_to_the_rate_of_the_next_track(monkeypatch):
     """PipeWire does not switch a device that is running, and between tracks
     mpv reopens its output too fast for the DAC to ever stop: a 44.1 kHz AAC
@@ -563,6 +566,7 @@ def test_a_running_dac_is_forced_to_the_rate_of_the_next_track(monkeypatch):
     assert seen == [(48000, 44100), (44100, 44100)]
 
 
+@linux_only  # PipeWire: on Windows no rate is ever forced, so it would prove nothing
 def test_the_rate_is_not_forced_under_another_application(monkeypatch):
     """With something else playing through the same sink, forcing would switch
     it under that application's feet. Resampling is the lesser harm there."""
@@ -632,6 +636,7 @@ def test_a_translated_theme_name_still_cycles_through_every_theme(monkeypatch, t
         i18n.refresh()
 
 
+@linux_only  # PipeWire: Windows offers exclusive mode instead
 def test_the_arrows_leave_quality_rates_and_restart_alone(monkeypatch, tmp_path):
     """The three rows where a stray arrow cost the most: the quality changed
     under the next track, PipeWire's rates were rewritten, or PipeWire was
