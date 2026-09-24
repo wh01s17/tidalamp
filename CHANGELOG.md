@@ -19,7 +19,9 @@ versioning is [semantic](https://semver.org/).
   the `OUT` line, instead of mpv's «Autoselect device»: with exclusive mode on,
   tidalamp takes that device whole. Changing it moves the sound at once, without
   stopping the track, and a device that is not connected (a speaker switched off)
-  plays through the default rather than in silence.
+  plays through the default rather than in silence. Unplugged while it plays, the
+  track goes on through the default from where it was, instead of the queue being
+  skipped a track at a time; plugged back in, the sound goes back to it by itself.
 
 ### Fixed
 

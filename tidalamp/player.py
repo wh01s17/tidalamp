@@ -285,11 +285,15 @@ class Mpv:
 
     def _spawn(self) -> subprocess.Popen:
         self._transport.prepare()
+        device = _device_option()
+        # What mpv was asked to play to: the setting's device, or `auto` when
+        # there is none or it is not plugged in.
+        self.device = config.AUDIO_DEVICE if device else "auto"
         proc = subprocess.Popen(
             [
                 *self._executable,
                 *_exclusive_option(),
-                *_device_option(),
+                *device,
                 "--idle=yes",
                 "--no-video",
                 "--no-terminal",
@@ -487,7 +491,8 @@ class Mpv:
         mpv opens the output again by itself when this property changes,
         without stopping the track.
         """
-        self.set("audio-device", name or "auto")
+        self.device = name or "auto"
+        self.set("audio-device", self.device)
 
     def set_filter(self, label: str, graph: str | None) -> None:
         """Install (or drop) a labelled lavfi filter.

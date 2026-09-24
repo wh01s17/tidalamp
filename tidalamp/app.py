@@ -932,6 +932,7 @@ class TidalAmp(App):
         self.set_interval(1 / 10, self._tick_fast)
         self.set_interval(1 / 4, self._tick_slow)
         self.set_interval(2, self._refresh_theme)
+        self.set_interval(2, self._watch_output)
         self.run_worker(self._start_mpris(), exclusive=False)
 
         if self.queue.load():
@@ -1110,6 +1111,9 @@ class TidalAmp(App):
             return
 
         position, duration = self.mpv.position, self.mpv.duration
+        # Idle reads as 0:00, and a track cut short by its output going away
+        # is picked up where it was, so the reading before this one is kept.
+        were_at = self._last_position
         self._last_position = position
         # The same rule as the fast tick: a player nobody is looking at does
         # not redraw itself. Four times a second, a moving clock behind a
@@ -1151,7 +1155,9 @@ class TidalAmp(App):
         # mpv going idle after having played something means the track ended.
         idle = self.mpv.idle
         if idle and not self._was_idle:
-            if self._opened:
+            if self._output_gone():
+                self._play_on_the_default(were_at)
+            elif self._opened:
                 self.action_next()
             else:
                 self._gave_up()
@@ -2762,6 +2768,71 @@ class TidalAmp(App):
         self._was_idle = False
         self._now_playing(entry, playable, start=start)
 
+    def _output_gone(self) -> bool:
+        """mpv stopped because the device it played to was unplugged.
+
+        mpv ends the track with «audio output initialization failed» and so
+        does every one after it, since none can open the output. From here
+        that looked like a track that ended and then a queue of tracks that
+        would not open: unplugging the DAC skipped the queue, a retry at a
+        time, while playing nothing (seen with a FiiO BTR15, 2026-09-24).
+        Only while mpv is on the chosen device: on `auto` it follows the
+        system's default by itself.
+        """
+        device = self.mpv.device
+        return device not in ("", "auto") and not audio.connected(device)
+
+    def _watch_output(self) -> None:
+        """Go back to the chosen device once it is plugged in again.
+
+        While mpv plays to the default in its place, because it was unplugged
+        or was not there at the start. Choosing it again in the settings did
+        nothing, since the setting already said it: the sound stayed on the
+        speaker it had fallen back to (seen with a FiiO BTR15, 2026-09-24).
+        Asked off the UI thread, and only while mpv is not on it. Windows
+        only, like the row: `MANAGES_RATES` is what tells the two apart.
+        """
+        wanted = config.AUDIO_DEVICE
+        if audio.MANAGES_RATES or wanted in ("", "auto") or self.mpv.device == wanted:
+            return
+        self._output_back_worker(wanted)
+
+    @work(thread=True, exclusive=True, group="output-back")
+    def _output_back_worker(self, wanted: str) -> None:
+        if audio.connected(wanted):
+            self.call_from_thread(self._output_back, wanted)
+
+    def _output_back(self, wanted: str) -> None:
+        # The setting may have changed while Windows was being asked.
+        if wanted != config.AUDIO_DEVICE or self.mpv.device == wanted:
+            return
+        self.mpv.set_device(wanted)
+        self.status = _("volvió el dispositivo de salida; suena por él")
+        self._refresh_sink_worker()
+
+    def _play_on_the_default(self, were_at: float) -> None:
+        """Move to the system's default output and go on from where it was.
+
+        For this session only: the setting keeps the device, and the next
+        start plays to it again if it is back (`player._device_option`).
+        """
+        self.mpv.set_device("auto")
+        self.status = _(
+            "se desconectó el dispositivo de salida; suena por el predeterminado"
+        )
+        entry, playable = self.queue.current, self._playable
+        if entry is None or playable is None:
+            return
+        start = were_at if self._opened else self._started_at
+        # Whatever mpv had queued after it went with the output.
+        self._drop_prepared()
+        self.mpv.load(playable.url, self._gain_for(playable), start=start)
+        self._was_idle = False
+        self._opened = False
+        self._retries = 0
+        self._started_at = start
+        self._refresh_sink_worker()
+
     def _gave_up(self) -> None:
         """mpv went idle without ever having got the track open.
 
@@ -3205,13 +3276,21 @@ class TidalAmp(App):
                 value=config.LIBRARY_VIEW
             )
         elif name == "audio_device":
-            self.mpv.set_device(config.AUDIO_DEVICE)
-            # By name the line would show a guid; OUT says which one it is.
-            self.status = (
-                _("dispositivo de salida: el predeterminado de Windows")
-                if config.AUDIO_DEVICE in ("", "auto")
-                else _("dispositivo de salida cambiado")
-            )
+            wanted = config.AUDIO_DEVICE
+            if wanted not in ("", "auto") and not audio.connected(wanted):
+                # mpv asked for it would play in silence.
+                self.mpv.set_device("auto")
+                self.status = _(
+                    "ese dispositivo no está conectado; suena por el predeterminado"
+                )
+            else:
+                self.mpv.set_device(wanted)
+                # By name the line would show a guid; OUT says which one it is.
+                self.status = (
+                    _("dispositivo de salida: el predeterminado de Windows")
+                    if wanted in ("", "auto")
+                    else _("dispositivo de salida cambiado")
+                )
             # mpv opened the output again, on another device and maybe rate.
             self._refresh_sink_worker()
         elif name == "exclusive":

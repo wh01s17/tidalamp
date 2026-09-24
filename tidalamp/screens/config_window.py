@@ -624,9 +624,11 @@ class ConfigScreen(ModalScreen[None]):
                 ChoiceScreen(
                     _("DISPOSITIVO DE SALIDA"),
                     [
+                        # A dot, not brackets: Windows's names carry their
+                        # own, «Altavoces (JBL Charge 3 Stereo)».
                         (
                             "auto",
-                            _("auto: el predeterminado de Windows ({name})").format(
+                            _("auto: el predeterminado de Windows · {name}").format(
                                 name=default
                             )
                             if default
@@ -773,7 +775,14 @@ class ConfigScreen(ModalScreen[None]):
 
     def _set(self, option: Option, value: object) -> None:
         """Write one row's new value, and everything that follows from it."""
-        if value is None or value == getattr(config, _ATTRIBUTES[option.key]):
+        if value is None:
+            return
+        if value == getattr(config, _ATTRIBUTES[option.key]):
+            # The same device again is how the user says it is back: mpv may
+            # be on the default since it was unplugged, and nothing else
+            # would move it. Applied again, not written again.
+            if option.key == "audio_device" and self._on_change is not None:
+                self._on_change(option.key)
             return
         config.set_option(option.key, value)
         if self._on_change is not None:

@@ -89,6 +89,7 @@ class FakeMpv:
         self.probes = 0
         self.exclusive: list[bool] = []
         self.devices: list[str] = []
+        self.device = "auto"
         self._volume = 100
 
     def set_exclusive(self, on: bool) -> None:
@@ -96,6 +97,7 @@ class FakeMpv:
 
     def set_device(self, name: str) -> None:
         self.devices.append(name)
+        self.device = name or "auto"
 
     @property
     def volume(self) -> int:

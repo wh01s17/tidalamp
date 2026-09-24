@@ -124,6 +124,11 @@ def system_default() -> str:
     return ""
 
 
+def connected(name: str) -> bool:
+    """Always: with no device of its own to choose, none can go away."""
+    return True
+
+
 def streams_on(target: Sink) -> int:
     """How many playback streams the sink is carrying. -1 when unknown."""
     if target.index < 0:

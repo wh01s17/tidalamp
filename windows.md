@@ -1298,11 +1298,23 @@ su pantalla, como el FiiO BTR15:
 - [ ] Desactivarlo devuelve lo anterior sin reiniciar nada
 - [ ] Con `exclusive = true` en el fichero, arranca ya en exclusivo
 - [ ] La ventana `o` no ofrece las filas de PipeWire
-- [ ] **Dispositivo** en `o`, Audio: `auto · <nombre>` dice el predeterminado de
+- [x] **Dispositivo** en `o`, Audio: `auto · <nombre>` dice el predeterminado de
       Windows, y `OUT` también. Elegir otro de la lista mueve el sonido allí sin
-      cortar la pista; con exclusivo, el que se toma entero es ese
-- [ ] Con un dispositivo elegido y apagado (un altavoz Bluetooth), tidalamp arranca
-      y suena por el predeterminado, y la fila dice «no conectado»
+      cortar la pista. Visto por el mantenedor con un JBL Charge 3, un FiiO BTR15 y
+      las salidas de la placa y de la gráfica (2026-09-24)
+- [x] Con un dispositivo elegido y apagado (un altavoz Bluetooth), tidalamp arranca
+      y suena por el predeterminado, y la fila dice «no conectado» (2026-09-24)
+- [x] Desenchufar el dispositivo elegido **mientras suena**: la pista sigue por el
+      predeterminado desde donde iba, sin saltar a la siguiente, y la línea de
+      estado dice «se desconectó el dispositivo de salida». Antes del arreglo se
+      saltaba la cola entera (trampa 26). Visto por el mantenedor con el FiiO BTR15
+      y el JBL de predeterminado (2026-09-24)
+- [x] Volver a enchufarlo: en unos 2 s el sonido vuelve a él sin cortar la pista, y
+      la línea de estado dice «volvió el dispositivo de salida» (2026-09-24)
+- [ ] Con el sonido en el predeterminado y el elegido de vuelta, elegirlo otra vez en
+      `o` también lo aplica
+- [ ] Con un dispositivo elegido y el modo exclusivo activado, el que se toma entero
+      es ese y no el predeterminado
 
 Código: `player._exclusive_option`, `player._device_option`, `Mpv.set_exclusive`,
 `Mpv.set_device`, `app._setting_changed` («exclusive», «audio_device») y
@@ -1473,7 +1485,19 @@ Cada una puede costar una tarde si no se conoce de antemano.
     `--audio-device` de un dispositivo que no está, mpv dice «Could not
     open/initialize audio device -> no sound» y reproduce en silencio. Por eso
     `player._device_option` deja fuera el que Windows no tiene activo, y mpv abre el
-    predeterminado. Sólo se ofrecen las salidas `wasapi/`: el exclusivo es de
+    predeterminado. **Desenchufado en plena pista** es peor: mpv acaba la pista con
+    `end-file` `reason=error` («audio output initialization failed»), y como había
+    sonado, la app la daba por terminada y pasaba a la siguiente, que ya no abría;
+    así se saltó la cola entera al quitar un FiiO BTR15 (visto por el mantenedor,
+    2026-09-24). `TidalAmp._output_gone` lo reconoce cuando mpv se para (el
+    dispositivo en que lo puso tidalamp, `Mpv.device`, ya no está activo) y
+    `_play_on_the_default` pasa a `auto` y retoma la pista donde iba. Sólo para la
+    sesión: el ajuste conserva el dispositivo. **Y hay que volver a él**: con el FiiO
+    otra vez enchufado, el sonido seguía en el JBL, y elegirlo en `o` no hacía nada
+    porque el ajuste ya lo decía y la ventana descarta lo que no cambia. Ahora
+    `TidalAmp._watch_output` pregunta cada 2 s, en un worker y sólo mientras mpv no
+    está en el elegido, si ha vuelto; y elegir el mismo dispositivo en `o` lo aplica
+    otra vez. Uno que no está no se le pasa nunca a mpv: sonaría mudo. Sólo se ofrecen las salidas `wasapi/`: el exclusivo es de
     WASAPI, y `openal` es otra vía a los mismos dispositivos. En Linux no hay fila
     ni argumento: la salida es el sink por defecto de PipeWire, cuyo rate gestiona
     el backend.

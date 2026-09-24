@@ -169,3 +169,56 @@ def test_a_track_slid_into_with_no_gap_is_judged_on_its_own_too(monkeypatch):
     heard, retries = asyncio.run(scenario())
     assert not heard
     assert retries == 0
+
+
+def test_unplugging_the_chosen_device_goes_on_through_the_default(monkeypatch):
+    """Unplugging a FiiO BTR15 mid-track skipped the whole queue: mpv ended
+    the track («audio output initialization failed») and could open none
+    after it. Now it moves to the system's default and picks the same track
+    up where it was."""
+    from tidalamp import audio
+
+    async def scenario() -> tuple[FakeMpv, str, int]:
+        application, mpv = player(monkeypatch)
+        mpv.device = "wasapi/{fiio}"
+        async with application.run_test(size=(100, 40)) as pilot:
+            await pilot.pause()
+            await loaded(application, mpv, pilot, three())
+            mpv.position, mpv.duration = 42.0, 200.0
+            application._tick_slow()
+            await pilot.pause()
+            mpv.loaded = None
+            monkeypatch.setattr(audio, "connected", lambda name: False)
+            mpv.position, mpv.duration, mpv.idle = 0.0, 0.0, True
+            application._tick_slow()
+            await pilot.pause()
+            return mpv, str(application.status), application.queue.playing
+
+    mpv, status, playing = asyncio.run(scenario())
+    assert mpv.devices == ["auto"]
+    assert (mpv.loaded, mpv.started_at) == ("https://cdn/0", 42.0)
+    assert playing == 0, "la misma pista, no la siguiente"
+    assert "se desconectó el dispositivo" in status
+
+
+def test_on_auto_a_track_that_ends_is_just_the_end_of_it(monkeypatch):
+    """mpv follows the default output by itself: nothing to move."""
+    from tidalamp import audio
+
+    async def scenario() -> tuple[FakeMpv, int]:
+        application, mpv = player(monkeypatch)
+        async with application.run_test(size=(100, 40)) as pilot:
+            await pilot.pause()
+            await loaded(application, mpv, pilot, three())
+            mpv.position, mpv.duration = 30.0, 200.0
+            application._tick_slow()
+            await pilot.pause()
+            monkeypatch.setattr(audio, "connected", lambda name: False)
+            mpv.position, mpv.duration, mpv.idle = 0.0, 0.0, True
+            application._tick_slow()
+            await pilot.pause()
+            return mpv, application.queue.playing
+
+    mpv, playing = asyncio.run(scenario())
+    assert mpv.devices == []
+    assert playing == 1

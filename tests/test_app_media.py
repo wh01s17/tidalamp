@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import asyncio
 
-from app_helpers import FakeMpv, isolate_runtime
+from app_helpers import FakeMpv, isolate_runtime, settle
 
 from tidalamp.app import TidalAmp
 
@@ -136,9 +136,10 @@ def test_the_device_is_picked_from_a_list_and_never_by_an_arrow():
 
 
 def test_changing_the_device_moves_the_sound_at_once(monkeypatch):
-    from tidalamp import config
+    from tidalamp import audio, config
 
     isolate_runtime(monkeypatch)
+    monkeypatch.setattr(audio, "connected", lambda name: True)
     seen: list[tuple[list[str], str]] = []
 
     async def scenario() -> None:
@@ -177,3 +178,94 @@ def test_exclusive_mode_applies_at_once_and_says_what_it_costs(monkeypatch):
     asyncio.run(scenario())
     assert seen[0][0] == [True]
     assert "sólo suena tidalamp" in seen[0][1]
+
+
+def test_choosing_the_same_device_again_applies_it_again(monkeypatch):
+    """mpv may be on the default since the device was unplugged; choosing
+    it again did nothing, because the setting already said it."""
+    from tidalamp import config
+    from tidalamp.screens import config_window
+
+    changed: list[str] = []
+    monkeypatch.setattr(config, "AUDIO_DEVICE", "wasapi/{fiio}")
+    monkeypatch.setattr(config, "DEFAULT_QUALITY", "HI_RES_LOSSLESS")
+    screen = config_window.ConfigScreen(on_change=changed.append)
+    screen._set(config_window.Option("Dispositivo", key="audio_device"), "wasapi/{fiio}")
+    screen._set(config_window.Option("Calidad", key="quality"), "HI_RES_LOSSLESS")
+    assert changed == ["audio_device"]
+
+
+def test_a_device_that_is_not_there_is_not_handed_to_mpv(monkeypatch):
+    """mpv asked for it opens nothing and plays in silence."""
+    from tidalamp import audio, config
+
+    isolate_runtime(monkeypatch)
+    seen: list[tuple[list[str], str]] = []
+
+    async def scenario() -> None:
+        mpv = FakeMpv()
+        application = TidalAmp(object(), mpv)
+        async with application.run_test(size=(100, 40)) as pilot:
+            await pilot.pause()
+            monkeypatch.setattr(config, "AUDIO_DEVICE", "wasapi/{fiio}")
+            monkeypatch.setattr(audio, "connected", lambda name: False)
+            application._setting_changed("audio_device")
+            seen.append((list(mpv.devices), application.status))
+
+    asyncio.run(scenario())
+    assert seen[0][0] == ["auto"]
+    assert "no está conectado" in seen[0][1]
+
+
+def test_the_chosen_device_is_gone_back_to_once_it_is_plugged_in(monkeypatch):
+    """The FiiO came back and the sound stayed on the JBL it had fallen to."""
+    from tidalamp import audio, config
+
+    isolate_runtime(monkeypatch)
+    monkeypatch.setattr(audio, "MANAGES_RATES", False)
+    seen: list[tuple[list[str], str]] = []
+
+    async def scenario() -> None:
+        mpv = FakeMpv()
+        application = TidalAmp(object(), mpv)
+        async with application.run_test(size=(100, 40)) as pilot:
+            await pilot.pause()
+            monkeypatch.setattr(config, "AUDIO_DEVICE", "wasapi/{fiio}")
+            monkeypatch.setattr(audio, "connected", lambda name: False)
+            application._watch_output()
+            await settle(pilot, lambda: True)
+            assert mpv.devices == [], "todavía no está"
+            monkeypatch.setattr(audio, "connected", lambda name: True)
+            application._watch_output()
+            await settle(pilot, lambda: mpv.devices)
+            seen.append((list(mpv.devices), application.status))
+            # Back on it: nothing more to ask Windows.
+            application._watch_output()
+            await pilot.pause()
+            seen.append((list(mpv.devices), application.status))
+
+    asyncio.run(scenario())
+    assert seen[0] == (["wasapi/{fiio}"], "volvió el dispositivo de salida; suena por él")
+    assert seen[1][0] == ["wasapi/{fiio}"]
+
+
+def test_linux_never_watches_for_a_device(monkeypatch):
+    """No row, no device: the output is PipeWire's default sink."""
+    from tidalamp import audio, config
+
+    isolate_runtime(monkeypatch)
+    monkeypatch.setattr(audio, "MANAGES_RATES", True)
+    asked: list[str] = []
+
+    async def scenario() -> None:
+        mpv = FakeMpv()
+        application = TidalAmp(object(), mpv)
+        async with application.run_test(size=(100, 40)) as pilot:
+            await pilot.pause()
+            monkeypatch.setattr(config, "AUDIO_DEVICE", "wasapi/{fiio}")
+            monkeypatch.setattr(audio, "connected", lambda name: asked.append(name))
+            application._watch_output()
+            await settle(pilot, lambda: True)
+
+    asyncio.run(scenario())
+    assert asked == []

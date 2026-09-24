@@ -1134,12 +1134,21 @@ ENGLISH: dict[str, str] = {
         "not connected; playing through the default"
     ),
     "DISPOSITIVO DE SALIDA": "OUTPUT DEVICE",
-    "auto: el predeterminado de Windows ({name})": "auto: Windows's default ({name})",
+    "auto: el predeterminado de Windows · {name}": "auto: Windows's default · {name}",
     "auto: el predeterminado de Windows": "auto: Windows's default",
     "dispositivo de salida: el predeterminado de Windows": (
         "output device: Windows's default"
     ),
     "dispositivo de salida cambiado": "output device changed",
+    "ese dispositivo no está conectado; suena por el predeterminado": (
+        "that device is not connected; playing through the default"
+    ),
+    "volvió el dispositivo de salida; suena por él": (
+        "the output device is back; playing through it"
+    ),
+    "se desconectó el dispositivo de salida; suena por el predeterminado": (
+        "the output device was unplugged; playing through the default"
+    ),
     "modo exclusivo: sólo suena tidalamp, a la frecuencia de cada pista": (
         "exclusive mode: only tidalamp plays, at each track's own rate"
     ),
