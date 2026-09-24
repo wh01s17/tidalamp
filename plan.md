@@ -4,13 +4,22 @@ Documento de traspaso. Describe qué existe, qué está verificado, qué falta y
 criterio se tomaron las decisiones, para que cualquiera (humano o modelo) pueda
 retomar el trabajo sin contexto previo.
 
-**Última actualización:** 2026-09-24, versión `0.16.0` publicada en PyPI y en GitHub,
+**Última actualización:** 2026-09-24, versión `0.17.0` publicada en PyPI y en GitHub,
+con el tag `v0.17.0` sobre `54f9c76` y el checksum del tarball en `c1ff2b6`. Es lo
+que salió de la primera prueba en una máquina Windows real, con el zip de la `0.16.0`:
+mpv seguía sonando al cerrar la terminal (ahora va en un job object que el kernel
+cierra con tidalamp), el `.exe` no traía Pillow y no dibujaba carátulas, la pausa era un
+emoji, la carátula sixel era una franja y luego parpadeaba (se manda tras la última
+línea y se pide la salida sincronizada, que Textual sólo pide en Linux), y el menú
+ofrecía kitty. Nuevo: sin mpv o sin cava, tidalamp ofrece instalarlos con winget. El
+detalle y el porqué, en `windows.md` §10.2 y trampas 20 a 24. Linux no cambia. Antes,
+el mismo día, versión `0.16.0` publicada en PyPI y en GitHub,
 con el tag `v0.16.0` sobre `4189d54` y el checksum del tarball en `6f08341`. Lo nuevo:
 **Windows en vista previa**, en el mismo repo: backends por sistema detrás de
 fachadas, mpv por un named pipe, SMTC en lugar de MPRIS, el acceso directo del menú
 Inicio, el modo exclusivo de WASAPI y un `tidalamp.exe` en el Release. La suite pasa
-en `windows-latest` y el `.exe` pasó su prueba de humo, pero **nadie ha reproducido
-música en Windows todavía**: eso es `windows.md` §12. Además `mpv_path`, y dos arreglos
+en `windows-latest` y el `.exe` pasó su prueba de humo; la primera reproducción real en
+Windows llegó con la `0.17.0` (arriba), y el resto de `windows.md` §12 sigue abierto. Además `mpv_path`, y dos arreglos
 que valen para Linux (el descriptor que perdía cada pista hi-res y los workers que
 acababan después que la app). Ver §4, «Windows». Antes, 2026-09-20, versión `0.15.0`
 publicada en PyPI y en GitHub,
@@ -2481,7 +2490,8 @@ una pista en cada calidad y leer `~/.local/state/tidalamp/tidalamp.log`.
 > pista; la `0.12.0` (2026-09-17) trae el lanzador del menú, la `0.13.0`
 > (2026-09-17) cerrar sesión, la `0.14.0` (2026-09-19) la letra al lado de la
 > carátula en pantalla completa, la `0.15.0` (2026-09-20) «Lofi sin copyright» y sus
-> créditos, y la `0.16.0` (2026-09-23) Windows en vista previa; allí quedan las
+> créditos, la `0.16.0` (2026-09-23) Windows en vista previa y la `0.17.0`
+> (2026-09-24) lo que salió de probarla en una máquina real; allí quedan las
 > comprobaciones a mano. Esta sección sigue siendo el estado general
 > y aquella, la cola de trabajo.
 
@@ -2490,16 +2500,16 @@ reproductor sirva, sino acabado, distribución y confirmar contra TIDAL real cos
 probadas sólo con dobles.
 
 **Orden propuesto (2026-09-11):** ~~P5 empaquetado~~ y ~~carátula~~ ✅ hechos. Cada
-versión se publica siguiendo `publish.md`; la última publicada es la `0.16.0`
-(2026-09-23), en PyPI y en GitHub con el zip de Windows, y con el checksum del tarball
-ya en el PKGBUILD (`6f08341`). Lo que queda abierto aquí pide
+versión se publica siguiendo `publish.md`; la última publicada es la `0.17.0`
+(2026-09-24), en PyPI y en GitHub con el zip de Windows, y con el checksum del tarball
+ya en el PKGBUILD (`c1ff2b6`). Lo que queda abierto aquí pide
 credenciales tuyas o un par de ojos.
 
 1. Publicar en el AUR cuando vuelva a abrir el registro de cuentas nuevas. El paquete
    está preparado y se puede probar localmente, pero el alta final depende del
    servicio externo y no tiene fecha anunciada. **Todo lo del AUR queda pendiente**
-   (decidido por el mantenedor el 2026-09-14): de la `0.16.0` sólo está hecho el
-   checksum (`publish.md` §8.1 y §8.3, en `6f08341`); §8.2 (`makepkg -Csi`,
+   (decidido por el mantenedor el 2026-09-14): de la `0.17.0` sólo está hecho el
+   checksum (`publish.md` §8.1 y §8.3, en `c1ff2b6`); §8.2 (`makepkg -Csi`,
    `namcap`) no se ha ejecutado para esta versión, y §8.4 a §8.6 esperan al registro.
 2. ~~Mirar `retro` y `ascii` en un terminal de verdad~~ ✅ hecho el 2026-09-10; ver §9.5.
    Queda el extremo pequeño: la disposición compacta no se ha visto nunca.

@@ -17,17 +17,22 @@ Lo de aquí no bloquea publicar. `plan.md` §5 y §6 mandan sobre el estado gene
 
 ## Para la próxima versión
 
-- **Probar Windows en una máquina real**, siguiendo `windows.md` §12 paso a paso: cada
-  apartado dice qué comando lanzar, qué mirar y en qué fichero está el código si falla.
-  Por riesgo, lo primero es SMTC (§12.4) y el named pipe con un mpv de verdad (§12.3).
+- **Terminar de probar Windows en una máquina real**, siguiendo `windows.md` §12 paso
+  a paso: cada apartado dice qué comando lanzar, qué mirar y en qué fichero está el
+  código si falla. Empezó el 2026-09-24 en Windows 10 con Windows Terminal: suena por
+  el named pipe con un mpv de verdad, y lo que salió mal se arregló en la `0.17.0`
+  (`windows.md`, trampas 20 a 24). Falta por ver, por riesgo: SMTC y las teclas
+  multimedia (§12.4), el modo exclusivo con un DAC (§12.5) y conhost (§12.6), y
+  confirmar en la `0.17.0` que la carátula sixel ya no parpadea y que el espectro de
+  cava aparece.
   Lo que se compruebe se marca allí mismo con la fecha; lo que falle, con el log de
   `TIDALAMP_DEBUG=1`. El entorno para arreglar cosas desde Windows está en
   `CONTRIBUTING.md` («Setting up», «Windows»).
   - *Después de §12:* el clasificador de Windows en PyPI, quitar «preview» del README,
     y una captura en Windows Terminal (`windows.md`, «Después de §12»).
 
-La última publicada es la `0.16.0` (2026-09-23), en PyPI y en GitHub con el zip de
-Windows; su checksum del AUR está en `6f08341`, y lo demás del AUR espera al registro
+La última publicada es la `0.17.0` (2026-09-24), en PyPI y en GitHub con el zip de
+Windows; su checksum del AUR está en `c1ff2b6`, y lo demás del AUR espera al registro
 (`plan.md` §6). Lo que trae cada versión está en
 `CHANGELOG.md`.
 

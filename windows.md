@@ -8,13 +8,15 @@ que se decidió, y en español porque lo lee el mantenedor (ver `CONTRIBUTING.md
 
 **Punto de partida:** `tidalamp` v0.15.0 (`02dc6ea`). Ni una línea de Windows todavía.
 
-**Estado (2026-09-24):** publicada la **0.16.0**, la primera con Windows, en vista
-previa: `pipx install "tidalamp[art]"` desde PyPI, o el zip con `tidalamp.exe` en
-<https://github.com/wh01s17/tidalamp/releases/tag/v0.16.0>. Las siete fases están
+**Estado (2026-09-24):** publicada la **0.17.0**, en vista previa:
+`pipx install "tidalamp[art]"` desde PyPI, o el zip con `tidalamp.exe` en
+<https://github.com/wh01s17/tidalamp/releases/tag/v0.17.0>. Las siete fases están
 escritas. La suite pasa en
 `windows-latest` (3.11 y 3.14) y el `.exe` se construye y pasa su prueba de humo en
-CI. **Nadie ha reproducido música en una máquina Windows todavía**: eso es §12, y es
-lo siguiente. Quien lo haga y quiera arreglar algo desde Windows tiene el entorno en
+CI. **La primera prueba en una máquina real** (Windows 10, Windows Terminal 1.24, con
+el zip de la 0.16.0 y desde el checkout) reprodujo música por el named pipe, y lo que
+salió mal se arregló en la 0.17.0: trampas 20 a 24 y §10.2. El resto de §12 sigue
+abierto —SMTC, modo exclusivo, conhost— y sus casillas sin marcar. Quien lo haga y quiera arreglar algo desde Windows tiene el entorno en
 `CONTRIBUTING.md` («Setting up», «Windows») y, en §12, qué fichero mirar para cada
 fallo. El estado fase a fase está en §15.
 
