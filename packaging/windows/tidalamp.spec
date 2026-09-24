@@ -20,12 +20,12 @@ ROOT = Path(SPECPATH).parent.parent  # noqa: F821 - defined by PyInstaller
 
 # What the other system's backends import and this one does not have. On
 # Windows, D-Bus: not installed there, and the facade never imports it. Built
-# on Linux (to try the recipe), `_winapi`.
+# on Linux (to try the recipe), `_winapi` and `ctypes.WinDLL`.
 if sys.platform == "win32":
     OTHER_SYSTEM = {"tidalamp.backends.linux.mpris"}
     EXCLUDES = ["dbus_fast"]
 else:
-    OTHER_SYSTEM = {"tidalamp.backends.windows.pipe"}
+    OTHER_SYSTEM = {"tidalamp.backends.windows.pipe", "tidalamp.backends.windows.job"}
     EXCLUDES = []
 
 hidden = (

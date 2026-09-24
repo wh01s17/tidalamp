@@ -16,10 +16,11 @@ import sys
 
 import tidalamp
 
-# Module to the platform it needs: `_winapi` exists only on Windows, and
-# dbus-fast is only installed on Linux.
+# Module to the platform it needs: `_winapi` and `ctypes.WinDLL` exist only
+# on Windows, and dbus-fast is only installed on Linux.
 ONLY_ON = {
     "tidalamp.backends.windows.pipe": "win32",
+    "tidalamp.backends.windows.job": "win32",
     "tidalamp.backends.linux.mpris": "linux",
 }
 
