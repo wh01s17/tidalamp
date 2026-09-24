@@ -808,6 +808,16 @@ def test_a_sixel_that_text_would_erase_goes_out_after_the_last_line(monkeypatch)
     asyncio.run(scenario())
 
 
+def test_windows_does_not_offer_kitty_for_the_cover():
+    """Neither Windows Terminal nor conhost draws it; `auto` still finds
+    WezTerm, the one that does."""
+    from tidalamp.screens import config_window
+
+    assert "kitty" not in config_window._artworks("win32")
+    assert "sixel" in config_window._artworks("win32")
+    assert config_window._artworks("linux") == ("auto", "kitty", "sixel", "blocks", "off")
+
+
 def test_windows_asks_the_terminal_for_whole_frames(monkeypatch):
     """Textual only asks on Linux. Without it a sixel cover blinked at every
     key in Windows Terminal: each repaint showed the blanks before the image."""

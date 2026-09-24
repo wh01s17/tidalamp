@@ -51,6 +51,19 @@ class Option:
     group: str = ""
 
 
+def _artworks(platform: str = sys.platform) -> tuple[str, ...]:
+    """The cover protocols worth offering on this system.
+
+    No kitty on Windows: neither Windows Terminal nor conhost speaks it, and a
+    choice that draws nothing is only a way to lose the cover. The one terminal
+    there that does (WezTerm) is recognised by `auto`, and the setting in the
+    file is still obeyed.
+    """
+    if platform == "win32":
+        return ("auto", "sixel", "blocks", "off")
+    return ("auto", "kitty", "sixel", "blocks", "off")
+
+
 class ConfigScreen(ModalScreen[None]):
     """Everything the config file holds, plus the audio stack under it.
 
@@ -79,7 +92,7 @@ class ConfigScreen(ModalScreen[None]):
     CHROME = 6
 
     QUALITIES = ("LOW", "HIGH", "LOSSLESS", "HI_RES_LOSSLESS")
-    ARTWORKS = ("auto", "kitty", "sixel", "blocks", "off")
+    ARTWORKS = _artworks()
     # What is left of that list once a window has to be drawn over the cover.
     # `auto` is not on it because it is a promise the terminal keeps, and on a
     # kitty terminal it promises exactly the thing transparency cannot have.

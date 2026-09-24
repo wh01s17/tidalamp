@@ -27,6 +27,9 @@ versioning is [semantic](https://semver.org/).
   exactly that. There the image now goes out after the box's last line, and the
   terminal is asked to take each frame whole (synchronized output, which Textual only
   asks for on Linux): without it the cover blinked at every key.
+- **Windows: the settings window no longer offers `kitty` for the cover**: neither
+  Windows Terminal nor conhost draws it. `auto` still finds WezTerm, which does, and
+  `artwork = "kitty"` in the file is still obeyed.
 
 ## [0.16.0] - 2026-09-23
 

@@ -1418,6 +1418,7 @@ Cada una puede costar una tarde si no se conoce de antemano.
     blancos, subiendo el cursor al origen de la caja y devolviéndolo con DECSC/DECRC
     (`artwork.sixel_from_below`). kitty no lo necesita: pinta por encima del texto.
     En Linux sigue como estaba; si foot o mlterm hacen lo mismo, el arreglo vale igual.
+    En el menú de ajustes, Windows no ofrece `kitty` (`config_window._artworks`).
 23. **Con eso, la carátula sixel parpadeaba a cada tecla.** Cada repintado de la caja
     son blancos (que borran la imagen) y luego la imagen, y Windows Terminal enseñaba
     el estado de en medio. Textual envuelve cada frame en la salida sincronizada
