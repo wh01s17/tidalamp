@@ -24,10 +24,15 @@ Lo de aquí no bloquea publicar. `plan.md` §5 y §6 mandan sobre el estado gene
   (`windows.md`, trampas 20 a 24). La `0.18.0` trajo el dispositivo de salida, visto
   funcionar con un FiiO BTR15 y un JBL: elegirlo, arrancar con él apagado,
   desenchufarlo en plena pista y volver a enchufarlo (§12.5), y el margen de Windows
-  Terminal (§12.6). Falta por ver, por riesgo: SMTC y las teclas multimedia (§12.4),
-  el modo exclusivo con el DAC a la frecuencia de la pista (§12.5, ya con el FiiO a
-  mano), conhost (§12.6), el `.exe` en una máquina sin Python (§12.7), y confirmar
-  que la carátula sixel ya no parpadea y que el espectro de cava aparece.
+  Terminal (§12.6). El 2026-09-24 se automatizó lo que no pide ojos ni oídos (26
+  casillas, cada una con cómo) y salieron tres fallos, arreglados sin publicar: las
+  teclas multimedia iban a la sesión del propio mpv (trampa 27), cava no había
+  corrido nunca en Windows y con el exclusivo no oye nada (trampa 28). Falta, y es
+  del mantenedor: el panel con título y portada y las teclas con el arreglo (§12.4),
+  la pantalla del DAC y las notificaciones (§12.5), la carátula en bloques, sixel y
+  sextantes, conhost y el espectro en la interfaz (§12.6), el paso sin corte entre
+  pistas (§12.3), la consola sin parpadeos y los accesos a la vista (§12.2), y el
+  `.exe` abierto con sesión y SmartScreen (§12.7).
   Lo que se compruebe se marca allí mismo con la fecha; lo que falle, con el log de
   `TIDALAMP_DEBUG=1`. El entorno para arreglar cosas desde Windows está en
   `CONTRIBUTING.md` («Setting up», «Windows»).
