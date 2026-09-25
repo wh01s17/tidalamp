@@ -1330,6 +1330,7 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
       mientras tanto se pidió otra cosa (otra pista, parar), no se toca. Ahí mismo
       vuelve cava, que muere con el demonio y dejaba el analizador en `RMS` hasta
       reabrir tidalamp.
+      **Visto por el mantenedor** (2026-09-25), con la pista sonando y en pausa.
 - [x] Avisa cuando la salida es Bluetooth, que no lleva lossless digan lo que digan
       los ritmos.
 - [x] **Comprobado en el hardware** (2026-09-08): con el drop-in puesto y PipeWire

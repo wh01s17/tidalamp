@@ -1406,7 +1406,8 @@ En una máquina, o un usuario, sin Python instalado:
       antes de Windows: tras «Reiniciar PipeWire» el analizador se quedaba en `RMS`
       hasta volver a abrir tidalamp, porque cava muere con el daemon y nadie lo
       relanzaba. Arreglado (`TidalAmp._back_from_pipewire`), y de paso el reinicio ya
-      no deja la música parada: sigue desde el segundo en el que iba
+      no deja la música parada: sigue desde el segundo en el que iba. Las dos cosas,
+      vistas por el mantenedor sonando y en pausa (2026-09-25)
 - [x] Los cambios desde la 0.18.0 dejan Linux igual: el `cava.conf` que se escribe
       es idéntico byte a byte, mpv arranca sin `--media-controls` y `Sink.muted` es
       siempre `False`. Los interruptores por variable de entorno, con la CLI de verdad
