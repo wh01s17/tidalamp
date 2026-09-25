@@ -65,6 +65,16 @@ def releases() -> tuple[Release, ...]:
     """Newest first. Translated at call time, not at import time."""
     return (
         Release(
+            "0.19.0",
+            "2026-09-25",
+            (
+                _("Windows: las teclas multimedia llegan a tidalamp, no a mpv."),
+                _("Windows: el espectro de cava funciona, y no miente en exclusivo."),
+                _("Windows: una salida silenciada lo dice en OUT y en o."),
+                _("Reiniciar PipeWire retoma la pista donde iba, y cava con ella."),
+            ),
+        ),
+        Release(
             "0.18.0",
             "2026-09-24",
             (

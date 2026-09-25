@@ -5,6 +5,8 @@ versioning is [semantic](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.19.0] - 2026-09-25
+
 ### Added
 
 - **Windows: a muted output says so.** Muted (or at zero) in Windows, the output

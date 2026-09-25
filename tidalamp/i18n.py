@@ -282,6 +282,19 @@ ENGLISH: dict[str, str] = {
     "«{name}» no viene de TIDAL, que es de donde salen las letras": (
         "“{name}” does not come from TIDAL, which is where the lyrics come from"
     ),
+    # --- 0.19.0, in the help's list of changes
+    "Windows: las teclas multimedia llegan a tidalamp, no a mpv.": (
+        "Windows: the media keys reach tidalamp, not mpv."
+    ),
+    "Windows: el espectro de cava funciona, y no miente en exclusivo.": (
+        "Windows: cava's spectrum works, and does not lie in exclusive mode."
+    ),
+    "Windows: una salida silenciada lo dice en OUT y en o.": (
+        "Windows: a muted output says so in OUT and in o."
+    ),
+    "Reiniciar PipeWire retoma la pista donde iba, y cava con ella.": (
+        "Restart PipeWire picks the track up where it was, and cava with it."
+    ),
     # --- 0.18.0, in the help's list of changes
     "Windows: el reproductor llega al borde de Windows Terminal.": (
         "Windows: the player reaches the edge of Windows Terminal."
