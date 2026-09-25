@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import contextlib
 import io
-import os
 import sys
 
 import typer
@@ -48,7 +47,7 @@ def tui() -> None:
     """Lanza la interfaz."""
     from .app import TidalAmp
 
-    if os.environ.get("TIDALAMP_DEBUG"):
+    if settings.DEBUG:
         typer.echo(_("Debug log en {path}").format(path=LOG_FILE))
 
     try:

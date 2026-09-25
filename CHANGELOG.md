@@ -28,6 +28,10 @@ versioning is [semantic](https://semver.org/).
   not Windows's default, since cava only hears the default. In both cases the analyser
   now uses mpv's own level meter, which hears the stream itself, and switching the
   mode or the device switches it.
+- **A switch set in the environment could only turn it on.** `TIDALAMP_DEBUG=0` or
+  `TIDALAMP_EXCLUSIVE=false` turned debugging or exclusive mode *on*, since any value
+  did, and a single run with one off over a config file that has it on could not be
+  asked for. `0`, `false`, `no` and `off` now turn it off; anything else, on.
 
 ## [0.18.0] - 2026-09-24
 

@@ -165,9 +165,21 @@ def columns() -> tuple[str, ...]:
     return tuple(dict.fromkeys(name for name in wanted if name in NAMES))
 
 
+# What turns a switch off from the environment. Anything else turns it on.
+_OFF = frozenset({"0", "false", "no", "off"})
+
+
 def flag(name: str, env: str) -> bool:
-    if os.environ.get(env):
-        return True
+    """A switch: the variable when it is set, the file otherwise.
+
+    The variable used to turn it on whatever it said, so
+    `TIDALAMP_EXCLUSIVE=false` switched exclusive mode *on*, and one run with
+    it off, over a file that has it on, could not be asked for at all. The
+    template promises that a variable always wins over the file.
+    """
+    value = os.environ.get(env)
+    if value:
+        return value.strip().lower() not in _OFF
     return bool(FILE.get(name, False))
 
 

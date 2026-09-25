@@ -342,3 +342,27 @@ def test_a_write_that_fails_halfway_leaves_the_old_file_whole(tmp_path, monkeypa
     assert path.read_text(encoding="utf-8") == '{"entries": []}'
     assert path.stat().st_mode & 0o777 == 0o640, "conserva sus permisos"
     assert [p.name for p in tmp_path.iterdir()] == ["queue.json"]
+
+
+@pytest.mark.parametrize(
+    ("value", "on"),
+    [
+        ("1", True),
+        ("true", True),
+        ("yes", True),
+        ("0", False),
+        ("false", False),
+        ("No", False),
+        (" off ", False),
+    ],
+)
+def test_a_switch_in_the_environment_can_turn_it_off_too(
+    monkeypatch, tmp_path, value, on
+):
+    """`TIDALAMP_EXCLUSIVE=false` turned exclusive mode on: any value did."""
+    path = tmp_path / "config.toml"
+    path.write_text("debug = true\n", encoding="utf-8")
+    settings = fresh(monkeypatch, tmp_path)
+    settings.FILE = settings.read_file(path)
+    monkeypatch.setenv("TIDALAMP_DEBUG", value)
+    assert settings.flag("debug", "TIDALAMP_DEBUG") is on
