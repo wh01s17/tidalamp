@@ -1399,8 +1399,20 @@ En una máquina, o un usuario, sin Python instalado:
 
 ### 12.9 Y en Linux, nada ha cambiado
 
-- [ ] De vuelta en Omarchy/Arch: una sesión normal con MPRIS, espectro, tasas de
-      PipeWire y el lanzador, como antes de la 0.16.0
+- [x] De vuelta en Omarchy/Arch: una sesión normal con MPRIS, espectro, tasas de
+      PipeWire y el lanzador, como antes de la 0.16.0. Visto por el mantenedor
+      (2026-09-24): las teclas y el panel por MPRIS, el espectro con `FFT`, un 24/96
+      a 96 kHz en el FiiO y el lanzador del menú. De ahí salió un fallo que ya estaba
+      antes de Windows: tras «Reiniciar PipeWire» el analizador se quedaba en `RMS`
+      hasta volver a abrir tidalamp, porque cava muere con el daemon y nadie lo
+      relanzaba. Arreglado (`ConfigScreen._restarted`)
+- [x] Los cambios desde la 0.18.0 dejan Linux igual: el `cava.conf` que se escribe
+      es idéntico byte a byte, mpv arranca sin `--media-controls` y `Sink.muted` es
+      siempre `False`. Los interruptores por variable de entorno, con la CLI de verdad
+      y directorios XDG temporales: `0`, `false`, `no` y `off` apagan `debug`,
+      `transparency`, `autoplay` y `exclusive` aunque el fichero diga `true`; cualquier
+      otro valor los enciende, y una variable vacía deja mandar al fichero
+      (2026-09-24, automatizado)
 
 ### Después de §12
 
@@ -1604,13 +1616,13 @@ que enlazar ni que mantener.
 
 - [x] F0 · backends y fachadas, transporte extraído, `command` inyectable (Linux idéntico)
 - [x] `stream.py` · `mkstemp` (PR aparte, arregla Linux también)
-- [~] F1 · arranque en Windows. **Código escrito y comprobado desde Linux**
+- [x] F1 · arranque en Windows. **Código escrito y comprobado desde Linux**
   (2026-09-23): rutas en `AppData`, `NamedPipe` con E/S solapada, búsqueda de
   `mpv.exe`, `CREATE_NO_WINDOW`, `mpris` y `desktop` neutros, `distro` con
   winget/scoop/choco, idioma por LCID, UTF-8 en la CLI, `dbus-fast` solo en Linux.
-  `mypy --platform win32` limpio y la paridad de backends en tests. **Falta el
-  criterio de hecho**, que solo se cumple en Windows: arrancar, reproducir y relanzar
-  un `mpv.exe` matado. El pipe no ha corrido nunca; su primera prueba es F2.
+  `mypy --platform win32` limpio y la paridad de backends en tests. El criterio de
+  hecho, cumplido en la máquina del mantenedor (2026-09-24, §12.2 y §12.3): arranca,
+  suena por el pipe y un `mpv.exe` matado vuelve a sonar desde donde iba.
 - [x] F2 · suite en Windows y matriz de CI. **Verde en `windows-latest`** en 3.11 y
   3.14 y en el job `bare`, el 2026-09-23, al cuarto run (`462146d`). El named pipe
   funcionó a la primera; lo que fallaba eran tiempos de los tests, que en Linux
@@ -1619,16 +1631,17 @@ que enlazar ni que mantener.
   que vuelve unos ms antes. Los seis tests que simulaban con `chmod` un fallo de
   escritura hacen ahora que la escritura lance, y corren en los dos sistemas; con
   `@linux_only` quedan los que miran modos de fichero y el lanzador `.desktop`.
-- [~] F3 · terminal: carátulas, sextantes, espectro, paleta. **Código y tests hechos**
+- [x] F3 · terminal: carátulas, sextantes, espectro, paleta. **Código y tests hechos**
   (2026-09-23). La detección de carátula y sextantes ya se portaba bien en Windows
   (medios bloques y cuadrantes en Windows Terminal y conhost; kitty y sextantes en
   WezTerm), y ahora lo fijan tests. cava: su build de Windows manda el raw a stdout
   igual que en Linux (leído en su código), pero **no acepta que se le nombre el
   método de entrada** (trampa 28), que en su código parecía `winscap`; sin consola,
   y `winget install karlstav.cava` en el aviso. La nota de la
-  paleta no promete Omarchy en Windows. **Falta verlo**: portada y colores en Windows
-  Terminal y en conhost, y el espectro de cava real (checklist §12).
-- [~] F4 · audio WASAPI, permisos, acceso directo. **Código y tests hechos**
+  paleta no promete Omarchy en Windows. **Visto** por el mantenedor (2026-09-24,
+  §12.6): la portada en medios bloques, sixel y sextantes en Windows Terminal, conhost,
+  el margen del terminal y el espectro de cava real, que oye lo que suena.
+- [x] F4 · audio WASAPI, permisos, acceso directo. **Código y tests hechos**
   (2026-09-23). `backends/windows/audio.py` pregunta a mpv (`audio-device`,
   `audio-out-params`) a través de `audio.use_player`, que en Linux no hace nada;
   `MANAGES_RATES` quita las filas de PipeWire y pone «Modo exclusivo» (`exclusive`,
@@ -1641,13 +1654,14 @@ que enlazar ni que mantener.
   Audio por ctypes; uno ausente o desenchufado cae al predeterminado y se vuelve a él
   al reaparecer (trampa 26); y el acceso directo también en el escritorio, cuya
   carpeta da `SHGetKnownFolderPath`. **Visto** por el mantenedor: elegir el
-  dispositivo, arrancar con él apagado, desenchufarlo y volver a enchufarlo. **Falta
-  verlo**: 24/96 a 96 kHz con `exclusive`, las notificaciones sin él, y que los dos
-  accesos directos aparezcan y abran (checklist §12).
+  dispositivo, arrancar con él apagado, desenchufarlo y volver a enchufarlo. Y después
+  (2026-09-24, §12.2 y §12.5): 24/96 a 96 kHz con `exclusive`, con el 96K en la
+  pantalla del DAC, las notificaciones sin él, y los dos accesos directos, que
+  aparecen con su icono y abren.
   - *Límite conocido:* en modo compartido, la línea OUT dice la frecuencia a la que
     mpv entrega (la del formato del dispositivo), no la de la pista, así que no
     avisa del remuestreo como en Linux.
-- [~] F5 · SMTC. **Código y tests hechos, sin el spike** (2026-09-23).
+- [x] F5 · SMTC. **Código y tests hechos, sin el spike** (2026-09-23).
   `backends/windows/media.py`: un `MediaPlayer` con su `CommandManager` apagado presta
   sus controles; título, artista, álbum, portada, estado y línea de tiempo al panel,
   sólo cuando cambian; teclas multimedia y la barra del panel vuelven al bucle de la app
@@ -1658,14 +1672,17 @@ que enlazar ni que mantener.
   **El spike, respondido** (2026-09-24): los controles de un `MediaPlayer` sí aparecen
   desde una app lanzada en un terminal y sin empaquetar (sesión `python.exe`), y los
   botones y la barra del panel llegan al backend; no hace falta el plan B. Lo que
-  fallaba eran las teclas, que se llevaba la sesión del propio mpv (trampa 27). **Falta
-  verlo**: el panel con título y portada, y las teclas con el arreglo (§12.4).
-- [x] F6 · `.exe` en el release. Construido en `windows-latest` y con la prueba de
+  fallaba eran las teclas, que se llevaba la sesión del propio mpv (trampa 27).
+  **Visto** con el arreglo (2026-09-24, §12.4): el panel con título y portada, las
+  teclas multimedia y los botones y la barra del panel.
+- [~] F6 · `.exe` en el release. Construido en `windows-latest` y con la prueba de
   humo en verde (run `35947336411`, `1984aad`, 2026-09-24): `tidalamp.exe tui` sin
   sesión importa el reproductor entero y acaba en «login», y las hojas de estilo y los
   emblemas están. Zip de 18,6 MB. El primer intento falló porque el `.gitignore`
-  excluía `*.spec` y la receta nunca había entrado en git. **Falta abrirlo** en una
-  máquina sin Python (checklist §12).
+  excluía `*.spec` y la receta nunca había entrado en git. El de la 0.18.0, abierto
+  sin Python en el `PATH` (2026-09-24, §12.7): pasa la prueba de humo, abre la
+  interfaz con sesión y SmartScreen deja seguir. **Falta** §12.3 y §12.4 desde el
+  `.exe` de la versión siguiente, el primero con el arreglo de las teclas.
 - [~] F7 · documentación, skills, capturas. README («Windows (preview)», la pila de
   audio, SMTC, el acceso directo, la tabla de plataformas), CHANGELOG, CONTRIBUTING,
   `plan.md`, `next.md`, `publish.md`, `packaging/README.md` y las skills

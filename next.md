@@ -28,9 +28,10 @@ Lo de aquí no bloquea publicar. `plan.md` §5 y §6 mandan sobre el estado gene
   mantenedor vio el resto; salieron y se arreglaron, sin publicar, las teclas
   multimedia (trampa 27), cava (trampa 28) y la salida silenciada en Windows (trampa
   29). **De Windows sólo queda** §12.7 con el `.exe` de la versión siguiente, que
-  traerá esos arreglos, y después «Después de §12». **Lo siguiente es §12.9**: una
-  sesión normal en Linux con lo de hoy, que también toca a Linux (los interruptores
-  por variable de entorno y cuándo se usa cava).
+  traerá esos arreglos, y después «Después de §12». §12.9, la sesión normal en Linux,
+  quedó vista el 2026-09-24, y de ella salió el espectro que no volvía tras reiniciar
+  PipeWire, ya arreglado. **Lo siguiente es publicar** esa versión (`publish.md`) y
+  repetir §12.3 y §12.4 con su `.exe`.
   Lo que se compruebe se marca allí mismo con la fecha; lo que falle, con el log de
   `TIDALAMP_DEBUG=1`. El entorno para arreglar cosas desde Windows está en
   `CONTRIBUTING.md` («Setting up», «Windows»).
@@ -75,10 +76,11 @@ Windows; su checksum del AUR está en `89acfb2`, y lo demás del AUR espera al r
   un `session.view_all` que no existe. Habría que pedir la ruta de `_more.api_path`
   a mano, como ya se hace con los enlaces de Explorar (`library._page_at`).
 
-- **Sacar objetos de verdad de `TidalAmp`.** **3393 líneas y 214 métodos** en `app.py`
-  a 2026-09-20, y la cuenta sube en cada versión: eran 2635 y 182 cuando se escribió
-  esta entrada, y la `0.15.0` le sumó `_gave_up`, `action_credits` y el reparto de
-  `_now_playing`. `_setting_changed` sigue siendo lo más enredado. No en mixins (ver
+- **Sacar objetos de verdad de `TidalAmp`.** **3665 líneas y 226 métodos** en `app.py`
+  a 2026-09-24, y la cuenta sube en cada versión: eran 2635 y 182 cuando se escribió
+  esta entrada y 3393 y 214 el 2026-09-20; la `0.15.0` le sumó `_gave_up`,
+  `action_credits` y el reparto de `_now_playing`, y Windows, el dispositivo de salida
+  y a qué oye cava (`_cava_hears_mpv`, `_pick_spectrum`). `_setting_changed` sigue siendo lo más enredado. No en mixins (ver
   «Descartado»), sino objetos con su propio diseño: reproducción, carátula,
   presentación de la cola y aplicación de ajustes, dejando `TidalAmp` como raíz de
   composición. Es un rediseño grande que no arregla ningún fallo, así que solo cuando
