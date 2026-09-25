@@ -551,6 +551,8 @@ class ConfigScreen(ModalScreen[None]):
         """
         if not self._sink.known:
             return ""
+        if self._sink.muted:
+            return _("  Silenciada en Windows: no se oye nada hasta quitarle el silencio")
         if self._sink.bluetooth:
             return _("  Bluetooth: no hay hi-res real por esta salida")
         if len(self._allowed) == 1:

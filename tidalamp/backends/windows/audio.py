@@ -28,7 +28,7 @@ import logging
 import sys
 import uuid
 from pathlib import Path
-from typing import Any
+from typing import Any, NamedTuple
 
 # The same record on every system: what an output is, as far as it will say.
 from ..linux.audio import Sink
@@ -48,6 +48,17 @@ _RENDER = 0  # eRender: outputs, not microphones
 _MULTIMEDIA = 1  # eMultimedia: the role music plays under
 _ACTIVE = 0x1  # DEVICE_STATE_ACTIVE: plugged in and enabled
 _CLSCTX_ALL = 0x17
+_IID_ENDPOINT_VOLUME = uuid.UUID("{5CDF2C82-841E-4546-9722-0CF74078229A}")
+
+
+class Endpoints(NamedTuple):
+    """The outputs as Windows has them, by the `{guid}` mpv puts after
+    ``wasapi/``: the default, the active ones, and those of them that are
+    muted or at zero in Windows's own mixer."""
+
+    default: str
+    active: list[str]
+    silent: frozenset[str] = frozenset()
 
 
 def use_player(player: Any) -> None:
@@ -69,8 +80,17 @@ def sink() -> Sink:
     params = player.get("audio-out-params")
     params = params if isinstance(params, dict) else {}
     names = dict(_listed(player))
-    shown = system_default() if device == "auto" else device
+    found = _endpoints()
+    shown = device
+    if device == "auto":
+        shown = f"wasapi/{found.default}" if found is not None and found.default else ""
     description = names.get(shown, "")
+    # Exclusive mode goes around the mixer, and its mute with it.
+    muted = (
+        found is not None
+        and not player.get("audio-exclusive")
+        and shown.removeprefix("wasapi/").lower() in found.silent
+    )
     try:
         rate = int(params.get("samplerate") or 0)
     except (TypeError, ValueError):
@@ -80,6 +100,7 @@ def sink() -> Sink:
         description=description,
         rate=rate,
         sample_format=str(params.get("format") or ""),
+        muted=muted,
     )
 
 
@@ -101,7 +122,7 @@ def devices() -> list[tuple[str, str]]:
 def system_default() -> str:
     """The output Windows plays music to, by mpv's name for it; "" unknown."""
     found = _endpoints()
-    return f"wasapi/{found[0]}" if found is not None and found[0] else ""
+    return f"wasapi/{found.default}" if found is not None and found.default else ""
 
 
 def connected(name: str) -> bool:
@@ -114,7 +135,7 @@ def connected(name: str) -> bool:
     found = _endpoints()
     if found is None or not name.startswith("wasapi/"):
         return True
-    return name.removeprefix("wasapi/").lower() in found[1]
+    return name.removeprefix("wasapi/").lower() in found.active
 
 
 def _listed(player: Any) -> list[tuple[str, str]]:
@@ -126,13 +147,17 @@ def _listed(player: Any) -> list[tuple[str, str]]:
     ]
 
 
-def _endpoints() -> tuple[str, list[str]] | None:
-    """The default output and every active one, as the `{guid}` mpv puts
-    after ``wasapi/``. None when Windows could not be asked.
+def _endpoints() -> Endpoints | None:
+    """The outputs as Windows has them (`Endpoints`). None when Windows could
+    not be asked.
 
     Straight from the Core Audio API over ctypes, which is what mpv itself
     reads: an endpoint id is ``{0.0.0.00000000}.{guid}``, and the guid is the
     part mpv names the device by.
+
+    Muted is read here too because nothing else would say it: a FiiO muted
+    in Windows played in silence in shared mode while the clock ran, and
+    loud in exclusive mode, which goes around the mixer (2026-09-24).
     """
     if sys.platform != "win32":
         return None
@@ -159,6 +184,7 @@ def _endpoints() -> tuple[str, list[str]] | None:
             default = _endpoint_guid(device)
             _release(device)
         active: list[str] = []
+        silent: set[str] = set()
         collection = ctypes.c_void_p()
         # EnumAudioEndpoints, third.
         if not _call(enumerator, 3, _RENDER, _ACTIVE, ctypes.byref(collection)):
@@ -167,10 +193,13 @@ def _endpoints() -> tuple[str, list[str]] | None:
             for index in range(count.value):
                 item = ctypes.c_void_p()
                 if not _call(collection, 4, index, ctypes.byref(item)):  # ::Item
-                    active.append(_endpoint_guid(item))
+                    guid = _endpoint_guid(item)
+                    active.append(guid)
+                    if guid and _silent(item):
+                        silent.add(guid)
                     _release(item)
             _release(collection)
-        return default, [guid for guid in active if guid]
+        return Endpoints(default, [guid for guid in active if guid], frozenset(silent))
     except OSError as exc:
         log.warning("no se pudo preguntar a Windows por las salidas: %s", exc)
         return None
@@ -197,6 +226,35 @@ def _call(interface: Any, slot: int, *args: Any) -> int:
     ]
     method = ctypes.WINFUNCTYPE(ctypes.c_long, *kinds)(table.contents[slot])
     return int(method(interface, *args))
+
+
+def _silent(device: Any) -> bool:
+    """Whether an IMMDevice is muted or at zero in Windows's mixer."""
+    if sys.platform != "win32":
+        return False
+    import ctypes
+
+    volume = ctypes.c_void_p()
+    # IMMDevice::Activate, for its IAudioEndpointVolume.
+    if _call(
+        device,
+        3,
+        ctypes.create_string_buffer(_IID_ENDPOINT_VOLUME.bytes_le, 16),
+        _CLSCTX_ALL,
+        None,
+        ctypes.byref(volume),
+    ):
+        return False
+    try:
+        muted = ctypes.c_int()
+        level = ctypes.c_float()
+        if _call(volume, 15, ctypes.byref(muted)):  # ::GetMute
+            return False
+        if _call(volume, 9, ctypes.byref(level)):  # ::GetMasterVolumeLevelScalar
+            return bool(muted.value)
+        return bool(muted.value) or level.value <= 0.0
+    finally:
+        _release(volume)
 
 
 def _release(interface: Any) -> None:

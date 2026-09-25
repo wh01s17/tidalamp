@@ -73,6 +73,9 @@ class Sink:
     rate: int = 0
     sample_format: str = ""
     index: int = -1
+    # Windows only: the device is muted, or at zero, in Windows's mixer, and
+    # the stream goes through it. PipeWire's mute is not read here.
+    muted: bool = False
 
     @property
     def known(self) -> bool:

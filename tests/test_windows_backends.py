@@ -377,7 +377,9 @@ def test_auto_says_which_device_it_is_playing_to(monkeypatch):
     has to know which output tidalamp is taking whole."""
     from tidalamp.backends.windows import audio as windows_audio
 
-    monkeypatch.setattr(windows_audio, "system_default", lambda: "wasapi/{jbl}")
+    monkeypatch.setattr(
+        windows_audio, "_endpoints", lambda: windows_audio.Endpoints("{jbl}", ["{jbl}"])
+    )
     windows_audio.use_player(
         ReportingMpv(**{"audio-device": "auto", "audio-device-list": _OUTPUTS})
     )
@@ -386,6 +388,28 @@ def test_auto_says_which_device_it_is_playing_to(monkeypatch):
         "auto",
         "Altavoces (JBL Charge 3 Stereo)",
     )
+
+
+def test_a_device_muted_in_windows_is_said_in_shared_mode_only(monkeypatch):
+    """A FiiO muted in Windows played in silence with the clock running, and
+    loud in exclusive mode, which goes around the mixer and its mute."""
+    from tidalamp.backends.windows import audio as windows_audio
+
+    monkeypatch.setattr(
+        windows_audio,
+        "_endpoints",
+        lambda: windows_audio.Endpoints(
+            "{jbl}", ["{jbl}", "{fiio}"], frozenset({"{fiio}"})
+        ),
+    )
+    shown = {"audio-device": "wasapi/{fiio}", "audio-device-list": _OUTPUTS}
+    windows_audio.use_player(ReportingMpv(**shown, **{"audio-exclusive": False}))
+    assert windows_audio.sink().muted
+    windows_audio.use_player(ReportingMpv(**shown, **{"audio-exclusive": True}))
+    assert not windows_audio.sink().muted
+    on_auto = {"audio-device": "auto", "audio-device-list": _OUTPUTS}
+    windows_audio.use_player(ReportingMpv(**on_auto, **{"audio-exclusive": False}))
+    assert not windows_audio.sink().muted, "the default, the JBL, is not muted"
 
 
 def test_only_wasapi_outputs_are_offered(monkeypatch):
@@ -404,7 +428,9 @@ def test_only_wasapi_outputs_are_offered(monkeypatch):
 def test_a_device_is_connected_when_windows_lists_it_active(monkeypatch):
     from tidalamp.backends.windows import audio as windows_audio
 
-    monkeypatch.setattr(windows_audio, "_endpoints", lambda: ("{jbl}", ["{jbl}"]))
+    monkeypatch.setattr(
+        windows_audio, "_endpoints", lambda: windows_audio.Endpoints("{jbl}", ["{jbl}"])
+    )
     assert windows_audio.system_default() == "wasapi/{jbl}"
     assert windows_audio.connected("wasapi/{JBL}")
     assert not windows_audio.connected("wasapi/{fiio}")
@@ -452,7 +478,8 @@ def test_windows_names_its_default_output_the_way_mpv_does():
 
     found = windows_audio._endpoints()
     assert found is not None
-    default, active = found
+    default, active, silent = found
+    assert silent <= set(active)
     if not active:
         pytest.skip("no audio output on this machine")
     assert all(guid.startswith("{") and guid.endswith("}") for guid in active)

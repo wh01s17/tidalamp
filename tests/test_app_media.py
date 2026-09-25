@@ -338,3 +338,61 @@ def test_linux_keeps_cava_whatever_the_exclusive_setting_says(monkeypatch):
             return application.cava is not None
 
     assert asyncio.run(scenario())
+
+
+def test_a_muted_output_is_said_on_the_out_line_and_in_the_settings(monkeypatch):
+    """Muted in Windows, the track played on in silence and nothing said so."""
+    from tidalamp import audio
+    from tidalamp.screens import config_window
+    from tidalamp.widgets import Glide
+
+    isolate_runtime(monkeypatch)
+    muted = audio.Sink(
+        name="wasapi/{fiio}", description="FiiO BTR15", rate=48000, muted=True
+    )
+
+    async def scenario() -> tuple[str, str]:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(120, 40)) as pilot:
+            await pilot.pause()
+            application._set_sink(muted)
+            await pilot.pause()
+            out = str(application.query_one("#output", Glide).content)
+            screen = config_window.ConfigScreen()
+            screen._sink = muted
+            return out, screen._warning()
+
+    out, warning = asyncio.run(scenario())
+    assert "silenciado en Windows" in out
+    assert "Silenciada en Windows" in warning
+
+
+def test_the_spectrum_is_the_level_meter_off_the_default_device(monkeypatch):
+    """cava hears the default output's mix only: playing to a FiiO with a
+    JBL as the default, the analyser read «FFT» over a flat line."""
+    from tidalamp import app as app_module
+    from tidalamp import audio, config
+
+    start = TidalAmp._start_spectrum
+    isolate_runtime(monkeypatch)
+    monkeypatch.setattr(TidalAmp, "_start_spectrum", start)
+    monkeypatch.setattr(app_module, "Cava", _Cava)
+    monkeypatch.setattr(_Cava, "made", 0)
+    monkeypatch.setattr(audio, "MANAGES_RATES", False)
+    monkeypatch.setattr(audio, "system_default", lambda: "wasapi/{jbl}")
+    monkeypatch.setattr(audio, "connected", lambda name: True)
+    monkeypatch.setattr(config, "EXCLUSIVE", False)
+    seen: list[bool] = []
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(100, 40)) as pilot:
+            await pilot.pause()
+            seen.append(application.cava is not None)  # auto: the default
+            for device in ("wasapi/{fiio}", "wasapi/{jbl}"):
+                monkeypatch.setattr(config, "AUDIO_DEVICE", device)
+                application._setting_changed("audio_device")
+                seen.append(application.cava is not None)
+
+    asyncio.run(scenario())
+    assert seen == [True, False, True]

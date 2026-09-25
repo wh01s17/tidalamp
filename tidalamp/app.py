@@ -1037,11 +1037,24 @@ class TidalAmp(App):
             return
         self._feed_spectrum(self.cava.frame())
 
-    @staticmethod
-    def _cava_hears_mpv() -> bool:
-        """Whether what mpv plays reaches cava: always, but in Windows's
-        exclusive mode (`MANAGES_RATES` is what tells the systems apart)."""
-        return audio.MANAGES_RATES or not config.EXCLUSIVE
+    def _cava_hears_mpv(self) -> bool:
+        """Whether what mpv plays reaches cava. Always on Linux
+        (`MANAGES_RATES` is what tells the systems apart). On Windows cava
+        hears the default output's mix and nothing else, and cannot be told
+        another: not in exclusive mode, and not while mpv plays to another
+        device, where the analyser read «FFT» over a line that hardly moved
+        (a FiiO, with a JBL as the default, 2026-09-24)."""
+        if audio.MANAGES_RATES:
+            return True
+        if config.EXCLUSIVE:
+            return False
+        device = self.mpv.device
+        return device in ("", "auto") or device == audio.system_default()
+
+    def _pick_spectrum(self) -> None:
+        """Start the spectrum again from the source that can hear mpv now."""
+        self._stop_spectrum()
+        self._start_spectrum()
 
     def _stop_spectrum(self) -> None:
         """Drop back to the RMS meter, for good."""
@@ -2807,6 +2820,9 @@ class TidalAmp(App):
         Asked off the UI thread, and only while mpv is not on it. Windows
         only, like the row: `MANAGES_RATES` is what tells the two apart.
         """
+        if self._sink.muted:
+            # Unmuting happens in Windows and nothing tells us: look again.
+            self._refresh_sink_worker()
         wanted = config.AUDIO_DEVICE
         if audio.MANAGES_RATES or wanted in ("", "auto") or self.mpv.device == wanted:
             return
@@ -2824,6 +2840,7 @@ class TidalAmp(App):
         self.mpv.set_device(wanted)
         self.status = _("volvió el dispositivo de salida; suena por él")
         self._refresh_sink_worker()
+        self._pick_spectrum()
 
     def _play_on_the_default(self, were_at: float) -> None:
         """Move to the system's default output and go on from where it was.
@@ -2847,6 +2864,7 @@ class TidalAmp(App):
         self._retries = 0
         self._started_at = start
         self._refresh_sink_worker()
+        self._pick_spectrum()
 
     def _gave_up(self) -> None:
         """mpv went idle without ever having got the track open.
@@ -2982,6 +3000,9 @@ class TidalAmp(App):
                         rate=f"{self._stream_rate / 1000:g}"
                     )
                 )
+            if sink.muted:
+                # The clock runs and nothing is heard: this is the only clue.
+                parts.append(_("silenciado en Windows"))
             line = "OUT  " + " · ".join(parts)
         self.query_one("#output", Glide).update(line)
 
@@ -3308,6 +3329,7 @@ class TidalAmp(App):
                 )
             # mpv opened the output again, on another device and maybe rate.
             self._refresh_sink_worker()
+            self._pick_spectrum()
         elif name == "exclusive":
             self.mpv.set_exclusive(config.EXCLUSIVE)
             self.status = (
@@ -3318,8 +3340,7 @@ class TidalAmp(App):
             # The output was opened again, maybe at another rate.
             self._refresh_sink_worker()
             # And cava can hear it again, or no longer (`_start_spectrum`).
-            self._stop_spectrum()
-            self._start_spectrum()
+            self._pick_spectrum()
         elif name == "autoplay":
             self.status = (
                 _("reproducción automática activada")

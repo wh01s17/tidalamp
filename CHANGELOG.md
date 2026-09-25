@@ -5,6 +5,13 @@ versioning is [semantic](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **Windows: a muted output says so.** Muted (or at zero) in Windows, the output
+  played in silence with the clock running, and loud in exclusive mode, which goes
+  around Windows's mixer. The `OUT` line and the settings now say «muted in Windows»,
+  and the warning goes once it is unmuted.
+
 ### Fixed
 
 - **Windows: only play/pause answered the media keys**, and it was mpv, not tidalamp,
@@ -17,8 +24,10 @@ versioning is [semantic](https://semver.org/).
   so the analyser always fell back to the level meter. It now draws the real spectrum.
 - **Windows: in exclusive mode the spectrum was a flat line** under an «FFT» badge
   while the music played: cava listens to what goes through Windows's mixer, and an
-  exclusive stream goes around it. With exclusive mode on, the analyser uses mpv's own
-  level meter, which hears the stream itself, and switching the mode switches it.
+  exclusive stream goes around it. The same happens when playing to a device that is
+  not Windows's default, since cava only hears the default. In both cases the analyser
+  now uses mpv's own level meter, which hears the stream itself, and switching the
+  mode or the device switches it.
 
 ## [0.18.0] - 2026-09-24
 

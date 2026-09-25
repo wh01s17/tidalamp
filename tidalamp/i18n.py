@@ -1160,6 +1160,10 @@ ENGLISH: dict[str, str] = {
     "ese dispositivo no está conectado; suena por el predeterminado": (
         "that device is not connected; playing through the default"
     ),
+    "silenciado en Windows": "muted in Windows",
+    "  Silenciada en Windows: no se oye nada hasta quitarle el silencio": (
+        "  Muted in Windows: nothing is heard until it is unmuted"
+    ),
     "volvió el dispositivo de salida; suena por él": (
         "the output device is back; playing through it"
     ),
