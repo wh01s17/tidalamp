@@ -1230,11 +1230,15 @@ winget install karlstav.cava                 # opcional: el espectro
 pipx install "tidalamp[art]"                 # o: uv tool install "tidalamp[art]"
 ```
 
-- [ ] Instala sin errores. `pip` baja los paquetes `winrt-*` y **no** `dbus-fast`
-- [ ] `tidalamp --version` dice la versión instalada sin sesión y sin mpv
-- [ ] En una terminal **nueva**, `tidalamp tui` sin haber hecho login dice cómo hacerlo
-- [ ] Sin mpv (antes de instalarlo, o renombrando `Program Files\MPV Player`), el aviso
-      dice `winget install shinchiro.mpv`. Si mpv no aparece estando instalado:
+- [x] Instala sin errores. `pip` baja los paquetes `winrt-*` y **no** `dbus-fast`.
+      La 0.18.0 desde PyPI en un entorno vacío (2026-09-24, automatizado)
+- [x] `tidalamp --version` dice la versión instalada sin sesión y sin mpv (2026-09-24, automatizado)
+- [x] En una terminal **nueva**, `tidalamp tui` sin haber hecho login dice cómo hacerlo:
+      «No hay sesión guardada. Ejecuta: tidalamp login», con un perfil vacío (2026-09-24, automatizado)
+- [x] Sin mpv (antes de instalarlo, o renombrando `Program Files\MPV Player`), el aviso
+      dice `winget install shinchiro.mpv`. Leído del `MpvNotFound` con `find` sin
+      resultado: Windows recalcula `ProgramFiles` para cada proceso, así que no se
+      puede esconder mpv cambiándolo (2026-09-24, automatizado). Si mpv no aparece estando instalado:
       `backends/windows/mpv.py` (`PLACES`), y el ajuste `mpv_path` como salida
 
 ### 12.2 Primer arranque
@@ -1244,29 +1248,35 @@ tidalamp login
 tidalamp
 ```
 
-- [ ] `tidalamp login` muestra la URL, y los acentos y `«»` salen bien. También con la
-      salida redirigida: `tidalamp login > login.txt` y abrir el fichero
-      (`cli._utf8_output`)
+- [x] Con la salida redirigida, `tidalamp login > login.txt` deja la URL, «Caduca» y
+      «Esperando…» en UTF-8 correcto (`cli._utf8_output`) (2026-09-24, automatizado)
+- [ ] En la consola, `tidalamp login` muestra la URL y los acentos bien
 - [ ] Abre sin que parpadee una consola negra, ni al arrancar ni al relanzar mpv
       (`CREATE_NO_WINDOW` en `player.py` y `spectrum.py`)
-- [ ] La interfaz está en el idioma de Windows (`i18n._windows_ui_language`)
-- [ ] Se ofrece el acceso directo **una vez**. «Sí» crea
+- [x] La interfaz está en el idioma de Windows (`i18n._windows_ui_language`): `es_MX`
+      da `es`, y las capturas del mantenedor están en español (2026-09-24, automatizado)
+- [x] Se ofrece el acceso directo **una vez**. «Sí» crea
       `%APPDATA%\Microsoft\Windows\Start Menu\Programs\TidalAmp.lnk` y otro
       `TidalAmp.lnk` en el escritorio (el de verdad, aunque OneDrive lo haya movido);
       los dos llevan el icono y abren en Windows Terminal. Un «no» no vuelve a
-      preguntarse (`backends/windows/desktop.py`)
-- [ ] `tidalamp config` crea `%APPDATA%\tidalamp\config.toml`
+      preguntarse (`backends/windows/desktop.py`). Los dos del mantenedor, leídos:
+      `wt.exe "…\tidalamp.EXE" tui` y un icono que existe (2026-09-24, automatizado)
+- [ ] Los dos se ven en el menú Inicio y en el escritorio con su icono, y abren
+- [x] `tidalamp config` crea `%APPDATA%\tidalamp\config.toml`, en un perfil vacío (2026-09-24, automatizado)
 
 ### 12.3 Reproducir: mpv por el named pipe
 
 - [ ] `/`, buscar, `↵`: suena. La posición avanza; `z` `x` `c` `v` responden
 - [ ] El paso de una pista a otra no tiene corte (gapless)
-- [ ] **Matar `mpv.exe`** en el Administrador de tareas: en unos segundos vuelve a
-      sonar desde donde iba y con el mismo volumen. Es el camino de `Mpv.restart()`
-- [ ] Dos tidalamp a la vez: cada uno suena y ninguno se lleva el pipe del otro
-      (`config.IPC_PIPE` lleva el pid)
-- [ ] Tras varias sesiones con pistas hi-res, `%LOCALAPPDATA%\tidalamp\cache` no
-      acumula ficheros `.m3u8`
+- [x] **Matar `mpv.exe`**: vuelve a sonar desde donde iba. Con el mpv real, un
+      `taskkill /F` a los 2,9 s: `Mpv.restart()` y la carga con `start` siguen desde
+      ahí; que la app lo detecte a tiempo lo cubren los tests (2026-09-24, automatizado)
+- [x] Dos tidalamp a la vez: cada uno suena y ninguno se lleva el pipe del otro
+      (`config.IPC_PIPE` lleva el pid). Dos procesos, dos pipes, y el segundo siguió
+      avanzando mientras se mataba el mpv del primero (2026-09-24, automatizado)
+- [x] Tras varias sesiones con pistas hi-res, `%LOCALAPPDATA%\tidalamp\cache` no
+      acumula ficheros `.m3u8`: los dos de la pista en curso y la siguiente, y 3 MB en
+      total, casi todo carátulas (2026-09-24, automatizado)
 
 Si mpv no responde o la app lo relanza sin parar: `backends/windows/pipe.py`, y las
 trampas 1 a 3 y 18 de §13. `tests/test_player.py` corre contra el pipe de verdad en
@@ -1302,14 +1312,17 @@ el `.exe` del zip (§12.7), que es un programa «de verdad» para Windows.
 Con una pista 24/96 (se ve en la insignia `SRC`) y un DAC que enseñe la frecuencia en
 su pantalla, como el FiiO BTR15:
 
-- [ ] Sin modo exclusivo (`o`, Audio): suena, la insignia `OUT` dice la frecuencia del
-      formato del dispositivo en Windows (Sonido → Propiedades → Opciones avanzadas), y
-      las notificaciones del sistema **siguen sonando** a la vez
-- [ ] Activar **Modo exclusivo** en `o`: la pista sigue sin cortarse, `OUT` pasa a
-      96 kHz y el DAC marca 96K. Las notificaciones ya no suenan
-- [ ] Desactivarlo devuelve lo anterior sin reiniciar nada
-- [ ] Con `exclusive = true` en el fichero, arranca ya en exclusivo
-- [ ] La ventana `o` no ofrece las filas de PipeWire
+- [x] Sin modo exclusivo, mpv abre la salida con el formato del dispositivo en
+      Windows y no con el de la pista: una pista 24/96 en el FiiO BTR15 sale a 48 kHz
+      float (2026-09-24, automatizado)
+- [x] Con modo exclusivo, la misma pista sale a 96 kHz s32 en el FiiO (2026-09-24, automatizado)
+- [ ] …y la pantalla del DAC marca 96K, y las notificaciones del sistema suenan sin
+      exclusivo y dejan de sonar con él
+- [ ] Desactivarlo en `o` devuelve lo anterior sin reiniciar nada
+- [x] Con `exclusive = true` en el fichero, arranca ya en exclusivo: mpv se lanza con
+      `--audio-exclusive=yes`, y con el del mantenedor el JBL quedó tomado
+      (`AUDCLNT_E_DEVICE_IN_USE` para cualquier otro programa) (2026-09-24, automatizado)
+- [x] La ventana `o` no ofrece las filas de PipeWire (captura del mantenedor)
 - [x] **Dispositivo** en `o`, Audio: `auto · <nombre>` dice el predeterminado de
       Windows, y `OUT` también. Elegir otro de la lista mueve el sonido allí sin
       cortar la pista. Visto por el mantenedor con un JBL Charge 3, un FiiO BTR15 y
@@ -1325,8 +1338,8 @@ su pantalla, como el FiiO BTR15:
       la línea de estado dice «volvió el dispositivo de salida» (2026-09-24)
 - [ ] Con el sonido en el predeterminado y el elegido de vuelta, elegirlo otra vez en
       `o` también lo aplica
-- [ ] Con un dispositivo elegido y el modo exclusivo activado, el que se toma entero
-      es ese y no el predeterminado
+- [x] Con un dispositivo elegido y el modo exclusivo activado, el que se toma entero
+      es ese y no el predeterminado: el FiiO, con el JBL de predeterminado (2026-09-24, automatizado)
 
 Código: `player._exclusive_option`, `player._device_option`, `Mpv.set_exclusive`,
 `Mpv.set_device`, `app._setting_changed` («exclusive», «audio_device») y
@@ -1346,8 +1359,11 @@ Código: `player._exclusive_option`, `player._device_option`, `Mpv.set_exclusive
       mantenedor en Windows 10 con Windows Terminal 1.24 (2026-09-24)
 - [ ] En **conhost** (la consola clásica, `conhost.exe` desde Ejecutar): abre, se ve y
       responde, aunque con peores colores
-- [ ] El espectro: con cava instalado, la fila del analizador se mueve con la música; sin
-      él, el medidor RMS, y ningún error a la vista (`spectrum.py`, método `winscap`)
+- [x] cava oye lo que suena: con un tono en modo compartido, sus bandas llegan a 1,0.
+      No funcionaba: la configuración de tidalamp nombraba `winscap` y cava 1.0.0 la
+      rechazaba y salía (trampa 28) (2026-09-24, automatizado)
+- [ ] …y la fila del analizador se mueve con la música, con la insignia `FFT`; sin cava,
+      o con el modo exclusivo, el medidor RMS, y ningún error a la vista
 
 Código: `artwork.detect_protocol` y `artwork.draws_sextants`.
 
@@ -1355,18 +1371,25 @@ Código: `artwork.detect_protocol` y `artwork.draws_sextants`.
 
 En una máquina, o un usuario, sin Python instalado:
 
-- [ ] El zip del último Release se descomprime y `tidalamp.exe` abre la interfaz
+- [x] El zip del Release de la 0.18.0 coincide con su `.sha256`, se descomprime y
+      `tidalamp.exe` pasa la prueba de humo sin ningún Python en el `PATH`:
+      `--version`, `tui` sin sesión hasta «login», hojas de estilo, emblemas y
+      Pillow (2026-09-24, automatizado)
+- [ ] Con sesión, `tidalamp.exe` abre la interfaz
 - [ ] SmartScreen avisa la primera vez (no está firmado) y deja seguir
 - [ ] Todo §12.3 y §12.4 vuelve a funcionar desde el `.exe`
 
 ### 12.8 Cerrar sesión
 
-- [ ] `o`, Cerrar sesión, con la casilla de borrar los datos: desaparecen
+- [x] `o`, Cerrar sesión, con la casilla de borrar los datos: desaparecen
       `%APPDATA%\tidalamp`, las carpetas `cache` y `state` de
       `%LOCALAPPDATA%\tidalamp` (la carpeta en sí puede quedar, vacía) y los dos
       accesos directos, el del menú Inicio y el del escritorio, y **nada** más
       (`auth.forgotten`, `desktop.user_launchers`). La ventana lo dice antes de
-      aceptar
+      aceptar. Con el código de la 0.18.0 en un perfil y un escritorio temporales: se
+      borran la configuración, la sesión, la cola, la caché y los dos accesos, y quedan
+      el acceso de otro programa, un fichero del escritorio y los datos de otro
+      programa (2026-09-24, automatizado)
 
 ### 12.9 Y en Linux, nada ha cambiado
 
@@ -1527,6 +1550,19 @@ Cada una puede costar una tarde si no se conoce de antemano.
     Se pregunta una vez por ejecutable. En Linux no se pasa, para no cambiar sus
     argumentos (regla 1): allí el MPRIS de mpv es un script, y `--load-scripts=no` ya
     lo deja fuera.
+28. **cava en Windows no acepta que se le diga cómo escuchar, y no oye el exclusivo.**
+    La configuración que escribe tidalamp llevaba `method = winscap` en `[input]`, y
+    cava 1.0.0 responde «on windows changing input method is not supported, simply
+    leave the input method setting commented out» y sale. El espectro no había
+    funcionado nunca en Windows: el analizador caía al medidor RMS, como está previsto
+    cuando cava muere, y la insignia decía `RMS`. Sin la línea (`spectrum.input_method`
+    da `""` en Windows), cava oye un tono en modo compartido con bandas hasta 1,0.
+    Aparte, y medido igual: **con el modo exclusivo cava no oye nada** (0,0 con el
+    mismo tono), porque la captura en bucle de WASAPI sólo recibe la mezcla de
+    Windows y un flujo exclusivo la salta. `TidalAmp._cava_hears_mpv` deja entonces el
+    analizador al medidor RMS, que sale del filtro `astats` de mpv y oye el flujo
+    mismo; cambiar el modo en `o` cambia la fuente. Todo el 2026-09-24, en la
+    máquina del mantenedor.
 
 ---
 
@@ -1565,9 +1601,10 @@ que enlazar ni que mantener.
 - [~] F3 · terminal: carátulas, sextantes, espectro, paleta. **Código y tests hechos**
   (2026-09-23). La detección de carátula y sextantes ya se portaba bien en Windows
   (medios bloques y cuadrantes en Windows Terminal y conhost; kitty y sextantes en
-  WezTerm), y ahora lo fijan tests. cava: su build de Windows acepta `winscap` y manda
-  el raw a stdout igual que en Linux (leído en su código), así que sólo cambia el
-  método; sin consola, y `winget install karlstav.cava` en el aviso. La nota de la
+  WezTerm), y ahora lo fijan tests. cava: su build de Windows manda el raw a stdout
+  igual que en Linux (leído en su código), pero **no acepta que se le nombre el
+  método de entrada** (trampa 28), que en su código parecía `winscap`; sin consola,
+  y `winget install karlstav.cava` en el aviso. La nota de la
   paleta no promete Omarchy en Windows. **Falta verlo**: portada y colores en Windows
   Terminal y en conhost, y el espectro de cava real (checklist §12).
 - [~] F4 · audio WASAPI, permisos, acceso directo. **Código y tests hechos**
