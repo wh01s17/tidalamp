@@ -381,6 +381,9 @@ class TidalAmp(App):
         # asked where it was, so the tick's own reading is what is kept.
         self._last_position = 0.0
         self._resume: tuple[Entry, float] | None = None
+        # The track, its second and whether it was paused, while PipeWire is
+        # restarted under it (`_stop_for_pipewire`).
+        self._before_pipewire: tuple[Entry, float, bool] | None = None
         # The next track, while it resolves ahead and once it is queued in
         # mpv; and the one whose resolve ahead failed, so the tick does not
         # ask again four times a second. Only the entry the queue says is
@@ -1055,6 +1058,41 @@ class TidalAmp(App):
         """Start the spectrum again from the source that can hear mpv now."""
         self._stop_spectrum()
         self._start_spectrum()
+
+    def _stop_for_pipewire(self) -> None:
+        """Stop before PipeWire is restarted, keeping where the track was.
+
+        mpv holds the sink and has to let go of it before the daemon goes.
+        Stopping used to be the end of it: the music stayed stopped and the
+        track, back at 0:00, was left to be found again (the maintainer
+        expected it to go on, 2026-09-24). `_back_from_pipewire` goes on.
+        """
+        current = self.queue.current
+        self._before_pipewire = None
+        if current is not None and not self.mpv.idle:
+            self._before_pipewire = (current, self.mpv.position, self.mpv.paused)
+        self.action_stop()
+
+    def _back_from_pipewire(self) -> None:
+        """PipeWire is back: cava again, and the track from where it was.
+
+        cava was a client of the daemon that went, and died with it: the
+        analyser stayed on the RMS meter until tidalamp was opened again
+        (seen by the maintainer, 2026-09-24). A track that was playing plays
+        on; a paused one waits at its second for play, like a restored queue.
+        """
+        self._pick_spectrum()
+        held, self._before_pipewire = self._before_pipewire, None
+        if held is None or self.queue.playing != -1 or self._resolving is not _STOPPED:
+            # Nothing was playing, or something else was asked for meanwhile.
+            return
+        entry, seconds, paused = held
+        index = next((i for i, row in enumerate(self.queue) if row is entry), -1)
+        if index < 0:
+            return
+        self._resume = (entry, seconds)
+        if not paused:
+            self._play_index(index)
 
     def _stop_spectrum(self) -> None:
         """Drop back to the RMS meter, for good."""

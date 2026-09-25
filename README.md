@@ -821,8 +821,9 @@ default that is often a single allowed rate, so a 24/96 stream reaches the DAC a
 48 kHz: the badge in the player is telling the truth about the stream, and the DAC
 still never sees hi-res. **Hi-res rates in PipeWire** drops a file into
 `~/.config/pipewire/pipewire.conf.d/` that lets the graph follow the stream, and
-**Restart PipeWire** applies it — stopping playback first, since mpv is holding the
-sink.
+**Restart PipeWire** applies it. mpv lets go of the sink first, since it is holding
+it, and once PipeWire is back the track goes on from where it was, or waits there if
+it was paused.
 
 PipeWire only picks a new rate while the device is idle, and between tracks it never
 is. So when a track's rate differs from the DAC's, tidalamp sets `clock.force-rate`

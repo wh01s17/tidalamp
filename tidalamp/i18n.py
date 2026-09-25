@@ -610,8 +610,8 @@ ENGLISH: dict[str, str] = {
     ),
     "el DAC llega a {rate} Hz": "the DAC reaches {rate} Hz",
     "el graph puede cambiar de rate": "the graph can change rate",
-    "corta el audio un momento; la reproducción se detiene antes": (
-        "cuts audio for a moment; playback is stopped first"
+    "corta el audio un momento; la pista sigue donde iba": (
+        "cuts audio for a moment; the track goes on where it was"
     ),
     "rates hi-res escritos; reinicia PipeWire para aplicarlo": (
         "hi-res rates written; restart PipeWire to apply them"

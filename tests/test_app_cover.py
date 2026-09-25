@@ -727,22 +727,33 @@ def test_transparency_leaves_the_cover_only_what_a_window_can_cover(
     asyncio.run(scenario())
 
 
-@linux_only  # PipeWire: Windows offers exclusive mode instead
-def test_restarting_pipewire_stops_playback_first(monkeypatch, tmp_path):
-    """mpv is holding the sink; the daemon must not be pulled from under it."""
+def _restart_pipewire(monkeypatch, tmp_path, *, playing: bool, paused: bool = False):
+    """Restart PipeWire from the `o` window with the second track at 95 s,
+    and say what happened: whether mpv had let go of the sink when the
+    daemon went, what was resolved after, and the second kept to resume at.
+    """
     isolate_runtime(monkeypatch)
     isolate_config(monkeypatch, tmp_path)
-    monkeypatch.setattr(audio_module, "restart", lambda: "hecho")
+    resolves: list[Entry] = []
+    monkeypatch.setattr(TidalAmp, "_resolve_worker", lambda self, e: resolves.append(e))
+    let_go: list[bool] = []
+    entries = [Entry(id=i, title=f"t{i}", artist="a", duration=200) for i in (1, 2)]
 
-    async def scenario() -> None:
+    async def scenario() -> tuple[Entry, float] | None:
         mpv = FakeMpv()
+
+        def restart() -> str:
+            let_go.append(mpv.idle)
+            return "hecho"
+
+        monkeypatch.setattr(audio_module, "restart", restart)
         application = TidalAmp(object(), mpv)
         async with application.run_test(size=(100, 34)) as pilot:
             await pilot.pause()
-            application.queue.replace(
-                [Entry(id=1, title="t", artist="a", duration=9)], start=0
-            )
-            mpv.idle = False
+            application.queue.replace(entries, start=1 if playing else -1)
+            mpv.idle = not playing
+            mpv.paused = paused
+            mpv.position = 95.0
             screen = ConfigScreen()
             application.push_screen(screen)
             await pilot.pause()
@@ -751,12 +762,46 @@ def test_restarting_pipewire_stops_playback_first(monkeypatch, tmp_path):
             await pilot.pause()
             # The list opens on «cancelar»; one up is «reiniciar ahora».
             await pilot.press("enter", "up", "enter")
-            await settle(pilot, lambda: application.status == "hecho")
+            await settle(pilot, lambda: bool(let_go))
+            await settle(pilot, lambda: application._before_pipewire is None)
+            return application._resume
 
-            assert mpv.idle is True
-            assert application.queue.playing == -1
+    resume = asyncio.run(scenario())
+    return let_go, resolves, resume, entries[1]
 
-    asyncio.run(scenario())
+
+@linux_only  # PipeWire: Windows offers exclusive mode instead
+def test_restarting_pipewire_plays_on_from_where_it_was(monkeypatch, tmp_path):
+    """mpv is holding the sink and lets go of it before the daemon goes. The
+    music then stayed stopped, the track back at 0:00 (2026-09-24)."""
+    let_go, resolves, resume, second = _restart_pipewire(
+        monkeypatch, tmp_path, playing=True
+    )
+    assert let_go == [True], "mpv soltó el sink antes de reiniciar"
+    assert resolves == [second]
+    assert resume == (second, 95.0)
+
+
+@linux_only
+def test_restarting_pipewire_leaves_a_paused_track_paused_at_its_second(
+    monkeypatch, tmp_path
+):
+    """Paused, nothing starts by itself: play goes on from the second, the
+    same way a restored queue does."""
+    _let_go, resolves, resume, second = _restart_pipewire(
+        monkeypatch, tmp_path, playing=True, paused=True
+    )
+    assert resolves == []
+    assert resume == (second, 95.0)
+
+
+@linux_only
+def test_restarting_pipewire_with_nothing_playing_plays_nothing(monkeypatch, tmp_path):
+    _let_go, resolves, resume, _second = _restart_pipewire(
+        monkeypatch, tmp_path, playing=False
+    )
+    assert resolves == []
+    assert resume is None
 
 
 @linux_only  # PipeWire: Windows offers exclusive mode instead

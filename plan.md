@@ -1320,6 +1320,16 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
       dice, escribe el drop-in de `allowed-rates` y reinicia los servicios.
 - [x] El reinicio para la reproducción antes: mpv tiene el sink abierto y no se le
       puede quitar el demonio de debajo. `TIDALAMP_NO_RESTART` lo desactiva.
+- [x] **Y la retoma después** (2026-09-24). Parar era todo: la música se quedaba
+      parada y la pista volvía a 0:00, y el mantenedor esperaba que siguiera.
+      `_stop_for_pipewire` guarda la pista, el segundo (leído de mpv, no del último
+      tick) y si estaba en pausa; `_back_from_pipewire` la vuelve a resolver y sigue
+      desde ahí con `_resume`, el mismo camino que un mpv reiniciado. Se resuelve otra
+      vez y no se reusa la URL, porque la de un stream de TIDAL caduca. En pausa no
+      arranca sola: espera en su segundo al play, como una cola restaurada. Si
+      mientras tanto se pidió otra cosa (otra pista, parar), no se toca. Ahí mismo
+      vuelve cava, que muere con el demonio y dejaba el analizador en `RMS` hasta
+      reabrir tidalamp.
 - [x] Avisa cuando la salida es Bluetooth, que no lleva lossless digan lo que digan
       los ritmos.
 - [x] **Comprobado en el hardware** (2026-09-08): con el drop-in puesto y PipeWire

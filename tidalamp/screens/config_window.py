@@ -434,7 +434,7 @@ class ConfigScreen(ModalScreen[None]):
             if self._launcher is not None:
                 return _("en {path}").format(path=_home(self._launcher))
             return option.note
-        return _("corta el audio un momento; la reproducción se detiene antes")
+        return _("corta el audio un momento; la pista sigue donde iba")
 
     def _rates_detail(self) -> str:
         if not self._sink.known:
@@ -867,7 +867,7 @@ class ConfigScreen(ModalScreen[None]):
 
     def _restart(self) -> None:
         # mpv is holding the sink; let go of it before the daemon goes away.
-        self.player.action_stop()
+        self.player._stop_for_pipewire()
         self.player.status = _("reiniciando PipeWire…")
         self._restart_worker()
 
@@ -878,10 +878,7 @@ class ConfigScreen(ModalScreen[None]):
 
     def _restarted(self, message: str) -> None:
         self.player.status = message
-        # cava was a client of the daemon that just went, and died with it: the
-        # analyser stayed on the RMS meter until tidalamp was opened again
-        # (seen by the maintainer, 2026-09-24).
-        self.player._pick_spectrum()
+        self.player._back_from_pipewire()
         self._probe()
 
     @property

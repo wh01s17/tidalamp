@@ -12,6 +12,12 @@ versioning is [semantic](https://semver.org/).
   around Windows's mixer. The `OUT` line and the settings now say «muted in Windows»,
   and the warning goes once it is unmuted.
 
+### Changed
+
+- **«Restart PipeWire» no longer leaves the music stopped.** It still stops first,
+  since mpv is holding the output, but once PipeWire is back the track goes on from
+  the second it was at. A paused track stays paused there, and play goes on from it.
+
 ### Fixed
 
 - **Windows: only play/pause answered the media keys**, and it was mpv, not tidalamp,
