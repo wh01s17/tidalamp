@@ -8,18 +8,19 @@ que se decidió, y en español porque lo lee el mantenedor (ver `CONTRIBUTING.md
 
 **Punto de partida:** `tidalamp` v0.15.0 (`02dc6ea`). Ni una línea de Windows todavía.
 
-**Estado (2026-09-24):** publicada la **0.18.0**, en vista previa:
+**Estado (2026-09-25):** publicada la **0.19.0**, en vista previa:
 `pipx install "tidalamp[art]"` desde PyPI, o el zip con `tidalamp.exe` en
-<https://github.com/wh01s17/tidalamp/releases/tag/v0.18.0>. Las siete fases están
+<https://github.com/wh01s17/tidalamp/releases/tag/v0.19.0>. Las siete fases están
 escritas. La suite pasa en
 `windows-latest` (3.11 y 3.14) y el `.exe` se construye y pasa su prueba de humo en
 CI. **La primera prueba en una máquina real** (Windows 10, Windows Terminal 1.24, con
 el zip de la 0.16.0 y desde el checkout) reprodujo música por el named pipe, y lo que
 salió mal se arregló en la 0.17.0: trampas 20 a 24 y §10.2. La 0.18.0 añadió el
 dispositivo de salida y el acceso directo en el escritorio, y arregló el margen de
-Windows Terminal (trampas 25 y 26); lo del dispositivo y el margen, visto en esa
-máquina. El resto de §12 sigue abierto —SMTC, modo exclusivo, conhost, el `.exe`— y
-sus casillas sin marcar. Quien lo haga y quiera arreglar algo desde Windows tiene el entorno en
+Windows Terminal (trampas 25 y 26). El 2026-09-24 el mantenedor vio el resto de §12
+en esa máquina, y lo que salió (las teclas multimedia, cava y la salida silenciada:
+trampas 27 a 29) se arregló en la 0.19.0. Sólo queda abierto §12.7: repetir §12.3 y
+§12.4 con el `.exe` de la 0.19.0. Quien lo haga y quiera arreglar algo desde Windows tiene el entorno en
 `CONTRIBUTING.md` («Setting up», «Windows») y, en §12, qué fichero mirar para cada
 fallo. El estado fase a fase está en §15.
 
@@ -1382,8 +1383,9 @@ En una máquina, o un usuario, sin Python instalado:
       Pillow (2026-09-24, automatizado)
 - [x] Con sesión, `tidalamp.exe` abre la interfaz. Visto por el mantenedor (2026-09-24)
 - [x] SmartScreen avisa la primera vez (no está firmado) y deja seguir. Visto por el mantenedor (2026-09-24)
-- [ ] Todo §12.3 y §12.4 vuelve a funcionar desde el `.exe`. Espera a la versión
-      siguiente a la 0.18.0: el zip de esa no trae el arreglo de las teclas (trampa 27)
+- [ ] Todo §12.3 y §12.4 vuelve a funcionar desde el `.exe`, con el zip de la 0.19.0,
+      el primero con el arreglo de las teclas (trampa 27). Publicado el 2026-09-25; su
+      SHA-256 coincide con el `.sha256` del Release (`5fc7acb0…`)
 
 ### 12.8 Cerrar sesión
 
@@ -1684,7 +1686,7 @@ que enlazar ni que mantener.
   excluía `*.spec` y la receta nunca había entrado en git. El de la 0.18.0, abierto
   sin Python en el `PATH` (2026-09-24, §12.7): pasa la prueba de humo, abre la
   interfaz con sesión y SmartScreen deja seguir. **Falta** §12.3 y §12.4 desde el
-  `.exe` de la versión siguiente, el primero con el arreglo de las teclas.
+  `.exe` de la 0.19.0 (2026-09-25), el primero con el arreglo de las teclas.
 - [~] F7 · documentación, skills, capturas. README («Windows (preview)», la pila de
   audio, SMTC, el acceso directo, la tabla de plataformas), CHANGELOG, CONTRIBUTING,
   `plan.md`, `next.md`, `publish.md`, `packaging/README.md` y las skills
