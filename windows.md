@@ -1250,9 +1250,9 @@ tidalamp
 
 - [x] Con la salida redirigida, `tidalamp login > login.txt` deja la URL, «Caduca» y
       «Esperando…» en UTF-8 correcto (`cli._utf8_output`) (2026-09-24, automatizado)
-- [ ] En la consola, `tidalamp login` muestra la URL y los acentos bien
-- [ ] Abre sin que parpadee una consola negra, ni al arrancar ni al relanzar mpv
-      (`CREATE_NO_WINDOW` en `player.py` y `spectrum.py`)
+- [x] En la consola, `tidalamp login` muestra la URL y los acentos bien. Visto por el mantenedor (2026-09-24)
+- [x] Abre sin que parpadee una consola negra, ni al arrancar ni al relanzar mpv
+      (`CREATE_NO_WINDOW` en `player.py` y `spectrum.py`). Visto por el mantenedor (2026-09-24)
 - [x] La interfaz está en el idioma de Windows (`i18n._windows_ui_language`): `es_MX`
       da `es`, y las capturas del mantenedor están en español (2026-09-24, automatizado)
 - [x] Se ofrece el acceso directo **una vez**. «Sí» crea
@@ -1261,13 +1261,13 @@ tidalamp
       los dos llevan el icono y abren en Windows Terminal. Un «no» no vuelve a
       preguntarse (`backends/windows/desktop.py`). Los dos del mantenedor, leídos:
       `wt.exe "…\tidalamp.EXE" tui` y un icono que existe (2026-09-24, automatizado)
-- [ ] Los dos se ven en el menú Inicio y en el escritorio con su icono, y abren
+- [x] Los dos se ven en el menú Inicio y en el escritorio con su icono, y abren. Visto por el mantenedor (2026-09-24)
 - [x] `tidalamp config` crea `%APPDATA%\tidalamp\config.toml`, en un perfil vacío (2026-09-24, automatizado)
 
 ### 12.3 Reproducir: mpv por el named pipe
 
 - [ ] `/`, buscar, `↵`: suena. La posición avanza; `z` `x` `c` `v` responden
-- [ ] El paso de una pista a otra no tiene corte (gapless)
+- [x] El paso de una pista a otra no tiene corte (gapless). Visto por el mantenedor (2026-09-24)
 - [x] **Matar `mpv.exe`**: vuelve a sonar desde donde iba. Con el mpv real, un
       `taskkill /F` a los 2,9 s: `Mpv.restart()` y la carga con `start` siguen desde
       ahí; que la app lo detecte a tiempo lo cubren los tests (2026-09-24, automatizado)
@@ -1286,11 +1286,11 @@ Windows: `.venv\Scripts\python -m pytest tests/test_player.py -q`.
 
 La pieza con más incertidumbre del plan (§7.2).
 
-- [ ] Con algo sonando, el panel multimedia (el que sale sobre el control de volumen,
-      o `Win+A`) muestra título, artista, álbum y portada
-- [ ] Las teclas multimedia del teclado: reproducir/pausa, siguiente, anterior.
+- [x] Con algo sonando, el panel multimedia (el que sale sobre el control de volumen,
+      o `Win+A`) muestra título, artista, álbum y portada. Visto por el mantenedor (2026-09-24)
+- [x] Las teclas multimedia del teclado: reproducir/pausa, siguiente, anterior.
       Con la 0.18.0 sólo iba reproducir/pausa, y era mpv quien la atendía (trampa
-      27); falta volver a probarlas con el arreglo
+      27). Con el arreglo, las tres. Visto por el mantenedor (2026-09-24)
 - [x] Los botones del panel hacen lo mismo, y su barra de posición mueve la pista.
       Comprobado el 2026-09-24 con la API de sesiones de Windows
       (`GlobalSystemMediaTransportControlsSessionManager`, la del panel) contra el
@@ -1317,7 +1317,10 @@ su pantalla, como el FiiO BTR15:
       float (2026-09-24, automatizado)
 - [x] Con modo exclusivo, la misma pista sale a 96 kHz s32 en el FiiO (2026-09-24, automatizado)
 - [ ] …y la pantalla del DAC marca 96K, y las notificaciones del sistema suenan sin
-      exclusivo y dejan de sonar con él
+      exclusivo y dejan de sonar con él. La primera vez el FiiO no sonaba sin
+      exclusivo: estaba silenciado en Windows (trampa 29)
+- [ ] Con el dispositivo silenciado en Windows y sin exclusivo, `OUT` y la ventana `o`
+      dicen «silenciado en Windows», y el aviso se va solo al quitarle el silencio
 - [ ] Desactivarlo en `o` devuelve lo anterior sin reiniciar nada
 - [x] Con `exclusive = true` en el fichero, arranca ya en exclusivo: mpv se lanza con
       `--audio-exclusive=yes`, y con el del mantenedor el JBL quedó tomado
@@ -1347,23 +1350,25 @@ Código: `player._exclusive_option`, `player._device_option`, `Mpv.set_exclusive
 
 ### 12.6 La terminal
 
-- [ ] En **Windows Terminal**: la portada se ve en medios bloques, sin cuadros vacíos, y
-      los colores del tema son los de siempre
-- [ ] Con `TIDALAMP_ART=sixel` en Windows Terminal (1.22 o más nueva): la portada con
-      sixel. Si se ve bien, se puede proponer como opción por defecto ahí
-- [ ] Con `TIDALAMP_SEXTANTS=1`: si la fuente los trae, la portada con más detalle; si
-      salen cuadros vacíos, la fuente no los tiene y el valor por defecto acierta
+- [x] En **Windows Terminal**: la portada se ve en medios bloques, sin cuadros vacíos, y
+      los colores del tema son los de siempre. Visto por el mantenedor (2026-09-24)
+- [x] Con `TIDALAMP_ART=sixel` en Windows Terminal (1.22 o más nueva): la portada con
+      sixel. Si se ve bien, se puede proponer como opción por defecto ahí. Visto por el mantenedor (2026-09-24)
+- [x] Con `TIDALAMP_SEXTANTS=1`: si la fuente los trae, la portada con más detalle; si
+      salen cuadros vacíos, la fuente no los tiene y el valor por defecto acierta. Visto por el mantenedor (2026-09-24)
 - [x] En **Windows Terminal**, el marco del terminal (padding, hueco de la barra de
       desplazamiento, lo que sobra a la derecha y abajo) sale del color del
       reproductor, y al salir el prompt vuelve a su fondo (trampa 25). Visto por el
       mantenedor en Windows 10 con Windows Terminal 1.24 (2026-09-24)
-- [ ] En **conhost** (la consola clásica, `conhost.exe` desde Ejecutar): abre, se ve y
-      responde, aunque con peores colores
+- [x] En **conhost** (la consola clásica, `conhost.exe` desde Ejecutar): abre, se ve y
+      responde, aunque con peores colores. Visto por el mantenedor (2026-09-24)
 - [x] cava oye lo que suena: con un tono en modo compartido, sus bandas llegan a 1,0.
       No funcionaba: la configuración de tidalamp nombraba `winscap` y cava 1.0.0 la
       rechazaba y salía (trampa 28) (2026-09-24, automatizado)
-- [ ] …y la fila del analizador se mueve con la música, con la insignia `FFT`; sin cava,
-      o con el modo exclusivo, el medidor RMS, y ningún error a la vista
+- [x] …y la fila del analizador se mueve con la música, con la insignia `FFT`; sin cava,
+      o con el modo exclusivo, el medidor RMS, y ningún error a la vista. Visto por el mantenedor (2026-09-24)
+- [ ] Con un dispositivo elegido que no es el predeterminado de Windows, el
+      analizador pasa a `RMS` y vuelve a `FFT` al elegir el predeterminado (trampa 28)
 
 Código: `artwork.detect_protocol` y `artwork.draws_sextants`.
 
@@ -1375,8 +1380,8 @@ En una máquina, o un usuario, sin Python instalado:
       `tidalamp.exe` pasa la prueba de humo sin ningún Python en el `PATH`:
       `--version`, `tui` sin sesión hasta «login», hojas de estilo, emblemas y
       Pillow (2026-09-24, automatizado)
-- [ ] Con sesión, `tidalamp.exe` abre la interfaz
-- [ ] SmartScreen avisa la primera vez (no está firmado) y deja seguir
+- [x] Con sesión, `tidalamp.exe` abre la interfaz. Visto por el mantenedor (2026-09-24)
+- [x] SmartScreen avisa la primera vez (no está firmado) y deja seguir. Visto por el mantenedor (2026-09-24)
 - [ ] Todo §12.3 y §12.4 vuelve a funcionar desde el `.exe`
 
 ### 12.8 Cerrar sesión
@@ -1561,8 +1566,23 @@ Cada una puede costar una tarde si no se conoce de antemano.
     mismo tono), porque la captura en bucle de WASAPI sólo recibe la mezcla de
     Windows y un flujo exclusivo la salta. `TidalAmp._cava_hears_mpv` deja entonces el
     analizador al medidor RMS, que sale del filtro `astats` de mpv y oye el flujo
-    mismo; cambiar el modo en `o` cambia la fuente. Todo el 2026-09-24, en la
+    mismo; cambiar el modo en `o` cambia la fuente. **Y cava sólo oye el
+    predeterminado**: la captura en bucle es la del dispositivo predeterminado de
+    Windows, y cava no deja elegir otro. Con el FiiO elegido y el JBL de
+    predeterminado, el analizador decía `FFT` sobre una línea casi plana. Ahí también
+    se usa el medidor RMS, y se decide de nuevo en cada cambio de dispositivo
+    (`TidalAmp._cava_hears_mpv`, `_pick_spectrum`). Todo el 2026-09-24, en la
     máquina del mantenedor.
+29. **Un dispositivo silenciado en Windows suena en exclusivo y no en compartido.**
+    En modo compartido el flujo pasa por el mezclador de Windows y obedece su
+    silencio y su volumen; en exclusivo tidalamp le habla al dispositivo y se los
+    salta. El FiiO del mantenedor estaba silenciado: sin exclusivo, el reloj corría,
+    `OUT` decía `FiiO · PCM FLOAT · 48 kHz` y no se oía nada. `_endpoints` lee ahora,
+    en la misma pasada por los dispositivos activos, cuáles están silenciados o a 0
+    (`IAudioEndpointVolume`, por ctypes), y `sink()` marca `muted` cuando mpv suena
+    por uno de ellos sin exclusivo. `OUT` y la ventana `o` lo dicen, y mientras dure,
+    la vigilancia de cada 2 s vuelve a mirar, porque Windows no avisa al quitarlo.
+    Comprobado silenciando y devolviendo una salida que no se usaba (2026-09-24).
 
 ---
 
