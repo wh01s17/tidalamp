@@ -1278,10 +1278,18 @@ La pieza con más incertidumbre del plan (§7.2).
 
 - [ ] Con algo sonando, el panel multimedia (el que sale sobre el control de volumen,
       o `Win+A`) muestra título, artista, álbum y portada
-- [ ] Las teclas multimedia del teclado: reproducir/pausa, siguiente, anterior
-- [ ] Los botones del panel hacen lo mismo, y su barra de posición mueve la pista
-- [ ] La línea de estado **no** dice «controles multimedia no disponibles». Si lo dice,
-      apunta el texto entre paréntesis: es el error de WinRT
+- [ ] Las teclas multimedia del teclado: reproducir/pausa, siguiente, anterior.
+      Con la 0.18.0 sólo iba reproducir/pausa, y era mpv quien la atendía (trampa
+      27); falta volver a probarlas con el arreglo
+- [x] Los botones del panel hacen lo mismo, y su barra de posición mueve la pista.
+      Comprobado el 2026-09-24 con la API de sesiones de Windows
+      (`GlobalSystemMediaTransportControlsSessionManager`, la del panel) contra el
+      backend real: play/pausa, siguiente, anterior y la barra a 0:50 llegan como
+      `mpris_pause`, `mpris_next`, `mpris_previous` y `mpris_set_position(50.0)`; en
+      la primera pista Windows ya sabe que no hay anterior y no lo manda
+- [x] La línea de estado **no** dice «controles multimedia no disponibles»: el
+      tidalamp del mantenedor aparecía como sesión `python.exe` con la pista que
+      sonaba (2026-09-24)
 
 Si no aparece nada: el problema conocido es que SMTC pide una ventana, y la salida que
 usa `backends/windows/media.py` (los controles de un `MediaPlayer`) podría no valer
@@ -1507,6 +1515,18 @@ Cada una puede costar una tarde si no se conoce de antemano.
     WASAPI, y `openal` es otra vía a los mismos dispositivos. En Linux no hay fila
     ni argumento: la salida es el sink por defecto de PipeWire, cuyo rate gestiona
     el backend.
+27. **mpv tiene controles multimedia propios y se llevaba las teclas.** Las versiones
+    recientes (la 0.41 de winget, al menos) registran en Windows una sesión suya (`mpv.exe`), y como es la que suena, las
+    teclas iban a ella: reproducir/pausa pausaba mpv a espaldas de la app, y siguiente
+    y anterior pedían la lista de reproducción de mpv, que sólo tiene la pista de
+    ahora, así que no hacían nada. Visto por el mantenedor con mpv 0.41 y comprobado
+    contando sesiones: sin el arreglo, el mpv de tidalamp añade una `mpv.exe`; con
+    él, ninguna (2026-09-24). `backends/windows/mpv.media_controls_off` lanza mpv con
+    `--media-controls=no`, pero sólo si `--list-options` la nombra: una opción que
+    mpv no conoce es un error fatal, y uno más antiguo que no la tenga no arrancaría.
+    Se pregunta una vez por ejecutable. En Linux no se pasa, para no cambiar sus
+    argumentos (regla 1): allí el MPRIS de mpv es un script, y `--load-scripts=no` ya
+    lo deja fuera.
 
 ---
 
@@ -1576,10 +1596,12 @@ que enlazar ni que mantener.
   con `call_soon_threadsafe`. Paquetes modulares de pywinrt 3.2 (`winrt-runtime`,
   `winrt-Windows.Foundation`, `.Media`, `.Media.Playback`, `.Storage.Streams`), con
   wheels de 3.9 a 3.14, sólo en Windows. Sin ellos, o si WinRT falla, «controles
-  multimedia no disponibles» y la música sigue. Los tests usan un WinRT falso. **Falta
-  lo que el plan pedía primero**: ver en una máquina real que los controles de un
-  `MediaPlayer` aparecen desde una app lanzada en un terminal y sin empaquetar. Si no,
-  el plan B es la ventana oculta (§7.2).
+  multimedia no disponibles» y la música sigue. Los tests usan un WinRT falso.
+  **El spike, respondido** (2026-09-24): los controles de un `MediaPlayer` sí aparecen
+  desde una app lanzada en un terminal y sin empaquetar (sesión `python.exe`), y los
+  botones y la barra del panel llegan al backend; no hace falta el plan B. Lo que
+  fallaba eran las teclas, que se llevaba la sesión del propio mpv (trampa 27). **Falta
+  verlo**: el panel con título y portada, y las teclas con el arreglo (§12.4).
 - [x] F6 · `.exe` en el release. Construido en `windows-latest` y con la prueba de
   humo en verde (run `35947336411`, `1984aad`, 2026-09-24): `tidalamp.exe tui` sin
   sesión importa el reproductor entero y acaba en «login», y las hojas de estilo y los

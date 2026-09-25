@@ -690,3 +690,51 @@ def test_an_offered_package_is_remembered_alone(tmp_path):
     assert winget.offered("cava", marker)
     assert not winget.offered("mpv", marker)
     assert marker.read_text(encoding="utf-8") == "cava\n"
+
+
+# --------------------------------------------------- mpv's own media controls
+
+
+def test_mpv_is_asked_to_leave_the_media_keys_to_tidalamp(monkeypatch):
+    """mpv registered a media session of its own and took the keys: next
+    and previous went to its playlist, which holds one track, and did
+    nothing (mpv 0.41, 2026-09-24)."""
+    monkeypatch.setattr(windows_mpv, "_knows", lambda executable, option: True)
+    monkeypatch.setattr(player.sys, "platform", "win32")
+    assert player._media_controls_option([r"C:\mpv\mpv.exe"]) == ["--media-controls=no"]
+    monkeypatch.setattr(player.sys, "platform", "linux")
+    assert player._media_controls_option(["mpv"]) == []
+
+
+def test_an_mpv_without_the_option_is_not_handed_it(monkeypatch):
+    """An option mpv does not know is fatal: it would not start at all."""
+    monkeypatch.setattr(windows_mpv, "_knows", lambda executable, option: False)
+    assert windows_mpv.media_controls_off((r"C:\mpv\mpv.exe",)) == []
+
+
+@pytest.mark.parametrize(
+    ("listed", "known"),
+    [
+        (" --media-controls                 Flag (default: yes)\n", True),
+        (" --media-controls-extra           Flag\n --mute  Flag\n", False),
+        ("", False),
+    ],
+)
+def test_the_option_is_read_off_mpvs_own_list(monkeypatch, listed, known):
+    class Done:
+        stdout = listed
+
+    windows_mpv._knows.cache_clear()
+    monkeypatch.setattr(windows_mpv.subprocess, "run", lambda *a, **k: Done())
+    assert windows_mpv._knows(("mpv.exe",), "--media-controls") is known
+    windows_mpv._knows.cache_clear()
+
+
+def test_an_mpv_that_cannot_be_asked_gets_no_extra_option(monkeypatch):
+    def fails(*args, **kwargs):
+        raise OSError("no such file")
+
+    windows_mpv._knows.cache_clear()
+    monkeypatch.setattr(windows_mpv.subprocess, "run", fails)
+    assert windows_mpv._knows(("mpv.exe",), "--media-controls") is False
+    windows_mpv._knows.cache_clear()

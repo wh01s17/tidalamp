@@ -5,6 +5,14 @@ versioning is [semantic](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **Windows: only play/pause answered the media keys**, and it was mpv, not tidalamp,
+  that answered it. Recent mpv puts media controls of its own in Windows, and the
+  keys went to them: next and previous asked mpv's own playlist, which only holds the
+  track playing, and did nothing. mpv is now started without them, when it has the
+  option, so the keys and the volume flyout's buttons reach tidalamp.
+
 ## [0.18.0] - 2026-09-24
 
 ### Added

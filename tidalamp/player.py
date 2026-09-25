@@ -212,6 +212,17 @@ def _exclusive_option() -> list[str]:
     return []
 
 
+def _media_controls_option(executable: list[str]) -> list[str]:
+    """mpv's own media controls, off. Windows only: there they took the media
+    keys from tidalamp's (`backends.windows.mpv.media_controls_off`); Linux
+    keeps exactly the arguments it always had."""
+    if sys.platform == "win32":
+        from .backends.windows.mpv import media_controls_off
+
+        return media_controls_off(tuple(executable))
+    return []
+
+
 def _device_option() -> list[str]:
     """The output the setting names. Windows only, like exclusive mode.
 
@@ -294,6 +305,7 @@ class Mpv:
                 *self._executable,
                 *_exclusive_option(),
                 *device,
+                *_media_controls_option(self._executable),
                 "--idle=yes",
                 "--no-video",
                 "--no-terminal",
