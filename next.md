@@ -24,15 +24,13 @@ Lo de aquí no bloquea publicar. `plan.md` §5 y §6 mandan sobre el estado gene
   (`windows.md`, trampas 20 a 24). La `0.18.0` trajo el dispositivo de salida, visto
   funcionar con un FiiO BTR15 y un JBL: elegirlo, arrancar con él apagado,
   desenchufarlo en plena pista y volver a enchufarlo (§12.5), y el margen de Windows
-  Terminal (§12.6). El 2026-09-24 se automatizó lo que no pide ojos ni oídos (26
-  casillas, cada una con cómo) y salieron tres fallos, arreglados sin publicar: las
-  teclas multimedia iban a la sesión del propio mpv (trampa 27), cava no había
-  corrido nunca en Windows y con el exclusivo no oye nada (trampa 28). Falta, y es
-  del mantenedor: el panel con título y portada y las teclas con el arreglo (§12.4),
-  la pantalla del DAC y las notificaciones (§12.5), la carátula en bloques, sixel y
-  sextantes, conhost y el espectro en la interfaz (§12.6), el paso sin corte entre
-  pistas (§12.3), la consola sin parpadeos y los accesos a la vista (§12.2), y el
-  `.exe` abierto con sesión y SmartScreen (§12.7).
+  Terminal (§12.6). El 2026-09-24 se automatizó lo que no pide ojos ni oídos y el
+  mantenedor vio el resto; salieron y se arreglaron, sin publicar, las teclas
+  multimedia (trampa 27), cava (trampa 28) y la salida silenciada en Windows (trampa
+  29). **De Windows sólo queda** §12.7 con el `.exe` de la versión siguiente, que
+  traerá esos arreglos, y después «Después de §12». **Lo siguiente es §12.9**: una
+  sesión normal en Linux con lo de hoy, que también toca a Linux (los interruptores
+  por variable de entorno y cuándo se usa cava).
   Lo que se compruebe se marca allí mismo con la fecha; lo que falle, con el log de
   `TIDALAMP_DEBUG=1`. El entorno para arreglar cosas desde Windows está en
   `CONTRIBUTING.md` («Setting up», «Windows»).

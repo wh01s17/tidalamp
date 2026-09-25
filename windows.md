@@ -1266,7 +1266,7 @@ tidalamp
 
 ### 12.3 Reproducir: mpv por el named pipe
 
-- [ ] `/`, buscar, `↵`: suena. La posición avanza; `z` `x` `c` `v` responden
+- [x] `/`, buscar, `↵`: suena. La posición avanza; `z` `x` `c` `v` responden. Visto por el mantenedor (2026-09-24)
 - [x] El paso de una pista a otra no tiene corte (gapless). Visto por el mantenedor (2026-09-24)
 - [x] **Matar `mpv.exe`**: vuelve a sonar desde donde iba. Con el mpv real, un
       `taskkill /F` a los 2,9 s: `Mpv.restart()` y la carga con `start` siguen desde
@@ -1316,12 +1316,12 @@ su pantalla, como el FiiO BTR15:
       Windows y no con el de la pista: una pista 24/96 en el FiiO BTR15 sale a 48 kHz
       float (2026-09-24, automatizado)
 - [x] Con modo exclusivo, la misma pista sale a 96 kHz s32 en el FiiO (2026-09-24, automatizado)
-- [ ] …y la pantalla del DAC marca 96K, y las notificaciones del sistema suenan sin
+- [x] …y la pantalla del DAC marca 96K, y las notificaciones del sistema suenan sin
       exclusivo y dejan de sonar con él. La primera vez el FiiO no sonaba sin
-      exclusivo: estaba silenciado en Windows (trampa 29)
-- [ ] Con el dispositivo silenciado en Windows y sin exclusivo, `OUT` y la ventana `o`
-      dicen «silenciado en Windows», y el aviso se va solo al quitarle el silencio
-- [ ] Desactivarlo en `o` devuelve lo anterior sin reiniciar nada
+      exclusivo: estaba silenciado en Windows (trampa 29). Visto por el mantenedor (2026-09-24)
+- [x] Con el dispositivo silenciado en Windows y sin exclusivo, `OUT` y la ventana `o`
+      dicen «silenciado en Windows», y el aviso se va solo al quitarle el silencio. Visto por el mantenedor (2026-09-24)
+- [x] Desactivarlo en `o` devuelve lo anterior sin reiniciar nada. Visto por el mantenedor (2026-09-24)
 - [x] Con `exclusive = true` en el fichero, arranca ya en exclusivo: mpv se lanza con
       `--audio-exclusive=yes`, y con el del mantenedor el JBL quedó tomado
       (`AUDCLNT_E_DEVICE_IN_USE` para cualquier otro programa) (2026-09-24, automatizado)
@@ -1339,8 +1339,8 @@ su pantalla, como el FiiO BTR15:
       y el JBL de predeterminado (2026-09-24)
 - [x] Volver a enchufarlo: en unos 2 s el sonido vuelve a él sin cortar la pista, y
       la línea de estado dice «volvió el dispositivo de salida» (2026-09-24)
-- [ ] Con el sonido en el predeterminado y el elegido de vuelta, elegirlo otra vez en
-      `o` también lo aplica
+- [x] Con el sonido en el predeterminado y el elegido de vuelta, elegirlo otra vez en
+      `o` también lo aplica. Visto por el mantenedor (2026-09-24)
 - [x] Con un dispositivo elegido y el modo exclusivo activado, el que se toma entero
       es ese y no el predeterminado: el FiiO, con el JBL de predeterminado (2026-09-24, automatizado)
 
@@ -1367,8 +1367,8 @@ Código: `player._exclusive_option`, `player._device_option`, `Mpv.set_exclusive
       rechazaba y salía (trampa 28) (2026-09-24, automatizado)
 - [x] …y la fila del analizador se mueve con la música, con la insignia `FFT`; sin cava,
       o con el modo exclusivo, el medidor RMS, y ningún error a la vista. Visto por el mantenedor (2026-09-24)
-- [ ] Con un dispositivo elegido que no es el predeterminado de Windows, el
-      analizador pasa a `RMS` y vuelve a `FFT` al elegir el predeterminado (trampa 28)
+- [x] Con un dispositivo elegido que no es el predeterminado de Windows, el
+      analizador pasa a `RMS` y vuelve a `FFT` al elegir el predeterminado (trampa 28). Visto por el mantenedor (2026-09-24)
 
 Código: `artwork.detect_protocol` y `artwork.draws_sextants`.
 
@@ -1382,7 +1382,8 @@ En una máquina, o un usuario, sin Python instalado:
       Pillow (2026-09-24, automatizado)
 - [x] Con sesión, `tidalamp.exe` abre la interfaz. Visto por el mantenedor (2026-09-24)
 - [x] SmartScreen avisa la primera vez (no está firmado) y deja seguir. Visto por el mantenedor (2026-09-24)
-- [ ] Todo §12.3 y §12.4 vuelve a funcionar desde el `.exe`
+- [ ] Todo §12.3 y §12.4 vuelve a funcionar desde el `.exe`. Espera a la versión
+      siguiente a la 0.18.0: el zip de esa no trae el arreglo de las teclas (trampa 27)
 
 ### 12.8 Cerrar sesión
 
