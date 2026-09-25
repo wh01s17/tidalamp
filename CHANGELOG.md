@@ -32,6 +32,9 @@ versioning is [semantic](https://semver.org/).
   `TIDALAMP_EXCLUSIVE=false` turned debugging or exclusive mode *on*, since any value
   did, and a single run with one off over a config file that has it on could not be
   asked for. `0`, `false`, `no` and `off` now turn it off; anything else, on.
+- **The spectrum stayed on the level meter after «Restart PipeWire».** cava listens
+  through PipeWire and went down with it, and nothing started it again until tidalamp
+  was reopened. It now comes back with the restart.
 
 ## [0.18.0] - 2026-09-24
 

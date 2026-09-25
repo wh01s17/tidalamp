@@ -878,6 +878,10 @@ class ConfigScreen(ModalScreen[None]):
 
     def _restarted(self, message: str) -> None:
         self.player.status = message
+        # cava was a client of the daemon that just went, and died with it: the
+        # analyser stayed on the RMS meter until tidalamp was opened again
+        # (seen by the maintainer, 2026-09-24).
+        self.player._pick_spectrum()
         self._probe()
 
     @property

@@ -759,6 +759,55 @@ def test_restarting_pipewire_stops_playback_first(monkeypatch, tmp_path):
     asyncio.run(scenario())
 
 
+@linux_only  # PipeWire: Windows offers exclusive mode instead
+def test_restarting_pipewire_brings_cava_back(monkeypatch, tmp_path):
+    """cava is a client of the daemon being restarted, and dies with it. The
+    analyser then stayed on the RMS meter until tidalamp was opened again."""
+
+    class Cava:
+        made: list[Cava] = []
+
+        def __init__(self, bars: int) -> None:
+            self.alive = True
+            Cava.made.append(self)
+
+        def frame(self) -> list[float]:
+            return [0.5]
+
+        def close(self) -> None:
+            self.alive = False
+
+    start = TidalAmp._start_spectrum
+    isolate_runtime(monkeypatch)
+    isolate_config(monkeypatch, tmp_path)
+    monkeypatch.setattr(TidalAmp, "_start_spectrum", start)
+    monkeypatch.setattr(app_module, "Cava", Cava)
+    monkeypatch.setattr(audio_module, "restart", lambda: "hecho")
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(100, 34)) as pilot:
+            await pilot.pause()
+            assert application.cava is Cava.made[0]
+
+            # The daemon goes, and cava with it: the tick drops to RMS.
+            Cava.made[0].alive = False
+            await wait_for(pilot, lambda: application.cava is None)
+
+            screen = ConfigScreen()
+            application.push_screen(screen)
+            await pilot.pause()
+            screen.cursor = config_row(screen, "Reiniciar PipeWire")
+            await pilot.pause()
+            await pilot.press("enter", "up", "enter")
+            await settle(pilot, lambda: application.status == "hecho")
+
+            assert len(Cava.made) == 2
+            assert application.cava is Cava.made[1]
+
+    asyncio.run(scenario())
+
+
 def test_the_help_hides_a_kitty_cover_like_the_other_modals(monkeypatch):
     """An image drawn by the terminal floats over the text: a modal opened
     under it would be unreadable. push_screen already handles it."""
