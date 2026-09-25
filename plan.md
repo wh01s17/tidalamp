@@ -4,7 +4,19 @@ Documento de traspaso. Describe qué existe, qué está verificado, qué falta y
 criterio se tomaron las decisiones, para que cualquiera (humano o modelo) pueda
 retomar el trabajo sin contexto previo.
 
-**Última actualización:** 2026-09-24, versión `0.17.0` publicada en PyPI y en GitHub,
+**Última actualización:** 2026-09-24, versión `0.18.0` publicada en PyPI y en GitHub,
+con el tag `v0.18.0` sobre `8e4a0b7` y el checksum del tarball en `89acfb2`. Lo
+nuevo, todo de Windows y probado por el mantenedor en su máquina: el dispositivo de
+salida se elige en `o` (`audio_device`), y `auto` dice cuál es el predeterminado,
+preguntado a Core Audio; uno desenchufado en plena pista sigue por el predeterminado
+en vez de saltarse la cola, y al volver se regresa a él; el acceso directo también va
+al escritorio, y cerrar sesión con los datos se lleva los dos; y Windows Terminal
+pinta su margen con el fondo del reproductor (OSC 11). Además dos carreras que CI
+destapó en `windows-latest` y que valían para cualquiera: el navegador de la
+biblioteca abría un nivel que el usuario ya había dejado con ⌫, y la ayuda volvía una
+línea corta al cerrar su búsqueda. El detalle, en `windows.md` trampas 25 y 26 y en
+`CHANGELOG.md`. Linux no cambia. Antes, el mismo día, versión `0.17.0` publicada en
+PyPI y en GitHub,
 con el tag `v0.17.0` sobre `54f9c76` y el checksum del tarball en `c1ff2b6`. Es lo
 que salió de la primera prueba en una máquina Windows real, con el zip de la `0.16.0`:
 mpv seguía sonando al cerrar la terminal (ahora va en un job object que el kernel
@@ -2490,8 +2502,9 @@ una pista en cada calidad y leer `~/.local/state/tidalamp/tidalamp.log`.
 > pista; la `0.12.0` (2026-09-17) trae el lanzador del menú, la `0.13.0`
 > (2026-09-17) cerrar sesión, la `0.14.0` (2026-09-19) la letra al lado de la
 > carátula en pantalla completa, la `0.15.0` (2026-09-20) «Lofi sin copyright» y sus
-> créditos, la `0.16.0` (2026-09-23) Windows en vista previa y la `0.17.0`
-> (2026-09-24) lo que salió de probarla en una máquina real; allí quedan las
+> créditos, la `0.16.0` (2026-09-23) Windows en vista previa, la `0.17.0`
+> (2026-09-24) lo que salió de probarla en una máquina real y la `0.18.0`
+> (2026-09-24) el dispositivo de salida y el acceso en el escritorio; allí quedan las
 > comprobaciones a mano. Esta sección sigue siendo el estado general
 > y aquella, la cola de trabajo.
 
@@ -2500,16 +2513,17 @@ reproductor sirva, sino acabado, distribución y confirmar contra TIDAL real cos
 probadas sólo con dobles.
 
 **Orden propuesto (2026-09-11):** ~~P5 empaquetado~~ y ~~carátula~~ ✅ hechos. Cada
-versión se publica siguiendo `publish.md`; la última publicada es la `0.17.0`
+versión se publica siguiendo `publish.md`; la última publicada es la `0.18.0`
 (2026-09-24), en PyPI y en GitHub con el zip de Windows, y con el checksum del tarball
-ya en el PKGBUILD (`c1ff2b6`). Lo que queda abierto aquí pide
+ya en el PKGBUILD (`89acfb2`). Lo que queda abierto aquí pide
 credenciales tuyas o un par de ojos.
 
 1. Publicar en el AUR cuando vuelva a abrir el registro de cuentas nuevas. El paquete
    está preparado y se puede probar localmente, pero el alta final depende del
    servicio externo y no tiene fecha anunciada. **Todo lo del AUR queda pendiente**
-   (decidido por el mantenedor el 2026-09-14): de la `0.17.0` sólo está hecho el
-   checksum (`publish.md` §8.1 y §8.3, en `c1ff2b6`); §8.2 (`makepkg -Csi`,
+   (decidido por el mantenedor el 2026-09-14): de la `0.18.0` sólo está hecho el
+   checksum (`publish.md` §8.1 y §8.3, en `89acfb2`, calculado desde Windows sobre el
+   tarball del tag, que no tiene `updpkgsums`); §8.2 (`makepkg -Csi`,
    `namcap`) no se ha ejecutado para esta versión, y §8.4 a §8.6 esperan al registro.
 2. ~~Mirar `retro` y `ascii` en un terminal de verdad~~ ✅ hecho el 2026-09-10; ver §9.5.
    Queda el extremo pequeño: la disposición compacta no se ha visto nunca.
