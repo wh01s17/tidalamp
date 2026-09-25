@@ -269,3 +269,72 @@ def test_linux_never_watches_for_a_device(monkeypatch):
 
     asyncio.run(scenario())
     assert asked == []
+
+
+class _Cava:
+    """cava, as far as the app asks: it only has to be there."""
+
+    made = 0
+    alive = True
+
+    def __init__(self, bars: int) -> None:
+        type(self).made += 1
+
+    def frame(self) -> list[float]:
+        return [0.5]
+
+    def close(self) -> None:
+        pass
+
+
+def test_exclusive_mode_leaves_the_spectrum_to_the_level_meter(monkeypatch):
+    """cava listens to Windows's mixer, and an exclusive stream goes around
+    it: the spectrum was a flat line while the music played."""
+    from tidalamp import app as app_module
+    from tidalamp import audio, config
+
+    start = TidalAmp._start_spectrum
+    isolate_runtime(monkeypatch)
+    monkeypatch.setattr(TidalAmp, "_start_spectrum", start)
+    monkeypatch.setattr(app_module, "Cava", _Cava)
+    monkeypatch.setattr(_Cava, "made", 0)
+    monkeypatch.setattr(audio, "MANAGES_RATES", False)
+    monkeypatch.setattr(config, "EXCLUSIVE", True)
+    seen: list[tuple[int, bool]] = []
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(100, 40)) as pilot:
+            await pilot.pause()
+            seen.append((_Cava.made, application.cava is None))
+            monkeypatch.setattr(config, "EXCLUSIVE", False)
+            application._setting_changed("exclusive")
+            seen.append((_Cava.made, application.cava is None))
+            monkeypatch.setattr(config, "EXCLUSIVE", True)
+            application._setting_changed("exclusive")
+            seen.append((_Cava.made, application.cava is None))
+
+    asyncio.run(scenario())
+    assert seen == [(0, True), (1, False), (1, True)]
+
+
+def test_linux_keeps_cava_whatever_the_exclusive_setting_says(monkeypatch):
+    """The setting does nothing on Linux, where PipeWire's rates are managed."""
+    from tidalamp import app as app_module
+    from tidalamp import audio, config
+
+    start = TidalAmp._start_spectrum
+    isolate_runtime(monkeypatch)
+    monkeypatch.setattr(TidalAmp, "_start_spectrum", start)
+    monkeypatch.setattr(app_module, "Cava", _Cava)
+    monkeypatch.setattr(_Cava, "made", 0)
+    monkeypatch.setattr(audio, "MANAGES_RATES", True)
+    monkeypatch.setattr(config, "EXCLUSIVE", True)
+
+    async def scenario() -> bool:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(100, 40)) as pilot:
+            await pilot.pause()
+            return application.cava is not None
+
+    assert asyncio.run(scenario())

@@ -264,8 +264,24 @@ def test_sextants_on_windows_terminals(env, expected):
 def test_cava_listens_through_wasapi_loopback_on_windows():
     from tidalamp import spectrum
 
-    assert spectrum.input_method("win32") == "winscap"
+    assert spectrum.input_method("win32") == ""
     assert spectrum.input_method("linux") == "pulse"
+
+
+def test_cava_on_windows_is_not_told_which_input_to_use(monkeypatch, tmp_path):
+    """cava 1.0.0 refuses a config that names one («on windows changing input
+    method is not supported») and exits: the spectrum never ran on Windows,
+    and the analyser stayed on the RMS meter (2026-09-24)."""
+    from tidalamp import spectrum
+
+    monkeypatch.setattr(spectrum, "CACHE_DIR", tmp_path)
+    windows = spectrum.Cava._write_config(8, 30, "", "auto").read_text(encoding="utf-8")
+    assert "method = raw" in windows, "the output keeps its own"
+    assert "[input]\nsource = auto\n" in windows
+    linux = spectrum.Cava._write_config(8, 30, "pulse", "auto").read_text(
+        encoding="utf-8"
+    )
+    assert "[input]\nmethod = pulse\nsource = auto\n" in linux
 
 
 def test_the_palette_note_does_not_promise_omarchy_on_windows(monkeypatch):

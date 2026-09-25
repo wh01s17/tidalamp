@@ -12,6 +12,13 @@ versioning is [semantic](https://semver.org/).
   keys went to them: next and previous asked mpv's own playlist, which only holds the
   track playing, and did nothing. mpv is now started without them, when it has the
   option, so the keys and the volume flyout's buttons reach tidalamp.
+- **Windows: the spectrum never ran.** tidalamp named cava's input method in the
+  config it writes, and cava's Windows build refuses any config that does and exits,
+  so the analyser always fell back to the level meter. It now draws the real spectrum.
+- **Windows: in exclusive mode the spectrum was a flat line** under an «FFT» badge
+  while the music played: cava listens to what goes through Windows's mixer, and an
+  exclusive stream goes around it. With exclusive mode on, the analyser uses mpv's own
+  level meter, which hears the stream itself, and switching the mode switches it.
 
 ## [0.18.0] - 2026-09-24
 

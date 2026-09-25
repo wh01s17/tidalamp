@@ -1020,13 +1020,28 @@ class TidalAmp(App):
         directly: each resamples it. Asking cava for exactly what is on screen
         would mean restarting it on every resize and on every change of shape,
         and a restart is a gap in the picture.
+
+        Not in WASAPI's exclusive mode. cava hears the machine through the
+        loopback capture, which only gets what goes through Windows's mixer,
+        and an exclusive stream goes around it: cava drew a flat line while
+        the music played, under an «FFT» badge (measured with a tone on a real
+        machine, 2026-09-24). mpv's own level meter hears the stream itself.
         """
+        if not self._cava_hears_mpv():
+            self._feed_spectrum(None)
+            return
         try:
             self.cava = Cava(bars=Analyzer.BANDS)
         except SpectrumUnavailable:
             self._feed_spectrum(None)
             return
         self._feed_spectrum(self.cava.frame())
+
+    @staticmethod
+    def _cava_hears_mpv() -> bool:
+        """Whether what mpv plays reaches cava: always, but in Windows's
+        exclusive mode (`MANAGES_RATES` is what tells the systems apart)."""
+        return audio.MANAGES_RATES or not config.EXCLUSIVE
 
     def _stop_spectrum(self) -> None:
         """Drop back to the RMS meter, for good."""
@@ -3302,6 +3317,9 @@ class TidalAmp(App):
             )
             # The output was opened again, maybe at another rate.
             self._refresh_sink_worker()
+            # And cava can hear it again, or no longer (`_start_spectrum`).
+            self._stop_spectrum()
+            self._start_spectrum()
         elif name == "autoplay":
             self.status = (
                 _("reproducción automática activada")

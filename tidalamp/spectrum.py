@@ -18,7 +18,10 @@ On Windows cava listens through ``winscap``, WASAPI's loopback capture, which
 is the same thing seen from there: whatever the output device plays. Its raw
 output to ``/dev/stdout`` works as it does on Linux; cava's Windows build
 maps that name to the standard output handle (checked in its source,
-2026-09-23: cava.c, OUTPUT_RAW).
+2026-09-23: cava.c, OUTPUT_RAW). The input method is *not* written there:
+winscap is the only one, and cava 1.0.0 refuses a config that names it
+(«on windows changing input method is not supported»), exits, and leaves
+the RMS meter. Seen on a real machine, 2026-09-24.
 """
 
 from __future__ import annotations
@@ -43,8 +46,7 @@ framerate = {framerate}
 autosens = 1
 
 [input]
-method = {method}
-source = {source}
+{method}source = {source}
 
 [output]
 method = raw
@@ -60,9 +62,10 @@ class SpectrumUnavailable(RuntimeError):
 
 
 def input_method(platform: str = sys.platform) -> str:
-    """How cava hears the machine: PulseAudio's API (PipeWire speaks it too),
-    or WASAPI's loopback on Windows."""
-    return "winscap" if platform == "win32" else "pulse"
+    """How cava hears the machine: PulseAudio's API (PipeWire speaks it too).
+    Nothing on Windows, where WASAPI's loopback is the only way and naming
+    it makes cava refuse the whole config."""
+    return "" if platform == "win32" else "pulse"
 
 
 METHOD = input_method()
@@ -135,7 +138,10 @@ class Cava:
         path = CACHE_DIR / "cava.conf"
         path.write_text(
             CONFIG_TEMPLATE.format(
-                bars=bars, framerate=framerate, method=method, source=source
+                bars=bars,
+                framerate=framerate,
+                method=f"method = {method}\n" if method else "",
+                source=source,
             ),
             encoding="utf-8",
         )
