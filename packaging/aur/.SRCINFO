@@ -20,6 +20,6 @@ pkgbase = tidalamp
 	optdepends = cava: real spectrum analyzer instead of the RMS meter
 	optdepends = python-pillow: album cover art in the display
 	source = tidalamp-0.19.0.tar.gz::https://github.com/wh01s17/tidalamp/archive/refs/tags/v0.19.0.tar.gz
-	sha256sums = SKIP
+	sha256sums = 95024be49198aeec10a38c720662aadcb5913c467a26ef3c6080eb651aa0be88
 
 pkgname = tidalamp
