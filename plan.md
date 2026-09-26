@@ -2227,7 +2227,8 @@ efecto las tres trampas que lo hacían caro:
       álbum en sus colores) y tres filas fijas; lo que no cabe se desliza. Con 5 celdas
       de aire a la derecha, porque pegado a la barra de tiempo se leía como parte de
       ella (lo pidió el mantenedor, 2026-09-26).
-- [ ] Volver a verlo a la vista en la terminal del mantenedor tras esos arreglos.
+- [x] **Visto por el mantenedor** en su terminal tras esos arreglos (2026-09-26): la
+      columna de artista y el pie de pantalla completa se deslizan y vuelven.
 
 ### El ratón en las listas - `screens/rowlist.py`, `screens/grid.py`
 
@@ -2246,8 +2247,8 @@ efecto las tres trampas que lo hacían caro:
       nadie maneja, y un test lo fija.
 - [x] **Un clic en una opción del menú la elige**, como en cualquier menú contextual:
       es lo siguiente que hace quien lo abrió con el botón derecho.
-- [ ] Probarlo en la terminal del mantenedor (kitty): que el botón derecho llegue a
-      tidalamp y no lo intercepte la terminal.
+- [x] **Visto por el mantenedor** en kitty (2026-09-26): el botón derecho llega a
+      tidalamp y la terminal no lo intercepta; clic, doble clic y menú, bien.
 
 ### Una carga que falla no es una pista que acaba - `app.py`
 

@@ -92,8 +92,15 @@ player then asks whether to add itself to the application menu: see
 
 ### Windows (preview)
 
-The test suite runs on Windows, but real playback there has not been tried yet. What
-follows is how it is meant to work; reports are welcome.
+Real playback has been tried by hand on Windows 10 with Windows Terminal: sound through
+mpv, the output device chosen in the settings (and the default taking over when it is
+unplugged mid-track, then handing back), exclusive mode reaching a DAC at the track's
+own rate, the media keys and the Windows media panel, cava's spectrum, covers in half
+blocks and in sixel, and the Start menu shortcut. The test suite runs on Windows in CI.
+
+It stays a preview until one last check is done: the same playback and media keys
+from the Release's `tidalamp.exe`, rather than from pipx. Windows 11 has not been tried
+by hand yet. Reports are welcome.
 
 ```powershell
 pipx install "tidalamp[art]"       # or: uv tool install "tidalamp[art]"
@@ -1092,8 +1099,8 @@ a file.
 ## Platform support
 
 tidalamp is a Linux application, with Windows in preview. Real playback has been
-tested on Arch Linux with Omarchy, and the automated test suite runs on Ubuntu and on
-Windows.
+tested on Arch Linux with Omarchy and on Windows 10 with Windows Terminal, and the
+automated test suite runs on Ubuntu and on Windows.
 
 | Platform                                                | Status                                                                                                      |
 | ------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
@@ -1102,7 +1109,7 @@ Windows.
 | Fedora, openSUSE, and other desktop Linux distributions | Expected to work through PyPI, but not yet tested with real playback                                      |
 | WSL2                                                    | Best effort; audio must be configured separately and desktop integration may be unavailable                |
 | macOS                                                   | Unsupported and untested; the core may run, but the Linux desktop and audio integrations will not          |
-| Windows 10 and 11                                       | Preview: the suite runs on Windows, real playback not yet tried. See [Windows (preview)](#windows-preview) |
+| Windows 10 and 11                                       | Preview: real playback tested on Windows 10, not yet on 11. See [Windows (preview)](#windows-preview)      |
 | BSD and Android/Termux                                  | Unsupported and untested                                                                                   |
 
 A missing D-Bus session only disables MPRIS and desktop media controls; it does not
