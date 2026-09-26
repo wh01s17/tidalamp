@@ -2192,10 +2192,42 @@ efecto las tres trampas que lo hacían caro:
       hay ninguno. El navegador, los selectores y la cola del reproductor se leen fila
       a fila con el cursor, y una columna en movimiento debajo es ruido. `offset=0` —
       lo que reciben todos ellos— dibuja exactamente lo que dibujaba el recorte de
-      antes, y hay un test que lo fija.
+      antes, y hay un test que lo fija. Desde el 2026-09-26 la cola del reproductor
+      desliza la celda del artista, y sólo esa (más abajo, «Varios artistas»).
 - [x] `scrolling._window` pasa a público (`window`): `RowList` corta por grafemas con
       la misma función, para que una fila no se desplace por puntos de código donde un
       título se desplaza por grafemas.
+
+### Varios artistas, y el artista que no cabe se desliza - `queue.py`, `screens/rowlist.py`
+
+- [x] **Todos los artistas de la pista** (2026-09-26). `Entry.from_track` guardaba
+      `track.artist`, que es sólo el principal: «La Sombra» salía de Monsieur Periné y
+      Leonel García no aparecía en ningún sitio. Ahora `_artist_names` junta el
+      principal y `track.artists`, separados por «, », el principal primero y cada
+      nombre una vez (TIDAL repite el principal dentro de `artists`). Es el mismo
+      `artist`, así que la cola, el bloque bajo el reloj, la pantalla completa, MPRIS,
+      los créditos y el orden por artista lo leen sin tocar nada. Una cola guardada
+      antes se queda con el principal hasta que la pista se vuelve a cargar.
+- [x] **La celda del artista se desliza** cuando no cabe, también en la cola del
+      reproductor: `set_glide(names=False)` enciende el temporizador sólo para esa
+      columna, y los títulos de esa cola siguen con su recorte, porque se leen fila a
+      fila con el cursor. La de pantalla completa desliza las dos cosas. Misma fase
+      que los nombres y el mismo tope por fila (`_slide`).
+- [x] **Sólo se repintan las filas que se mueven** (`_refresh_moving`): la cola del
+      reproductor puede llevar un emblema detrás, y mandar la lista entera tres veces
+      por segundo por dos filas con un dúo es el coste que `watch_cursor` quitó.
+- [x] **La fase se mide con las filas en pantalla**, no con toda la lista. El
+      mantenedor lo probó (2026-09-26) y el artista llegaba al final y tardaba
+      muchísimo en volver: un nombre larguísimo trescientas filas más abajo seguía
+      empujando la fase mientras el dúo visible esperaba contra su borde. Vale también
+      para la cola de pantalla completa. Un test lo fija y falla con la versión vieja.
+- [x] **El pie de la pantalla completa** (`#fs-track`) era un `Static`: con siete
+      artistas la línea se partía y el álbum salía de la barra. Ahora es `TrackCard`,
+      un `Glide` con un estilo por línea (`Glide._line_styles`: título, artistas y
+      álbum en sus colores) y tres filas fijas; lo que no cabe se desliza. Con 5 celdas
+      de aire a la derecha, porque pegado a la barra de tiempo se leía como parte de
+      ella (lo pidió el mantenedor, 2026-09-26).
+- [ ] Volver a verlo a la vista en la terminal del mantenedor tras esos arreglos.
 
 ### Una carga que falla no es una pista que acaba - `app.py`
 

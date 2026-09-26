@@ -160,6 +160,23 @@ def test_an_entry_takes_the_year_from_the_album():
     assert entry.art_url == "https://art/320.jpg"
 
 
+def test_an_entry_names_every_artist_on_the_track_main_first_and_once_each():
+    """A duet showed only its main artist. TIDAL lists the main one again
+    inside `artists`, and it must not come out twice."""
+    track = FakeApiTrack(FakeAlbum())
+    track.name = "La Sombra"
+    track.artist = type("A", (), {"name": "Monsieur Periné"})()
+    track.artists = [
+        type("A", (), {"name": "Monsieur Periné"})(),
+        type("A", (), {"name": "Leonel García"})(),
+    ]
+
+    entry = Entry.from_track(track)
+
+    assert entry.artist == "Monsieur Periné, Leonel García"
+    assert entry.label == "Monsieur Periné, Leonel García - La Sombra"
+
+
 @pytest.mark.parametrize(
     "album",
     [

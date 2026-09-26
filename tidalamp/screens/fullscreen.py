@@ -19,7 +19,7 @@ from ..i18n import _
 from ..lyrics import LyricsDocument
 from ..queue import Entry, Repeat
 from ..theme import palette_for
-from ..widgets import Artwork, LyricsBoard, SeekBar
+from ..widgets import Artwork, Glide, LyricsBoard, SeekBar
 from .rowlist import RowList
 
 if TYPE_CHECKING:
@@ -49,6 +49,19 @@ class FullArtwork(Artwork):
 # past this many rows (at the 20 px a cell is taken to be) the cover would
 # only be stretched, and a 4K-sized one was 6 MB and seconds of encoding.
 SIXEL_ROWS = 1280 // artwork.CELL[1]
+
+
+class TrackCard(Glide):
+    """The title, the artists and the album at the foot of the view.
+
+    One row each, gliding when a line does not fit. It was a `Static`, and a
+    track with seven artists wrapped them onto the album's row and pushed the
+    album out of the bar for good.
+    """
+
+    def _line_styles(self) -> list[str]:
+        palette = palette_for(self)
+        return [f"bold {palette['accent']}", palette["body"], palette["muted"]]
 
 
 class FullscreenScreen(Screen[None]):
@@ -121,7 +134,7 @@ class FullscreenScreen(Screen[None]):
                 yield Static(_("COLA"), id="fs-queue-title", markup=False)
                 yield RowList(id="fs-queue-list")
         with Horizontal(id="fs-bar"):
-            yield Static("", id="fs-track", markup=False)
+            yield TrackCard(id="fs-track")
             with Vertical(id="fs-centre"):
                 yield Static("", id="fs-controls")
                 yield SeekBar(id="fs-seek")
@@ -139,7 +152,7 @@ class FullscreenScreen(Screen[None]):
         # their end. This queue is a wall of thirty names read at a glance,
         # and the ones worth reading are exactly the ones that do not fit;
         # the player's own queue is read a row at a time with the cursor, and
-        # a column in motion under it would be noise.
+        # there only the artist column moves.
         self.query_one("#fs-queue-list", RowList).set_glide()
         # The panel is the player's queue, not a copy with a cursor of its own:
         # every queue key (`g`, `d`, `alt+↑↓`, `m`, `f`) acts on the player's
@@ -285,17 +298,14 @@ class FullscreenScreen(Screen[None]):
             self._request()
 
     def _render_track(self) -> None:
-        palette = palette_for(self)
         entry = self.player.queue.current
-        text = Text(no_wrap=True, overflow="ellipsis")
         if entry is None:
-            text.append("TIDAL AMP", style=f"bold {palette['accent']}")
+            lines = ["TIDAL AMP"]
         else:
-            text.append(entry.title, style=f"bold {palette['accent']}")
-            text.append(f"\n{entry.artist}", style=palette["body"])
+            lines = [entry.title, entry.artist]
             if entry.album:
-                text.append(f"\n{entry.album}", style=palette["muted"])
-        self.query_one("#fs-track", Static).update(text)
+                lines.append(entry.album)
+        self.query_one("#fs-track", TrackCard).update("\n".join(lines))
 
     def _render_controls(self) -> None:
         """Shuffle, previous, play, next and repeat, centred and clickable."""

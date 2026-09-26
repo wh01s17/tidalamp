@@ -522,3 +522,110 @@ def test_a_list_where_everything_fits_never_leaves_its_start():
             return widget._offset
 
     assert asyncio.run(scenario()) == 0
+
+
+# ------------------------------ an artist column too narrow for a duet slides
+
+DUET = Row(
+    label="Monsieur Periné, Leonel García - La Sombra",
+    detail="3:40",
+    entry=Entry(
+        id=14, title="La Sombra", artist="Monsieur Periné, Leonel García", album="Nada"
+    ),
+)
+# Wide enough for the artist and album columns, twelve cells each: the duet
+# has thirty.
+COLUMNED = 60
+
+
+def test_an_artist_cell_too_narrow_slides_to_the_last_name():
+    """«Monsieur Per» was all a column sized for one name ever said of a duet."""
+    start = RowList._line(DUET, 13, -1, COLUMNED, DETAIL, 0)
+    assert "Monsieur Per" in start
+    assert "García" not in start
+    # Twelve cells: the end of the last name, against the column's edge.
+    cell = start.index("Monsieur Per")
+    settled = RowList._line(DUET, 13, -1, COLUMNED, DETAIL, 99)
+    assert settled[cell : cell + 12] == "eonel García"
+
+
+def test_only_the_artist_cell_moves_when_it_slides():
+    """The number, the title, the album and the duration stay where they are,
+    and the row keeps exactly its width."""
+    still = RowList._line(DUET, 13, -1, COLUMNED, DETAIL, 0)
+    cell = still.index("Monsieur Per")
+    for offset in (1, 7, 99):
+        line = RowList._line(DUET, 13, -1, COLUMNED, DETAIL, offset)
+        assert cell_len(line) == COLUMNED
+        assert line[:cell] == still[:cell]
+        assert line[cell + 12 :] == still[cell + 12 :]
+
+
+def test_without_names_the_title_keeps_its_crop_while_the_artist_slides():
+    """The player's own queue slides the artist and nothing else."""
+    entry = Entry(id=1, title="Wish You Were Golden " * 3, artist=DUET.entry.artist)
+    long_title = Row(label=entry.label, detail="4:21", entry=entry)
+    still = RowList._line(long_title, 1, -1, COLUMNED, DETAIL, 0, names=False)
+    moved = RowList._line(long_title, 1, -1, COLUMNED, DETAIL, 99, names=False)
+    cell = still.index("Monsieur Per")
+    assert moved[:cell] == still[:cell]
+    assert moved[cell : cell + 12] == "eonel García"
+
+
+def glided(rows: list[Row], names: bool) -> int:
+    """How far a list of `rows` gets after sixty ticks."""
+
+    class Host(App):
+        def compose(self) -> ComposeResult:
+            yield RowList(id="rows")
+
+    async def scenario() -> int:
+        app = Host()
+        async with app.run_test(size=(COLUMNED, 10)):
+            widget = app.query_one(RowList)
+            widget.set_rows(rows)
+            widget.set_glide(names=names)
+            for _ in range(60):
+                widget.tick()
+            return widget._offset
+
+    return asyncio.run(scenario())
+
+
+def test_a_list_gliding_only_its_artists_moves_for_a_duet():
+    assert glided([DUET, SHORT], names=False) > 0
+
+
+def test_a_list_gliding_only_its_artists_ignores_a_long_title():
+    """A title too long for its room is the full-screen queue's business."""
+    entry = Entry(id=1, title="Wish You Were Golden " * 3, artist="Cosmo Pyke")
+    long_title = Row(label=entry.label, detail="4:21", entry=entry)
+    assert glided([long_title, SHORT], names=False) == 0
+    assert glided([long_title, SHORT], names=True) > 0
+
+
+def test_a_long_name_off_screen_does_not_hold_the_rows_in_view_at_their_end():
+    """The phase went as far as the longest artist in the whole queue, and a
+    duet on screen sat against its end for seconds, waiting for a name three
+    hundred rows down, before it came back."""
+    far = Entry(id=2, title="x", artist="Somebody, " * 12)
+    rows = [DUET, *[SHORT] * 30, Row(label=far.label, detail="3:00", entry=far)]
+
+    class Host(App):
+        def compose(self) -> ComposeResult:
+            yield RowList(id="rows")
+
+    async def scenario() -> int:
+        app = Host()
+        async with app.run_test(size=(COLUMNED, 10)):
+            widget = app.query_one(RowList)
+            widget.set_rows(rows)
+            widget.set_glide(names=False)
+            furthest = 0
+            for _ in range(600):
+                widget.tick()
+                furthest = max(furthest, widget._offset)
+            return furthest
+
+    # The duet's own travel: thirty cells in a column of twelve.
+    assert asyncio.run(scenario()) == 18

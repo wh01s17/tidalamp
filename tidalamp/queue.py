@@ -44,6 +44,24 @@ TIDAL = "tidal"
 FREE = "free"
 
 
+def _artist_names(track: tidalapi.Track) -> str:
+    """Every artist on the track, the main one first, as TIDAL writes them.
+
+    `track.artist` alone is the main one, and a duet or a «feat.» lost the
+    rest of its names. TIDAL lists the main one again inside `artists`, so
+    each name goes in once.
+    """
+    names: list[str] = []
+    for artist in [
+        getattr(track, "artist", None),
+        *(getattr(track, "artists", None) or []),
+    ]:
+        name = getattr(artist, "name", "") or ""
+        if name and name not in names:
+            names.append(name)
+    return ", ".join(names)
+
+
 class Repeat(StrEnum):
     """Repeat mode. The values match MPRIS ``LoopStatus`` exactly."""
 
@@ -118,7 +136,7 @@ class Entry:
         return cls(
             id=track.id,
             title=track.name,
-            artist=getattr(getattr(track, "artist", None), "name", "") or "",
+            artist=_artist_names(track),
             artist_id=int(getattr(getattr(track, "artist", None), "id", 0) or 0),
             album=getattr(album, "name", "") or "",
             # tidalapi works the year out of whichever release date it has,

@@ -919,6 +919,10 @@ class TidalAmp(App):
         self.query_one("#queue-filter-bar", Horizontal).display = False
         playlist = self.query_one("#playlist", RowList)
         playlist.empty_text = _("cola vacía — / para buscar, l para tu biblioteca")
+        # Only the artist column slides here, when a track's artists do not
+        # fit it; the titles are read a row at a time with the cursor and
+        # keep their crop (the full-screen queue slides those too).
+        playlist.set_glide(names=False)
         volume = self.query_one("#volume", Slider)
         # Tied to the player's own ceiling rather than left on the widget
         # default: when the two drifted apart, the bar drew past its track.

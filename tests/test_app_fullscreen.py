@@ -28,6 +28,53 @@ def a_queue_playing(application, playing: int = 0) -> None:
     application._sync_queue()
 
 
+def test_a_track_with_many_artists_keeps_the_album_on_its_own_row(monkeypatch):
+    """The artists wrapped onto the album's row and pushed it out of the bar.
+    Each line is one row now, and the artists slide to show the rest."""
+    isolate_runtime(monkeypatch)
+    artists = (
+        "Rodrigo Gallardo, Fernando Milagros, Monsieur Periné, Kala Marka, "
+        "Huaira, Derrok, MANHEY, Tato Marenco"
+    )
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(120, 40)) as pilot:
+            await pilot.pause()
+            application.queue.replace(
+                [
+                    Entry(
+                        id=1,
+                        title="El Derecho de Vivir en Paz",
+                        artist=artists,
+                        album="El Derecho de Vivir en Paz",
+                    )
+                ],
+                start=0,
+            )
+            application._sync_queue()
+            await pilot.press("w")
+            await pilot.pause()
+            card = application.screen.query_one("#fs-track")
+            await settle(pilot, lambda: artists in card.content)
+            rows = [card.render_line(y).text for y in range(3)]
+            assert "El Derecho de Vivir en Paz" in rows[0]
+            assert rows[1].strip().startswith("Rodrigo Gallardo")
+            assert rows[2].strip() == "El Derecho de Vivir en Paz"
+            # Its end comes into view within one trip, whatever the timer
+            # of its own has already done.
+            seen = False
+            for _ in range(600):
+                card.tick()
+                if card.render().plain.split("\n")[1].endswith("Tato Marenco"):
+                    seen = True
+                    break
+            assert seen
+            assert card.render_line(2).text.strip() == "El Derecho de Vivir en Paz"
+
+    asyncio.run(scenario())
+
+
 def test_w_opens_the_full_screen_view_and_esc_comes_back(monkeypatch):
     isolate_runtime(monkeypatch)
 

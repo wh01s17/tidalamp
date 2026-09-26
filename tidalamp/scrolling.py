@@ -118,13 +118,24 @@ class Glide(Widget):
     def _style(self) -> str:
         return ""
 
+    def _line_styles(self) -> list[str]:
+        """A style for each line, over `_style`; none by default. A line
+        past the end of the list takes `_style` alone."""
+        return []
+
     def render(self) -> Text:
         width = max(1, self.size.width)
-        rows = []
-        for line in self._lines_to_draw():
+        styles = self._line_styles()
+        out = Text(style=self._style(), no_wrap=True)
+        for index, line in enumerate(self._lines_to_draw()):
             shift = max(0, min(self._offset, cell_len(line) - width))
-            rows.append(window(line, shift, width))
-        return Text("\n".join(rows), style=self._style(), no_wrap=True)
+            if index:
+                out.append("\n")
+            out.append(
+                window(line, shift, width),
+                style=styles[index] if index < len(styles) else "",
+            )
+        return out
 
 
 class Marquee(Glide):

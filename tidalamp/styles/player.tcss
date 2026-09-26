@@ -738,7 +738,10 @@ FullscreenScreen {
 
 #fs-track {
     width: 30%;
-    padding: 0 2;
+    height: 3;
+    /* More air on the right than the left: a long line of artists slides
+       up to its edge, and flush against the seek bar it read as part of it. */
+    padding: 0 5 0 2;
 }
 
 #fs-centre {

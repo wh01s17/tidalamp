@@ -5,6 +5,20 @@ versioning is [semantic](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- **A track with several artists names all of them.** A duet or a «feat.» showed only
+  its main artist, in the queue, under the clock and in the full-screen view. Now it
+  shows every artist, the main one first. A queue saved before this keeps the main
+  one until it is loaded again.
+- **An artist that does not fit its column slides to show the rest**, in the player's
+  queue as well as the full-screen one, at the same pace as the lines under the
+  clock. Only that cell moves: the titles in the player's queue keep their crop.
+- **The track at the foot of the full-screen view keeps to one row a line.** A long
+  list of artists wrapped onto the album's row and pushed the album out of the bar;
+  now the title, the artists and the album take a row each and slide when they do
+  not fit, with more room between them and the seek bar.
+
 ## [0.19.0] - 2026-09-25
 
 ### Added
