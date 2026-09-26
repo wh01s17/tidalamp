@@ -7,7 +7,7 @@ from functools import partial
 from typing import TYPE_CHECKING, cast
 
 from rich.cells import cell_len
-from textual import work
+from textual import on, work
 from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, Vertical
@@ -25,7 +25,7 @@ from .credits import CreditsScreen
 from .grid import GridList, cached_cells, cover_cells
 from .help import HelpScreen
 from .prompts import PlaylistNameScreen
-from .rowlist import RowList
+from .rowlist import RowChosen, RowList, RowMenu
 from .tracks import TrackActionsScreen, actions_for, container_actions_for
 
 if TYPE_CHECKING:  # The screens report back to the app; the app owns them.
@@ -823,6 +823,19 @@ class BrowserScreen(ModalScreen[tuple | None]):
         if row.tracks is not None:
             return row.tracks
         return cls._level_of(row)[1]
+
+    @on(RowChosen)
+    def _row_chosen(self, message: RowChosen) -> None:
+        """A double click opens or plays the row, as ↵ does, in the list or
+        the grid alike."""
+        message.stop()
+        self.action_choose()
+
+    @on(RowMenu)
+    def _row_menu(self, message: RowMenu) -> None:
+        """A right click opens the row's menu, as `m` does."""
+        message.stop()
+        self.action_menu()
 
     def action_menu(self) -> None:
         """`m`: the track's menu on a track, and on an album, an artist or a

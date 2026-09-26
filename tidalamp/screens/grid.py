@@ -6,6 +6,8 @@ from rich.cells import set_cell_size
 from rich.color import Color
 from rich.segment import Segment
 from rich.style import Style
+from textual import events
+from textual.geometry import Offset
 from textual.reactive import reactive
 from textual.strip import Strip
 from textual.widget import Widget
@@ -13,6 +15,7 @@ from textual.widget import Widget
 from .. import artwork
 from ..library import Row
 from ..theme import palette_for
+from .rowlist import clicked
 
 Pixel = tuple[int, int, int]
 Cells = tuple[tuple[tuple[str, Pixel, Pixel], ...], ...]
@@ -142,6 +145,29 @@ class GridList(Widget):
     def move(self, delta: int) -> None:
         if self.rows:
             self.cursor = max(0, min(len(self.rows) - 1, self.cursor + delta))
+
+    def row_at(self, offset: Offset | None) -> int | None:
+        """The tile drawn at `offset`, cover or text, or None for the air
+        between tiles and past the last one."""
+        if offset is None or not self.rows:
+            return None
+        columns = self.columns
+        lead, gaps = spread(self.size.width, columns, self.COVER_W, self.GAP)
+        left = lead
+        for column in range(columns):
+            if column:
+                left += self.COVER_W + gaps[column - 1]
+            if left <= offset.x < left + self.COVER_W:
+                break
+        else:
+            return None
+        if offset.y % self.TILE_H >= self.TILE_H - 1:
+            return None
+        index = (self._window_start() + offset.y // self.TILE_H) * columns + column
+        return index if index < len(self.rows) else None
+
+    def on_click(self, event: events.Click) -> None:
+        clicked(self, event, self.row_at(event.get_content_offset(self)))
 
     def move_lines(self, delta: int) -> None:
         """Up or down a line of tiles, staying in the column where there is one."""

@@ -20,7 +20,7 @@ from ..lyrics import LyricsDocument
 from ..queue import Entry, Repeat
 from ..theme import palette_for
 from ..widgets import Artwork, Glide, LyricsBoard, SeekBar
-from .rowlist import RowList
+from .rowlist import RowChosen, RowList, RowMenu
 
 if TYPE_CHECKING:
     from ..app import TidalAmp
@@ -158,6 +158,14 @@ class FullscreenScreen(Screen[None]):
         # every queue key (`g`, `d`, `alt+↑↓`, `m`, `f`) acts on the player's
         # cursor, so the panel follows that cursor the moment it moves.
         self.watch(self._main_list(), "cursor", self._cursor_moved, init=False)
+        # And the other way: a click on the panel moves the player's cursor,
+        # which is the one every queue key acts on.
+        self.watch(
+            self.query_one("#fs-queue-list", RowList),
+            "cursor",
+            self._panel_clicked,
+            init=False,
+        )
         self.follow(self.player.mpv.position, self.player.mpv.duration)
         self.call_after_refresh(self._laid_out)
 
@@ -523,6 +531,21 @@ class FullscreenScreen(Screen[None]):
     def _cursor_moved(self) -> None:
         if self._panel:
             self.mirror_queue()
+
+    def _panel_clicked(self, cursor: int) -> None:
+        main = self._main_list()
+        if self._panel and main.cursor != cursor:
+            main.cursor = cursor
+
+    @on(RowChosen, "#fs-queue-list")
+    def _panel_row_chosen(self, message: RowChosen) -> None:
+        message.stop()
+        self.action_queue_play()
+
+    @on(RowMenu, "#fs-queue-list")
+    def _panel_row_menu(self, message: RowMenu) -> None:
+        message.stop()
+        self.player.action_track_menu()
 
     def open_queue(self) -> None:
         if not self._panel:

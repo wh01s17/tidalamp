@@ -254,6 +254,11 @@ show the key that actually works.
 Navigation keys are fixed — arrows, Page Up/Down, Enter and Esc — because a typo there
 could make the browser unusable.
 
+The lists also take the mouse: in the queue, the library browser (list or grid), the
+full-screen queue and the playlist picker, a click selects a row, a double click does
+what `Enter` does on it, and a right click opens the menu `m` opens. In that menu, a
+click on an option takes it.
+
 ### Full screen
 
 `w` opens a full-screen view: the cover as large as the terminal allows, centred, and a

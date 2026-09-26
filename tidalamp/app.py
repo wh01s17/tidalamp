@@ -51,7 +51,9 @@ from .screens import (
     LyricsScreen,
     PlaylistNameScreen,
     PlaylistPickerScreen,
+    RowChosen,
     RowList,
+    RowMenu,
     SearchScreen,
     SpeedScreen,
     TrackActionsScreen,
@@ -1732,6 +1734,18 @@ class TidalAmp(App):
         fullscreen = self._fullscreen()
         if fullscreen is not None:
             fullscreen.mirror_queue()
+
+    @on(RowChosen, "#playlist")
+    def _queue_row_chosen(self, message: RowChosen) -> None:
+        """A double click on a queue row plays it, as ↵ does."""
+        message.stop()
+        self.action_play_selected()
+
+    @on(RowMenu, "#playlist")
+    def _queue_row_menu(self, message: RowMenu) -> None:
+        """A right click on a queue row opens its menu, as `m` does."""
+        message.stop()
+        self.action_track_menu()
 
     def action_track_menu(self) -> None:
         """Open the track menu on the queue row under the cursor.

@@ -2229,6 +2229,26 @@ efecto las tres trampas que lo hacían caro:
       ella (lo pidió el mantenedor, 2026-09-26).
 - [ ] Volver a verlo a la vista en la terminal del mantenedor tras esos arreglos.
 
+### El ratón en las listas - `screens/rowlist.py`, `screens/grid.py`
+
+- [x] **Clic, doble clic y botón derecho** (2026-09-26, lo pidió el mantenedor).
+      `RowList` y `GridList` traducen el clic a una fila (`row_at`, que cuenta desde el
+      contenido: algunas listas llevan padding) y `clicked` hace el resto: el cursor va
+      ahí, el doble clic izquierdo publica `RowChosen` y el derecho `RowMenu`. Cada
+      pantalla contesta con la acción de su tecla y nada más: la cola con
+      `action_play_selected` y `action_track_menu`, el navegador con `action_choose` y
+      `action_menu` (lista o cuadrícula), la cola de pantalla completa sobre el cursor
+      del reproductor, y el selector de playlists con `action_choose`. Un clic en
+      ninguna fila (bajo la última, el aire entre mosaicos) no hace nada.
+- [x] **`RowMenu` no es un `RowChosen`.** Lo fue en el primer intento y Textual le
+      pasa un mensaje también a los manejadores de sus clases base: el clic derecho
+      abría el menú y además reproducía la pista. Los dos cuelgan de `_Pointed`, que
+      nadie maneja, y un test lo fija.
+- [x] **Un clic en una opción del menú la elige**, como en cualquier menú contextual:
+      es lo siguiente que hace quien lo abrió con el botón derecho.
+- [ ] Probarlo en la terminal del mantenedor (kitty): que el botón derecho llegue a
+      tidalamp y no lo intercepte la terminal.
+
 ### Una carga que falla no es una pista que acaba - `app.py`
 
 - [x] Desde el reproductor las dos cosas se ven igual: mpv se queda idle. Y eran la

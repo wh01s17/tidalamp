@@ -5,6 +5,13 @@ versioning is [semantic](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **The lists answer the mouse.** A click selects a track, a double click plays it (or
+  does whatever `Enter` does there), and a right click opens the menu `m` opens: in the
+  queue, the library browser as a list or as a grid, the full-screen queue and the
+  playlist picker. A click on an option of that menu takes it.
+
 ### Changed
 
 - **A track with several artists names all of them.** A duet or a «feat.» showed only

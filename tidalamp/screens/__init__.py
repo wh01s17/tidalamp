@@ -20,7 +20,7 @@ from .help import HelpScreen
 from .logout import LogoutScreen
 from .lyrics_window import LyricsScreen
 from .prompts import PlaylistNameScreen, SearchScreen
-from .rowlist import RowList, _hex, _Paint
+from .rowlist import RowChosen, RowList, RowMenu, _hex, _Paint
 from .speed import SpeedScreen, speed_text
 from .tracks import (
     CONTAINER_ACTIONS,
@@ -53,7 +53,9 @@ __all__ = [
     "Option",
     "PlaylistNameScreen",
     "PlaylistPickerScreen",
+    "RowChosen",
     "RowList",
+    "RowMenu",
     "SearchScreen",
     "SpeedScreen",
     "TrackActionsScreen",

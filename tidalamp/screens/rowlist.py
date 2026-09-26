@@ -9,7 +9,9 @@ from rich.cells import cell_len, set_cell_size
 from rich.segment import Segment
 from rich.style import Style
 from rich.text import Text
-from textual.geometry import Region
+from textual import events
+from textual.geometry import Offset, Region
+from textual.message import Message
 from textual.reactive import reactive
 from textual.strip import Strip
 from textual.widget import Widget
@@ -37,6 +39,47 @@ _Paint = tuple[str, Style, Style]
 # itself move as one thing rather than two.
 GLIDE_EVERY = 3
 GLIDE_HOLD = 7
+
+
+class _Pointed(Message):
+    """A row the pointer acted on. `RowList` and `GridList` both post these,
+    with the cursor already on the row, so a handler is the key's own action
+    and nothing else. Not a base the handlers name: Textual hands a message
+    to the handlers of its base classes too, and a right click that was a
+    `RowChosen` as well played the track it opened the menu on."""
+
+    def __init__(self, widget: Widget) -> None:
+        super().__init__()
+        self.widget = widget
+
+    @property
+    def control(self) -> Widget:
+        return self.widget
+
+
+class RowChosen(_Pointed):
+    """A row double-clicked: whatever ↵ does on it where the list lives."""
+
+
+class RowMenu(_Pointed):
+    """A row right-clicked: the menu `m` opens on it."""
+
+
+def clicked(widget: Widget, event: events.Click, index: int | None) -> None:
+    """What a click on a list does, once the list says which row it hit.
+
+    The left button moves the cursor there and a second click plays it, as
+    ↵ would; the right one moves it and opens the menu. A click on no row
+    (under the last, in the gap between tiles) does nothing.
+    """
+    if index is None:
+        return
+    event.stop()
+    widget.cursor = index  # type: ignore[attr-defined]
+    if event.button == 3:
+        widget.post_message(RowMenu(widget))
+    elif event.button == 1 and event.chain == 2:
+        widget.post_message(RowChosen(widget))
 
 
 class RowList(Widget):
@@ -245,6 +288,18 @@ class RowList(Widget):
         if 0 <= self.cursor < len(self.rows):
             return self.rows[self.cursor]
         return None
+
+    def row_at(self, offset: Offset | None) -> int | None:
+        """The row drawn at `offset` in the content, or None if there is none."""
+        if offset is None or not self.rows:
+            return None
+        index = self._window_start() + offset.y
+        return (
+            index if 0 <= offset.y < self.size.height and index < len(self.rows) else None
+        )
+
+    def on_click(self, event: events.Click) -> None:
+        clicked(self, event, self.row_at(event.get_content_offset(self)))
 
     # The gap between two columns, and the room the title needs before it
     # stops being worth having columns at all.

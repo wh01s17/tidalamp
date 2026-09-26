@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from rich.text import Text
-from textual import work
+from textual import events, on, work
 from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Vertical
@@ -17,7 +17,7 @@ from .. import library
 from ..i18n import _
 from ..library import Row
 from ..theme import palette_for
-from .rowlist import RowList
+from .rowlist import RowChosen, RowList
 
 if TYPE_CHECKING:  # The screens report back to the app; the app owns them.
     pass
@@ -160,6 +160,11 @@ class PlaylistPickerScreen(ModalScreen[str | None]):
         row = self.query_one(RowList).current
         self.dismiss(row.key if row is not None and row.key else None)
 
+    @on(RowChosen)
+    def _row_chosen(self, message: RowChosen) -> None:
+        message.stop()
+        self.action_choose()
+
     def action_close(self) -> None:
         self.dismiss(None)
 
@@ -237,6 +242,18 @@ class TrackActionsScreen(ModalScreen[str | None]):
 
     def action_choose(self) -> None:
         self.dismiss(self._actions[self.cursor][0])
+
+    @on(events.Click, "#actions-list")
+    def _option_clicked(self, event: events.Click) -> None:
+        """A click on an option takes it, as a menu's options do: it is the
+        next thing a right click on a track leads to, and the pointer is
+        already in hand. One line an option (`_render_list`)."""
+        offset = event.get_content_offset(self.query_one("#actions-list"))
+        if offset is None or not 0 <= offset.y < len(self._actions):
+            return
+        event.stop()
+        self.cursor = offset.y
+        self.action_choose()
 
     def action_close(self) -> None:
         self.dismiss(None)
