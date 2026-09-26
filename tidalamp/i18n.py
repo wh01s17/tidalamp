@@ -282,6 +282,19 @@ ENGLISH: dict[str, str] = {
     "«{name}» no viene de TIDAL, que es de donde salen las letras": (
         "“{name}” does not come from TIDAL, which is where the lyrics come from"
     ),
+    # --- 0.20.0, in the help's list of changes
+    "Una pista con varios artistas los nombra a todos.": (
+        "A track with several artists names them all."
+    ),
+    "El artista que no cabe en la cola se desliza para verse entero.": (
+        "An artist too long for the queue slides to show the rest."
+    ),
+    "En pantalla completa, el álbum ya no se sale con muchos artistas.": (
+        "In full screen, many artists no longer push the album out."
+    ),
+    "Ratón: clic selecciona, doble clic reproduce, derecho abre el menú.": (
+        "Mouse: click selects, double click plays, right click opens the menu."
+    ),
     # --- 0.19.0, in the help's list of changes
     "Windows: las teclas multimedia llegan a tidalamp, no a mpv.": (
         "Windows: the media keys reach tidalamp, not mpv."

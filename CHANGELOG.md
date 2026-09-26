@@ -5,6 +5,8 @@ versioning is [semantic](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.20.0] - 2026-09-26
+
 ### Added
 
 - **The lists answer the mouse.** A click selects a track, a double click plays it (or
