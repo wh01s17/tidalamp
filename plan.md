@@ -4,7 +4,16 @@ Documento de traspaso. Describe qué existe, qué está verificado, qué falta y
 criterio se tomaron las decisiones, para que cualquiera (humano o modelo) pueda
 retomar el trabajo sin contexto previo.
 
-**Última actualización:** 2026-09-25, versión `0.19.0` publicada en PyPI y en GitHub,
+**Última actualización:** 2026-09-26, versión `0.20.0` publicada en PyPI y en GitHub,
+con el tag `v0.20.0` sobre `0d416b7` y el checksum del tarball en `9d430ec`. Lo
+nuevo: una pista con varios artistas los nombra a todos, y el artista que no cabe
+se desliza, en la cola del reproductor (sólo esa columna) y en la de pantalla
+completa; el pie de la pantalla completa ya no saca el álbum de la barra con muchos
+artistas; y el ratón en las listas: clic selecciona, doble clic hace lo de ↵ y el
+botón derecho abre el menú de `m`. Todo visto por el mantenedor en kitty. El README
+dice ya lo que se ha probado de Windows. Ver §4, «Varios artistas, y el artista que
+no cabe se desliza» y «El ratón en las listas». Antes, 2026-09-25, versión `0.19.0`
+publicada en PyPI y en GitHub,
 con el tag `v0.19.0` sobre `93bf9e5` y el checksum del tarball en `42b2703`. Lo
 nuevo sale de haber visto entero `windows.md` §12 en la máquina del mantenedor: en
 Windows las teclas multimedia llegan a tidalamp y no a la sesión del propio mpv
@@ -2577,8 +2586,9 @@ una pista en cada calidad y leer `~/.local/state/tidalamp/tidalamp.log`.
 > carátula en pantalla completa, la `0.15.0` (2026-09-20) «Lofi sin copyright» y sus
 > créditos, la `0.16.0` (2026-09-23) Windows en vista previa, la `0.17.0`
 > (2026-09-24) lo que salió de probarla en una máquina real y la `0.18.0`
-> (2026-09-24) el dispositivo de salida y el acceso en el escritorio, y la `0.19.0`
-> (2026-09-25) lo que salió de ver entero `windows.md` §12; allí quedan las
+> (2026-09-24) el dispositivo de salida y el acceso en el escritorio, la `0.19.0`
+> (2026-09-25) lo que salió de ver entero `windows.md` §12, y la `0.20.0`
+> (2026-09-26) los artistas y el ratón en las listas; allí quedan las
 > comprobaciones a mano. Esta sección sigue siendo el estado general
 > y aquella, la cola de trabajo.
 
@@ -2587,17 +2597,17 @@ reproductor sirva, sino acabado, distribución y confirmar contra TIDAL real cos
 probadas sólo con dobles.
 
 **Orden propuesto (2026-09-11):** ~~P5 empaquetado~~ y ~~carátula~~ ✅ hechos. Cada
-versión se publica siguiendo `publish.md`; la última publicada es la `0.19.0`
-(2026-09-25), en PyPI y en GitHub con el zip de Windows, y con el checksum del tarball
-ya en el PKGBUILD (`42b2703`). Lo que queda abierto aquí pide
+versión se publica siguiendo `publish.md`; la última publicada es la `0.20.0`
+(2026-09-26), en PyPI y en GitHub con el zip de Windows, y con el checksum del tarball
+ya en el PKGBUILD (`9d430ec`). Lo que queda abierto aquí pide
 credenciales tuyas o un par de ojos.
 
 1. Publicar en el AUR cuando vuelva a abrir el registro de cuentas nuevas. El paquete
    está preparado y se puede probar localmente, pero el alta final depende del
    servicio externo y no tiene fecha anunciada. **Todo lo del AUR queda pendiente**
-   (decidido por el mantenedor el 2026-09-14): de la `0.19.0` sólo está hecho el
-   checksum (`publish.md` §8.1 y §8.3, en `42b2703`, con `updpkgsums` y validado por
-   `makepkg`); §8.2 (`makepkg -Csi`, `namcap`) no se ha ejecutado: esta máquina no
+   (decidido por el mantenedor el 2026-09-14): de la `0.20.0` sólo está hecho el
+   checksum (`publish.md` §8.1 y §8.3, en `9d430ec`, con `updpkgsums`, validado por
+   `makepkg` y contrastado con el tarball bajado del Release); §8.2 (`makepkg -Csi`, `namcap`) no se ha ejecutado: esta máquina no
    tiene instaladas las dependencias del paquete ni las de construcción, que están
    en `extra` pero piden `sudo pacman -S`, ni `namcap`. §8.4 a §8.6 esperan al
    registro.
