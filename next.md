@@ -30,15 +30,15 @@ Lo de aquí no bloquea publicar. `plan.md` §5 y §6 mandan sobre el estado gene
   la `0.19.0`. §12.9, la sesión normal en Linux, quedó vista el 2026-09-24, y de ella
   salió el espectro que no volvía tras reiniciar PipeWire, también en la `0.19.0`.
   **De Windows sólo queda** §12.7: repetir §12.3 y §12.4 con el `.exe` de la
-  `0.20.0` (la `0.19.0` fue la primera con esos arreglos), y después «Después de §12».
+  `0.21.0` (la `0.19.0` fue la primera con esos arreglos), y después «Después de §12».
   Lo que se compruebe se marca allí mismo con la fecha; lo que falle, con el log de
   `TIDALAMP_DEBUG=1`. El entorno para arreglar cosas desde Windows está en
   `CONTRIBUTING.md` («Setting up», «Windows»).
   - *Después de §12:* el clasificador de Windows en PyPI, quitar «preview» del README,
     y una captura en Windows Terminal (`windows.md`, «Después de §12»).
 
-La última publicada es la `0.20.0` (2026-09-26), en PyPI y en GitHub con el zip de
-Windows; su checksum del AUR está en `9d430ec`, `makepkg -Csi` y `namcap` están sin
+La última publicada es la `0.21.0` (2026-09-26), en PyPI y en GitHub con el zip de
+Windows; su checksum del AUR está en `7c5dc46`, `makepkg -Csi` y `namcap` están sin
 hacer (piden instalar con `sudo` las dependencias del paquete), y lo demás del AUR
 espera al registro (`plan.md` §6). Lo que trae cada versión está en
 `CHANGELOG.md`.

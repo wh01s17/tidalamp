@@ -4,7 +4,12 @@ Documento de traspaso. Describe qué existe, qué está verificado, qué falta y
 criterio se tomaron las decisiones, para que cualquiera (humano o modelo) pueda
 retomar el trabajo sin contexto previo.
 
-**Última actualización:** 2026-09-26, versión `0.20.0` publicada en PyPI y en GitHub,
+**Última actualización:** 2026-09-26, versión `0.21.0` publicada en PyPI y en GitHub,
+con el tag `v0.21.0` sobre `49aaf85` y el checksum del tarball en `7c5dc46`. Lo
+nuevo: en Linux se elige el dispositivo de salida en `o`, como en Windows: un sink
+de PipeWire, sin cambiar el predeterminado del escritorio, y los rates, `OUT` y cava
+lo siguen. Las capturas del README, rehechas. Ver §4, «El dispositivo de salida en
+Linux». Antes, 2026-09-26, versión `0.20.0` publicada en PyPI y en GitHub,
 con el tag `v0.20.0` sobre `0d416b7` y el checksum del tarball en `9d430ec`. Lo
 nuevo: una pista con varios artistas los nombra a todos, y el artista que no cabe
 se desliza, en la cola del reproductor (sólo esa columna) y en la de pantalla
@@ -2207,6 +2212,26 @@ efecto las tres trampas que lo hacían caro:
       la misma función, para que una fila no se desplace por puntos de código donde un
       título se desplaza por grafemas.
 
+### El dispositivo de salida en Linux - `backends/linux/audio.py`, `screens/config_window.py`
+
+- [x] **La fila Dispositivo de `o`, también en Linux** (2026-09-26, lo pidió el
+      mantenedor). Antes sólo existía en Windows y en Linux mpv tocaba siempre por el
+      sink predeterminado. Ahora la lista sale de `audio-device-list` de mpv, una
+      entrada por sink: `pipewire/<sink>`, o `pulse/<sink>` si mpv no trae su salida de
+      PipeWire. Se dejan fuera los dispositivos ALSA directos, que se saltarían
+      PipeWire y sus rates, y el `pipewire` a secas, que es lo mismo que `auto`.
+- [x] **mpv toca por el elegido y el escritorio no se mueve**: `--audio-device` al
+      arrancar y la propiedad `audio-device` al cambiarlo, sin parar la pista. No se
+      toca `pactl set-default-sink`.
+- [x] **Lo que se lee es del sink en que suena mpv**, no del predeterminado:
+      `audio.sink()` mira `Mpv.device`, y con él los rates, el forzado, `OUT` y los
+      avisos. cava escucha el `.monitor` de ese sink (`audio.monitor`).
+- [x] **Desenchufado y vuelta**, con lo mismo que Windows: `connected()` mira la lista
+      de `pactl`, `_output_gone` pasa a `auto` y `_watch_output` vuelve al elegido
+      cuando reaparece. Un sink que no está nunca se le pasa a mpv.
+- [x] **Visto por el mantenedor** en kitty (2026-09-26): elegir el FiiO BTR15 con la
+      pista sonando dice «output device changed» y `OUT` pasa a él, a 96 kHz.
+
 ### Varios artistas, y el artista que no cabe se desliza - `queue.py`, `screens/rowlist.py`
 
 - [x] **Todos los artistas de la pista** (2026-09-26). `Entry.from_track` guardaba
@@ -2587,8 +2612,9 @@ una pista en cada calidad y leer `~/.local/state/tidalamp/tidalamp.log`.
 > créditos, la `0.16.0` (2026-09-23) Windows en vista previa, la `0.17.0`
 > (2026-09-24) lo que salió de probarla en una máquina real y la `0.18.0`
 > (2026-09-24) el dispositivo de salida y el acceso en el escritorio, la `0.19.0`
-> (2026-09-25) lo que salió de ver entero `windows.md` §12, y la `0.20.0`
-> (2026-09-26) los artistas y el ratón en las listas; allí quedan las
+> (2026-09-25) lo que salió de ver entero `windows.md` §12, la `0.20.0`
+> (2026-09-26) los artistas y el ratón en las listas, y la `0.21.0` (2026-09-26)
+> el dispositivo de salida en Linux; allí quedan las
 > comprobaciones a mano. Esta sección sigue siendo el estado general
 > y aquella, la cola de trabajo.
 
@@ -2597,17 +2623,17 @@ reproductor sirva, sino acabado, distribución y confirmar contra TIDAL real cos
 probadas sólo con dobles.
 
 **Orden propuesto (2026-09-11):** ~~P5 empaquetado~~ y ~~carátula~~ ✅ hechos. Cada
-versión se publica siguiendo `publish.md`; la última publicada es la `0.20.0`
+versión se publica siguiendo `publish.md`; la última publicada es la `0.21.0`
 (2026-09-26), en PyPI y en GitHub con el zip de Windows, y con el checksum del tarball
-ya en el PKGBUILD (`9d430ec`). Lo que queda abierto aquí pide
+ya en el PKGBUILD (`7c5dc46`). Lo que queda abierto aquí pide
 credenciales tuyas o un par de ojos.
 
 1. Publicar en el AUR cuando vuelva a abrir el registro de cuentas nuevas. El paquete
    está preparado y se puede probar localmente, pero el alta final depende del
    servicio externo y no tiene fecha anunciada. **Todo lo del AUR queda pendiente**
-   (decidido por el mantenedor el 2026-09-14): de la `0.20.0` sólo está hecho el
-   checksum (`publish.md` §8.1 y §8.3, en `9d430ec`, con `updpkgsums`, validado por
-   `makepkg` y contrastado con el tarball bajado del Release); §8.2 (`makepkg -Csi`, `namcap`) no se ha ejecutado: esta máquina no
+   (decidido por el mantenedor el 2026-09-14): de la `0.21.0` sólo está hecho el
+   checksum (`publish.md` §8.1 y §8.3, en `7c5dc46`, con `updpkgsums` y validado por
+   `makepkg` contra el tarball del tag); §8.2 (`makepkg -Csi`, `namcap`) no se ha ejecutado: esta máquina no
    tiene instaladas las dependencias del paquete ni las de construcción, que están
    en `extra` pero piden `sudo pacman -S`, ni `namcap`. §8.4 a §8.6 esperan al
    registro.
