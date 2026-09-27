@@ -1040,7 +1040,7 @@ class TidalAmp(App):
             self._feed_spectrum(None)
             return
         try:
-            self.cava = Cava(bars=Analyzer.BANDS)
+            self.cava = Cava(bars=Analyzer.BANDS, source=audio.monitor(self.mpv.device))
         except SpectrumUnavailable:
             self._feed_spectrum(None)
             return
@@ -1048,7 +1048,9 @@ class TidalAmp(App):
 
     def _cava_hears_mpv(self) -> bool:
         """Whether what mpv plays reaches cava. Always on Linux
-        (`MANAGES_RATES` is what tells the systems apart). On Windows cava
+        (`MANAGES_RATES` is what tells the systems apart), where cava listens
+        to the monitor of whichever sink mpv plays to (`audio.monitor`),
+        chosen or default. On Windows cava
         hears the default output's mix and nothing else, and cannot be told
         another: not in exclusive mode, and not while mpv plays to another
         device, where the analyser read «FFT» over a line that hardly moved
@@ -2873,14 +2875,15 @@ class TidalAmp(App):
         or was not there at the start. Choosing it again in the settings did
         nothing, since the setting already said it: the sound stayed on the
         speaker it had fallen back to (seen with a FiiO BTR15, 2026-09-24).
-        Asked off the UI thread, and only while mpv is not on it. Windows
-        only, like the row: `MANAGES_RATES` is what tells the two apart.
+        Asked off the UI thread, and only while mpv is not on it. A USB DAC
+        on Linux comes and goes the same way: its sink leaves PipeWire's list
+        when it is unplugged and comes back when it is plugged in.
         """
         if self._sink.muted:
             # Unmuting happens in Windows and nothing tells us: look again.
             self._refresh_sink_worker()
         wanted = config.AUDIO_DEVICE
-        if audio.MANAGES_RATES or wanted in ("", "auto") or self.mpv.device == wanted:
+        if wanted in ("", "auto") or self.mpv.device == wanted:
             return
         self._output_back_worker(wanted)
 
@@ -3379,7 +3382,9 @@ class TidalAmp(App):
                 self.mpv.set_device(wanted)
                 # By name the line would show a guid; OUT says which one it is.
                 self.status = (
-                    _("dispositivo de salida: el predeterminado de Windows")
+                    _("dispositivo de salida: el predeterminado de {system}").format(
+                        system=audio.SYSTEM
+                    )
                     if wanted in ("", "auto")
                     else _("dispositivo de salida cambiado")
                 )

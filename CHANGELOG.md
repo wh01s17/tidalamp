@@ -5,6 +5,14 @@ versioning is [semantic](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **Linux: choose the output device in `o`.** A **Device** row lists PipeWire's sinks,
+  as on Windows, and mpv plays to the one chosen without touching the desktop's
+  default. `auto` follows the default and says which sink it is. The rates, the `OUT`
+  line, the warnings and cava's spectrum follow the chosen sink; unplugged, the track
+  goes on through the default and comes back to it when it is plugged in again.
+
 ## [0.20.0] - 2026-09-26
 
 ### Added

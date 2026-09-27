@@ -286,10 +286,11 @@ MPV_PATH = setting("mpv_path", "TIDALAMP_MPV_PATH", "")
 # without asking is a bug report waiting to arrive.
 EXCLUSIVE = flag("exclusive", "TIDALAMP_EXCLUSIVE")
 
-# Windows only: the output mpv plays to, by mpv's name for it
-# (`wasapi/{guid}`). `auto` follows the system's default output. Chosen from a
-# list in the settings, because exclusive mode takes the whole device and the
-# user has to be able to see, and say, which one that is.
+# The output mpv plays to, by mpv's name for it: `wasapi/{guid}` on Windows,
+# `pipewire/<sink>` on Linux. `auto` follows the system's default output.
+# Chosen from a list in the settings, because exclusive mode takes the whole
+# device and the user has to be able to see, and say, which one that is; and
+# on Linux so a DAC can play tidalamp while the desktop stays on the speakers.
 AUDIO_DEVICE = setting("audio_device", "TIDALAMP_AUDIO_DEVICE", "auto")
 
 # Key overrides, action name to key. Empty means "the defaults in app.py".

@@ -133,21 +133,26 @@ class ConfigScreen(ModalScreen[None]):
     # ------------------------------------------------------------------ rows
 
     def _stack_rows(self, group: str) -> list[Option]:
-        """The audio stack's own rows: PipeWire's where its rates are ours to
-        manage, and WASAPI's device and exclusive mode where they are not
-        (Windows). The device comes first: exclusive mode takes all of it."""
+        """The audio stack's own rows: the output device on every system,
+        then PipeWire's where its rates are ours to manage, and WASAPI's
+        exclusive mode where they are not (Windows). The device comes first:
+        the rates and exclusive mode are about the device it names."""
+        device = Option(
+            _("Dispositivo"),
+            key="audio_device",
+            note=_("la salida de mpv; auto sigue la predeterminada de {system}").format(
+                system=audio.SYSTEM
+            ),
+            group=group,
+        )
         if audio.MANAGES_RATES:
             return [
+                device,
                 Option(_("Rates hi-res en PipeWire"), action="rates", group=group),
                 Option(_("Reiniciar PipeWire"), action="restart", group=group),
             ]
         return [
-            Option(
-                _("Dispositivo"),
-                key="audio_device",
-                note=_("la salida de mpv; auto sigue la predeterminada de Windows"),
-                group=group,
-            ),
+            device,
             Option(
                 _("Modo exclusivo"),
                 key="exclusive",
@@ -630,11 +635,13 @@ class ConfigScreen(ModalScreen[None]):
                         # own, «Altavoces (JBL Charge 3 Stereo)».
                         (
                             "auto",
-                            _("auto: el predeterminado de Windows · {name}").format(
-                                name=default
+                            _("auto: el predeterminado de {system} · {name}").format(
+                                system=audio.SYSTEM, name=default
                             )
                             if default
-                            else _("auto: el predeterminado de Windows"),
+                            else _("auto: el predeterminado de {system}").format(
+                                system=audio.SYSTEM
+                            ),
                         ),
                         *self._devices,
                     ],

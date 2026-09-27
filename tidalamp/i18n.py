@@ -1169,18 +1169,18 @@ ENGLISH: dict[str, str] = {
         "each track reaches the DAC at its own rate; nothing else plays"
     ),
     "Dispositivo": "Device",
-    "la salida de mpv; auto sigue la predeterminada de Windows": (
-        "mpv's output; auto follows Windows's default"
+    "la salida de mpv; auto sigue la predeterminada de {system}": (
+        "mpv's output; auto follows {system}'s default"
     ),
     "auto · {name}": "auto · {name}",
     "no conectado; suena por el predeterminado": (
         "not connected; playing through the default"
     ),
     "DISPOSITIVO DE SALIDA": "OUTPUT DEVICE",
-    "auto: el predeterminado de Windows · {name}": "auto: Windows's default · {name}",
-    "auto: el predeterminado de Windows": "auto: Windows's default",
-    "dispositivo de salida: el predeterminado de Windows": (
-        "output device: Windows's default"
+    "auto: el predeterminado de {system} · {name}": "auto: {system}'s default · {name}",
+    "auto: el predeterminado de {system}": "auto: {system}'s default",
+    "dispositivo de salida: el predeterminado de {system}": (
+        "output device: {system}'s default"
     ),
     "dispositivo de salida cambiado": "output device changed",
     "ese dispositivo no está conectado; suena por el predeterminado": (

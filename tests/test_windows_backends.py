@@ -444,19 +444,18 @@ def test_a_windows_that_cannot_be_asked_takes_no_choice_away(monkeypatch):
     assert windows_audio.connected("wasapi/{fiio}")
 
 
-def test_the_device_is_asked_of_mpv_on_windows_only(monkeypatch):
-    from tidalamp.backends.windows import audio as windows_audio
+def test_the_device_is_asked_of_mpv(monkeypatch):
+    """On Windows a WASAPI device, on Linux a PipeWire sink: the same row."""
+    from tidalamp import audio
 
-    monkeypatch.setattr(windows_audio, "connected", lambda name: True)
+    monkeypatch.setattr(audio, "connected", lambda name: True)
     monkeypatch.setattr(config, "AUDIO_DEVICE", "wasapi/{fiio}")
-    monkeypatch.setattr(player.sys, "platform", "win32")
     assert player._device_option() == ["--audio-device=wasapi/{fiio}"]
-    monkeypatch.setattr(player.sys, "platform", "linux")
-    assert player._device_option() == []
+    monkeypatch.setattr(config, "AUDIO_DEVICE", "pipewire/alsa_output.usb-FiiO")
+    assert player._device_option() == ["--audio-device=pipewire/alsa_output.usb-FiiO"]
 
 
 def test_auto_leaves_the_device_to_mpv(monkeypatch):
-    monkeypatch.setattr(player.sys, "platform", "win32")
     monkeypatch.setattr(config, "AUDIO_DEVICE", "auto")
     assert player._device_option() == []
 
@@ -464,11 +463,10 @@ def test_auto_leaves_the_device_to_mpv(monkeypatch):
 def test_a_device_switched_off_plays_through_the_default(monkeypatch):
     """Asked for a device that is not there, mpv opens nothing and plays in
     silence («Could not open/initialize audio device -> no sound»)."""
-    from tidalamp.backends.windows import audio as windows_audio
+    from tidalamp import audio
 
-    monkeypatch.setattr(windows_audio, "connected", lambda name: False)
+    monkeypatch.setattr(audio, "connected", lambda name: False)
     monkeypatch.setattr(config, "AUDIO_DEVICE", "wasapi/{jbl}")
-    monkeypatch.setattr(player.sys, "platform", "win32")
     assert player._device_option() == []
 
 

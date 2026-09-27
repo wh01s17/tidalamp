@@ -40,6 +40,36 @@ Playback:
 """
 
 
+@pytest.fixture(autouse=True)
+def no_player(monkeypatch):
+    """No mpv handed over by an earlier test: the sink is the default."""
+    monkeypatch.setattr(audio, "_player", None)
+
+
+class _Player:
+    """mpv as far as the backend asks: its outputs and the one it is on."""
+
+    LISTING = [
+        {"name": "auto", "description": "Autoselect device"},
+        {"name": "pipewire", "description": "Default (pipewire)"},
+        {"name": f"pipewire/{BTR15}", "description": "FIIO BTR15 Analog Stereo"},
+        {
+            "name": "pipewire/alsa_output.pci-0000_00_1f.3.analog-stereo",
+            "description": "Altavoces",
+        },
+        {"name": f"pulse/{BTR15}", "description": "FIIO BTR15 Analog Stereo"},
+        {"name": "alsa/front:CARD=BTR15,DEV=0", "description": "FIIO BTR15"},
+    ]
+
+    def __init__(self, device: str = "auto", listing: list | None = None) -> None:
+        self.device = device
+        self.listing = self.LISTING if listing is None else listing
+
+    def get(self, prop: str):
+        assert prop == "audio-device-list"
+        return self.listing
+
+
 @pytest.fixture
 def pactl(monkeypatch):
     """Answer `pactl` with the two-sink listing above, BTR15 as the default."""
@@ -243,3 +273,74 @@ def test_forcing_goes_through_the_settings_metadata(monkeypatch):
 
     assert audio.force_rate(44100)
     assert calls == [["pw-metadata", "-n", "settings", "0", "clock.force-rate", "44100"]]
+
+
+# ------------------------------------------------------------------ devices
+
+
+def test_no_player_no_devices():
+    assert audio.devices() == []
+
+
+def test_each_sink_is_offered_once_through_pipewire(monkeypatch):
+    """mpv lists every sink twice (PipeWire's driver and PulseAudio's) and
+    ALSA's devices besides, which would go around PipeWire altogether."""
+    audio.use_player(_Player())
+    assert audio.devices() == [
+        (f"pipewire/{BTR15}", "FIIO BTR15 Analog Stereo"),
+        ("pipewire/alsa_output.pci-0000_00_1f.3.analog-stereo", "Altavoces"),
+    ]
+
+
+def test_an_mpv_without_pipewire_offers_pulseaudio_sinks(monkeypatch):
+    listing = [entry for entry in _Player.LISTING if "pipewire" not in entry["name"]]
+    audio.use_player(_Player(listing=listing))
+    assert audio.devices() == [(f"pulse/{BTR15}", "FIIO BTR15 Analog Stereo")]
+
+
+def test_the_default_is_named_the_way_mpv_names_it(pactl):
+    assert audio.system_default() == f"pipewire/{BTR15}"
+    audio.use_player(_Player(listing=[{"name": f"pulse/{BTR15}"}]))
+    assert audio.system_default() == f"pulse/{BTR15}"
+
+
+def test_no_default_sink_no_default(monkeypatch):
+    monkeypatch.setattr(audio, "_run", lambda command, timeout=5: None)
+    assert audio.system_default() == ""
+
+
+def test_a_sink_is_connected_while_pipewire_lists_it(monkeypatch):
+    short = f"3367\t{BTR15}\tPipeWire\ts32le 2ch 48000Hz\tRUNNING\n"
+    monkeypatch.setattr(audio, "_run", lambda command, timeout=5: short)
+    assert audio.connected(f"pipewire/{BTR15}")
+    assert not audio.connected("pipewire/alsa_output.pci-0000_00_1f.3.analog-stereo")
+    # A Windows device in a settings file brought over: not here.
+    assert not audio.connected("wasapi/{fiio}")
+    assert audio.connected("auto")
+
+
+def test_a_sink_pactl_cannot_list_counts_as_connected(monkeypatch):
+    """A failure to ask never takes the user's choice away."""
+    monkeypatch.setattr(audio, "_run", lambda command, timeout=5: None)
+    assert audio.connected(f"pipewire/{BTR15}")
+
+
+def test_the_sink_is_the_one_mpv_plays_to(pactl):
+    """The DAC chosen while the speakers stay the default: the rate and the
+    warnings are about the DAC."""
+    audio.use_player(_Player("pipewire/alsa_output.pci-0000_00_1f.3.analog-stereo"))
+    found = audio.sink()
+    assert found.name == "alsa_output.pci-0000_00_1f.3.analog-stereo"
+    assert (found.description, found.rate, found.index) == ("Altavoces", 44100, 57)
+
+
+def test_a_chosen_sink_that_is_gone_is_the_default_again(pactl):
+    """Its stream went to the default when it disappeared."""
+    audio.use_player(_Player("pipewire/alsa_output.usb-gone"))
+    assert audio.sink().name == BTR15
+
+
+def test_cava_listens_to_the_monitor_of_the_chosen_sink():
+    assert audio.monitor(f"pipewire/{BTR15}") == f"{BTR15}.monitor"
+    assert audio.monitor("auto") == "auto"
+    assert audio.monitor("") == "auto"

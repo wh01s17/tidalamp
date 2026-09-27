@@ -224,16 +224,18 @@ def _media_controls_option(executable: list[str]) -> list[str]:
 
 
 def _device_option() -> list[str]:
-    """The output the setting names. Windows only, like exclusive mode.
+    """The output the setting names: a WASAPI device on Windows, a PipeWire
+    sink on Linux. With `auto`, the default, no argument at all, which is
+    what Linux always had.
 
     A device that is not connected is left out, and mpv opens the system's
     default instead: asked for a speaker that is switched off, mpv opens
     nothing and plays in silence, with nothing on screen to say why.
     """
-    if sys.platform == "win32" and config.AUDIO_DEVICE not in ("", "auto"):
-        from .backends.windows.audio import connected
+    if config.AUDIO_DEVICE not in ("", "auto"):
+        from . import audio
 
-        if connected(config.AUDIO_DEVICE):
+        if audio.connected(config.AUDIO_DEVICE):
             return [f"--audio-device={config.AUDIO_DEVICE}"]
         log.warning(
             "%s no está conectado; mpv usa la salida por defecto", config.AUDIO_DEVICE

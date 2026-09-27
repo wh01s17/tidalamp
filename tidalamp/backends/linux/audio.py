@@ -6,6 +6,11 @@ The badge says HI_RES_LOSSLESS and it is telling the truth about the stream;
 the DAC still receives 48 kHz. Nothing in the player can see that, so this
 module goes and looks.
 
+The sink is PipeWire's default unless the `audio_device` setting names
+another, by mpv's name for it (`pipewire/<sink>`): then mpv plays to that one
+and the rest of the desktop stays where it was. Everything this module reads
+about "the sink" is about the one mpv plays to.
+
 Everything here shells out to tools that may not be installed and to a daemon
 that may not be running. Every function answers with what it found rather than
 raising, because none of it is on the path that plays music.
@@ -42,7 +47,18 @@ SERVICES = ("pipewire", "pipewire-pulse", "wireplumber")
 # the forced one. The settings window offers those rows only where it does.
 MANAGES_RATES = True
 
+# Who picks the output `auto` plays to, for the settings and the status line.
+SYSTEM = "PipeWire"
+
 _TIMEOUT = 5
+
+# The mpv to ask for its outputs, handed over once with `use_player`.
+_player: Any = None
+
+# mpv's outputs for PipeWire, in the order they are worth trying: its own
+# driver, then PulseAudio's API, which PipeWire speaks too and which is all
+# there is on a PulseAudio system. Both name a sink the way pactl does.
+_OUTPUTS = ("pipewire/", "pulse/")
 
 
 def _run(command: list[str], timeout: int = _TIMEOUT) -> str | None:
@@ -88,18 +104,42 @@ class Sink:
 
 
 def use_player(player: Any) -> None:
-    """Nothing to do: PipeWire itself says what the sink is doing."""
+    """The mpv to ask which outputs it can open, and which one it is on.
+
+    PipeWire says what the sink is doing; mpv says which sink that is.
+    Kept across its restarts: it is the same object.
+    """
+    global _player
+    _player = player
+
+
+def _sink_name(device: str) -> str:
+    """The sink in one of mpv's device names, ``<sink>`` in ``pipewire/<sink>``.
+    "" for `auto` and for the bare ``pipewire``, which are the default."""
+    _output, slash, name = device.partition("/")
+    return name if slash else ""
+
+
+def _chosen() -> str:
+    """The sink mpv was asked to play to, or "" when it is on the default."""
+    return _sink_name(str(getattr(_player, "device", "") or ""))
 
 
 def sink() -> Sink:
-    """The default sink and the rate it is running at right now."""
-    name = (_run(["pactl", "get-default-sink"]) or "").strip()
+    """The sink mpv plays to and the rate it is running at right now.
+
+    The one the setting chose, while it is there; otherwise PipeWire's
+    default, which is also where a stream goes when its sink disappears.
+    """
+    listing = _run(["pactl", "list", "sinks"]) or ""
+    name = _chosen()
+    if not name or f"Name: {name}\n" not in listing + "\n":
+        name = (_run(["pactl", "get-default-sink"]) or "").strip()
     if not name:
         return Sink()
-    listing = _run(["pactl", "list", "sinks"]) or ""
     description, rate, fmt, index = "", 0, "", -1
     for block in ("\n" + listing).split("\nSink #"):
-        if f"Name: {name}" not in block:
+        if f"Name: {name}\n" not in block + "\n":
             continue
         number = re.match(r"(\d+)", block)
         index = int(number.group(1)) if number else -1
@@ -117,19 +157,72 @@ def sink() -> Sink:
 
 
 def devices() -> list[tuple[str, str]]:
-    """No outputs to choose from here: mpv plays to PipeWire's default sink,
-    the one whose rate this backend manages, and the desktop picks it."""
+    """The outputs worth choosing, as mpv names and describes them.
+
+    One entry per sink: mpv lists each twice, through its PipeWire driver
+    and through PulseAudio's, and once more as ALSA's own devices, which
+    would go around PipeWire and its rates altogether. The bare
+    ``pipewire`` is the default, which is what `auto` already is.
+    """
+    if _player is None:
+        return []
+    listed = _listed(_player)
+    for prefix in _OUTPUTS:
+        found = [
+            (name, description)
+            for name, description in listed
+            if name.startswith(prefix) and _sink_name(name)
+        ]
+        if found:
+            return found
     return []
 
 
 def system_default() -> str:
-    """Not asked: see `devices`."""
-    return ""
+    """PipeWire's default sink, by mpv's name for it; "" unknown."""
+    name = (_run(["pactl", "get-default-sink"]) or "").strip()
+    if not name:
+        return ""
+    if _player is not None:
+        for device, _description in devices():
+            if _sink_name(device) == name:
+                return device
+    return f"{_OUTPUTS[0]}{name}"
 
 
 def connected(name: str) -> bool:
-    """Always: with no device of its own to choose, none can go away."""
-    return True
+    """Whether ``name`` is a sink PipeWire has right now.
+
+    A DAC unplugged is gone from the list, and mpv asked for it plays to
+    nothing. Unknown counts as connected, so a failure to ask never takes
+    the user's choice away.
+    """
+    wanted = _sink_name(name)
+    if not wanted:
+        return True
+    listing = _run(["pactl", "list", "sinks", "short"])
+    if listing is None:
+        return True
+    return any(
+        len(fields := line.split("\t")) > 1 and fields[1] == wanted
+        for line in listing.splitlines()
+    )
+
+
+def monitor(device: str) -> str:
+    """What cava listens to so it hears ``device``: the sink's monitor, or
+    `auto`, the default's, which is also where mpv is on `auto`."""
+    name = _sink_name(device)
+    return f"{name}.monitor" if name else "auto"
+
+
+def _listed(player: Any) -> list[tuple[str, str]]:
+    listing = player.get("audio-device-list")
+    return [
+        (str(entry.get("name") or ""), str(entry.get("description") or ""))
+        for entry in (listing if isinstance(listing, list) else [])
+        if isinstance(entry, dict)
+    ]
 
 
 def streams_on(target: Sink) -> int:

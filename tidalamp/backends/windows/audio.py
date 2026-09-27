@@ -37,6 +37,9 @@ from ..linux.audio import Sink
 # PipeWire's rows only where it does, and exclusive mode where it does not.
 MANAGES_RATES = False
 
+# Who picks the output `auto` plays to, for the settings and the status line.
+SYSTEM = "Windows"
+
 log = logging.getLogger("tidalamp.audio")
 
 _player: Any = None
@@ -136,6 +139,12 @@ def connected(name: str) -> bool:
     if found is None or not name.startswith("wasapi/"):
         return True
     return name.removeprefix("wasapi/").lower() in found.active
+
+
+def monitor(device: str) -> str:
+    """Always `auto`: cava can only hear the default output's mix on Windows,
+    through WASAPI's loopback, and cannot be pointed at another device."""
+    return "auto"
 
 
 def _listed(player: Any) -> list[tuple[str, str]]:

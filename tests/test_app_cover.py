@@ -812,7 +812,7 @@ def test_restarting_pipewire_brings_cava_back(monkeypatch, tmp_path):
     class Cava:
         made: list[Cava] = []
 
-        def __init__(self, bars: int) -> None:
+        def __init__(self, bars: int, source: str = "auto") -> None:
             self.alive = True
             Cava.made.append(self)
 

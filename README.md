@@ -786,6 +786,7 @@ replaygain = "off"            # normalised volume: off, track, or album
 library_view = "list"         # the library as a list, or as a grid of covers
 jamendo_id = "561f5c40"       # which app Jamendo serves the lofi station to
 mpv_path = ""                 # the mpv to run, when the one on the PATH is not it
+audio_device = "auto"         # the output mpv plays to; auto is the system's default
 exclusive = false             # Windows: WASAPI exclusive mode, see The audio stack
 debug = false                 # log to ~/.local/state/tidalamp/tidalamp.log
 
@@ -797,7 +798,7 @@ quit = "ctrl+q"
 Precedence is **environment → file → default**. `TIDALAMP_QUALITY`, `TIDALAMP_ART`,
 `TIDALAMP_LANG`, `TIDALAMP_COLUMNS`, `TIDALAMP_THEME`, `TIDALAMP_PALETTE`,
 `TIDALAMP_VISUALIZER`, `TIDALAMP_LIBRARY_VIEW`, `TIDALAMP_JAMENDO_ID`,
-`TIDALAMP_MPV_PATH`, `TIDALAMP_EXCLUSIVE` and `TIDALAMP_DEBUG` therefore override the file for one-off runs; the settings window
+`TIDALAMP_MPV_PATH`, `TIDALAMP_AUDIO_DEVICE`, `TIDALAMP_EXCLUSIVE` and `TIDALAMP_DEBUG` therefore override the file for one-off runs; the settings window
 labels a row whose value is being shadowed that way, rather than showing a value the
 app is not using. A syntax error in the file does not prevent startup; it is logged
 and the defaults take over.
@@ -821,6 +822,7 @@ keys with commas. Valid actions are the ones in the [key table](#keys), and
 The same window shows what is underneath mpv, because nothing else can:
 
 ```
+  Device                     auto · Your USB DAC Analog Stereo
   Hi-res rates in PipeWire   not configured
                                the graph is stuck at 48000 Hz and resamples…
   Restart PipeWire           action
@@ -843,6 +845,15 @@ for the moment it takes the DAC to switch, then puts it back to `0`. It does not
 force anything while another application is playing through the same output. If
 the two rates still differ, the `OUT` badge says `resampled from … kHz` and this
 window adds a warning line.
+
+**Device** picks the output mpv plays to, from a list of PipeWire's sinks, without
+touching the desktop's default: the DAC can play tidalamp while everything else stays
+on the speakers. `auto` follows PipeWire's default and says which sink that is right
+now. The change applies at once, without stopping the track, and the rates, the
+warnings and cava's spectrum follow the chosen sink. If it is unplugged, the track goes
+on through the default, and back to the DAC when it is plugged in again; one that is
+not there at startup is never handed to mpv, which would play it in silence. Windows
+has the same row, with its WASAPI devices.
 
 The window also names the output and warns when it is Bluetooth, which cannot carry
 lossless whatever the rates say. Both actions are reversible: the row toggles the file

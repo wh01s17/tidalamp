@@ -102,12 +102,17 @@ def test_windows_offers_the_device_and_exclusive_mode_instead_of_pipewire(
     ]
 
 
-def test_linux_keeps_its_pipewire_rows(monkeypatch):
+def test_linux_offers_the_device_and_keeps_its_pipewire_rows(monkeypatch):
+    """The device first: the rates are about the sink it names."""
     from tidalamp.screens import config_window
 
     monkeypatch.setattr(config_window.audio, "MANAGES_RATES", True)
     rows = config_window.ConfigScreen()._stack_rows("Audio")
-    assert [row.action for row in rows] == ["rates", "restart"]
+    assert [(row.key, row.action) for row in rows] == [
+        ("audio_device", ""),
+        ("", "rates"),
+        ("", "restart"),
+    ]
 
 
 def test_the_device_row_says_what_auto_stands_for(monkeypatch):
@@ -157,7 +162,7 @@ def test_changing_the_device_moves_the_sound_at_once(monkeypatch):
     asyncio.run(scenario())
     assert seen[0] == (["wasapi/{fiio}"], "dispositivo de salida cambiado")
     assert seen[1][0] == ["wasapi/{fiio}", "auto"]
-    assert "predeterminado de Windows" in seen[1][1]
+    assert f"predeterminado de {audio.SYSTEM}" in seen[1][1]
 
 
 def test_exclusive_mode_applies_at_once_and_says_what_it_costs(monkeypatch):
@@ -249,12 +254,36 @@ def test_the_chosen_device_is_gone_back_to_once_it_is_plugged_in(monkeypatch):
     assert seen[1][0] == ["wasapi/{fiio}"]
 
 
-def test_linux_never_watches_for_a_device(monkeypatch):
-    """No row, no device: the output is PipeWire's default sink."""
+def test_linux_goes_back_to_the_chosen_sink_too(monkeypatch):
+    """A USB DAC's sink leaves PipeWire's list when it is unplugged and comes
+    back when it is plugged in: the same watch as on Windows."""
     from tidalamp import audio, config
 
     isolate_runtime(monkeypatch)
     monkeypatch.setattr(audio, "MANAGES_RATES", True)
+    fiio = "pipewire/alsa_output.usb-FiiO_BTR15-00.analog-stereo"
+    seen: list[list[str]] = []
+
+    async def scenario() -> None:
+        mpv = FakeMpv()
+        application = TidalAmp(object(), mpv)
+        async with application.run_test(size=(100, 40)) as pilot:
+            await pilot.pause()
+            monkeypatch.setattr(config, "AUDIO_DEVICE", fiio)
+            monkeypatch.setattr(audio, "connected", lambda name: True)
+            application._watch_output()
+            await settle(pilot, lambda: mpv.devices)
+            seen.append(list(mpv.devices))
+
+    asyncio.run(scenario())
+    assert seen == [[fiio]]
+
+
+def test_nothing_is_watched_on_auto(monkeypatch):
+    """`auto` follows the default by itself: nothing to go back to."""
+    from tidalamp import audio, config
+
+    isolate_runtime(monkeypatch)
     asked: list[str] = []
 
     async def scenario() -> None:
@@ -262,7 +291,7 @@ def test_linux_never_watches_for_a_device(monkeypatch):
         application = TidalAmp(object(), mpv)
         async with application.run_test(size=(100, 40)) as pilot:
             await pilot.pause()
-            monkeypatch.setattr(config, "AUDIO_DEVICE", "wasapi/{fiio}")
+            monkeypatch.setattr(config, "AUDIO_DEVICE", "auto")
             monkeypatch.setattr(audio, "connected", lambda name: asked.append(name))
             application._watch_output()
             await settle(pilot, lambda: True)
@@ -276,9 +305,11 @@ class _Cava:
 
     made = 0
     alive = True
+    sources: list[str] = []
 
-    def __init__(self, bars: int) -> None:
+    def __init__(self, bars: int, source: str = "auto") -> None:
         type(self).made += 1
+        type(self).sources.append(source)
 
     def frame(self) -> list[float]:
         return [0.5]
@@ -396,3 +427,35 @@ def test_the_spectrum_is_the_level_meter_off_the_default_device(monkeypatch):
 
     asyncio.run(scenario())
     assert seen == [True, False, True]
+
+
+def test_linux_cava_listens_to_the_sink_mpv_plays_to(monkeypatch):
+    """cava's `auto` is the default sink's monitor: playing to a DAC with the
+    speakers as the default, it would draw what the speakers play."""
+    from tidalamp import app as app_module
+    from tidalamp import audio, config
+
+    start = TidalAmp._start_spectrum
+    isolate_runtime(monkeypatch)
+    monkeypatch.setattr(TidalAmp, "_start_spectrum", start)
+    monkeypatch.setattr(app_module, "Cava", _Cava)
+    monkeypatch.setattr(_Cava, "sources", [])
+    monkeypatch.setattr(audio, "MANAGES_RATES", True)
+    monkeypatch.setattr(audio, "connected", lambda name: True)
+    monkeypatch.setattr(
+        audio,
+        "monitor",
+        lambda device: f"{device.partition('/')[2]}.monitor" if "/" in device else "auto",
+    )
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(100, 40)) as pilot:
+            await pilot.pause()
+            monkeypatch.setattr(config, "AUDIO_DEVICE", "pipewire/dac")
+            application._setting_changed("audio_device")
+            monkeypatch.setattr(config, "AUDIO_DEVICE", "auto")
+            application._setting_changed("audio_device")
+
+    asyncio.run(scenario())
+    assert _Cava.sources == ["auto", "dac.monitor", "auto"]
