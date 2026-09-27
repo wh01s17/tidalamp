@@ -287,12 +287,14 @@ work in it as they do everywhere.
 
 <table>
   <tr>
-    <td width="50%"><img src="https://raw.githubusercontent.com/wh01s17/tidalamp/main/img/fullscreen.webp?v=0.20.0" alt="The full-screen view: an album cover centred on a black ground, and a bar at the foot with the track, artist and album on the left, the shuffle, previous, pause, next and repeat controls over the seek bar and the times in the middle, and the quality, the queue button and the keys on the right"></td>
-    <td width="50%"><img src="https://raw.githubusercontent.com/wh01s17/tidalamp/main/img/fullscreen-queue.webp?v=0.20.0" alt="The same view with the queue open on the right: thirty numbered tracks with their lengths, the playing one highlighted, and the cover shifted left to make room"></td>
+    <td width="33%"><img src="https://raw.githubusercontent.com/wh01s17/tidalamp/main/img/fullscreen.webp?v=0.20.0" alt="The full-screen view: an album cover centred on a black ground, and a bar at the foot with the track, artist and album on the left, the shuffle, previous, pause, next and repeat controls over the seek bar and the times in the middle, and the quality, the lyrics and queue buttons and the keys on the right"></td>
+    <td width="33%"><img src="https://raw.githubusercontent.com/wh01s17/tidalamp/main/img/fullscreen-queue.webp?v=0.20.0" alt="The same view with the queue open on the right: twenty-eight numbered tracks with their lengths, the playing one highlighted, and the cover shifted left to make room"></td>
+    <td width="33%"><img src="https://raw.githubusercontent.com/wh01s17/tidalamp/main/img/fullscreen-queue-lyrics.webp?v=0.20.0" alt="The same view with the lyrics and the queue open: the cover on the left, the words of the song in the middle with the sung line highlighted, and the queue on the right"></td>
   </tr>
   <tr>
     <td align="center"><sub>The cover as large as the terminal allows</sub></td>
     <td align="center"><sub><code>tab</code> puts the queue beside it</sub></td>
+    <td align="center"><sub><code>y</code> adds the lyrics between them</sub></td>
   </tr>
 </table>
 
@@ -305,6 +307,10 @@ Press `l` to open the library browser: playlists, favourite tracks, albums, arti
 and your mixes (the daily ones, discovery, new arrivals and the rest TIDAL makes for
 your account). Enter a level with `↵` and go back with `⌫`. A mix opens like a
 playlist, but it cannot be sorted or edited, so `s` and `d` do nothing there.
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/wh01s17/tidalamp/main/img/library.webp?v=0.20.0" alt="The library browser open over the player: My library, with my playlists, favourite tracks, albums and artists, my mixes, Discover, and Copyright-free lofi, marked experimental and today's selection" width="880">
+</p>
 
 An artist opens to its sections: popular tracks, albums, EPs and singles, and other
 (compilations and appearances), each disc opening to its tracks. They are the
@@ -703,14 +709,14 @@ the player's own `classic` green-on-black, which is what you get anywhere else.
 
 <table>
   <tr>
-    <td width="20%"><img src="https://raw.githubusercontent.com/wh01s17/tidalamp/main/img/palette-emerald.webp?v=0.20.0" alt="Bright green on black"></td>
+    <td width="20%"><img src="https://raw.githubusercontent.com/wh01s17/tidalamp/main/img/palette-emerald.webp?v=0.20.0" alt="Sea green on dark green"></td>
     <td width="20%"><img src="https://raw.githubusercontent.com/wh01s17/tidalamp/main/img/palette-green.webp?v=0.20.0" alt="Muted green on black"></td>
     <td width="20%"><img src="https://raw.githubusercontent.com/wh01s17/tidalamp/main/img/palette-mint.webp?v=0.20.0" alt="Green on navy"></td>
     <td width="20%"><img src="https://raw.githubusercontent.com/wh01s17/tidalamp/main/img/palette-amber.webp?v=0.20.0" alt="Amber on black"></td>
     <td width="20%"><img src="https://raw.githubusercontent.com/wh01s17/tidalamp/main/img/palette-sand.webp?v=0.20.0" alt="Sand on warm grey"></td>
   </tr>
   <tr>
-    <td width="20%"><img src="https://raw.githubusercontent.com/wh01s17/tidalamp/main/img/palette-orange.webp?v=0.20.0" alt="Orange on navy"></td>
+    <td width="20%"><img src="https://raw.githubusercontent.com/wh01s17/tidalamp/main/img/palette-orange.webp?v=0.20.0" alt="Dusty rose on black"></td>
     <td width="20%"><img src="https://raw.githubusercontent.com/wh01s17/tidalamp/main/img/palette-cyan.webp?v=0.20.0" alt="Cyan on a dark ground"></td>
     <td width="20%"><img src="https://raw.githubusercontent.com/wh01s17/tidalamp/main/img/palette-blue.webp?v=0.20.0" alt="Blue on navy"></td>
     <td width="20%"><img src="https://raw.githubusercontent.com/wh01s17/tidalamp/main/img/palette-daylight.webp?v=0.20.0" alt="Blue on cream"></td>
