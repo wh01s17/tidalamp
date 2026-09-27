@@ -65,6 +65,16 @@ def releases() -> tuple[Release, ...]:
     """Newest first. Translated at call time, not at import time."""
     return (
         Release(
+            "0.21.0",
+            "2026-09-26",
+            (
+                _("Linux: elige el dispositivo de salida en o; auto dice cuál es."),
+                _("Linux: suena por el DAC sin cambiar la salida del escritorio."),
+                _("Linux: los rates, OUT y cava siguen al dispositivo elegido."),
+                _("Linux: sin el DAC suena por el predeterminado, y vuelve a él."),
+            ),
+        ),
+        Release(
             "0.20.0",
             "2026-09-26",
             (

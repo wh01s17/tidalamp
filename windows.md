@@ -1558,8 +1558,8 @@ Cada una puede costar una tarde si no se conoce de antemano.
     `TidalAmp._watch_output` pregunta cada 2 s, en un worker y sólo mientras mpv no
     está en el elegido, si ha vuelto; y elegir el mismo dispositivo en `o` lo aplica
     otra vez. Uno que no está no se le pasa nunca a mpv: sonaría mudo. Sólo se ofrecen las salidas `wasapi/`: el exclusivo es de
-    WASAPI, y `openal` es otra vía a los mismos dispositivos. Desde después de la
-    0.20.0 Linux tiene la misma fila: los sinks de PipeWire como `pipewire/<sink>`
+    WASAPI, y `openal` es otra vía a los mismos dispositivos. Desde la 0.21.0
+    Linux tiene la misma fila: los sinks de PipeWire como `pipewire/<sink>`
     (o `pulse/<sink>` si mpv no trae su salida de PipeWire), y el backend de Linux
     lee el rate y los avisos del sink en que suena mpv, no del predeterminado.
 27. **mpv tiene controles multimedia propios y se llevaba las teclas.** Las versiones

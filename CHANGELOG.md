@@ -5,6 +5,8 @@ versioning is [semantic](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.21.0] - 2026-09-26
+
 ### Added
 
 - **Linux: choose the output device in `o`.** A **Device** row lists PipeWire's sinks,

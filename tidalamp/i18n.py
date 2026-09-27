@@ -282,6 +282,19 @@ ENGLISH: dict[str, str] = {
     "«{name}» no viene de TIDAL, que es de donde salen las letras": (
         "“{name}” does not come from TIDAL, which is where the lyrics come from"
     ),
+    # --- 0.21.0, in the help's list of changes
+    "Linux: elige el dispositivo de salida en o; auto dice cuál es.": (
+        "Linux: choose the output device in o; auto says which it is."
+    ),
+    "Linux: suena por el DAC sin cambiar la salida del escritorio.": (
+        "Linux: plays through the DAC without moving the desktop's output."
+    ),
+    "Linux: los rates, OUT y cava siguen al dispositivo elegido.": (
+        "Linux: the rates, OUT and cava follow the chosen device."
+    ),
+    "Linux: sin el DAC suena por el predeterminado, y vuelve a él.": (
+        "Linux: without the DAC it plays through the default, and goes back."
+    ),
     # --- 0.20.0, in the help's list of changes
     "Una pista con varios artistas los nombra a todos.": (
         "A track with several artists names them all."
