@@ -43,6 +43,187 @@ hacer (piden instalar con `sudo` las dependencias del paquete), y lo demás del 
 espera al registro (`plan.md` §6). Lo que trae cada versión está en
 `CHANGELOG.md`.
 
+## El siguiente gran cambio: varias fuentes
+
+Decidido el 2026-10-02. Va **después** de cerrar Windows (arriba), no a la vez: los dos
+tocan `app.py`, `config.py` y la ventana `o`, y se pisarían.
+
+Hoy tidalamp es un cliente de TIDAL con una sola fila ajena («Lofi sin copyright»). La
+idea es que pase a ser un reproductor de varias fuentes: TIDAL, música local, YouTube
+Music y, si se encuentra la forma, Spotify. **Cada fuente tiene su biblioteca y sus
+playlists, y la cola es lo único que las mezcla.**
+
+- **Panel de fuentes a la izquierda de la biblioteca.** Hoy `BrowserScreen` es una
+  sola `RowList`, y `library.root()` devuelve las filas de TIDAL más la de lofi. Pasa a
+  dos columnas: a la izquierda las fuentes (TIDAL, Música local, YouTube Music, Spotify
+  si entra, y «Lofi sin copyright», que deja de colgar de la raíz de TIDAL), y a la
+  derecha la raíz de la fuente elegida, con todo lo que el navegador ya sabe hacer
+  (filtro `/`, orden, cuadrícula, «más…», menú `m`, ratón).
+  - Una fuente sin vincular sale igual en el panel, atenuada, y su raíz es una sola
+    fila, «Vincular cuenta», que abre su pestaña de configuración.
+  - La búsqueda busca en la fuente seleccionada. Buscar en todas a la vez se decide
+    después: mezcla resultados con calidades y licencias distintas.
+  - *Trampa, el ancho:* a 60 columnas el panel se come la lista. Por debajo de cierto
+    ancho tiene que plegarse (a una fila de pestañas arriba, o ocultarse tras una
+    tecla). Decidirlo con capturas a 60x18 y 80x26, como en `plan.md` §9.5.
+  - *Trampa, el foco:* hoy las flechas son de la lista. Tab pasa entre panel y lista,
+    y ⌫ en la raíz de una fuente vuelve al panel.
+
+- **Arrancar sin TIDAL.** `cli.tui` sale con error si `load_session()` lanza
+  `NotLoggedIn`. Con varias fuentes se arranca igual, y TIDAL sale sin vincular. Lo que
+  hoy pregunta `entry.is_tidal` (letras, radio, favoritos, año del disco, en `app.py`,
+  `library.py`, `stream.py` y `screens/tracks.py`) pasa a preguntarle a la fuente qué
+  sabe hacer, en vez de sumar un `if` por fuente.
+
+- **Una costura `Source`**, como `music.py` lo es hoy para la sección libre: un
+  Protocol con la raíz, la búsqueda, resolver una pista a algo que mpv reproduzca, sus
+  playlists, y lo demás declarado como capacidades (favoritos, radio, letras, escribir
+  playlists, vincular cuenta). `library.py` (1542 líneas, casi todo TIDAL) se reparte:
+  lo de TIDAL a su fuente; `Row`, `matches`, la caché de niveles y el paginado quedan
+  comunes. Es el momento natural de «Sacar objetos de verdad de `TidalAmp`» (Sin
+  fecha): mejor una vez y bien que a medias en los dos sitios.
+
+- **`Entry` con identidad por fuente.** `Entry.id` es un `int` de TIDAL; un videoId de
+  YouTube es un texto y una pista local es una ruta. Pasa a (`source`, `id` como
+  texto), y `queue.json` necesita migración: una cola guardada con la versión anterior
+  tiene que volver entera. `Entry.source` ya existe (`tidal` / `free`) y `Entry.url` ya
+  sirve para lo que mpv reproduce sin resolver, así que lo local encaja casi sin tocar.
+
+- **Música local.**
+  - Pestaña «Música local» en la configuración: añadir y quitar carpetas del equipo
+    (`local_folders` en `config.toml`) y reescanear. Añadir necesita un selector de
+    carpetas dentro de la TUI (Textual trae `DirectoryTree`), además de poder escribir
+    la ruta.
+  - El escaneo va en un worker y deja un índice en `CACHE_DIR` (ruta, mtime, tamaño,
+    tags), para que el segundo arranque no relea miles de ficheros. Tags y carátula
+    embebida con `mutagen` como extra opcional, igual que Pillow con `[art]`; sin él,
+    el título sale del nombre del fichero. `cover.jpg` o `folder.jpg` de la carpeta
+    como respaldo de la carátula.
+  - Raíz: Artistas, Álbumes, Pistas, Carpetas y Playlists.
+  - mpv reproduce el fichero tal cual, así que rates, hi-res, cava, ecualizador y
+    gapless siguen valiendo. Es la fuente que mejor casa con lo que tidalamp promete:
+    un FLAC 24/192 del disco sale bit-perfect sin depender de nadie.
+  - Playlists locales en `.m3u8` bajo `STATE_DIR/playlists/`, y además se leen los
+    `.m3u` y `.m3u8` que haya dentro de las carpetas añadidas.
+  - *Trampa, Windows:* rutas con `\`, letras de unidad, mayúsculas que no distinguen,
+    y mtime poco fiable en unidades de red. Probar con una carpeta en otra unidad.
+
+- **YouTube Music.**
+  - Catálogo y biblioteca con `ytmusicapi` (no oficial, MIT): búsqueda, biblioteca,
+    playlists propias y editarlas, likes, radio (la «watch playlist») y letras.
+  - El audio, con `yt-dlp`, que mpv ya sabe usar por su `ytdl_hook`. El audio normal
+    de YouTube no lleva DRM, así que no choca con «No cruzar la línea del DRM»
+    (`plan.md` §2); si algo llegara cifrado, se rechaza como hace `stream.py` con
+    TIDAL.
+  - *Vincular la cuenta:* el OAuth de `ytmusicapi` pide hoy credenciales propias de
+    Google Cloud (client id y secret de la YouTube Data API), y la alternativa es
+    pegar las cabeceras de una sesión del navegador. Ninguna es tan limpia como el
+    device flow de TIDAL. Verificar cómo está antes de diseñar la pantalla.
+  - *Trampa, yt-dlp se rompe:* cada pocas semanas YouTube cambia algo (PO tokens, y
+    últimamente un runtime de JavaScript). Tiene que poder actualizarse sin esperar a
+    una versión de tidalamp, y el error tiene que decir «actualiza yt-dlp», no «pista
+    no disponible».
+  - *Trampa, la calidad:* el máximo ronda los 256 kbps en AAC u Opus. La insignia de
+    calidad y los rates tienen que decirlo tal cual, sin aparentar hi-res.
+  - Igual que TIDAL por `tidalapi`, es un cliente no oficial: el README lo dice.
+
+- **Spotify: analizar antes de comprometer nada.** El problema no es el catálogo, es
+  el audio.
+  - La Web API no entrega audio y nunca lo ha hecho. Además Spotify la viene cerrando:
+    en noviembre de 2024 quitó endpoints (recomendaciones, audio features y otros) a
+    las apps nuevas, y en 2025 el «extended quota» quedó para organizaciones grandes;
+    una app en modo desarrollo sólo la usan unas pocas cuentas dadas de alta a mano.
+    Para algo que cualquiera instala desde PyPI, cada usuario tendría que registrar su
+    propia app y pegar su client id. Verificar las condiciones vigentes al retomarlo.
+  - Reproducir dentro de tidalamp (librespot y similares) es descifrar el audio de
+    Spotify: cruza la línea del DRM. **Descartado** por la misma regla de `plan.md` §2.
+  - Lo que queda, de más barato a más caro:
+    1. **Importar.** Leer playlists y favoritos de Spotify, con el client id del
+       usuario, y emparejarlos por ISRC con TIDAL, YouTube Music o la música local
+       para crear la playlist en esa fuente. No reproduce Spotify, pero resuelve «tengo
+       mis listas allí», que es casi siempre lo que se quiere.
+    2. **Mando a distancia por Spotify Connect.** tidalamp controla un dispositivo
+       Connect (la app oficial, spotifyd) por la Web API. Pide Premium, y el audio no
+       pasa por mpv: sin rates, sin ecualizador, sin cava, sin gapless. Y una pista de
+       Spotify en la cola obliga a cambiar de motor a mitad de cola. Mucho coste para
+       la mitad de las funciones.
+    3. No hacerlo.
+  - *Propuesta para discutir:* si se hace algo, empezar por 1 y medir después si 2
+    vale la pena. Decidirlo antes de diseñar el panel, para saber si Spotify ocupa
+    sitio en él o sólo una acción de «importar» en la configuración.
+
+- **Playlists separadas, cola mezclada.** Cada playlist pertenece a una fuente y sólo
+  lleva pistas de esa fuente. La cola acepta de todas.
+  - «Añadir a una playlist» (menú de la pista) ofrece sólo las playlists de la fuente
+    de esa pista.
+  - Guardar la cola como playlist (`p`) con una cola mezclada, *por decidir:*
+    preguntar la fuente y guardar sólo sus pistas, diciendo cuántas quedan fuera; o
+    guardarla como playlist local `.m3u8`, que puede apuntar a varias fuentes. Lo que
+    no se hace es meter en TIDAL lo que no es de TIDAL buscándolo por ISRC sin
+    preguntar.
+  - En la cola, la fuente de cada fila como columna opcional de `columns.py`, igual
+    que la licencia de las pistas libres.
+  - Cada pista se resuelve con su fuente al sonar. Si esa fuente está sin vincular o
+    no contesta, se salta con el mensaje de la fuente y no con uno genérico (ver «Una
+    carga que falla no es una pista que acaba», `plan.md` §4).
+
+- **La configuración en pestañas**, con la barra de título como selector, igual que
+  la ayuda (`screens/help.py`, `plan.md` §4 «Ayuda y acerca de»): General, Audio,
+  Apariencia, y una por fuente (TIDAL, Música local, YouTube Music, Spotify si entra).
+  - Cada pestaña de streaming lleva el estado (vinculada, con qué cuenta), «Vincular
+    cuenta», «Cerrar sesión» y sus ajustes: en TIDAL la calidad y el volumen
+    normalizado, en YouTube Music la calidad y dónde está `yt-dlp`, etcétera. La fila
+    «Cerrar sesión» de General y la calidad de Audio se mudan a la de TIDAL.
+  - *Vincular TIDAL desde la TUI:* hoy sólo existe `tidalamp login` en la terminal. El
+    device flow ya es un enlace y un código, así que cabe en una ventana con el enlace
+    y un spinner hasta que se autoriza.
+  - *Cerrar sesión por fuente:* hoy `auth.forgotten` y `auth.logout` borran la sesión
+    de TIDAL y, con la casilla, todo tidalamp, y después la app se cierra. Pasa a que
+    cerrar la sesión de una fuente borra sólo su sesión y su caché, y **no** cierra la
+    app, porque las otras fuentes siguen sonando. Borrar todos los datos se queda en
+    General. Qué pasa con las pistas de esa fuente que ya están en la cola (quitarlas
+    o dejarlas marcadas) está por decidir.
+  - *Trampa, las teclas:* en la ventana `o` las flechas izquierda y derecha ya cambian
+    el valor de la fila (`advance` y `back`), así que las pestañas no pueden usarlas
+    como en la ayuda. Tab y shift+tab, dichos en el pie. Mirar si la ayuda debería
+    aceptar tab también, por coherencia.
+  - El desplazamiento a mano alrededor del cursor (`CHROME`, alto del terminal) pasa a
+    ser por pestaña, como `_offsets` en la ayuda.
+
+- **Cambiarle el nombre.** Con varias fuentes, «tidalamp» y «TIDAL AMP» dicen algo que
+  ya no es cierto, y llevar la marca TIDAL en el nombre de un reproductor que no es
+  sólo de TIDAL es buscarse un problema. El nombre se decide **antes** de publicar la
+  primera versión con varias fuentes, porque el renombrado toca:
+  - El paquete de PyPI (nombre nuevo; la última `tidalamp` avisa o depende del nuevo),
+    el AUR, el `.exe` y el zip de Windows.
+  - Las rutas `~/.config/tidalamp`, `~/.local/state/tidalamp`, `~/.cache/tidalamp` y
+    las de `%APPDATA%` y `%LOCALAPPDATA%`: migrarlas una vez al arrancar, sin perder
+    sesión, cola ni ajustes.
+  - Las variables `TIDALAMP_*` (aceptar las viejas un tiempo), el nombre MPRIS, el
+    `.desktop` y el `.lnk` (los viejos que encuentra `desktop.user_launchers` se
+    reemplazan), el banner, los títulos («TIDAL AMP» en `layouts.py` y en `i18n.py`),
+    el repo de GitHub (redirige solo) y los docs.
+  - En un commit de sólo renombrado, que va a `.git-blame-ignore-revs` como el reparto
+    de `app.py`.
+
+- **Orden propuesto**, una versión por paso y cada una publicable:
+  1. Decidir el nombre y renombrar. Antes que lo demás, para que el índice local, las
+     sesiones nuevas y las pestañas nazcan ya en las rutas buenas.
+  2. Costura `Source`, `Entry` con id por fuente y migración de `queue.json`; arrancar
+     sin TIDAL. Sin cambios a la vista.
+  3. Configuración en pestañas; vincular y cerrar sesión de TIDAL desde la TUI.
+  4. Panel de fuentes en la biblioteca, con TIDAL y Lofi.
+  5. Música local.
+  6. YouTube Music.
+  7. Spotify, si la decisión de arriba dice que sí.
+
+- *Comprobación:* fuentes falsas en los tests, como `fake_mpv.py`, para que la suite
+  no dependa de cuentas. Una `queue.json` de la `0.21.0` vuelve entera tras la
+  migración. Una cola con TIDAL, local y YouTube Music suena en orden y sin corte entre
+  pistas de la misma fuente. Cerrar la sesión de una fuente deja las otras sonando.
+  Capturas del panel y de las pestañas a 60x18 y 80x26 en los cuatro temas. Las
+  carpetas locales, también en Windows (§12 de `windows.md` gana un apartado).
+
 ## Sin fecha
 
 - **Ver la disposición compacta en un terminal real.** Por debajo de 80x26 la
