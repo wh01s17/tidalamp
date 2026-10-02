@@ -109,10 +109,41 @@ mezcla.**
     un FLAC 24/192 del disco sale bit-perfect sin depender de nadie.
   - Playlists locales en `.m3u8` bajo `STATE_DIR/playlists/`, y además se leen los
     `.m3u` y `.m3u8` que haya dentro de las carpetas añadidas.
-  - Lo que hoy sólo sabe TIDAL (radio, favoritos, letras) no se ofrece en una pista
-    local. Las letras, si acaso más adelante, de un `.lrc` al lado del fichero.
+  - Radio y favoritos son cosas de TIDAL y no se ofrecen en una pista local. Las
+    letras sí, ver la entrada siguiente.
   - *Trampa, Windows:* rutas con `\`, letras de unidad, mayúsculas que no distinguen,
     y mtime poco fiable en unidades de red. Probar con una carpeta en otra unidad.
+
+- **Letras para lo que no es de TIDAL, y de respaldo para lo que sí.** Hoy TIDAL es
+  el único proveedor: `TidalAmp._lyrics_for` (`app.py`) rechaza toda fila que no sea
+  de TIDAL, y `lyrics.load_lyrics` llama a `track.lyrics()` de `tidalapi`. Lo que se
+  puede reutilizar tal cual es `parse_lyrics`, que ya lee LRC y no sabe de TIDAL.
+  - *Orden de búsqueda:* (1) TIDAL, para sus pistas, como hasta ahora; (2) para una
+    pista local, un `.lrc` con el mismo nombre al lado del fichero, y si no las
+    etiquetas embebidas (USLT plana, SYLT sincronizada; `mutagen`, el mismo extra del
+    escaneo); (3) **LRCLIB** (lrclib.net) de respaldo para las dos, también cuando
+    TIDAL no tiene la letra.
+  - *Por qué LRCLIB:* abierta, comunitaria, gratuita y sin clave. `GET /api/get` con
+    artista, título, álbum y duración devuelve `syncedLyrics` (LRC) y `plainLyrics`,
+    el mismo formato que ya se parsea, y `/api/search` cuando no hay coincidencia
+    exacta. Publica además un volcado de su base. Verificar los parámetros y la
+    tolerancia de duración contra la documentación al implementarlo.
+  - *Desactivable,* con un ajuste en la pestaña General (`lyrics_lrclib`, encendido
+    por defecto, a decidir): manda artista y título a un servicio externo, y eso
+    tiene que poder apagarse. El `provider` del documento dice de dónde salió la
+    letra, para que no parezca de TIDAL.
+  - *Caché en disco* bajo `CACHE_DIR` para lo que viene de LRCLIB, incluida la
+    respuesta «no hay»: una pista local sin letra no puede costar una petición cada
+    vez que suena. La caché en memoria de hoy va por `entry.id`, que pasa a ser el id
+    por fuente (ver «`Entry` con identidad por fuente»).
+  - *Trampa, la coincidencia:* una pista local con tags pobres (sin álbum, título con
+    «01 - ») puede traer la letra de otra versión. Mandar la duración y descartar si
+    la de LRCLIB se aleja más de un par de segundos; una letra sincronizada de otra
+    edición va desfasada todo el tema.
+  - *Descartados como proveedores:* la API gratuita de Musixmatch sólo da un 30 % de
+    cada letra y nunca la sincronizada, y la completa pasa por el token de su app de
+    escritorio, contra sus términos. `syncedlyrics`, NetEase y el scraping de Genius,
+    por lo mismo: términos de servicio y huecos que se cierran.
 
 - **Playlists separadas, cola mezclada.** Cada playlist pertenece a una fuente y sólo
   lleva pistas de esa fuente. La cola acepta de las dos.
