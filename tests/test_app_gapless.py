@@ -8,8 +8,10 @@ import asyncio
 from app_helpers import FakeMpv, isolate_runtime, settle, wait_for
 
 from tidalamp import app as app_module
-from tidalamp import artwork
+from tidalamp import artwork, auth, lyrics, stream
 from tidalamp.app import TidalAmp
+from tidalamp.playback import Playback
+from tidalamp.prefetch import Prefetcher
 from tidalamp.queue import Entry, Repeat
 from tidalamp.widgets import Glide, Marquee
 
@@ -42,23 +44,21 @@ def isolate(monkeypatch) -> tuple[list[Entry], list[Entry]]:
     isolate_runtime(monkeypatch)
     resolves: list[Entry] = []
     prefetches: list[Entry] = []
-    monkeypatch.setattr(TidalAmp, "_resolve_worker", lambda self, e: resolves.append(e))
-    monkeypatch.setattr(
-        TidalAmp, "_prefetch_worker", lambda self, e, *rest: prefetches.append(e)
-    )
+    monkeypatch.setattr(Playback, "resolve_worker", lambda self, e: resolves.append(e))
+    monkeypatch.setattr(Prefetcher, "worker", lambda self, e, *rest: prefetches.append(e))
     return resolves, prefetches
 
 
 async def playing_first(application, mpv, pilot, entries) -> None:
     application.queue.append(entries)
-    application._sync_queue()
-    application._play_index(0)
-    application._start(entries[0], Playable("https://cdn/1"))
+    application.queue_view.sync()
+    application.playback.play_index(0)
+    application.playback.start(entries[0], Playable("https://cdn/1"))
     mpv.idle = False
     mpv.duration = 200.0
     mpv.position = 10.0
     # A slow tick has seen it playing at 10 s, and decided not to prefetch.
-    await wait_for(pilot, lambda: application._last_position == 10.0)
+    await wait_for(pilot, lambda: application.playback.last_position == 10.0)
 
 
 def test_the_next_track_is_queued_ahead_and_starts_without_resolving(monkeypatch):
@@ -76,7 +76,7 @@ def test_the_next_track_is_queued_ahead_and_starts_without_resolving(monkeypatch
             mpv.position = 190.0
             await settle(pilot, lambda: bool(prefetches))
             assert prefetches == [entries[1]]
-            application._prefetched(entries[1], Playable("https://cdn/2"))
+            application.prefetch.landed(entries[1], Playable("https://cdn/2"))
             assert mpv.queued == [("https://cdn/2", 0.0)]
 
             resolves.clear()
@@ -89,7 +89,7 @@ def test_the_next_track_is_queued_ahead_and_starts_without_resolving(monkeypatch
             assert mpv.loaded == "https://cdn/1", "ni se volvió a cargar"
             assert mpv.playlist_pos == 0, "lo que suena vuelve a ser la primera"
             assert application.query_one(Marquee).text == "2. Parabol"
-            assert application._playable.url == "https://cdn/2"
+            assert application.playback.playable.url == "https://cdn/2"
             assert application.status == "reproduciendo TOOL - Parabol"
 
     asyncio.run(scenario())
@@ -107,14 +107,14 @@ def test_a_queue_changed_meanwhile_resolves_the_right_track(monkeypatch):
             await playing_first(application, mpv, pilot, entries)
             mpv.position = 190.0
             await settle(pilot, lambda: bool(prefetches))
-            application._prefetched(entries[1], Playable("https://cdn/2"))
+            application.prefetch.landed(entries[1], Playable("https://cdn/2"))
             assert mpv.queued
 
             # The prepared track leaves the queue before its turn.
             application.queue.remove(1)
-            application._sync_queue()
+            application.queue_view.sync()
             assert mpv.queued == [], "lo preparado para otra pista no suena"
-            assert application._prepared is None
+            assert application.prefetch.prepared is None
 
             # The tick prepares the one that is next now.
             await settle(pilot, lambda: len(prefetches) == 2)
@@ -138,11 +138,11 @@ def test_a_result_for_a_track_no_longer_next_is_dropped(monkeypatch):
             await settle(pilot, lambda: bool(prefetches))
 
             while application.queue.repeat is not Repeat.TRACK:
-                application.action_repeat()
-            application._prefetched(entries[1], Playable("https://cdn/2"))
+                application.queue_view.repeat()
+            application.prefetch.landed(entries[1], Playable("https://cdn/2"))
 
             assert mpv.queued == []
-            assert application._prepared is None
+            assert application.prefetch.prepared is None
 
     asyncio.run(scenario())
 
@@ -157,19 +157,19 @@ def test_stop_and_a_jump_elsewhere_take_the_queued_track_out(monkeypatch):
             await pilot.pause()
             entries = three()
             await playing_first(application, mpv, pilot, entries)
-            application._prepared = None
-            application._prefetching = entries[1]
-            application._prefetched(entries[1], Playable("https://cdn/2"))
+            application.prefetch.prepared = None
+            application.prefetch.prefetching = entries[1]
+            application.prefetch.landed(entries[1], Playable("https://cdn/2"))
             assert mpv.queued
 
             # A jump: the old track plays on while the new one resolves, and
             # must not run into the queued one if it ends meanwhile.
-            application._play_index(2)
-            assert mpv.queued == [] and application._prepared is None
+            application.playback.play_index(2)
+            assert mpv.queued == [] and application.prefetch.prepared is None
 
-            application._prefetching = entries[1]
-            application.action_stop()
-            application._prefetched(entries[1], Playable("https://cdn/2"))
+            application.prefetch.prefetching = entries[1]
+            application.playback.stop()
+            application.prefetch.landed(entries[1], Playable("https://cdn/2"))
             assert mpv.queued == [], "detenido no prepara nada"
             del prefetches[:]
 
@@ -189,10 +189,10 @@ def test_a_prepared_track_that_waited_too_long_is_resolved_again(monkeypatch):
             await playing_first(application, mpv, pilot, entries)
             mpv.position = 190.0
             await settle(pilot, lambda: bool(prefetches))
-            application._prefetched(entries[1], Playable("https://cdn/2"))
-            stale = application._prepared
-            application._prepared = stale._replace(
-                at=stale.at - TidalAmp.PREPARED_TTL - 1
+            application.prefetch.landed(entries[1], Playable("https://cdn/2"))
+            stale = application.prefetch.prepared
+            application.prefetch.prepared = stale._replace(
+                at=stale.at - Prefetcher.PREPARED_TTL - 1
             )
 
             await settle(pilot, lambda: len(prefetches) == 2)
@@ -241,17 +241,15 @@ def test_a_dead_mpv_is_restarted_in_a_worker_and_the_track_reloaded(monkeypatch)
         async with application.run_test(size=(100, 40)) as pilot:
             await pilot.pause()
             application.queue.append(three())
-            application._sync_queue()
+            application.queue_view.sync()
             application.queue.playing = 1
-            monkeypatch.setattr(
-                TidalAmp, "_play_index", lambda self, i: started.append(i)
-            )
+            monkeypatch.setattr(Playback, "play_index", lambda self, i: started.append(i))
 
             mpv.alive = False
             await settle(pilot, lambda: bool(started))
             assert mpv.restarts == 1
             assert started == [1]
-            assert application._recovering is False
+            assert application.playback.recovering is False
 
     asyncio.run(scenario())
 
@@ -271,7 +269,9 @@ def test_a_restart_that_fails_waits_before_trying_again(monkeypatch):
         async with application.run_test(size=(100, 40)) as pilot:
             await pilot.pause()
             mpv.alive = False
-            await settle(pilot, lambda: mpv.restarts > 0 and not application._recovering)
+            await settle(
+                pilot, lambda: mpv.restarts > 0 and not application.playback.recovering
+            )
             # The ticks by hand: waiting for them proved nothing on a runner
             # too loaded to run any.
             for _tick in range(4):
@@ -297,24 +297,24 @@ def test_the_gain_reaching_mpv_follows_the_mode_and_goes_when_off(monkeypatch):
             await pilot.pause()
             entries = three()
             application.queue.append(entries)
-            application._sync_queue()
-            application._play_index(0)
-            application._start(entries[0], Playable("https://cdn/1", -7.5, 0.9))
+            application.queue_view.sync()
+            application.playback.play_index(0)
+            application.playback.start(entries[0], Playable("https://cdn/1", -7.5, 0.9))
             assert mpv.gain == -7.5
 
             # A quiet track is raised only as far as its peak allows.
-            application._play_index(1)
-            application._start(entries[1], Playable("https://cdn/2", 6.0, 0.8))
+            application.playback.play_index(1)
+            application.playback.start(entries[1], Playable("https://cdn/2", 6.0, 0.8))
             assert mpv.gain == 1.94
 
             # And the queued one carries its own, from its first sample.
             mpv.idle, mpv.duration, mpv.position = False, 200.0, 190.0
             await settle(pilot, lambda: bool(prefetches))
-            application._prefetched(entries[2], Playable("https://cdn/3", -3.0, 1.0))
+            application.prefetch.landed(entries[2], Playable("https://cdn/3", -3.0, 1.0))
             assert mpv.queued == [("https://cdn/3", -3.0)]
 
             monkeypatch.setattr(app_module.config, "REPLAYGAIN", "off")
-            application._setting_changed("replaygain")
+            application.setting_changes.apply("replaygain")
             assert mpv.gain == 0.0, "apagado, la pista vuelve a como vino"
             assert mpv.queued == [], "la preparada llevaba la ganancia vieja"
             assert application.status == "volumen normalizado: off"
@@ -335,23 +335,23 @@ def test_the_badge_line_says_the_gain_being_applied(monkeypatch):
             await pilot.pause()
             entries = three()
             application.queue.append(entries)
-            application._sync_queue()
+            application.queue_view.sync()
             badges = application.query_one("#badges", Glide)
 
-            application._play_index(0)
-            application._start(entries[0], Playable("https://cdn/1", -7.5, 0.9))
+            application.playback.play_index(0)
+            application.playback.start(entries[0], Playable("https://cdn/1", -7.5, 0.9))
             assert "RG -7.5 dB" in str(badges.content)
 
-            application._play_index(1)
-            application._start(entries[1], Playable("https://cdn/2", 6.0, 0.8))
+            application.playback.play_index(1)
+            application.playback.start(entries[1], Playable("https://cdn/2", 6.0, 0.8))
             assert "RG +1.9 dB" in str(badges.content), "la aplicada, con el tope"
 
-            application._play_index(2)
-            application._start(entries[2], Playable("https://cdn/3"))
+            application.playback.play_index(2)
+            application.playback.start(entries[2], Playable("https://cdn/3"))
             assert "RG —" in str(badges.content), "sin datos no es 0 dB"
 
             monkeypatch.setattr(app_module.config, "REPLAYGAIN", "off")
-            application._setting_changed("replaygain")
+            application.setting_changes.apply("replaygain")
             assert "RG" not in str(badges.content)
 
     asyncio.run(scenario())
@@ -359,13 +359,13 @@ def test_the_badge_line_says_the_gain_being_applied(monkeypatch):
 
 def test_the_next_cover_and_lyrics_are_fetched_with_its_stream(monkeypatch):
     isolate_runtime(monkeypatch)
-    monkeypatch.setattr(TidalAmp, "_resolve_worker", lambda self, e: None)
+    monkeypatch.setattr(Playback, "resolve_worker", lambda self, e: None)
     fetched: list[str] = []
     lyrics_for: list[str] = []
-    monkeypatch.setattr(app_module, "ensure_fresh", lambda session: False)
+    monkeypatch.setattr(auth, "ensure_fresh", lambda session: False)
     monkeypatch.setattr(Entry, "resolve", lambda self, session: f"track-{self.id}")
     monkeypatch.setattr(
-        app_module,
+        stream,
         "playable_for",
         lambda entry, session: Playable(f"https://cdn/track-{entry.id}"),
     )
@@ -373,7 +373,7 @@ def test_the_next_cover_and_lyrics_are_fetched_with_its_stream(monkeypatch):
         app_module.artwork, "fetch", lambda url: fetched.append(url) or b""
     )
     monkeypatch.setattr(
-        app_module, "load_lyrics", lambda track: lyrics_for.append(track) or "letra"
+        lyrics, "load_lyrics", lambda track: lyrics_for.append(track) or "letra"
     )
 
     async def scenario() -> None:
@@ -381,7 +381,7 @@ def test_the_next_cover_and_lyrics_are_fetched_with_its_stream(monkeypatch):
         application = TidalAmp(object(), mpv)
         async with application.run_test(size=(100, 40)) as pilot:
             await pilot.pause()
-            application.art_protocol = artwork.Protocol.BLOCKS
+            application.cover.protocol = artwork.Protocol.BLOCKS
             entries = [
                 Entry(id=1, title="Schism", artist="TOOL", duration=200),
                 Entry(
@@ -394,19 +394,19 @@ def test_the_next_cover_and_lyrics_are_fetched_with_its_stream(monkeypatch):
             ]
             await playing_first(application, mpv, pilot, entries)
 
-            application._prefetching = entries[1]
-            application._prefetch_worker(entries[1], True)
+            application.prefetch.prefetching = entries[1]
+            application.prefetch.worker(entries[1], True)
             await settle(pilot, lambda: bool(lyrics_for))
 
             assert mpv.queued == [("https://cdn/track-2", 0.0)], "el audio, primero"
             assert fetched == ["https://img/2.jpg"]
             assert lyrics_for == ["track-2"]
-            assert application._lyrics_cache[2] == "letra"
+            assert application.lyrics.cache[2] == "letra"
 
             # Without anything on screen following the lyrics, not asked for.
-            application._warm(entries[1], False)
-            del application._lyrics_cache[2]
-            application._warm(entries[1], False)
+            application.prefetch.warm(entries[1], False)
+            del application.lyrics.cache[2]
+            application.prefetch.warm(entries[1], False)
             assert lyrics_for == ["track-2"]
 
     asyncio.run(scenario())
@@ -425,19 +425,19 @@ def test_a_restarted_mpv_picks_the_track_up_where_it_was(monkeypatch):
             entries = three()
             await playing_first(application, mpv, pilot, entries)
             mpv.position = 95.0
-            await wait_for(pilot, lambda: application._last_position == 95.0)
+            await wait_for(pilot, lambda: application.playback.last_position == 95.0)
             resolves.clear()
 
             mpv.alive = False
             await settle(pilot, lambda: bool(resolves))
             assert resolves == [entries[0]], "la misma pista, otra vez"
-            application._start(entries[0], Playable("https://cdn/1b"))
+            application.playback.start(entries[0], Playable("https://cdn/1b"))
             assert mpv.loaded == "https://cdn/1b"
             assert mpv.started_at == 95.0
 
             # Only that reload: playing the track again starts at the top.
-            application._play_index(0)
-            application._start(entries[0], Playable("https://cdn/1c"))
+            application.playback.play_index(0)
+            application.playback.start(entries[0], Playable("https://cdn/1c"))
             assert mpv.started_at == 0.0
 
     asyncio.run(scenario())
@@ -454,13 +454,13 @@ def test_next_pressed_during_the_reload_starts_the_next_at_the_top(monkeypatch):
             entries = three()
             await playing_first(application, mpv, pilot, entries)
             mpv.position = 95.0
-            await wait_for(pilot, lambda: application._last_position == 95.0)
+            await wait_for(pilot, lambda: application.playback.last_position == 95.0)
             resolves.clear()
 
             mpv.alive = False
             await settle(pilot, lambda: bool(resolves))
-            application._play_index(1)
-            application._start(entries[1], Playable("https://cdn/2"))
+            application.playback.play_index(1)
+            application.playback.start(entries[1], Playable("https://cdn/2"))
             assert mpv.started_at == 0.0
 
     asyncio.run(scenario())

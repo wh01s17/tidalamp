@@ -16,26 +16,27 @@ import asyncio
 from app_helpers import FakeMpv, isolate_runtime
 from test_app_gapless import Playable, three
 
-from tidalamp import app as app_module
+from tidalamp import auth
 from tidalamp.app import TidalAmp
+from tidalamp.playback import Playback
 
 
 def player(monkeypatch) -> tuple[TidalAmp, FakeMpv]:
     isolate_runtime(monkeypatch)
     # The resolve is not what is under test: every track here resolves fine
     # and it is mpv that cannot open what it was handed.
-    monkeypatch.setattr(TidalAmp, "_resolve_worker", lambda self, entry: None)
-    monkeypatch.setattr(app_module, "ensure_fresh", lambda session: False)
+    monkeypatch.setattr(Playback, "resolve_worker", lambda self, entry: None)
+    monkeypatch.setattr(auth, "ensure_fresh", lambda session: False)
     mpv = FakeMpv()
     return TidalAmp(object(), mpv), mpv
 
 
 async def loaded(application, mpv, pilot, entries, index: int = 0) -> None:
-    """Start a track the way `_start` does, without asking mpv to succeed."""
+    """Start a track the way `Playback.start` does, without asking mpv to succeed."""
     application.queue.append(entries)
-    application._sync_queue()
+    application.queue_view.sync()
     application.queue.playing = index
-    application._start(entries[index], Playable(f"https://cdn/{index}"))
+    application.playback.start(entries[index], Playable(f"https://cdn/{index}"))
     mpv.idle = False
     await pilot.pause()
 
@@ -86,11 +87,11 @@ def test_a_track_that_will_not_open_is_named_and_skipped(monkeypatch):
         async with application.run_test(size=(100, 40)) as pilot:
             await pilot.pause()
             await loaded(application, mpv, pilot, three())
-            for _ in range(application.LOAD_RETRIES + 1):
+            for _ in range(application.playback.LOAD_RETRIES + 1):
                 mpv.idle = True
                 application._tick_slow()
                 await pilot.pause()
-                application._was_idle = False
+                application.playback.was_idle = False
             return str(application.status), application.queue.playing
 
     status, playing = asyncio.run(scenario())
@@ -135,21 +136,21 @@ def test_every_new_track_is_judged_on_its_own(monkeypatch):
             await pilot.pause()
             entries = three()
             await loaded(application, mpv, pilot, entries)
-            for _ in range(application.LOAD_RETRIES):
+            for _ in range(application.playback.LOAD_RETRIES):
                 mpv.idle = True
                 application._tick_slow()
                 await pilot.pause()
-                application._was_idle = False
-            assert application._retries == application.LOAD_RETRIES
-            application._start(entries[1], Playable("https://cdn/1"))
-            return application._retries
+                application.playback.was_idle = False
+            assert application.playback.retries == application.playback.LOAD_RETRIES
+            application.playback.start(entries[1], Playable("https://cdn/1"))
+            return application.playback.retries
 
     assert asyncio.run(scenario()) == 0
 
 
 def test_a_track_slid_into_with_no_gap_is_judged_on_its_own_too(monkeypatch):
-    """It never goes through `_start`, which is why the counter is cleared in
-    `_now_playing` and not there: a prepared track that will not open used to
+    """It never goes through `Playback.start`, which is why the counter is cleared in
+    `Playback.now_playing` and not there: a prepared track that will not open used to
     inherit «already heard» from the track before it and be skipped as if it
     had ended."""
 
@@ -162,9 +163,9 @@ def test_a_track_slid_into_with_no_gap_is_judged_on_its_own_too(monkeypatch):
             mpv.position, mpv.duration = 30.0, 200.0
             application._tick_slow()
             await pilot.pause()
-            assert application._opened, "la primera abrió"
-            application._now_playing(entries[1], Playable("https://cdn/1"))
-            return application._opened, application._retries
+            assert application.playback.opened, "la primera abrió"
+            application.playback.now_playing(entries[1], Playable("https://cdn/1"))
+            return application.playback.opened, application.playback.retries
 
     heard, retries = asyncio.run(scenario())
     assert not heard

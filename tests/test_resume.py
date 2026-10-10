@@ -67,23 +67,23 @@ def test_a_restored_track_plays_from_where_the_last_session_quit(monkeypatch):
             await pilot.pause()
             entries = three()
             application.queue.append(entries)
-            application._sync_queue()
+            application.queue_view.sync()
             application.queue.resume_at = 1
             application.queue.resume_position = 83.4
 
-            application._restore_position()
+            application.playback.restore_position()
             assert application.status == (
                 "cola restaurada (3 pistas); «Parabol» sigue en 1:23"
             )
             assert mpv.loaded is None, "no se pone a sonar sola"
 
-            application._play_index(1)
-            application._start(entries[1], Playable("https://cdn/2"))
+            application.playback.play_index(1)
+            application.playback.start(entries[1], Playable("https://cdn/2"))
             assert mpv.started_at == 83.4
 
             # Once: playing it again starts at the top.
-            application._play_index(1)
-            application._start(entries[1], Playable("https://cdn/2b"))
+            application.playback.play_index(1)
+            application.playback.start(entries[1], Playable("https://cdn/2b"))
             assert mpv.started_at == 0.0
 
     asyncio.run(scenario())
@@ -99,15 +99,15 @@ def test_another_track_played_first_starts_at_the_top_and_drops_it(monkeypatch):
             await pilot.pause()
             entries = three()
             application.queue.append(entries)
-            application._sync_queue()
+            application.queue_view.sync()
             application.queue.resume_at = 1
             application.queue.resume_position = 83.4
-            application._restore_position()
+            application.playback.restore_position()
 
-            application._play_index(0)
-            application._start(entries[0], Playable("https://cdn/1"))
+            application.playback.play_index(0)
+            application.playback.start(entries[0], Playable("https://cdn/1"))
             assert mpv.started_at == 0.0
-            assert application._resume is None
+            assert application.playback.resume is None
 
     asyncio.run(scenario())
 
@@ -122,15 +122,15 @@ def test_quitting_writes_the_second_of_the_track_playing(monkeypatch):
             await pilot.pause()
             entries = three()
             application.queue.append(entries)
-            application._sync_queue()
-            application._play_index(2)
-            application._start(entries[2], Playable("https://cdn/3"))
+            application.queue_view.sync()
+            application.playback.play_index(2)
+            application.playback.start(entries[2], Playable("https://cdn/3"))
             mpv.idle, mpv.duration, mpv.position = False, 200.0, 61.0
             # The slow tick reads the second four times a second. A fixed
             # 0.3 s left it 50 ms, and a loaded CI runner missed it.
-            await wait_for(pilot, lambda: application._last_position == 61.0)
+            await wait_for(pilot, lambda: application.playback.last_position == 61.0)
 
-            application._remember_position()
+            application.playback.remember_position()
             assert application.queue.position == 61.0
             assert application.queue.playing == 2
 
@@ -148,12 +148,12 @@ def test_quitting_before_playing_the_restored_track_keeps_its_second(monkeypatch
             await pilot.pause()
             entries = three()
             application.queue.append(entries)
-            application._sync_queue()
+            application.queue_view.sync()
             application.queue.resume_at = 1
             application.queue.resume_position = 83.4
-            application._restore_position()
+            application.playback.restore_position()
 
-            application._remember_position()
+            application.playback.remember_position()
             assert application.queue.playing == 1
             assert application.queue.position == 83.4
 
@@ -168,9 +168,9 @@ def test_quitting_stopped_writes_no_second(monkeypatch):
         async with application.run_test(size=(100, 40)) as pilot:
             await pilot.pause()
             application.queue.append(three())
-            application._sync_queue()
+            application.queue_view.sync()
 
-            application._remember_position()
+            application.playback.remember_position()
             assert application.queue.position == 0.0
 
     asyncio.run(scenario())

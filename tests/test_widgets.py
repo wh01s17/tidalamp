@@ -10,7 +10,7 @@ import pytest
 from rich.cells import cell_len
 from textual.app import App, ComposeResult
 
-from tidalamp.library import Row
+from tidalamp.levels import Row
 from tidalamp.queue import Entry
 from tidalamp.screens import RowList
 from tidalamp.widgets import Glide, Marquee, Slider, TimeDisplay

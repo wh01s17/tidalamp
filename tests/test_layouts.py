@@ -6,9 +6,9 @@ import unicodedata
 
 import pytest
 
-from tidalamp.app import TidalAmp
 from tidalamp.layouts import DEFAULT_LAYOUT, LAYOUT_TABLE, layout_for
 from tidalamp.theme import LAYOUTS
+from tidalamp.transport import Transport
 
 HINTS = "↵ reproducir"
 
@@ -26,9 +26,7 @@ def test_an_unknown_layout_name_falls_back_to_the_default():
 
 def test_every_layout_names_a_transport_the_app_can_draw():
     for layout in LAYOUT_TABLE.values():
-        assert callable(getattr(TidalAmp, f"_transport_{layout.transport}", None)), (
-            layout.name
-        )
+        assert callable(getattr(Transport, f"_{layout.transport}", None)), layout.name
 
 
 def test_every_heading_draws_at_any_width():

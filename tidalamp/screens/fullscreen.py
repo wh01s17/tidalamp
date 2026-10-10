@@ -13,13 +13,15 @@ from textual.containers import Horizontal, Vertical
 from textual.screen import Screen
 from textual.widgets import Static
 
-from .. import artwork, config
+from .. import artwork, config, transport
 from ..columns import QUALITY_LABELS
 from ..i18n import _
+from ..keys import keys_for
 from ..lyrics import LyricsDocument
 from ..queue import Entry, Repeat
 from ..theme import palette_for
 from ..widgets import Artwork, Glide, LyricsBoard, SeekBar
+from .help import HelpScreen
 from .rowlist import RowChosen, RowList, RowMenu
 
 if TYPE_CHECKING:
@@ -195,7 +197,7 @@ class FullscreenScreen(Screen[None]):
             return
         art = self.query_one(FullArtwork)
         rows = max(Artwork.MIN_ROWS, min(height - 2, (width - 4) // 2))
-        if self.player.art_protocol is artwork.Protocol.SIXEL:
+        if self.player.cover.protocol is artwork.Protocol.SIXEL:
             rows = min(rows, SIXEL_ROWS)
         resized = art.resize(rows)
         if resized or art.cover is None or self._url != self._current_url():
@@ -211,7 +213,7 @@ class FullscreenScreen(Screen[None]):
     def _request(self) -> None:
         art = self.query_one(FullArtwork)
         url = self._current_url()
-        protocol = self.player.art_protocol
+        protocol = self.player.cover.protocol
         self._url = url
         if not url or protocol is artwork.Protocol.NONE:
             art.show(None)
@@ -278,7 +280,7 @@ class FullscreenScreen(Screen[None]):
         # A cover kept from before the window, in a protocol that is no longer
         # the one in use, is not put back: it was a kitty image sent again
         # after transparency had moved the cover to blocks.
-        if pending is not None and pending.protocol is self.player.art_protocol:
+        if pending is not None and pending.protocol is self.player.cover.protocol:
             self._show(pending)
         elif self._url != self._current_url() or pending is not None:
             self._url = ""
@@ -319,7 +321,7 @@ class FullscreenScreen(Screen[None]):
         """Shuffle, previous, play, next and repeat, centred and clickable."""
         player = self.player
         palette = palette_for(self)
-        plain = player.layout.ascii_only
+        plain = player.looks.layout.ascii_only
         playing = not player.mpv.paused and not player.mpv.idle
         queue = player.queue
         # Heavier glyphs than the player's own, and a space between a mode's
@@ -328,7 +330,7 @@ class FullscreenScreen(Screen[None]):
         # track's name, and «⟳A» read as one glyph nobody could name.
         if plain:
             shuffle = "SH *" if queue.shuffle else "SH -"
-            repeat = "RP " + player.REPEAT_MARKS_ASCII[queue.repeat]
+            repeat = "RP " + transport.REPEAT_MARKS_ASCII[queue.repeat]
             prev, play, nxt = "<<", "||" if playing else "> ", ">>"
         else:
             # The heavy cut of each glyph, not the light one: at the foot of a
@@ -336,7 +338,7 @@ class FullscreenScreen(Screen[None]):
             # beside the track's name. «⬤ ◯» for the mode lamps, «❚❚» for the
             # pause, and the mode's sign apart from its mark.
             shuffle = "⇄ ⬤" if queue.shuffle else "⇄ ◯"
-            repeat = f"{player.REPEAT_SIGN} {player.REPEAT_TAGS[queue.repeat]}"
+            repeat = f"{transport.REPEAT_SIGN} {transport.REPEAT_TAGS[queue.repeat]}"
             # Play is padded to the two cells the pause takes, the way the
             # ASCII row pads «> » to «||»: a button that changes width shifts
             # every button to its right each time it is pressed.
@@ -371,7 +373,7 @@ class FullscreenScreen(Screen[None]):
 
     def _render_side(self) -> None:
         palette = palette_for(self)
-        playable = self.player._playable
+        playable = self.player.playback.playable
         text = Text(justify="right", no_wrap=True, overflow="ellipsis")
         if playable is not None:
             quality = QUALITY_LABELS.get(playable.quality, playable.quality)
@@ -481,7 +483,7 @@ class FullscreenScreen(Screen[None]):
     @work(thread=True, exclusive=True, group="fs-lyrics")
     def _lyrics_worker(self, entry: Entry) -> None:
         try:
-            document = self.player._lyrics_for(entry)
+            document = self.player.lyrics.for_entry(entry)
         except Exception as exc:
             self.app.call_from_thread(self._lyrics_failed, entry.id, str(exc))
             return
@@ -545,7 +547,7 @@ class FullscreenScreen(Screen[None]):
     @on(RowMenu, "#fs-queue-list")
     def _panel_row_menu(self, message: RowMenu) -> None:
         message.stop()
-        self.player.action_track_menu()
+        self.player.queue_view.track_menu()
 
     def open_queue(self) -> None:
         if not self._panel:
@@ -575,10 +577,6 @@ class FullscreenScreen(Screen[None]):
 
     def action_help(self) -> None:
         """The help window, with this view's keys and nothing else."""
-        # Here and not at the top: `app` imports this module.
-        from ..app import keys_for
-        from .help import HelpScreen
-
         self.app.push_screen(HelpScreen(keys_for, only="fullscreen"))
 
     def action_close(self) -> None:

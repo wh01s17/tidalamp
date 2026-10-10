@@ -12,7 +12,7 @@ from textual.containers import Horizontal, Vertical
 from textual.screen import ModalScreen
 from textual.widgets import Input, Static
 
-from .. import about, library
+from .. import about, levels
 from ..i18n import _
 from ..theme import palette_for
 
@@ -189,13 +189,13 @@ class HelpScreen(ModalScreen[None]):
         for kind, text in lines:
             if kind == "heading":
                 heading = (kind, text)
-                whole = library.text_matches(query, text)
+                whole = levels.text_matches(query, text)
                 if whole:
                     if kept:
                         kept.append(("blank", ""))
                     kept.append(heading)
                 continue
-            if kind == "blank" or not (whole or library.text_matches(query, text)):
+            if kind == "blank" or not (whole or levels.text_matches(query, text)):
                 continue
             if heading is not None and heading not in kept[-1:] and not whole:
                 if kept:

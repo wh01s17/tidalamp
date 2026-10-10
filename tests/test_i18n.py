@@ -6,7 +6,7 @@ import ast
 from pathlib import Path
 from string import Formatter
 
-from tidalamp import i18n
+from tidalamp import catalogue, i18n
 
 
 def _translated_literals() -> set[str]:
@@ -68,6 +68,17 @@ def test_english_translates_literals_and_formatted_values():
 
 def test_every_translated_literal_has_exactly_one_catalogue_entry():
     assert _translated_literals() == set(i18n.ENGLISH)
+
+
+def test_no_string_is_in_two_catalogue_files():
+    # One dict literal would not let a key repeat; three merged would let
+    # the later file's English win without a word.
+    parts = (
+        catalogue.player.ENGLISH,
+        catalogue.windows.ENGLISH,
+        catalogue.messages.ENGLISH,
+    )
+    assert sum(len(part) for part in parts) == len(i18n.ENGLISH)
 
 
 def test_modules_that_translate_do_not_shadow_the_translation_function():

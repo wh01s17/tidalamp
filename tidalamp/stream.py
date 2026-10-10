@@ -37,6 +37,7 @@ from . import config
 from .config import CACHE_DIR, ensure_dirs
 from .i18n import _
 from .net import with_retries
+from .settings import replaygain
 
 log = logging.getLogger("tidalamp.stream")
 
@@ -93,6 +94,23 @@ class Playable:
     def downgraded(self) -> bool:
         """True when TIDAL sent a lower quality than the one we asked for."""
         return bool(self.requested) and self.requested != self.quality
+
+
+def gain_for(playable: Playable | None) -> float:
+    """The ReplayGain to play ``playable`` at, for the mode chosen."""
+    if playable is None:
+        return 0.0
+    return replaygain(
+        config.REPLAYGAIN,
+        (
+            getattr(playable, "track_gain", None),
+            getattr(playable, "track_peak", None),
+        ),
+        (
+            getattr(playable, "album_gain", None),
+            getattr(playable, "album_peak", None),
+        ),
+    )
 
 
 def _to_fmp4_hls(playlist: str) -> str:

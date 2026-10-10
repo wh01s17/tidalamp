@@ -17,7 +17,7 @@ from textual.strip import Strip
 from textual.widget import Widget
 
 from .. import artwork, columns, config
-from ..library import Row
+from ..levels import Row
 from ..scrolling import window
 from ..theme import palette_for
 

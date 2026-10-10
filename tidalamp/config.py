@@ -301,8 +301,8 @@ KEYS: dict[str, str] = {
 
 def write_template(path: Path | None = None) -> Path:
     """Write a commented config file. Never overwrites an existing one."""
-    from .app import DEFAULT_KEYS
     from .i18n import config_template
+    from .keys import DEFAULT_KEYS
 
     path = CONFIG_FILE if path is None else path
     if path.exists():

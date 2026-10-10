@@ -142,7 +142,7 @@ def test_with_the_box_nothing_is_saved_and_the_data_goes_again_after_mpv(
 async def _close(application: TidalAmp) -> None:
     async with application.run_test(size=(100, 40)) as pilot:
         await pilot.pause()
-        await application._close_player()
+        await application.close_player()
 
 
 def test_ticking_the_box_alone_deletes_nothing(monkeypatch, tmp_path):

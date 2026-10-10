@@ -14,6 +14,7 @@ from textual.app import App, ComposeResult
 from textual.widgets import Static
 
 from tidalamp.freemusic import Track
+from tidalamp.playback import Playback
 from tidalamp.queue import Entry
 from tidalamp.screens import TRACK_ACTIONS, CreditsScreen, actions_for, attribution
 from tidalamp.screens.credits import DEMANDS
@@ -176,7 +177,7 @@ def with_queue(monkeypatch):
     from tidalamp.app import TidalAmp
 
     isolate_runtime(monkeypatch)
-    monkeypatch.setattr(TidalAmp, "_resolve_worker", lambda self, entry: None)
+    monkeypatch.setattr(Playback, "resolve_worker", lambda self, entry: None)
     mpv = FakeMpv()
     app = TidalAmp(object(), mpv)
     return app, mpv
@@ -215,7 +216,7 @@ def test_k_opens_the_credits_of_the_row_under_the_cursor(monkeypatch):
         async with app.run_test(size=(140, 40)) as pilot:
             await pilot.pause()
             app.queue.append(free_and_tidal())
-            app._sync_queue()
+            app.queue_view.sync()
             app.queue.playing = 0
             await pilot.pause()
             await pilot.press("k")
@@ -237,7 +238,7 @@ def test_k_on_a_tidal_row_says_why_there_are_none(monkeypatch):
         async with app.run_test(size=(140, 40)) as pilot:
             await pilot.pause()
             app.queue.append(free_and_tidal())
-            app._sync_queue()
+            app.queue_view.sync()
             app.queue.playing = 0
             app.query_one("#playlist", RowList).cursor = 1
             await pilot.pause()
@@ -260,7 +261,7 @@ def test_k_works_in_the_full_screen_view_too(monkeypatch):
         async with app.run_test(size=(140, 40)) as pilot:
             await pilot.pause()
             app.queue.append(free_and_tidal())
-            app._sync_queue()
+            app.queue_view.sync()
             app.queue.playing = 0
             await pilot.pause()
             await pilot.press("w")
@@ -276,7 +277,7 @@ def test_k_works_in_the_full_screen_view_too(monkeypatch):
 def test_k_is_listed_in_the_help(monkeypatch):
     """A key nobody is told about is a key nobody presses."""
     from tidalamp import about
-    from tidalamp.app import keys_for
+    from tidalamp.keys import keys_for
 
     shown = [
         label

@@ -9,7 +9,9 @@ import asyncio
 
 from app_helpers import FakeMpv, isolate_runtime, settle
 
+from tidalamp import spectrum_feed
 from tidalamp.app import TidalAmp
+from tidalamp.spectrum_feed import SpectrumFeed
 
 # Taken before any test can patch it: isolate_runtime switches it off.
 START_MEDIA = TidalAmp._start_mpris
@@ -153,10 +155,10 @@ def test_changing_the_device_moves_the_sound_at_once(monkeypatch):
         async with application.run_test(size=(100, 40)) as pilot:
             await pilot.pause()
             monkeypatch.setattr(config, "AUDIO_DEVICE", "wasapi/{fiio}")
-            application._setting_changed("audio_device")
+            application.setting_changes.apply("audio_device")
             seen.append((list(mpv.devices), application.status))
             monkeypatch.setattr(config, "AUDIO_DEVICE", "auto")
-            application._setting_changed("audio_device")
+            application.setting_changes.apply("audio_device")
             seen.append((list(mpv.devices), application.status))
 
     asyncio.run(scenario())
@@ -177,7 +179,7 @@ def test_exclusive_mode_applies_at_once_and_says_what_it_costs(monkeypatch):
         async with application.run_test(size=(100, 40)) as pilot:
             await pilot.pause()
             monkeypatch.setattr(config, "EXCLUSIVE", True)
-            application._setting_changed("exclusive")
+            application.setting_changes.apply("exclusive")
             seen.append((list(mpv.exclusive), application.status))
 
     asyncio.run(scenario())
@@ -214,7 +216,7 @@ def test_a_device_that_is_not_there_is_not_handed_to_mpv(monkeypatch):
             await pilot.pause()
             monkeypatch.setattr(config, "AUDIO_DEVICE", "wasapi/{fiio}")
             monkeypatch.setattr(audio, "connected", lambda name: False)
-            application._setting_changed("audio_device")
+            application.setting_changes.apply("audio_device")
             seen.append((list(mpv.devices), application.status))
 
     asyncio.run(scenario())
@@ -237,15 +239,15 @@ def test_the_chosen_device_is_gone_back_to_once_it_is_plugged_in(monkeypatch):
             await pilot.pause()
             monkeypatch.setattr(config, "AUDIO_DEVICE", "wasapi/{fiio}")
             monkeypatch.setattr(audio, "connected", lambda name: False)
-            application._watch_output()
+            application.output.watch()
             await settle(pilot, lambda: True)
             assert mpv.devices == [], "todavía no está"
             monkeypatch.setattr(audio, "connected", lambda name: True)
-            application._watch_output()
+            application.output.watch()
             await settle(pilot, lambda: mpv.devices)
             seen.append((list(mpv.devices), application.status))
             # Back on it: nothing more to ask Windows.
-            application._watch_output()
+            application.output.watch()
             await pilot.pause()
             seen.append((list(mpv.devices), application.status))
 
@@ -271,7 +273,7 @@ def test_linux_goes_back_to_the_chosen_sink_too(monkeypatch):
             await pilot.pause()
             monkeypatch.setattr(config, "AUDIO_DEVICE", fiio)
             monkeypatch.setattr(audio, "connected", lambda name: True)
-            application._watch_output()
+            application.output.watch()
             await settle(pilot, lambda: mpv.devices)
             seen.append(list(mpv.devices))
 
@@ -293,7 +295,7 @@ def test_nothing_is_watched_on_auto(monkeypatch):
             await pilot.pause()
             monkeypatch.setattr(config, "AUDIO_DEVICE", "auto")
             monkeypatch.setattr(audio, "connected", lambda name: asked.append(name))
-            application._watch_output()
+            application.output.watch()
             await settle(pilot, lambda: True)
 
     asyncio.run(scenario())
@@ -321,13 +323,12 @@ class _Cava:
 def test_exclusive_mode_leaves_the_spectrum_to_the_level_meter(monkeypatch):
     """cava listens to Windows's mixer, and an exclusive stream goes around
     it: the spectrum was a flat line while the music played."""
-    from tidalamp import app as app_module
     from tidalamp import audio, config
 
-    start = TidalAmp._start_spectrum
+    start = SpectrumFeed.start
     isolate_runtime(monkeypatch)
-    monkeypatch.setattr(TidalAmp, "_start_spectrum", start)
-    monkeypatch.setattr(app_module, "Cava", _Cava)
+    monkeypatch.setattr(SpectrumFeed, "start", start)
+    monkeypatch.setattr(spectrum_feed, "Cava", _Cava)
     monkeypatch.setattr(_Cava, "made", 0)
     monkeypatch.setattr(audio, "MANAGES_RATES", False)
     monkeypatch.setattr(config, "EXCLUSIVE", True)
@@ -337,13 +338,13 @@ def test_exclusive_mode_leaves_the_spectrum_to_the_level_meter(monkeypatch):
         application = TidalAmp(object(), FakeMpv())
         async with application.run_test(size=(100, 40)) as pilot:
             await pilot.pause()
-            seen.append((_Cava.made, application.cava is None))
+            seen.append((_Cava.made, application.spectrum.cava is None))
             monkeypatch.setattr(config, "EXCLUSIVE", False)
-            application._setting_changed("exclusive")
-            seen.append((_Cava.made, application.cava is None))
+            application.setting_changes.apply("exclusive")
+            seen.append((_Cava.made, application.spectrum.cava is None))
             monkeypatch.setattr(config, "EXCLUSIVE", True)
-            application._setting_changed("exclusive")
-            seen.append((_Cava.made, application.cava is None))
+            application.setting_changes.apply("exclusive")
+            seen.append((_Cava.made, application.spectrum.cava is None))
 
     asyncio.run(scenario())
     assert seen == [(0, True), (1, False), (1, True)]
@@ -351,13 +352,12 @@ def test_exclusive_mode_leaves_the_spectrum_to_the_level_meter(monkeypatch):
 
 def test_linux_keeps_cava_whatever_the_exclusive_setting_says(monkeypatch):
     """The setting does nothing on Linux, where PipeWire's rates are managed."""
-    from tidalamp import app as app_module
     from tidalamp import audio, config
 
-    start = TidalAmp._start_spectrum
+    start = SpectrumFeed.start
     isolate_runtime(monkeypatch)
-    monkeypatch.setattr(TidalAmp, "_start_spectrum", start)
-    monkeypatch.setattr(app_module, "Cava", _Cava)
+    monkeypatch.setattr(SpectrumFeed, "start", start)
+    monkeypatch.setattr(spectrum_feed, "Cava", _Cava)
     monkeypatch.setattr(_Cava, "made", 0)
     monkeypatch.setattr(audio, "MANAGES_RATES", True)
     monkeypatch.setattr(config, "EXCLUSIVE", True)
@@ -366,7 +366,7 @@ def test_linux_keeps_cava_whatever_the_exclusive_setting_says(monkeypatch):
         application = TidalAmp(object(), FakeMpv())
         async with application.run_test(size=(100, 40)) as pilot:
             await pilot.pause()
-            return application.cava is not None
+            return application.spectrum.cava is not None
 
     assert asyncio.run(scenario())
 
@@ -386,7 +386,7 @@ def test_a_muted_output_is_said_on_the_out_line_and_in_the_settings(monkeypatch)
         application = TidalAmp(object(), FakeMpv())
         async with application.run_test(size=(120, 40)) as pilot:
             await pilot.pause()
-            application._set_sink(muted)
+            application.output.set_sink(muted)
             await pilot.pause()
             out = str(application.query_one("#output", Glide).content)
             screen = config_window.ConfigScreen()
@@ -401,13 +401,12 @@ def test_a_muted_output_is_said_on_the_out_line_and_in_the_settings(monkeypatch)
 def test_the_spectrum_is_the_level_meter_off_the_default_device(monkeypatch):
     """cava hears the default output's mix only: playing to a FiiO with a
     JBL as the default, the analyser read «FFT» over a flat line."""
-    from tidalamp import app as app_module
     from tidalamp import audio, config
 
-    start = TidalAmp._start_spectrum
+    start = SpectrumFeed.start
     isolate_runtime(monkeypatch)
-    monkeypatch.setattr(TidalAmp, "_start_spectrum", start)
-    monkeypatch.setattr(app_module, "Cava", _Cava)
+    monkeypatch.setattr(SpectrumFeed, "start", start)
+    monkeypatch.setattr(spectrum_feed, "Cava", _Cava)
     monkeypatch.setattr(_Cava, "made", 0)
     monkeypatch.setattr(audio, "MANAGES_RATES", False)
     monkeypatch.setattr(audio, "system_default", lambda: "wasapi/{jbl}")
@@ -419,11 +418,11 @@ def test_the_spectrum_is_the_level_meter_off_the_default_device(monkeypatch):
         application = TidalAmp(object(), FakeMpv())
         async with application.run_test(size=(100, 40)) as pilot:
             await pilot.pause()
-            seen.append(application.cava is not None)  # auto: the default
+            seen.append(application.spectrum.cava is not None)  # auto: the default
             for device in ("wasapi/{fiio}", "wasapi/{jbl}"):
                 monkeypatch.setattr(config, "AUDIO_DEVICE", device)
-                application._setting_changed("audio_device")
-                seen.append(application.cava is not None)
+                application.setting_changes.apply("audio_device")
+                seen.append(application.spectrum.cava is not None)
 
     asyncio.run(scenario())
     assert seen == [True, False, True]
@@ -432,13 +431,12 @@ def test_the_spectrum_is_the_level_meter_off_the_default_device(monkeypatch):
 def test_linux_cava_listens_to_the_sink_mpv_plays_to(monkeypatch):
     """cava's `auto` is the default sink's monitor: playing to a DAC with the
     speakers as the default, it would draw what the speakers play."""
-    from tidalamp import app as app_module
     from tidalamp import audio, config
 
-    start = TidalAmp._start_spectrum
+    start = SpectrumFeed.start
     isolate_runtime(monkeypatch)
-    monkeypatch.setattr(TidalAmp, "_start_spectrum", start)
-    monkeypatch.setattr(app_module, "Cava", _Cava)
+    monkeypatch.setattr(SpectrumFeed, "start", start)
+    monkeypatch.setattr(spectrum_feed, "Cava", _Cava)
     monkeypatch.setattr(_Cava, "sources", [])
     monkeypatch.setattr(audio, "MANAGES_RATES", True)
     monkeypatch.setattr(audio, "connected", lambda name: True)
@@ -453,9 +451,9 @@ def test_linux_cava_listens_to_the_sink_mpv_plays_to(monkeypatch):
         async with application.run_test(size=(100, 40)) as pilot:
             await pilot.pause()
             monkeypatch.setattr(config, "AUDIO_DEVICE", "pipewire/dac")
-            application._setting_changed("audio_device")
+            application.setting_changes.apply("audio_device")
             monkeypatch.setattr(config, "AUDIO_DEVICE", "auto")
-            application._setting_changed("audio_device")
+            application.setting_changes.apply("audio_device")
 
     asyncio.run(scenario())
     assert _Cava.sources == ["auto", "dac.monitor", "auto"]

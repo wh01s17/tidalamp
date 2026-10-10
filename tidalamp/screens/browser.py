@@ -15,16 +15,16 @@ from textual.screen import ModalScreen
 from textual.widgets import Input, Static
 from textual.worker import get_current_worker
 
-from .. import config, library
-from ..auth import ensure_fresh
+from .. import config, levels, library
 from ..i18n import _
-from ..library import Row
+from ..keys import keys_for
+from ..levels import Row
 from ..widgets import Spinner
 from .choice import ChoiceScreen
 from .credits import CreditsScreen
 from .grid import GridList, cached_cells, cover_cells
 from .help import HelpScreen
-from .prompts import PlaylistNameScreen
+from .playlist_edits import PlaylistEdits, favourite_message
 from .rowlist import RowChosen, RowList, RowMenu
 from .tracks import TrackActionsScreen, actions_for, container_actions_for
 
@@ -67,15 +67,6 @@ def fit_hints(hints: tuple[tuple[str, str, int], ...], width: int) -> str:
             return line
         keep.remove(max(keep, key=lambda hint: (hint[2], hints.index(hint))))
     return ""
-
-
-def favourite_message(session, row: Row, add: bool) -> str:
-    """Do the favourite and phrase the result. Shared by both screens."""
-    ensure_fresh(session)
-    label = library.favourite(session, row, add)
-    if add:
-        return _("«{label}» añadido a favoritos").format(label=label)
-    return _("«{label}» quitado de favoritos").format(label=label)
 
 
 class BrowserScreen(ModalScreen[tuple | None]):
@@ -156,9 +147,8 @@ class BrowserScreen(ModalScreen[tuple | None]):
         # How many times ⌫ has been pressed. A worker notes it when it starts,
         # and its answer is dropped if it moved: that level has been left.
         self._left = 0
-        # A move in a playlist on its way to TIDAL. A second one sent before
-        # the first lands would go by a position that is about to change.
-        self._moving = False
+        # Removing, moving, renaming, describing and deleting.
+        self._edits = PlaylistEdits(self)
 
     def compose(self) -> ComposeResult:
         with Vertical(id="browser-box"):
@@ -303,10 +293,10 @@ class BrowserScreen(ModalScreen[tuple | None]):
     @staticmethod
     def _titled(title: str, source: Row | None) -> str:
         """The level's title, and its order when it is not TIDAL's own."""
-        order = library.chosen(source) if source is not None else None
+        order = levels.chosen(source) if source is not None else None
         if order is None:
             return title
-        return f"{title}  ·  {library.order_label(order)}"
+        return f"{title}  ·  {levels.order_label(order)}"
 
     # ----------------------------------------------------------------- view
 
@@ -331,7 +321,7 @@ class BrowserScreen(ModalScreen[tuple | None]):
         return [
             row
             for row in rows
-            if row.more is not None or library.matches(self._filter, row)
+            if row.more is not None or levels.matches(self._filter, row)
         ]
 
     def _show(self, cursor: int = 0) -> None:
@@ -610,7 +600,7 @@ class BrowserScreen(ModalScreen[tuple | None]):
             # It holds for this session all the same.
             config.LIBRARY_VIEW = view
             error = exc
-        self.player._saved(error)
+        self.player.saved(error)
         current = self._list().current
         visible = self._visible()
         self._show(next((i for i, row in enumerate(visible) if row is current), 0))
@@ -656,7 +646,7 @@ class BrowserScreen(ModalScreen[tuple | None]):
         title, _rows, key, loader, source = self._stack[-1]
         if loader is None:
             return
-        library.forget(key)
+        levels.forget(key)
         self._stack.pop()
         self._empty = _("cargando…")
         self._busy(_("recargando {level}…").format(level=title))
@@ -680,107 +670,34 @@ class BrowserScreen(ModalScreen[tuple | None]):
             (order.code if order is not None else "original"): order
             for order in source.orders
         }
-        current = library.chosen(source)
+        current = levels.chosen(source)
         self.app.push_screen(
             ChoiceScreen(
                 _("ORDENAR"),
-                [(code, library.order_label(order)) for code, order in by_code.items()],
+                [(code, levels.order_label(order)) for code, order in by_code.items()],
                 current.code if current is not None else "original",
             ),
             lambda code: self._sorted(source, by_code[code]) if code in by_code else None,
         )
 
-    def _sorted(self, source: Row, order: library.Order | None) -> None:
-        if order == library.chosen(source) or source.sort is None:
+    def _sorted(self, source: Row, order: levels.Order | None) -> None:
+        if order == levels.chosen(source) or source.sort is None:
             return
-        self.player._saved(library.remember(source, order))
+        self.player.saved(levels.remember(source, order))
         key, loader = source.sort(order)
         title = self._stack[-1][0]
         self._stack.pop()
         self._empty = _("cargando…")
-        self._busy(_("orden: {order}").format(order=library.order_label(order)))
+        self._busy(_("orden: {order}").format(order=levels.order_label(order)))
         self._load(self._left, title, loader, key, source)
 
     def action_help(self) -> None:
         """The help window, with the browser's keys and nothing else."""
-        # Here and not at the top: `app` imports this module.
-        from ..app import keys_for
-
         self.app.push_screen(HelpScreen(keys_for, only="browser"))
 
     def action_remove(self) -> None:
-        """Take the row out of where it is: favourites, or the playlist open.
-
-        Asked first, with the cursor on «cancel», like restarting PipeWire:
-        adding a track back to a playlist does not put it back where it was.
-        """
-        row = self._list().current
-        source = self._stack[-1][4] if self._stack else None
-        where = ""
-        if row is not None and row.more is None and source is not None:
-            kind, _sep, ident = source.key.partition(":")
-            if source.key.startswith("fav:"):
-                where = _("favoritos")
-            elif kind == "playlist" and ident and row.entry is not None:
-                where = f"«{source.label}»"
-        if not where or row is None or source is None:
-            self.player.status = _("aquí no hay de dónde quitar")
-            return
-        self.app.push_screen(
-            ChoiceScreen(
-                _("QUITAR"),
-                [
-                    (
-                        "remove",
-                        _("quitar «{label}» de {where}").format(
-                            label=row.label, where=where
-                        ),
-                    ),
-                    ("cancel", _("cancelar")),
-                ],
-                cursor=1,
-            ),
-            lambda answer: self._remove(row, source) if answer == "remove" else None,
-        )
-
-    def _remove(self, row: Row, source: Row) -> None:
-        self._busy(_("quitando…"))
-        self._remove_worker(row, source)
-
-    @work(thread=True, exclusive=True, group="remove")
-    def _remove_worker(self, row: Row, source: Row) -> None:
-        session = self.player.session
-        gone: Row | None = row
-        try:
-            if source.key.startswith("fav:"):
-                message = favourite_message(session, row, False)
-            else:
-                assert row.entry is not None
-                ensure_fresh(session)
-                playlist = library.remove_from_playlist(
-                    session, source.key.partition(":")[2], row.entry
-                )
-                message = _("«{label}» quitada de «{playlist}»").format(
-                    label=row.label, playlist=playlist
-                )
-        except library.TrackNotInPlaylist:
-            message = _("«{label}» ya no está en la playlist").format(label=row.label)
-        except library.PlaylistNotWritable as exc:
-            title = exc.args[0] if exc.args else ""
-            message = _("«{title}» es de otra cuenta: no se puede quitar nada").format(
-                title=title
-            )
-            gone = None
-        except Exception as exc:
-            message = _("quitar: {error}").format(error=exc)
-            gone = None
-        self.app.call_from_thread(self._removed, message, gone)
-
-    def _removed(self, message: str, row: Row | None) -> None:
-        self._idle()
-        self.player.status = message
-        if row is not None:
-            self._drop(row)
+        """Take the row out of where it is: favourites, or the playlist open."""
+        self._edits.ask_remove()
 
     def action_choose(self) -> None:
         widget = self._list()
@@ -810,7 +727,7 @@ class BrowserScreen(ModalScreen[tuple | None]):
     def _level_of(row: Row) -> tuple[str, Callable[[], list[Row]]]:
         """The cache key and loader a container opens to, in the order last
         picked for it, if one was."""
-        order = library.chosen(row)
+        order = levels.chosen(row)
         if order is not None and row.sort is not None:
             return row.sort(order)
         assert row.loader is not None
@@ -868,10 +785,10 @@ class BrowserScreen(ModalScreen[tuple | None]):
         if action is None:
             return
         if action in ("rename", "describe"):
-            self._ask_edit(row, rename=action == "rename")
+            self._edits.ask_edit(row, rename=action == "rename")
             return
         if action == "delete":
-            self._ask_delete(row)
+            self._edits.ask_delete(row)
             return
         if action == "favourite":
             self._busy(_("añadiendo a favoritos…"))
@@ -880,204 +797,17 @@ class BrowserScreen(ModalScreen[tuple | None]):
         self._busy(_("cargando {label}…").format(label=row.label))
         self._container_worker(row, action)
 
-    # ------------------------------------------------------ your playlists
-
-    def _ask_edit(self, row: Row, *, rename: bool) -> None:
-        """A new name, or a new description, typed over the one it has."""
-        self.app.push_screen(
-            PlaylistNameScreen(
-                title=_("RENOMBRAR PLAYLIST")
-                if rename
-                else _("DESCRIPCIÓN DE LA PLAYLIST"),
-                value=row.label if rename else row.description,
-                placeholder=_("nombre de la playlist…") if rename else _("descripción…"),
-            ),
-            lambda text: self._edit(row, rename, text),
-        )
-
-    def _edit(self, row: Row, rename: bool, text: str | None) -> None:
-        if text is None:
-            return
-        text = text.strip()
-        # A name cannot be empty; a description can, and that clears it.
-        if (rename and (not text or text == row.label)) or (
-            not rename and text == row.description
-        ):
-            return
-        self._busy(_("guardando…"))
-        self._edit_worker(row, rename, text)
-
-    @work(thread=True, exclusive=True, group="playlist-edit")
-    def _edit_worker(self, row: Row, rename: bool, text: str) -> None:
-        session = self.player.session
-        ident = row.key.partition(":")[2]
-        done: str | None = None
-        try:
-            ensure_fresh(session)
-            if rename:
-                library.edit_playlist(session, ident, title=text)
-                message = _("«{old}» ahora se llama «{new}»").format(
-                    old=row.label, new=text
-                )
-            else:
-                library.edit_playlist(session, ident, description=text)
-                message = _("descripción de «{title}» cambiada").format(title=row.label)
-            done = text
-        except library.PlaylistNotWritable:
-            message = _("«{title}» es de otra cuenta: no se puede cambiar").format(
-                title=row.label
-            )
-        except Exception as exc:
-            message = _("playlist: {error}").format(error=exc)
-        self.app.call_from_thread(self._edited, message, row, rename, done)
-
-    def _edited(self, message: str, row: Row, rename: bool, text: str | None) -> None:
-        self.player.status = message
-        if not self.is_mounted:
-            return
-        self._idle()
-        if text is None:
-            return
-        # The row on screen, in place: the cached listing is already dropped,
-        # and the next visit asks TIDAL again.
-        if rename:
-            row.label = text
-        else:
-            row.description = text
-        self._list().refresh()
-
-    def _ask_delete(self, row: Row) -> None:
-        """Asked first, with the cursor on «cancelar»: a deleted playlist
-        does not come back."""
-        self.app.push_screen(
-            ChoiceScreen(
-                _("BORRAR PLAYLIST"),
-                [
-                    ("delete", _("borrar «{title}» de TIDAL").format(title=row.label)),
-                    ("cancel", _("cancelar")),
-                ],
-                cursor=1,
-            ),
-            lambda answer: self._delete(row) if answer == "delete" else None,
-        )
-
-    def _delete(self, row: Row) -> None:
-        self._busy(_("borrando…"))
-        self._delete_worker(row)
-
-    @work(thread=True, exclusive=True, group="playlist-edit")
-    def _delete_worker(self, row: Row) -> None:
-        session = self.player.session
-        gone: Row | None = None
-        try:
-            ensure_fresh(session)
-            library.delete_playlist(session, row.key.partition(":")[2])
-            message = _("«{title}» borrada").format(title=row.label)
-            gone = row
-        except library.PlaylistNotWritable:
-            message = _("«{title}» es de otra cuenta: no se puede cambiar").format(
-                title=row.label
-            )
-        except Exception as exc:
-            message = _("playlist: {error}").format(error=exc)
-        self.app.call_from_thread(self._removed, message, gone)
-
     def action_move_up(self) -> None:
-        self._move(-1)
+        self._edits.move(-1)
 
     def action_move_down(self) -> None:
-        self._move(1)
-
-    def _move(self, delta: int) -> None:
-        """`alt+↑` `alt+↓`: move a track inside a playlist of yours.
-
-        Only in the playlist's own order and with no filter: sorted or
-        narrowed, the row's place on screen is not its place in TIDAL, and
-        the move would land somewhere nobody asked for.
-        """
-        row = self._list().current
-        source = self._stack[-1][4] if self._stack else None
-        if (
-            row is None
-            or row.entry is None
-            or source is None
-            or not source.editable
-            or not source.key.startswith("playlist:")
-        ):
-            self.player.status = _("solo se reordenan las pistas de tus playlists")
-            return
-        if library.chosen(source) is not None or self._filter:
-            self.player.status = _(
-                "para mover una pista, la playlist tiene que estar en su orden "
-                "y sin filtro"
-            )
-            return
-        if self._moving:
-            return
-        level = self._level()
-        index = next((i for i, candidate in enumerate(level) if candidate is row), -1)
-        other = index + delta
-        if index < 0 or other < 0 or other >= len(level):
-            return
-        if level[other].entry is None:
-            # The next row is «más…»: the track that follows is not loaded.
-            self.player.status = _(
-                "carga la página siguiente con «más…» antes de bajarla"
-            )
-            return
-        self._moving = True
-        self._busy(_("moviendo…"))
-        self._move_worker(row, source, index, delta)
-
-    @work(thread=True, exclusive=True, group="playlist-move")
-    def _move_worker(self, row: Row, source: Row, index: int, delta: int) -> None:
-        session = self.player.session
-        assert row.entry is not None
-        moved = 0
-        try:
-            ensure_fresh(session)
-            library.move_in_playlist(
-                session, source.key.partition(":")[2], row.entry, index, delta
-            )
-            message = _("«{label}» movida").format(label=row.label)
-            moved = delta
-        except library.MoveNotConfirmed:
-            message = _(
-                "TIDAL no dejó «{label}» donde se pidió; R recarga la playlist"
-            ).format(label=row.label)
-        except library.TrackNotInPlaylist:
-            message = _("«{label}» ya no está en la playlist").format(label=row.label)
-        except library.PlaylistNotWritable:
-            message = _("«{title}» es de otra cuenta: no se puede cambiar").format(
-                title=source.label
-            )
-        except Exception as exc:
-            message = _("mover: {error}").format(error=exc)
-        self.app.call_from_thread(self._moved, message, row, moved)
-
-    def _moved(self, message: str, row: Row, delta: int) -> None:
-        self._moving = False
-        self.player.status = message
-        if not self.is_mounted:
-            return
-        self._idle()
-        if not delta:
-            return
-        # The two rows swap on screen, in the list the level is: TIDAL has
-        # them that way now, and asking again would only cost a request.
-        level = self._level()
-        index = next((i for i, candidate in enumerate(level) if candidate is row), -1)
-        other = index + delta
-        if index < 0 or not 0 <= other < len(level):
-            return
-        level[index], level[other] = level[other], level[index]
-        self._show(other)
+        self._edits.move(1)
 
     @work(thread=True, exclusive=True)
     def _container_worker(self, row: Row, action: str) -> None:
         loader = self._tracks_of(row)
         try:
-            entries = library.all_entries(loader)
+            entries = levels.all_entries(loader)
         except Exception as exc:
             self.app.call_from_thread(self._failed, exc)
             return
@@ -1094,7 +824,7 @@ class BrowserScreen(ModalScreen[tuple | None]):
         # Either one opens here, on top of this level: ⌫ comes back to it.
         if action == "artist":
             entry = row.entry
-            self.player.choose_artist(
+            self.player.tasks.choose_artist(
                 entry,
                 self.query_one(Spinner),
                 lambda ident: self._go_to(entry, "artist", ident),
@@ -1227,7 +957,7 @@ class BrowserScreen(ModalScreen[tuple | None]):
     def _append_container(self, loader) -> None:
         try:
             # All of it, not the first page the level would open on.
-            entries = library.all_entries(loader)
+            entries = levels.all_entries(loader)
         except Exception as exc:
             self.app.call_from_thread(self._failed, exc)
             return

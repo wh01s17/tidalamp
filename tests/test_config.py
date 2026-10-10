@@ -114,7 +114,7 @@ def test_keys_are_read_from_the_file(monkeypatch, tmp_path):
 
 
 def test_an_action_without_an_override_keeps_the_winamp_key():
-    from tidalamp.app import DEFAULT_KEYS, keys_for
+    from tidalamp.keys import DEFAULT_KEYS, keys_for
 
     # Winamp's letter is still the one a button shows and the one this test
     # is about; space rides behind it as a second binding.
@@ -123,30 +123,30 @@ def test_an_action_without_an_override_keeps_the_winamp_key():
 
 
 def test_an_override_wins(monkeypatch):
-    from tidalamp import app
+    from tidalamp import keys
 
-    monkeypatch.setitem(app.config.KEYS, "play", "p")
-    assert app.keys_for("play") == "p"
+    monkeypatch.setitem(keys.config.KEYS, "play", "p")
+    assert keys.keys_for("play") == "p"
 
 
 def test_an_unknown_action_is_reported_rather_than_silently_ignored(monkeypatch):
     """`tidalamp config` prints these; a binding for them would never fire."""
-    from tidalamp import app
+    from tidalamp import keys
 
-    monkeypatch.setitem(app.config.KEYS, "reproducir", "p")
-    assert app.unknown_key_actions() == ["reproducir"]
+    monkeypatch.setitem(keys.config.KEYS, "reproducir", "p")
+    assert keys.unknown_key_actions() == ["reproducir"]
 
 
 def test_asking_for_a_key_of_an_action_that_does_not_exist_is_a_bug():
-    from tidalamp import app
+    from tidalamp import keys
 
     with pytest.raises(KeyError):
-        app.keys_for("no_existe")
+        keys.keys_for("no_existe")
 
 
 def test_navigation_keys_are_not_rebindable():
     """A typo on the arrows would lock the user out of the browser."""
-    from tidalamp.app import DEFAULT_KEYS
+    from tidalamp.keys import DEFAULT_KEYS
 
     for fixed in ("cursor_up", "cursor_down", "play_selected"):
         assert fixed not in DEFAULT_KEYS
@@ -158,7 +158,7 @@ def test_navigation_keys_are_not_rebindable():
 def test_the_template_is_valid_toml_and_lists_every_action(tmp_path):
     import tomllib
 
-    from tidalamp.app import DEFAULT_KEYS
+    from tidalamp.keys import DEFAULT_KEYS
 
     path = config.write_template(tmp_path / "config.toml")
     text = path.read_text(encoding="utf-8")

@@ -57,7 +57,7 @@ class Layout:
     # The glyph budget: a layout for terminals without box drawing keeps its
     # own chrome to ASCII, and the transport swaps every glyph for a stand-in.
     ascii_only: bool = False
-    # What `_transport_keycaps` draws either side of each key's face.
+    # What `Transport._keycaps` draws either side of each key's face.
     keycaps: tuple[str, str] = ("[", "]")
     # A line set into the bottom of the frame, centred, for the looks that
     # finish theirs with a flourish.

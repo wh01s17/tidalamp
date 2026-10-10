@@ -8,7 +8,7 @@ from types import SimpleNamespace
 import pytest
 import tidalapi
 
-from tidalamp import library
+from tidalamp import levels, library, playlists
 from tidalamp.queue import Entry
 
 
@@ -230,7 +230,7 @@ def test_only_the_rows_of_my_playlists_can_be_edited():
 
 def test_renaming_keeps_the_description_it_had():
     playlist = FakePlaylist([1, 2])
-    old = library.edit_playlist(_session(playlist), "p1", title="Ruta")
+    old = playlists.edit_playlist(_session(playlist), "p1", title="Ruta")
 
     assert old == "Viaje"
     assert playlist.sent == [
@@ -240,35 +240,35 @@ def test_renaming_keeps_the_description_it_had():
 
 def test_an_empty_description_clears_it_instead_of_keeping_the_old_one():
     playlist = FakePlaylist([1, 2])
-    library.edit_playlist(_session(playlist), "p1", description="")
+    playlists.edit_playlist(_session(playlist), "p1", description="")
 
     assert playlist.sent[-1][2] == {"title": "Viaje", "description": ""}
 
 
 def test_someone_elses_playlist_is_not_written_to():
     theirs = SimpleNamespace(name="Ajena")
-    with pytest.raises(library.PlaylistNotWritable):
-        library.edit_playlist(_session(theirs), "p9", title="Mía")
-    with pytest.raises(library.PlaylistNotWritable):
-        library.delete_playlist(_session(theirs), "p9")
+    with pytest.raises(playlists.PlaylistNotWritable):
+        playlists.edit_playlist(_session(theirs), "p9", title="Mía")
+    with pytest.raises(playlists.PlaylistNotWritable):
+        playlists.delete_playlist(_session(theirs), "p9")
 
 
 def test_deleting_a_playlist_forgets_the_listing_and_the_playlist():
     playlist = FakePlaylist([1])
-    library._LEVELS.update(
+    levels._LEVELS.update(
         {"playlists": [], "playlists|name-asc": [], "playlist:p1": [], "other": []}
     )
 
-    assert library.delete_playlist(_session(playlist), "p1") == "Viaje"
+    assert playlists.delete_playlist(_session(playlist), "p1") == "Viaje"
     assert playlist.deleted == 1
-    assert set(library._LEVELS) == {"other"}
+    assert set(levels._LEVELS) == {"other"}
 
 
 def test_a_track_moves_one_place_down_and_the_move_is_checked():
     playlist = FakePlaylist([10, 11, 12])
     entry = Entry(id=11, title="b", artist="x")
 
-    library.move_in_playlist(_session(playlist), "p1", entry, 1, 1)
+    playlists.move_in_playlist(_session(playlist), "p1", entry, 1, 1)
 
     assert playlist.ids == [10, 12, 11]
 
@@ -277,22 +277,22 @@ def test_a_move_that_lands_elsewhere_says_so():
     playlist = FakePlaylist([10, 11, 12, 13], land_off_by_one=True)
     entry = Entry(id=10, title="a", artist="x")
 
-    with pytest.raises(library.MoveNotConfirmed):
-        library.move_in_playlist(_session(playlist), "p1", entry, 0, 2)
+    with pytest.raises(playlists.MoveNotConfirmed):
+        playlists.move_in_playlist(_session(playlist), "p1", entry, 0, 2)
 
 
 def test_a_track_that_is_no_longer_there_is_not_moved():
     playlist = FakePlaylist([10, 12])
     entry = Entry(id=11, title="b", artist="x")
 
-    with pytest.raises(library.TrackNotInPlaylist):
-        library.move_in_playlist(_session(playlist), "p1", entry, 1, 1)
+    with pytest.raises(playlists.TrackNotInPlaylist):
+        playlists.move_in_playlist(_session(playlist), "p1", entry, 1, 1)
     assert playlist.ids == [10, 12]
 
 
 def test_the_first_track_does_not_move_up():
     playlist = FakePlaylist([10, 11])
-    library.move_in_playlist(
+    playlists.move_in_playlist(
         _session(playlist), "p1", Entry(id=10, title="a", artist="x"), 0, -1
     )
     assert playlist.ids == [10, 11]

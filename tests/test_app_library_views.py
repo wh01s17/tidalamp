@@ -7,12 +7,13 @@ import asyncio
 
 from app_helpers import FakeMpv, isolate_runtime, settle
 
-from tidalamp import config, library
+from tidalamp import config, levels, playlists
 from tidalamp.app import BrowserScreen, RowList, TidalAmp
-from tidalamp.library import Row
+from tidalamp.levels import Row
 from tidalamp.queue import Entry
 from tidalamp.screens import browser as browser_module
 from tidalamp.screens import grid as grid_module
+from tidalamp.screens import playlist_edits
 from tidalamp.screens.grid import GridList
 from tidalamp.screens.tracks import CONTAINER_ACTIONS, PLAYLIST_ACTIONS
 
@@ -42,7 +43,7 @@ def quiet(monkeypatch, view: str) -> None:
     isolate_runtime(monkeypatch)
     monkeypatch.setattr(config, "LIBRARY_VIEW", view)
     monkeypatch.setattr(browser_module, "cover_cells", lambda url: None)
-    monkeypatch.setattr(browser_module, "ensure_fresh", lambda session: None)
+    monkeypatch.setattr(playlist_edits, "ensure_fresh", lambda session: None)
 
 
 def open_level(application, rows) -> None:
@@ -195,7 +196,7 @@ def test_alt_down_moves_the_track_in_tidal_and_on_screen(monkeypatch):
         moves.append((playlist_id, entry.id, index, delta))
         return "Viaje"
 
-    monkeypatch.setattr(library, "move_in_playlist", move)
+    monkeypatch.setattr(playlists, "move_in_playlist", move)
     rows = tracks(10, 11, 12)
 
     async def scenario() -> None:
@@ -226,9 +227,9 @@ def test_alt_down_moves_the_track_in_tidal_and_on_screen(monkeypatch):
 def test_a_sorted_playlist_is_not_reordered(monkeypatch):
     quiet(monkeypatch, "list")
     monkeypatch.setattr(
-        library, "move_in_playlist", lambda *a: (_ for _ in ()).throw(AssertionError)
+        playlists, "move_in_playlist", lambda *a: (_ for _ in ()).throw(AssertionError)
     )
-    monkeypatch.setattr(library, "chosen", lambda row: library.Order("name"))
+    monkeypatch.setattr(levels, "chosen", lambda row: levels.Order("name"))
     rows = tracks(10, 11)
 
     async def scenario() -> None:

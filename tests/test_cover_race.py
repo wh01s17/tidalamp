@@ -33,17 +33,17 @@ def test_a_cover_that_lands_as_the_window_closes_is_not_undone_by_the_tick(
 
             application.push_screen(Screen())
             await pilot.pause()
-            assert art.cover is None and application._art_hidden
+            assert art.cover is None and application.cover.hidden
 
             application.pop_screen()
             await pilot.pause()
             # Before any tick has run.
-            application._art_ready(new)
+            application.cover.ready(new)
             assert art.cover is new
 
             application._tick_slow()
             assert art.cover is new
-            assert not application._art_hidden
+            assert not application.cover.hidden
 
     asyncio.run(scenario())
 
@@ -63,8 +63,8 @@ def test_a_cover_that_cannot_be_had_takes_the_last_one_down(monkeypatch):
             art.show(a_cover(Protocol.KITTY, escape="\x1b_Gold\x1b\\"))
             await pilot.pause()
 
-            application._art_url = "https://x/new/320x320.jpg"
-            application._art_worker(application._art_url)
+            application.cover.url = "https://x/new/320x320.jpg"
+            application.cover.worker(application.cover.url)
             await settle(pilot, lambda: art.cover is None)
             assert art.cover is None
             assert "sin red" in application.status
@@ -86,11 +86,11 @@ def test_no_cover_behind_a_window_takes_the_hidden_one_with_it(monkeypatch):
             application.push_screen(Screen())
             await pilot.pause()
 
-            application._art_ready(None)
+            application.cover.ready(None)
             application.pop_screen()
             await pilot.pause()
             application._tick_slow()
             assert art.cover is None
-            assert application._pending_art is None
+            assert application.cover.pending is None
 
     asyncio.run(scenario())

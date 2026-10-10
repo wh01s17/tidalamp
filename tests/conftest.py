@@ -78,11 +78,11 @@ def queue_file(tmp_path, monkeypatch):
 @pytest.fixture(autouse=True)
 def clean_library_cache():
     """The browser's level cache is module state; keep it out of other tests."""
-    from tidalamp import library
+    from tidalamp import levels
 
-    library.forget()
+    levels.forget()
     yield
-    library.forget()
+    levels.forget()
 
 
 @pytest.fixture(autouse=True)
@@ -131,12 +131,12 @@ def pristine_config(tmp_path_factory, monkeypatch):
 def private_library_orders(tmp_path_factory, monkeypatch):
     """The browser remembers sort orders on disk; never in the developer's own
     state directory, and never from one test into the next."""
-    from tidalamp import library
+    from tidalamp import levels
 
     monkeypatch.setattr(
-        library, "ORDERS_FILE", tmp_path_factory.mktemp("state") / "library-orders.json"
+        levels, "ORDERS_FILE", tmp_path_factory.mktemp("state") / "library-orders.json"
     )
-    monkeypatch.setattr(library, "_CHOSEN", None)
+    monkeypatch.setattr(levels, "_CHOSEN", None)
 
 
 @pytest.fixture(autouse=True)

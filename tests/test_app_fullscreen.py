@@ -10,11 +10,14 @@ from app_helpers import FakeMpv, isolate_runtime, settle, wait_for
 from rich.cells import cell_len
 
 from tidalamp import app as app_module
-from tidalamp import artwork
+from tidalamp import artwork, keys
 from tidalamp.app import TidalAmp
+from tidalamp.lyrics_feed import LyricsFeed
+from tidalamp.playback import Playback
 from tidalamp.queue import Entry
 from tidalamp.screens import FullscreenScreen, HelpScreen, RowList
 from tidalamp.screens.fullscreen import FullArtwork
+from tidalamp.theme import LAYOUTS
 
 
 def a_queue_playing(application, playing: int = 0) -> None:
@@ -25,7 +28,7 @@ def a_queue_playing(application, playing: int = 0) -> None:
         ],
         start=playing,
     )
-    application._sync_queue()
+    application.queue_view.sync()
 
 
 def test_a_track_with_many_artists_keeps_the_album_on_its_own_row(monkeypatch):
@@ -52,7 +55,7 @@ def test_a_track_with_many_artists_keeps_the_album_on_its_own_row(monkeypatch):
                 ],
                 start=0,
             )
-            application._sync_queue()
+            application.queue_view.sync()
             await pilot.press("w")
             await pilot.pause()
             card = application.screen.query_one("#fs-track")
@@ -108,7 +111,7 @@ def test_w_opens_the_full_screen_view_and_esc_comes_back(monkeypatch):
 def test_tab_shows_the_queue_beside_the_cover_and_enter_plays_from_it(monkeypatch):
     isolate_runtime(monkeypatch)
     started: list[int] = []
-    monkeypatch.setattr(TidalAmp, "_play_index", lambda self, i: started.append(i))
+    monkeypatch.setattr(Playback, "play_index", lambda self, i: started.append(i))
 
     async def scenario() -> None:
         application = TidalAmp(object(), FakeMpv())
@@ -182,7 +185,7 @@ def test_the_pixel_cover_stays_up_here_and_hides_under_a_window(monkeypatch):
         application = TidalAmp(object(), FakeMpv())
         async with application.run_test(size=(120, 40)) as pilot:
             await pilot.pause()
-            application.art_protocol = artwork.Protocol.KITTY
+            application.cover.protocol = artwork.Protocol.KITTY
             a_queue_playing(application)
             await pilot.press("w")
             screen = application.screen
@@ -197,7 +200,7 @@ def test_the_pixel_cover_stays_up_here_and_hides_under_a_window(monkeypatch):
             assert art.cover.protocol is artwork.Protocol.KITTY
             assert art.rows > app_module.Artwork.MAX_ROWS
 
-            application.push_screen(HelpScreen(app_module.keys_for))
+            application.push_screen(HelpScreen(keys.keys_for))
             await pilot.pause()
             assert art.cover is None
 
@@ -213,7 +216,7 @@ def test_every_look_fits_the_full_screen_view_at_the_minimum(monkeypatch):
     isolate_runtime(monkeypatch)
 
     async def scenario() -> None:
-        for name in app_module.LAYOUTS:
+        for name in LAYOUTS:
             app_module.config.THEME = name
             application = TidalAmp(object(), FakeMpv())
             size = (TidalAmp.MIN_WIDTH, TidalAmp.MIN_HEIGHT)
@@ -366,7 +369,7 @@ def test_sixel_is_not_drawn_past_the_size_tidal_serves(monkeypatch):
             application = TidalAmp(object(), FakeMpv())
             async with application.run_test(size=(480, 130)) as pilot:
                 await pilot.pause()
-                application.art_protocol = protocol
+                application.cover.protocol = protocol
                 a_queue_playing(application)
                 await pilot.press("w")
 
@@ -397,7 +400,7 @@ def test_a_window_over_the_view_is_not_see_through_even_with_transparency(monkey
             await pilot.pause()
             a_queue_playing(application)
 
-            application.push_screen(HelpScreen(app_module.keys_for))
+            application.push_screen(HelpScreen(keys.keys_for))
             await pilot.pause()
             assert application.screen.has_class("transparent")
             assert application.screen.styles.background.a < 1
@@ -431,12 +434,12 @@ def test_turning_transparency_on_over_the_view_leaves_that_window_opaque(monkeyp
             a_queue_playing(application)
             await pilot.press("w")
             await pilot.pause()
-            application.push_screen(ConfigScreen(application._setting_changed))
+            application.push_screen(ConfigScreen(application.setting_changes.apply))
             await pilot.pause()
             settings = application.screen
 
             monkeypatch.setattr(app_module.config, "TRANSPARENCY", True)
-            application._setting_changed("transparency")
+            application.setting_changes.apply("transparency")
             await pilot.pause()
             assert not settings.has_class("transparent")
 
@@ -476,7 +479,7 @@ def test_transparency_turned_on_over_the_view_leaves_no_kitty_image(
         application = TidalAmp(object(), FakeMpv())
         async with application.run_test(size=(120, 40)) as pilot:
             await pilot.pause()
-            application.art_protocol = artwork.Protocol.KITTY
+            application.cover.protocol = artwork.Protocol.KITTY
             a_queue_playing(application)
             await pilot.press("w")
             view = application.screen
@@ -484,7 +487,7 @@ def test_transparency_turned_on_over_the_view_leaves_no_kitty_image(
             await settle(pilot, lambda: art.cover is not None)
             assert art.cover.protocol is artwork.Protocol.KITTY
 
-            settings = ConfigScreen(application._setting_changed)
+            settings = ConfigScreen(application.setting_changes.apply)
             application.push_screen(settings)
             await pilot.pause()
             row = next(
@@ -492,7 +495,7 @@ def test_transparency_turned_on_over_the_view_leaves_no_kitty_image(
             )
             settings._cycle(row, 1)
             await pilot.pause()
-            assert application.art_protocol is artwork.Protocol.BLOCKS
+            assert application.cover.protocol is artwork.Protocol.BLOCKS
             settings.dismiss(None)
             await settle(pilot, lambda: art.cover is not None)
             assert art.cover.protocol is artwork.Protocol.BLOCKS
@@ -524,7 +527,7 @@ def test_a_new_cover_shape_reaches_the_view(monkeypatch, tmp_path):
                 FullscreenScreen, "_request", lambda self: asked.append("again")
             )
             app_module.config.set_option("cover_shape", "round")
-            application._setting_changed("cover_shape")
+            application.setting_changes.apply("cover_shape")
             assert asked == ["again"]
 
     asyncio.run(scenario())
@@ -549,8 +552,8 @@ def a_lyric_for_every_track(monkeypatch, subtitles: str = "", text: str = "") ->
     from tidalamp.lyrics import parse_lyrics
 
     monkeypatch.setattr(
-        TidalAmp,
-        "_lyrics_for",
+        LyricsFeed,
+        "for_entry",
         lambda self, entry: parse_lyrics(
             subtitles=subtitles.format(title=entry.title) if subtitles else "",
             text=text.format(title=entry.title) if text else "",
@@ -650,7 +653,7 @@ def test_the_words_in_the_view_follow_the_song_and_the_track(monkeypatch):
             # where one used to be.
             assert not screen.query("#fs-lyrics-title")
 
-            application.mpris_next()
+            application.media.mpris_next()
             await settle(pilot, lambda: screen._words_entry == 1)
             assert _board(screen).document is not None
 

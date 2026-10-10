@@ -22,10 +22,11 @@ from textual.widgets import Static
 
 from tidalamp import app as app_module
 from tidalamp.app import ConfigScreen, RowList, TidalAmp
+from tidalamp.cover import DISPLAY_HEIGHT
 from tidalamp.layouts import LAYOUT_TABLE
 from tidalamp.queue import Entry
 from tidalamp.screens import config_window as screens_module
-from tidalamp.theme import DEFAULT_COLORS, ThemePalette
+from tidalamp.theme import DEFAULT_COLORS, LAYOUTS, ThemePalette
 from tidalamp.widgets import (
     Artwork,
     Glide,
@@ -41,14 +42,14 @@ def test_running_app_follows_an_omarchy_theme_change(monkeypatch):
     changed = ThemePalette(changed_colors, source="omarchy")
     palettes = iter((initial, changed))
     monkeypatch.setattr(
-        "tidalamp.app.load_palette", lambda *args, **kwargs: next(palettes)
+        "tidalamp.theme.load_palette", lambda *args, **kwargs: next(palettes)
     )
 
     async def scenario() -> None:
         application = TidalAmp(object(), FakeMpv())
         async with application.run_test() as pilot:
             await pilot.press("s")
-            application._refresh_theme()
+            application.looks.refresh_theme()
 
             modes = application.query_one("#transport-play", Static)
             assert application.tidalamp_palette is changed
@@ -138,7 +139,7 @@ def test_no_look_lets_the_cover_spill_onto_the_seek_bar(monkeypatch):
     isolate_runtime(monkeypatch)
 
     async def scenario() -> None:
-        for name in app_module.LAYOUTS:
+        for name in LAYOUTS:
             app_module.config.THEME = name
             application = TidalAmp(object(), FakeMpv())
             async with application.run_test(size=(120, 40)) as pilot:
@@ -152,7 +153,7 @@ def test_no_look_lets_the_cover_spill_onto_the_seek_bar(monkeypatch):
                 assert art.rows <= room, f"{name}: la carátula no cabe en su banda"
                 assert display.region.bottom <= seek.region.y, name
                 # And the band is not padded out further than it needs.
-                assert room == max(app_module.DISPLAY_HEIGHT, art.rows), name
+                assert room == max(DISPLAY_HEIGHT, art.rows), name
 
     asyncio.run(scenario())
 
@@ -162,7 +163,7 @@ def test_every_look_fits_the_smallest_supported_terminal(monkeypatch):
     isolate_runtime(monkeypatch)
 
     async def scenario() -> None:
-        for name in app_module.LAYOUTS:
+        for name in LAYOUTS:
             app_module.config.THEME = name
             application = TidalAmp(object(), FakeMpv())
             async with application.run_test(size=(60, 18)) as pilot:
@@ -223,7 +224,7 @@ def test_switching_look_remeasures_the_transport_instead_of_cropping_it(monkeypa
 
             for name in ("retro", "nova", "quattro"):
                 app_module.config.THEME = name
-                application._apply_appearance()
+                application.looks.apply_appearance()
                 await pilot.pause()
                 drawn = widget.render_line(1).text
 
@@ -385,7 +386,7 @@ def test_switching_layout_keeps_the_cover_off_the_seek_bar(theme, monkeypatch):
             await pilot.pause()
 
             use_theme(monkeypatch, theme)
-            application._apply_appearance()
+            application.looks.apply_appearance()
             await pilot.pause()
 
             art = application.query_one(Artwork)
@@ -406,7 +407,7 @@ def test_theme_and_palette_change_live_and_persist(monkeypatch, tmp_path):
             assert application.query_one("#main").has_class("quattro")
             assert "╭" not in transport(application)
 
-            screen = ConfigScreen(application._setting_changed)
+            screen = ConfigScreen(application.setting_changes.apply)
             application.push_screen(screen)
             await pilot.pause()
 
@@ -448,7 +449,7 @@ def test_a_paired_theme_writes_its_palette_once_and_then_lets_go(monkeypatch, tm
         application = TidalAmp(object(), FakeMpv())
         async with application.run_test(size=(120, 34)) as pilot:
             await pilot.pause()
-            screen = ConfigScreen(application._setting_changed)
+            screen = ConfigScreen(application.setting_changes.apply)
             application.push_screen(screen)
             await pilot.pause()
 
@@ -511,7 +512,7 @@ def test_every_look_keeps_its_title_and_parts_the_cover_from_the_frame(
     async def scenario() -> None:
         for arrangement, size in (("stacked", (120, 34)), ("split", (170, 40))):
             app_module.config.ARRANGEMENT = arrangement
-            for name in app_module.LAYOUTS:
+            for name in LAYOUTS:
                 app_module.config.THEME = name
                 application = TidalAmp(object(), FakeMpv())
                 async with application.run_test(size=size) as pilot:
@@ -557,7 +558,7 @@ def test_a_themed_look_draws_its_emblem_behind_the_queue(
                 ],
                 start=0,
             )
-            application._sync_queue()
+            application.queue_view.sync()
             await pilot.pause()
             playlist = application.query_one("#playlist", RowList)
             assert playlist.backdrop
@@ -594,7 +595,7 @@ def test_a_themed_look_draws_its_emblem_behind_the_queue(
             assert {c.lower() for c in _grounds(playlist, cursor)} <= {accent, plain}
 
             app_module.config.THEME = "quattro"
-            application._apply_appearance()
+            application.looks.apply_appearance()
             await pilot.pause()
             assert not playlist.backdrop
             assert all(
@@ -626,7 +627,7 @@ def test_the_queue_backdrop_is_a_setting_of_its_own(monkeypatch, tmp_path):
                 ("auto", "cuaderno.png", "middle"),
             ):
                 app_module.config.set_option("backdrop", value)
-                application._setting_changed("backdrop")
+                application.setting_changes.apply("backdrop")
                 await pilot.pause()
                 if picture is None:
                     assert playlist.backdrop is None, value
@@ -637,7 +638,7 @@ def test_the_queue_backdrop_is_a_setting_of_its_own(monkeypatch, tmp_path):
             # A theme without a picture of its own can wear one.
             app_module.config.set_option("theme", "retro")
             app_module.config.set_option("backdrop", "comodin")
-            application._setting_changed("backdrop")
+            application.setting_changes.apply("backdrop")
             await pilot.pause()
             assert playlist.backdrop.name == "comodin.png"
 
@@ -678,7 +679,7 @@ def test_choosing_a_themed_look_writes_its_palette_and_its_backdrop(
         application = TidalAmp(object(), FakeMpv())
         async with application.run_test(size=(140, 40)) as pilot:
             await pilot.pause()
-            screen = ConfigScreen(application._setting_changed)
+            screen = ConfigScreen(application.setting_changes.apply)
             application.push_screen(screen)
             await pilot.pause()
             row = config_row(screen, "Tema")
@@ -712,16 +713,16 @@ def test_the_cover_shape_is_a_setting_of_its_own(monkeypatch, tmp_path):
         application = TidalAmp(object(), FakeMpv())
         async with application.run_test(size=(140, 40)) as pilot:
             await pilot.pause()
-            assert application._cover_look()[0] == "square"
+            assert application.cover.look()[0] == "square"
             fetched = []
-            monkeypatch.setattr(application, "_art_worker", fetched.append)
-            application._art_url = "http://cover"
-            application._art_look = application._cover_look()
+            monkeypatch.setattr(application.cover, "worker", fetched.append)
+            application.cover.url = "http://cover"
+            application.cover.cut_with = application.cover.look()
 
             app_module.config.set_option("cover_shape", "round")
-            application._setting_changed("cover_shape")
+            application.setting_changes.apply("cover_shape")
             await pilot.pause()
-            outline, ground = application._cover_look()
+            outline, ground = application.cover.look()
             assert outline == "round"
             # Nova paints the band as the panel, and the corners follow it.
             band = application.query_one("#display").styles.background
@@ -745,7 +746,7 @@ def test_reggae_notes_take_green_and_red_in_turn(monkeypatch):
             await pilot.pause()
             palette = application.tidalamp_palette
             wanted = [palette["playable"], palette["danger"]]
-            title = application._title_text(80)
+            title = application.looks.title_text(80)
             assert isinstance(title, Text)
             notes = [
                 str(span.style) for span in title.spans if title.plain[span.start] in "♪♫"
@@ -753,8 +754,9 @@ def test_reggae_notes_take_green_and_red_in_turn(monkeypatch):
             assert notes[:4] == wanted * 2
             assert all(title.plain[span.start] in "♪♫" for span in title.spans)
             # The foot keeps all three.
-            foot = application._tinted(
-                application.layout.frame_subtitle, application.layout.flourish_colors
+            foot = application.looks.tinted(
+                application.looks.layout.frame_subtitle,
+                application.looks.layout.flourish_colors,
             )
             assert [str(span.style) for span in foot.spans] == [
                 palette["danger"],
@@ -764,9 +766,9 @@ def test_reggae_notes_take_green_and_red_in_turn(monkeypatch):
             assert "♪" in application.query_one("#main").border_subtitle
 
             use_theme(monkeypatch, "quattro")
-            application._apply_appearance()
+            application.looks.apply_appearance()
             await pilot.pause()
-            assert isinstance(application._title_text(80), str)
+            assert isinstance(application.looks.title_text(80), str)
 
     asyncio.run(scenario())
 
@@ -783,7 +785,7 @@ def test_windows_terminal_paints_its_margin_in_the_players_ground(monkeypatch):
     colors = dict(DEFAULT_COLORS)
     colors["panel"] = "#1c1128"
     monkeypatch.setattr(
-        "tidalamp.app.load_palette",
+        "tidalamp.theme.load_palette",
         lambda *args, **kwargs: ThemePalette(dict(colors), source="omarchy"),
     )
     written: list[str] = []
@@ -798,18 +800,18 @@ def test_windows_terminal_paints_its_margin_in_the_players_ground(monkeypatch):
             monkeypatch.setattr(driver, "write", written.append)
             monkeypatch.setattr(driver, "flush", lambda: None)
 
-            application._paint_terminal_margin("linux", terminal)
-            application._paint_terminal_margin("win32", {})
+            application.looks.paint_terminal_margin("linux", terminal)
+            application.looks.paint_terminal_margin("win32", {})
             assert written == []
-            application._paint_terminal_margin("win32", terminal)
+            application.looks.paint_terminal_margin("win32", terminal)
             assert written == ["\x1b]11;rgb:1c/11/28\x1b\\"]
             # Only when the colour changes: the theme is polled every 2 s.
-            application._paint_terminal_margin("win32", terminal)
+            application.looks.paint_terminal_margin("win32", terminal)
             assert len(written) == 1
 
             colors["panel"] = "#1a1b26"
-            application._refresh_theme()
-            application._paint_terminal_margin("win32", terminal)
+            application.looks.refresh_theme()
+            application.looks.paint_terminal_margin("win32", terminal)
             assert written[-1] == "\x1b]11;rgb:1a/1b/26\x1b\\"
 
         assert written[-1] == "\x1b]111\x1b\\"

@@ -2,8 +2,9 @@
 
 A facade (see `tidalamp.backends`): MPRIS2 over D-Bus on Linux, in
 `tidalamp.backends.linux.mpris`; on Windows, for now, a service that does
-nothing. The contract is in `tidalamp.media`. The `mpris_*` names in the app
-are the adapter's and keep that name whatever the backend.
+nothing. The contract is in `tidalamp.media`. The `mpris_*` names in
+`media_bridge.MediaBridge` are the adapter's and keep that name whatever the
+backend.
 """
 
 from __future__ import annotations

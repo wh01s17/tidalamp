@@ -13,9 +13,10 @@ from app_helpers import FakeMpv, isolate_runtime
 
 from tidalamp import audio
 from tidalamp.app import TidalAmp
+from tidalamp.output import Output
 
 # Taken before any test can patch it: isolate_runtime switches it off.
-SINK_WORKER = TidalAmp._refresh_sink_worker
+SINK_WORKER = Output.follow
 
 
 def _from_thread(application: TidalAmp, callback, *args) -> dict:
@@ -130,7 +131,7 @@ def test_the_sink_worker_finishing_after_the_app_touches_nothing(monkeypatch):
     past its last look at `is_cancelled`, and the reading brings a new rate,
     which is what makes the worker call back."""
     isolate_runtime(monkeypatch)
-    monkeypatch.setattr(TidalAmp, "_refresh_sink_worker", SINK_WORKER)
+    monkeypatch.setattr(Output, "follow", SINK_WORKER)
     reading = threading.Event()
     closed = threading.Event()
     readings = iter([48000, 96000])
@@ -144,13 +145,13 @@ def test_the_sink_worker_finishing_after_the_app_touches_nothing(monkeypatch):
 
     monkeypatch.setattr(audio, "sink", sink)
     landed: list[tuple[int, bool]] = []
-    set_sink = TidalAmp._set_sink
+    set_sink = Output.set_sink
 
     def spy(self, sink, stream_rate=0):
-        landed.append((sink.rate, self.is_running))
+        landed.append((sink.rate, self.app.is_running))
         set_sink(self, sink, stream_rate)
 
-    monkeypatch.setattr(TidalAmp, "_set_sink", spy)
+    monkeypatch.setattr(Output, "set_sink", spy)
 
     async def scenario() -> None:
         application = TidalAmp(object(), FakeMpv())

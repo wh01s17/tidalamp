@@ -18,10 +18,11 @@ from app_helpers import (
     wait_for,
 )
 
-from tidalamp import about, artwork
+from tidalamp import about, artwork, keys
 from tidalamp import app as app_module
 from tidalamp import audio as audio_module
 from tidalamp.app import TidalAmp
+from tidalamp.playback import Playback
 from tidalamp.player import Mpv
 from tidalamp.queue import Entry
 from tidalamp.screens import (
@@ -48,7 +49,7 @@ def test_the_transport_buttons_are_clickable_without_changing_keyboard_controls(
         async with application.run_test(size=(120, 32)) as pilot:
             await pilot.pause()
             start, end, _action = next(
-                hit for hit in application._transport_hits if hit[2] == "shuffle"
+                hit for hit in application.transport.hits if hit[2] == "shuffle"
             )
             clicked = await pilot.click(
                 "#transport-play", offset=((start + end) // 2, LABEL_ROW)
@@ -67,9 +68,9 @@ def test_the_transport_runs_z_x_c_v_across_the_keyboard(monkeypatch):
     fifth (`b`) went with the separate pause button, and came back for the
     speed window: never a second pause."""
     isolate_runtime(monkeypatch)
-    keys = app_module.DEFAULT_KEYS
+    bound = keys.DEFAULT_KEYS
 
-    faces = [keys[action].split(",")[0] for action in ("prev", "play", "stop", "next")]
+    faces = [bound[action].split(",")[0] for action in ("prev", "play", "stop", "next")]
     assert faces == list("zxcv")
     assert {
         binding.action for binding in TidalAmp.BINDINGS if "b" in binding.key.split(",")
@@ -106,7 +107,7 @@ def test_play_and_pause_are_one_button_showing_what_it_will_do(monkeypatch):
     """There used to be «x ▶» and «c ⏸» side by side, and only one of them
     ever made sense at a given moment."""
     isolate_runtime(monkeypatch)
-    monkeypatch.setattr(TidalAmp, "_resolve_worker", lambda self, entry: None)
+    monkeypatch.setattr(Playback, "resolve_worker", lambda self, entry: None)
 
     async def scenario() -> None:
         mpv = FakeMpv()
@@ -136,7 +137,7 @@ def test_a_track_ending_on_its_own_still_advances(monkeypatch):
     """The guard must not cost the auto-advance it sits next to."""
     isolate_runtime(monkeypatch)
     started: list[int] = []
-    monkeypatch.setattr(TidalAmp, "_play_index", lambda self, i: started.append(i))
+    monkeypatch.setattr(Playback, "play_index", lambda self, i: started.append(i))
 
     async def scenario() -> None:
         mpv = FakeMpv()
@@ -147,13 +148,13 @@ def test_a_track_ending_on_its_own_still_advances(monkeypatch):
                 [Entry(id=i, title=f"t{i}", artist="a", duration=9) for i in range(3)],
                 start=0,
             )
-            application._sync_queue()
+            application.queue_view.sync()
             mpv.idle = False
             # The track is open and playing. Without that, idle is a load
             # that failed rather than a song that finished, and the player
             # tells the two apart (`test_app_load_failure.py`).
             mpv.duration, mpv.position = 9.0, 4.0
-            await wait_for(pilot, lambda: application._was_idle is False)
+            await wait_for(pilot, lambda: application.playback.was_idle is False)
             started.clear()
 
             # mpv falls idle by itself: the song finished.
@@ -170,8 +171,8 @@ def test_there_is_no_second_key_that_pauses(monkeypatch):
     was just a second shortcut for the same thing. It is the stop key now."""
     isolate_runtime(monkeypatch)
 
-    assert "pause" not in app_module.DEFAULT_KEYS
-    assert app_module.DEFAULT_KEYS["stop"] == "c"
+    assert "pause" not in keys.DEFAULT_KEYS
+    assert keys.DEFAULT_KEYS["stop"] == "c"
 
     async def scenario() -> None:
         mpv = FakeMpv()
@@ -202,9 +203,9 @@ def test_mpris_play_pause_still_toggles(monkeypatch):
             await pilot.pause()
             mpv.idle = False
 
-            application.mpris_play_pause()
+            application.media.mpris_play_pause()
             assert mpv.paused is True
-            application.mpris_play_pause()
+            application.media.mpris_play_pause()
             assert mpv.paused is False
 
     asyncio.run(scenario())
@@ -273,15 +274,15 @@ def test_the_marquee_carries_the_number_and_the_title_and_nothing_else(monkeypat
     """The artist, the album and the length moved under the clock. One line is
     all the marquee has, and it spends it on the title."""
     isolate_runtime(monkeypatch)
-    monkeypatch.setattr(TidalAmp, "_resolve_worker", lambda self, entry: None)
+    monkeypatch.setattr(Playback, "resolve_worker", lambda self, entry: None)
 
     async def scenario() -> None:
         application = TidalAmp(object(), FakeMpv())
         async with application.run_test(size=(120, 32)) as pilot:
             await pilot.pause()
             application.queue.replace([a_deftones_track()], start=-1)
-            application._sync_queue()
-            application._play_index(0)
+            application.queue_view.sync()
+            application.playback.play_index(0)
             await pilot.pause()
 
             text = application.query_one(Marquee).text
@@ -294,7 +295,7 @@ def test_the_marquee_carries_the_number_and_the_title_and_nothing_else(monkeypat
 def test_a_track_with_no_year_does_not_leave_a_stray_separator(monkeypatch):
     """A restored queue from before the year column carries `year = 0`."""
     isolate_runtime(monkeypatch)
-    monkeypatch.setattr(TidalAmp, "_resolve_worker", lambda self, entry: None)
+    monkeypatch.setattr(Playback, "resolve_worker", lambda self, entry: None)
 
     async def scenario() -> None:
         application = TidalAmp(object(), FakeMpv())
@@ -312,8 +313,8 @@ def test_a_track_with_no_year_does_not_leave_a_stray_separator(monkeypatch):
                 ],
                 start=-1,
             )
-            application._sync_queue()
-            application._play_index(0)
+            application.queue_view.sync()
+            application.playback.play_index(0)
             await pilot.pause()
 
             lines = [
@@ -494,14 +495,14 @@ def test_mpris_cannot_push_the_volume_past_the_ceiling(monkeypatch):
         application = TidalAmp(object(), mpv)
         async with application.run_test(size=(100, 36)) as pilot:
             await pilot.pause()
-            application.mpris_set_volume(1.3)
+            application.media.mpris_set_volume(1.3)
             assert mpv.volume == Mpv.VOLUME_MAX
-            assert application.mpris_volume() == 1.0
+            assert application.media.mpris_volume() == 1.0
 
-            application.mpris_set_volume(-2.0)
+            application.media.mpris_set_volume(-2.0)
             assert mpv.volume == 0
 
-            application.mpris_set_volume(0.45)
+            application.media.mpris_set_volume(0.45)
             assert mpv.volume == 45
 
     asyncio.run(scenario())
@@ -547,7 +548,7 @@ def test_a_status_with_square_brackets_reaches_the_screen_intact(monkeypatch):
 
 def test_resolving_a_track_says_so_and_stops_saying_it(monkeypatch):
     isolate_runtime(monkeypatch)
-    monkeypatch.setattr(TidalAmp, "_resolve_worker", lambda self, entry: None)
+    monkeypatch.setattr(Playback, "resolve_worker", lambda self, entry: None)
 
     class Playable:
         url = "https://cdn/a"
@@ -563,19 +564,19 @@ def test_resolving_a_track_says_so_and_stops_saying_it(monkeypatch):
             await pilot.pause()
             entry = Entry(id=1, title="Schism", artist="TOOL")
             application.queue.append([entry])
-            application._sync_queue()
+            application.queue_view.sync()
 
-            application._play_index(0)
+            application.playback.play_index(0)
             busy = application.query_one("#busy", Spinner)
             assert busy.busy
             assert busy.label == "resolviendo «Schism»…"
 
-            application._start(entry, Playable())
+            application.playback.start(entry, Playable())
             assert not busy.busy
 
             # A failure has to clear it too, or the app looks stuck forever.
-            application._play_index(0)
-            application._resolve_failed("error: sin red")
+            application.playback.play_index(0)
+            application.playback.resolve_failed("error: sin red")
             assert not busy.busy
             assert application.status == "error: sin red"
 
@@ -600,7 +601,7 @@ def test_a_quality_downgrade_reaches_the_status_line(monkeypatch):
         async with application.run_test(size=(100, 40)) as pilot:
             await pilot.pause()
             entry = Entry(id=1, title="Schism", artist="TOOL")
-            application._start(entry, Downgraded())
+            application.playback.start(entry, Downgraded())
 
             assert "TIDAL entregó HIGH, no LOSSLESS" in application.status
             badges = application.query_one("#badges", Glide)
@@ -630,9 +631,9 @@ def test_source_output_and_pause_are_separate_truthful_readouts(monkeypatch):
         async with application.run_test(size=(120, 36)) as pilot:
             entry = Entry(id=1, title="Thriller", artist="Michael Jackson")
             application.queue.replace([entry], start=0)
-            application._sync_queue()
-            application._start(entry, HiRes())
-            application._set_sink(
+            application.queue_view.sync()
+            application.playback.start(entry, HiRes())
+            application.output.set_sink(
                 audio_module.Sink(
                     name="alsa_output.usb",
                     description="FIIO BTR15",
@@ -650,7 +651,7 @@ def test_source_output_and_pause_are_separate_truthful_readouts(monkeypatch):
             assert output == "OUT  FIIO BTR15 · PCM S32LE · 176.4 kHz"
 
             # mpv sending another rate is PipeWire resampling: say it there.
-            application._set_sink(
+            application.output.set_sink(
                 audio_module.Sink(
                     name="alsa_output.usb", description="FIIO BTR15", rate=48000
                 ),
@@ -716,13 +717,13 @@ def test_a_desktop_s_rate_lands_on_the_nearest_quarter(monkeypatch):
         application = TidalAmp(object(), mpv)
         async with application.run_test(size=(150, 26)) as pilot:
             await pilot.pause()
-            application.mpris_set_rate(0.6)
+            application.media.mpris_set_rate(0.6)
             assert mpv.speed == 0.5
-            assert application.mpris_rate() == 0.5
-            application.mpris_set_rate(0)
-            application.mpris_set_rate(-1.0)
+            assert application.media.mpris_rate() == 0.5
+            application.media.mpris_set_rate(0)
+            application.media.mpris_set_rate(-1.0)
             assert mpv.speed == 0.5
-            application.mpris_set_rate(3.0)
+            application.media.mpris_set_rate(3.0)
             assert mpv.speed == 2.0
             await pilot.pause()
             assert "b 2×" in transport(application)
@@ -743,7 +744,7 @@ def test_q_asks_before_quitting_and_ctrl_c_does_not(monkeypatch):
 
     # Not Textual's `_shutdown`: stubbing that one left the test waiting on
     # an app that never finished closing.
-    monkeypatch.setattr(TidalAmp, "_close_player", close_player)
+    monkeypatch.setattr(TidalAmp, "close_player", close_player)
 
     async def scenario() -> None:
         application = TidalAmp(object(), FakeMpv())
@@ -782,12 +783,12 @@ def test_a_tick_after_teardown_finds_no_screen_quietly():
     import pytest
     from textual.app import ScreenStackError
 
-    from tidalamp.app import _quiet_after_teardown
+    from tidalamp.workers import quiet_after_teardown
 
     class Stub:
         _running = False
 
-        @_quiet_after_teardown
+        @quiet_after_teardown
         def tick(self):
             raise ScreenStackError("No screens on stack")
 
@@ -803,7 +804,7 @@ def test_a_resolve_that_comes_back_late_does_not_start_an_older_track(monkeypatc
     """A worker's thread is not cancelled with it: «next» pressed twice quickly
     could see the first track's resolve land after the second was asked for."""
     isolate_runtime(monkeypatch)
-    monkeypatch.setattr(TidalAmp, "_resolve_worker", lambda self, entry: None)
+    monkeypatch.setattr(Playback, "resolve_worker", lambda self, entry: None)
 
     class Playable:
         kbps = "16-bit"
@@ -823,19 +824,19 @@ def test_a_resolve_that_comes_back_late_does_not_start_an_older_track(monkeypatc
             first = Entry(id=1, title="Schism", artist="TOOL")
             second = Entry(id=2, title="Parabola", artist="TOOL")
             application.queue.append([first, second])
-            application._sync_queue()
+            application.queue_view.sync()
             busy = application.query_one("#busy", Spinner)
 
-            application._play_index(0)
-            application._play_index(1)
+            application.playback.play_index(0)
+            application.playback.play_index(1)
 
-            application._start(first, Playable("https://cdn/schism"))
+            application.playback.start(first, Playable("https://cdn/schism"))
             assert mpv.loaded is None, "la vieja no se pone a sonar"
             assert busy.busy, "la nueva sigue resolviéndose"
-            application._resolve_failed("error: sin red", first)
+            application.playback.resolve_failed("error: sin red", first)
             assert busy.busy and application.status != "error: sin red"
 
-            application._start(second, Playable("https://cdn/parabola"))
+            application.playback.start(second, Playable("https://cdn/parabola"))
             assert mpv.loaded == "https://cdn/parabola"
             assert not busy.busy
 
@@ -844,7 +845,7 @@ def test_a_resolve_that_comes_back_late_does_not_start_an_older_track(monkeypatc
 
 def test_a_resolve_that_comes_back_after_stop_does_not_play(monkeypatch):
     isolate_runtime(monkeypatch)
-    monkeypatch.setattr(TidalAmp, "_resolve_worker", lambda self, entry: None)
+    monkeypatch.setattr(Playback, "resolve_worker", lambda self, entry: None)
 
     class Playable:
         url = "https://cdn/schism"
@@ -861,21 +862,21 @@ def test_a_resolve_that_comes_back_after_stop_does_not_play(monkeypatch):
             await pilot.pause()
             entry = Entry(id=1, title="Schism", artist="TOOL")
             application.queue.append([entry])
-            application._sync_queue()
+            application.queue_view.sync()
             busy = application.query_one("#busy", Spinner)
 
-            application._play_index(0)
+            application.playback.play_index(0)
             assert busy.busy
-            application.action_stop()
+            application.playback.stop()
             assert not busy.busy, "detener se lleva el indicador"
 
-            application._start(entry, Playable())
+            application.playback.start(entry, Playable())
             assert mpv.loaded is None, "detenido sigue detenido"
             assert application.status == "detenido"
 
             # Playing again afterwards works as ever.
-            application._play_index(0)
-            application._start(entry, Playable())
+            application.playback.play_index(0)
+            application.playback.start(entry, Playable())
             assert mpv.loaded == "https://cdn/schism"
 
     asyncio.run(scenario())

@@ -15,7 +15,7 @@ from textual.widgets import Static
 
 from .. import library
 from ..i18n import _
-from ..library import Row
+from ..levels import Row
 from ..theme import palette_for
 from .rowlist import RowChosen, RowList
 

@@ -59,9 +59,9 @@ def test_pushing_a_screen_before_the_ui_exists_is_harmless(monkeypatch):
     """Textual pushes the default screen while compose has not run yet."""
     isolate_runtime(monkeypatch)
     application = TidalAmp(object(), FakeMpv())
-    application._hide_art()
-    application._restore_art()
-    assert application._artwork() is None
+    application.cover.hide()
+    application.cover.restore()
+    assert application.cover.widget() is None
 
 
 # ---------------------------------------------------------------- loading state

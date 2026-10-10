@@ -9,7 +9,7 @@ from app_helpers import FakeMpv, isolate_runtime, settle
 
 from tidalamp import config
 from tidalamp.app import BrowserScreen, TidalAmp
-from tidalamp.library import Row
+from tidalamp.levels import Row
 from tidalamp.screens import browser as browser_module
 from tidalamp.screens import grid as grid_module
 from tidalamp.screens.grid import GridList

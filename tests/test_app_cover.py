@@ -23,11 +23,16 @@ from textual.screen import Screen
 from textual.widgets import Input, Static
 
 from tidalamp import app as app_module
-from tidalamp import artwork, library
+from tidalamp import artwork, auth, playlists, spectrum_feed
 from tidalamp import audio as audio_module
 from tidalamp.app import ConfigScreen, RowList, TidalAmp
 from tidalamp.artwork import Protocol
+from tidalamp.cover import CoverView
+from tidalamp.library_tasks import LibraryTasks
+from tidalamp.playback import Playback
 from tidalamp.queue import Entry
+from tidalamp.spectrum_feed import SpectrumFeed
+from tidalamp.theme import LAYOUTS
 from tidalamp.widgets import (
     Analyzer,
     Artwork,
@@ -89,13 +94,13 @@ def test_resizing_asks_for_the_cover_again_at_the_new_size(monkeypatch):
     """resize() drops the old cover, so something has to redraw it."""
     isolate_runtime(monkeypatch)
     asked: list[str] = []
-    monkeypatch.setattr(TidalAmp, "_art_worker", lambda self, url: asked.append(url))
+    monkeypatch.setattr(CoverView, "worker", lambda self, url: asked.append(url))
 
     async def scenario() -> None:
         application = TidalAmp(object(), FakeMpv())
         async with application.run_test(size=(100, 30)) as pilot:
             await pilot.pause()
-            application._art_url = "http://example/cover.jpg"
+            application.cover.url = "http://example/cover.jpg"
             asked.clear()
             application.query_one(Artwork).show(a_cover())
 
@@ -147,13 +152,13 @@ def test_a_modal_takes_a_pixel_cover_down_and_the_tick_puts_it_back(monkeypatch)
             application.push_screen(Screen())
             await pilot.pause()
             assert art.cover is None
-            assert application._art_hidden
+            assert application.cover.hidden
 
             application.pop_screen()
             await pilot.pause()
             application._tick_slow()
             assert art.cover is cover
-            assert not application._art_hidden
+            assert not application.cover.hidden
 
     asyncio.run(scenario())
 
@@ -164,26 +169,26 @@ def test_switching_the_cover_protocol_redraws_it_without_a_restart(monkeypatch):
     behalf, and a hole where the cover was until the next launch is not."""
     isolate_runtime(monkeypatch)
     asked: list[str] = []
-    monkeypatch.setattr(TidalAmp, "_art_worker", lambda self, url: asked.append(url))
+    monkeypatch.setattr(CoverView, "worker", lambda self, url: asked.append(url))
 
     async def scenario() -> None:
         application = TidalAmp(object(), FakeMpv())
-        application.art_protocol = Protocol.KITTY
+        application.cover.protocol = Protocol.KITTY
         async with application.run_test(size=(100, 30)) as pilot:
             await pilot.pause()
             entry = Entry(id=1, title="t", artist="a", art_url="https://c/1.jpg")
             application.queue.replace([entry], start=0)
-            application._load_art(entry)
+            application.cover.load(entry)
             application.query_one(Artwork).show(a_cover(Protocol.KITTY))
             asked.clear()
 
             # Through monkeypatch: it is a module global, and leaving it set
             # would follow the next test into its own run.
             monkeypatch.setattr(app_module.config, "ARTWORK", "blocks")
-            application._setting_changed("artwork")
+            application.setting_changes.apply("artwork")
             await pilot.pause()
 
-            assert application.art_protocol is Protocol.BLOCKS
+            assert application.cover.protocol is Protocol.BLOCKS
             # The old picture came down — a kitty image outlives its cells
             # until something deletes it — and the new one was asked for.
             assert asked == ["https://c/1.jpg"]
@@ -203,14 +208,14 @@ def test_a_cover_that_lands_while_a_modal_is_open_does_not_cover_it(monkeypatch)
             application.push_screen(Screen())
             await pilot.pause()
 
-            application._art_ready(a_cover(Protocol.KITTY))
+            application.cover.ready(a_cover(Protocol.KITTY))
             assert application.query_one(Artwork).cover is None
-            assert application._art_hidden
+            assert application.cover.hidden
 
             # Text covers have no such problem and stay where they land.
-            application._art_hidden = False
+            application.cover.hidden = False
             blocks = a_cover(Protocol.BLOCKS)
-            application._art_ready(blocks)
+            application.cover.ready(blocks)
             assert application.query_one(Artwork).cover is blocks
 
     asyncio.run(scenario())
@@ -219,7 +224,7 @@ def test_a_cover_that_lands_while_a_modal_is_open_does_not_cover_it(monkeypatch)
 def test_a_second_cover_behind_a_window_stays_down_too(monkeypatch):
     """The first cover was taken down when the window opened, so a second one
     arriving behind it (a track changed from the browser, a theme changed in
-    the settings) found `_hide_art` saying it had already hidden a cover, and
+    the settings) found `CoverView.hide` saying it had already hidden a cover, and
     stayed up, painted over the window. It waits for the window instead, and
     is the one that comes back when the window closes."""
     isolate_runtime(monkeypatch)
@@ -230,17 +235,17 @@ def test_a_second_cover_behind_a_window_stays_down_too(monkeypatch):
             await pilot.pause()
             art = application.query_one(Artwork)
             first = a_cover(Protocol.KITTY)
-            application._art_ready(first)
+            application.cover.ready(first)
             assert art.cover is first
 
             application.push_screen(Screen())
             await pilot.pause()
-            assert art.cover is None and application._art_hidden
+            assert art.cover is None and application.cover.hidden
 
             second = a_cover(Protocol.KITTY)
-            application._art_ready(second)
+            application.cover.ready(second)
             assert art.cover is None, "no se pinta encima de la ventana"
-            assert application._pending_art is second
+            assert application.cover.pending is second
 
             application.pop_screen()
             await wait_for(pilot, lambda: art.cover is second)
@@ -265,7 +270,7 @@ def test_a_cover_drawn_as_text_stays_up_behind_a_modal(monkeypatch):
             await pilot.pause()
 
             assert art.cover is cover
-            assert not application._art_hidden
+            assert not application.cover.hidden
 
     asyncio.run(scenario())
 
@@ -273,20 +278,20 @@ def test_a_cover_drawn_as_text_stays_up_behind_a_modal(monkeypatch):
 def test_the_same_cover_is_not_fetched_twice(monkeypatch):
     isolate_runtime(monkeypatch)
     asked: list[str] = []
-    monkeypatch.setattr(TidalAmp, "_art_worker", lambda self, url: asked.append(url))
+    monkeypatch.setattr(CoverView, "worker", lambda self, url: asked.append(url))
 
     async def scenario() -> None:
         application = TidalAmp(object(), FakeMpv())
         async with application.run_test(size=(100, 30)) as pilot:
             await pilot.pause()
             entry = Entry(id=1, title="t", artist="a", art_url="https://c/1.jpg")
-            application._load_art(entry)
-            application._load_art(entry)
+            application.cover.load(entry)
+            application.cover.load(entry)
             assert asked == ["https://c/1.jpg"]
 
             # A track with no cover hides whatever was on screen.
             application.query_one(Artwork).show(a_cover())
-            application._load_art(Entry(id=2, title="t2", artist="a"))
+            application.cover.load(Entry(id=2, title="t2", artist="a"))
             assert application.query_one(Artwork).cover is None
 
     asyncio.run(scenario())
@@ -299,13 +304,13 @@ def test_artwork_off_never_asks_for_a_cover(monkeypatch):
         lambda env=None, configured="": Protocol.NONE,
     )
     asked: list[str] = []
-    monkeypatch.setattr(TidalAmp, "_art_worker", lambda self, url: asked.append(url))
+    monkeypatch.setattr(CoverView, "worker", lambda self, url: asked.append(url))
 
     async def scenario() -> None:
         application = TidalAmp(object(), FakeMpv())
         async with application.run_test() as pilot:
             await pilot.pause()
-            application._load_art(
+            application.cover.load(
                 Entry(id=1, title="t", artist="a", art_url="https://c/1.jpg")
             )
             assert asked == []
@@ -318,7 +323,7 @@ def test_x_pauses_what_is_playing_instead_of_restarting_it(monkeypatch):
     cursor track, «x» acts on what is already going."""
     isolate_runtime(monkeypatch)
     started: list[int] = []
-    monkeypatch.setattr(TidalAmp, "_play_index", lambda self, i: started.append(i))
+    monkeypatch.setattr(Playback, "play_index", lambda self, i: started.append(i))
 
     async def scenario() -> None:
         mpv = FakeMpv()
@@ -348,7 +353,7 @@ def test_stop_stays_stopped_instead_of_restarting_the_queue(monkeypatch):
     Pressing stop restarted the whole list."""
     isolate_runtime(monkeypatch)
     started: list[int] = []
-    monkeypatch.setattr(TidalAmp, "_play_index", lambda self, i: started.append(i))
+    monkeypatch.setattr(Playback, "play_index", lambda self, i: started.append(i))
 
     async def scenario() -> None:
         mpv = FakeMpv()
@@ -359,11 +364,11 @@ def test_stop_stays_stopped_instead_of_restarting_the_queue(monkeypatch):
                 [Entry(id=i, title=f"t{i}", artist="a", duration=9) for i in range(3)],
                 start=1,
             )
-            application._sync_queue()
+            application.queue_view.sync()
             mpv.idle = False
             # Until the slow tick has seen it playing: without that the guard
             # is never reached and the test passes for the wrong reason.
-            await wait_for(pilot, lambda: application._was_idle is False)
+            await wait_for(pilot, lambda: application.playback.was_idle is False)
             started.clear()
 
             await pilot.press("c")
@@ -384,7 +389,7 @@ def test_stop_stays_stopped_instead_of_restarting_the_queue(monkeypatch):
 def test_x_starts_the_cursor_track_when_nothing_is_loaded(monkeypatch):
     isolate_runtime(monkeypatch)
     started: list[int] = []
-    monkeypatch.setattr(TidalAmp, "_play_index", lambda self, i: started.append(i))
+    monkeypatch.setattr(Playback, "play_index", lambda self, i: started.append(i))
 
     async def scenario() -> None:
         application = TidalAmp(object(), FakeMpv())
@@ -393,7 +398,7 @@ def test_x_starts_the_cursor_track_when_nothing_is_loaded(monkeypatch):
             application.queue.replace(
                 [Entry(id=i, title=f"t{i}", artist="a", duration=9) for i in range(3)]
             )
-            application._sync_queue()
+            application.queue_view.sync()
             application.query_one("#playlist", RowList).cursor = 2
 
             await pilot.press("x")
@@ -407,24 +412,26 @@ def test_a_partial_playlist_reaches_status_without_changing_the_queue(monkeypatc
     isolate_runtime(monkeypatch)
 
     def partial(session, title, entries):
-        raise library.PlaylistSaveFailed(title, 2, len(entries), RuntimeError("sin red"))
+        raise playlists.PlaylistSaveFailed(
+            title, 2, len(entries), RuntimeError("sin red")
+        )
 
     async def scenario() -> None:
         application = TidalAmp(object(), FakeMpv())
         async with application.run_test(size=(100, 30)) as pilot:
             await pilot.pause()
-            monkeypatch.setattr(app_module, "ensure_fresh", lambda session: False)
-            monkeypatch.setattr(library, "save_queue_playlist", partial)
+            monkeypatch.setattr(auth, "ensure_fresh", lambda session: False)
+            monkeypatch.setattr(playlists, "save_queue_playlist", partial)
             monkeypatch.setattr(
                 application,
                 "call_from_thread",
                 lambda callback, *args: callback(*args),
             )
             monkeypatch.setattr(
-                application,
-                "_save_playlist_worker",
-                lambda title, entries: TidalAmp._save_playlist_worker.__wrapped__(
-                    application, title, entries
+                application.tasks,
+                "save_worker",
+                lambda title, entries: LibraryTasks.save_worker.__wrapped__(
+                    application.tasks, title, entries
                 ),
             )
             a_queue(application, "Schism", "Lateralus", "The Grudge")
@@ -470,7 +477,7 @@ def test_the_analyser_starts_where_the_track_details_do(monkeypatch):
 
 def test_the_block_under_the_clock_names_the_artist_album_and_year(monkeypatch):
     isolate_runtime(monkeypatch)
-    monkeypatch.setattr(TidalAmp, "_resolve_worker", lambda self, entry: None)
+    monkeypatch.setattr(Playback, "resolve_worker", lambda self, entry: None)
 
     async def scenario() -> None:
         application = TidalAmp(object(), FakeMpv())
@@ -480,8 +487,8 @@ def test_the_block_under_the_clock_names_the_artist_album_and_year(monkeypatch):
             assert meta.render().plain == "", "vacío mientras no suena nada"
 
             application.queue.replace([a_deftones_track()], start=-1)
-            application._sync_queue()
-            application._play_index(0)
+            application.queue_view.sync()
+            application.playback.play_index(0)
             await pilot.pause()
 
             lines = [line.rstrip() for line in meta.render().plain.split("\n")]
@@ -508,7 +515,7 @@ def test_the_centred_wordmark_gets_a_row_between_it_and_the_band(monkeypatch):
             title = application.query_one("#titlebar", Static)
             display = application.query_one("#display")
             assert display.region.y - title.region.bottom == 1
-            # Outside the bar, so the band keeps its rows and `_fit_artwork`
+            # Outside the bar, so the band keeps its rows and `CoverView.fit`
             # keeps its arithmetic.
             assert display.size.height == 10
 
@@ -527,7 +534,7 @@ def test_the_centred_wordmark_gets_a_row_between_it_and_the_band(monkeypatch):
     asyncio.run(scenario())
 
 
-@pytest.mark.parametrize("theme", app_module.LAYOUTS)
+@pytest.mark.parametrize("theme", LAYOUTS)
 def test_the_cover_has_air_inside_its_band(theme, monkeypatch):
     """Two cells off the frame and a row off the top of the dark band. It
     used to sit flush against both, on the idea that a gap reads as the
@@ -573,7 +580,7 @@ def test_the_band_follows_the_padding_even_when_nothing_resized(monkeypatch):
             # A layout that pads more than the last one, with a cover that is
             # already the right size, so `resize()` reports nothing.
             display.styles.padding = (top + 2, 1, bottom, 2)
-            application._fit_artwork()
+            application.cover.fit()
 
             # The declared height, not the laid-out one: this is what the band
             # is responsible for, and the geometry follows a frame later.
@@ -632,10 +639,10 @@ def test_turning_transparency_on_moves_a_pixel_cover_to_blocks(monkeypatch, tmp_
 
     async def scenario() -> None:
         application = TidalAmp(object(), FakeMpv())
-        application.art_protocol = Protocol.KITTY
+        application.cover.protocol = Protocol.KITTY
         async with application.run_test(size=(120, 34)) as pilot:
             await pilot.pause()
-            screen = ConfigScreen(application._setting_changed)
+            screen = ConfigScreen(application.setting_changes.apply)
             application.push_screen(screen)
             await pilot.pause()
             screen.cursor = config_row(screen, "Transparencia")
@@ -664,10 +671,10 @@ def test_a_cover_that_is_already_text_changes_without_a_word(monkeypatch, tmp_pa
 
     async def scenario() -> None:
         application = TidalAmp(object(), FakeMpv())
-        application.art_protocol = Protocol.BLOCKS
+        application.cover.protocol = Protocol.BLOCKS
         async with application.run_test(size=(120, 34)) as pilot:
             await pilot.pause()
-            screen = ConfigScreen(application._setting_changed)
+            screen = ConfigScreen(application.setting_changes.apply)
             application.push_screen(screen)
             await pilot.pause()
             screen.cursor = config_row(screen, "Transparencia")
@@ -692,10 +699,10 @@ def test_transparency_leaves_the_cover_only_what_a_window_can_cover(
 
     async def scenario() -> None:
         application = TidalAmp(object(), FakeMpv())
-        application.art_protocol = Protocol.KITTY
+        application.cover.protocol = Protocol.KITTY
         async with application.run_test(size=(120, 34)) as pilot:
             await pilot.pause()
-            screen = ConfigScreen(application._setting_changed)
+            screen = ConfigScreen(application.setting_changes.apply)
             application.push_screen(screen)
             await pilot.pause()
 
@@ -735,7 +742,7 @@ def _restart_pipewire(monkeypatch, tmp_path, *, playing: bool, paused: bool = Fa
     isolate_runtime(monkeypatch)
     isolate_config(monkeypatch, tmp_path)
     resolves: list[Entry] = []
-    monkeypatch.setattr(TidalAmp, "_resolve_worker", lambda self, e: resolves.append(e))
+    monkeypatch.setattr(Playback, "resolve_worker", lambda self, e: resolves.append(e))
     let_go: list[bool] = []
     entries = [Entry(id=i, title=f"t{i}", artist="a", duration=200) for i in (1, 2)]
 
@@ -763,8 +770,8 @@ def _restart_pipewire(monkeypatch, tmp_path, *, playing: bool, paused: bool = Fa
             # The list opens on «cancelar»; one up is «reiniciar ahora».
             await pilot.press("enter", "up", "enter")
             await settle(pilot, lambda: bool(let_go))
-            await settle(pilot, lambda: application._before_pipewire is None)
-            return application._resume
+            await settle(pilot, lambda: application.playback.before_pipewire is None)
+            return application.playback.resume
 
     resume = asyncio.run(scenario())
     return let_go, resolves, resume, entries[1]
@@ -822,22 +829,22 @@ def test_restarting_pipewire_brings_cava_back(monkeypatch, tmp_path):
         def close(self) -> None:
             self.alive = False
 
-    start = TidalAmp._start_spectrum
+    start = SpectrumFeed.start
     isolate_runtime(monkeypatch)
     isolate_config(monkeypatch, tmp_path)
-    monkeypatch.setattr(TidalAmp, "_start_spectrum", start)
-    monkeypatch.setattr(app_module, "Cava", Cava)
+    monkeypatch.setattr(SpectrumFeed, "start", start)
+    monkeypatch.setattr(spectrum_feed, "Cava", Cava)
     monkeypatch.setattr(audio_module, "restart", lambda: "hecho")
 
     async def scenario() -> None:
         application = TidalAmp(object(), FakeMpv())
         async with application.run_test(size=(100, 34)) as pilot:
             await pilot.pause()
-            assert application.cava is Cava.made[0]
+            assert application.spectrum.cava is Cava.made[0]
 
             # The daemon goes, and cava with it: the tick drops to RMS.
             Cava.made[0].alive = False
-            await wait_for(pilot, lambda: application.cava is None)
+            await wait_for(pilot, lambda: application.spectrum.cava is None)
 
             screen = ConfigScreen()
             application.push_screen(screen)
@@ -848,7 +855,7 @@ def test_restarting_pipewire_brings_cava_back(monkeypatch, tmp_path):
             await settle(pilot, lambda: application.status == "hecho")
 
             assert len(Cava.made) == 2
-            assert application.cava is Cava.made[1]
+            assert application.spectrum.cava is Cava.made[1]
 
     asyncio.run(scenario())
 
@@ -867,7 +874,7 @@ def test_the_help_hides_a_kitty_cover_like_the_other_modals(monkeypatch):
 
             await pilot.press("question_mark")
             await pilot.pause()
-            assert application._art_hidden
+            assert application.cover.hidden
             assert application.query_one(Artwork).cover is None
 
     asyncio.run(scenario())
@@ -928,9 +935,9 @@ def test_windows_asks_the_terminal_for_whole_frames(monkeypatch):
             monkeypatch.setattr(driver, "write", written.append)
             monkeypatch.setattr(driver, "flush", lambda: None)
 
-            application._ask_for_synchronized_output("linux")
+            application.looks.ask_for_synchronized_output("linux")
             assert written == []
-            application._ask_for_synchronized_output("win32")
+            application.looks.ask_for_synchronized_output("win32")
             assert written == ["\x1b[?2026$p"]
 
             # A yes, as Textual's parser turns it into a message.

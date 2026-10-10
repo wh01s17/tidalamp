@@ -1,10 +1,11 @@
 """The contract between the app and the desktop's media integration.
 
 Two sides, both Protocols so the backends need neither Textual nor tidalapi:
-`PlayerBackend` is what a backend may ask of the app (the app's `mpris_*`
-methods), and `MediaService` is what the app asks of a backend. MPRIS over
-D-Bus on Linux and, in time, SMTC on Windows sit behind the same pair; the
-`mpris_` prefix is the adapter's name and keeps it whatever the system.
+`PlayerBackend` is what a backend may ask of the app (its `mpris_*` methods,
+answered by `media_bridge.MediaBridge`), and `MediaService` is what the app
+asks of a backend. MPRIS over D-Bus on Linux and, in time, SMTC on Windows sit
+behind the same pair; the `mpris_` prefix is the adapter's name and keeps it
+whatever the system.
 """
 
 from __future__ import annotations

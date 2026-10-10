@@ -1,5 +1,6 @@
-"""Pagination: a full page hangs a "más…" row off the end, a short one does
-not, and following it yields the next page."""
+"""Browsing TIDAL: search, the playlist listing, favourites, the radio, the
+album year, TIDAL's own orders, the artist and the album of a track, and
+«Lofi sin copyright»."""
 
 from __future__ import annotations
 
@@ -7,225 +8,13 @@ from types import SimpleNamespace
 
 import pytest
 from conftest import FakeTrack
+from library_fakes import FakePlaylistPrototype, FakeSession, track_row
 from tidalapi.types import ItemOrder, OrderDirection
 
-from tidalamp import library
-from tidalamp.library import PAGE, Row, search_rows
+from tidalamp import levels, library
+from tidalamp.levels import PAGE, Row
+from tidalamp.library import search_rows
 from tidalamp.queue import Entry
-
-
-class FakeFavorites:
-    """TIDAL's favourites, including its habit of returning short pages.
-
-    ``filtered`` drops that many items from every page *after* the limit is
-    applied, which is what the real endpoint does and what used to make the
-    browser stop at the first page.
-    """
-
-    def __init__(self, total: int, filtered: int = 0, counts: bool = True):
-        self.total = total
-        self.filtered = filtered
-        self.counts = counts
-        self.calls: list[tuple[int, int]] = []
-        self.orders: list[tuple[object, object]] = []
-
-    def tracks(self, limit=50, offset=0, **kwargs):
-        self.calls.append((offset, limit))
-        self.orders.append((kwargs.get("order"), kwargs.get("order_direction")))
-        window = [FakeTrack(i) for i in range(offset, min(self.total, offset + limit))]
-        return window[: max(0, len(window) - self.filtered)]
-
-    def get_tracks_count(self):
-        return self.total if self.counts else None
-
-    def albums(self, limit=50, offset=0, **kwargs):
-        return []
-
-    def get_albums_count(self):
-        return 0
-
-    def artists(self, limit=50, offset=0, **kwargs):
-        return []
-
-    def get_artists_count(self):
-        return 0
-
-
-class FakeResponse:
-    def __init__(self, payload):
-        self._payload = payload
-
-    def json(self):
-        return self._payload
-
-
-class FakeRequest:
-    """Stands in for tidalapi's request object, counting what we ask for."""
-
-    def __init__(self, total: int):
-        self.total = total
-        self.calls: list[tuple[str, str, dict]] = []
-
-    def request(self, method, path, params=None):
-        params = dict(params or {})
-        self.calls.append((method, path, params))
-        offset, limit = params.get("offset", 0), params.get("limit", 50)
-        items = [
-            {"uuid": f"p{i}", "title": f"lista {i}", "numberOfTracks": i}
-            for i in range(offset, min(self.total, offset + limit))
-        ]
-        return FakeResponse({"items": items, "totalNumberOfItems": self.total})
-
-
-class FakePlaylistPrototype:
-    """Stands in for ``tidalapi.Playlist``.
-
-    The assert is the whole point of the optimisation: tidalapi's own path
-    builds these *with* an id, and that constructor fetches the playlist again
-    just to read an ETag — one HTTP request per row.
-    """
-
-    def __init__(self, session, playlist_id):
-        assert playlist_id is None, "un id haría que tidalapi pidiera la playlist"
-
-    def parse(self, item):
-        return SimpleNamespace(
-            id=item["uuid"],
-            name=item["title"],
-            num_tracks=item["numberOfTracks"],
-            tracks=lambda limit=50, offset=0, **order: [],
-        )
-
-
-class FakeSession:
-    def __init__(
-        self, total: int = 0, playlists: int = 0, filtered: int = 0, counts: bool = True
-    ):
-        favorites = FakeFavorites(total, filtered=filtered, counts=counts)
-        self.favorites = favorites
-        self.user = type("U", (), {"favorites": favorites, "playlists": list, "id": 7})()
-        self.request = FakeRequest(playlists)
-        self.searched: list[tuple[int, int]] = []
-        self.searched_models: list[str] = []
-        self._total = total
-
-    def search(self, query, models=None, limit=50, offset=0):
-        name = models[0].__name__.lower() if models else "track"
-        self.searched.append((offset, limit))
-        self.searched_models.append(name)
-        span = range(offset, min(self._total, offset + limit))
-        if name == "track":
-            return {"tracks": [FakeTrack(i) for i in span]}
-        if name == "album":
-            return {
-                "albums": [
-                    SimpleNamespace(
-                        id=i,
-                        name=f"álbum {i}",
-                        year=2000 + i,
-                        artist=SimpleNamespace(name="a"),
-                        tracks=lambda limit=50, offset=0, **order: [],
-                    )
-                    for i in span
-                ]
-            }
-        if name == "artist":
-            return {
-                "artists": [
-                    SimpleNamespace(
-                        id=i,
-                        name=f"artista {i}",
-                        get_top_tracks=lambda limit=50, offset=0, **order: [],
-                    )
-                    for i in span
-                ]
-            }
-        return {
-            "playlists": [
-                SimpleNamespace(
-                    id=f"p{i}",
-                    name=f"lista {i}",
-                    num_tracks=i,
-                    tracks=lambda limit=50, offset=0, **order: [],
-                )
-                for i in span
-            ]
-        }
-
-
-def favourite_tracks_level(session) -> list[Row]:
-    rows = library.root(session)
-    return next(r for r in rows if r.label == "Pistas favoritas").loader()
-
-
-def test_a_short_page_has_no_more_row():
-    rows = favourite_tracks_level(FakeSession(total=7))
-    assert len(rows) == 7
-    assert all(r.more is None for r in rows)
-
-
-def test_a_full_page_offers_more():
-    rows = favourite_tracks_level(FakeSession(total=PAGE + 5))
-    assert len(rows) == PAGE + 1
-    assert rows[-1].more is not None
-    assert rows[-1].entry is None
-
-
-def test_following_more_fetches_the_next_offset():
-    session = FakeSession(total=PAGE + 5)
-    rows = favourite_tracks_level(session)
-    nxt = rows[-1].more()
-    assert session.favorites.calls == [(0, PAGE), (PAGE, PAGE)]
-    assert len(nxt) == 5
-    assert all(r.more is None for r in nxt)
-
-
-def test_an_exact_multiple_does_not_offer_an_empty_page_when_the_count_is_known():
-    session = FakeSession(total=PAGE)
-    rows = favourite_tracks_level(session)
-    assert len(rows) == PAGE
-    assert all(r.more is None for r in rows)
-
-
-def test_an_exact_multiple_offers_one_empty_page_without_a_count():
-    # With no count we cannot tell a full last page from a truncated one, so we
-    # offer "más…" and it resolves to an empty level rather than lying.
-    session = FakeSession(total=PAGE, counts=False)
-    rows = favourite_tracks_level(session)
-    assert rows[-1].more is not None
-    assert rows[-1].more() == []
-
-
-def test_a_short_page_is_not_the_end_when_the_count_says_otherwise():
-    """The real bug: 100 favourites asked for, 90 returned, 766 in the account.
-
-    Reading the short page as the end meant the other 676 were unreachable.
-    """
-    session = FakeSession(total=766, filtered=10)
-    rows = favourite_tracks_level(session)
-
-    assert len(rows) == 91  # 90 pistas y la fila «más…»
-    assert rows[-1].more is not None
-    assert rows[-1].detail == f"siguientes {PAGE} de 766"
-
-    # And it keeps going: the offset advances by the page size, not by how
-    # many survived the filter.
-    second = rows[-1].more()
-    assert session.favorites.calls == [(0, PAGE), (PAGE, PAGE)]
-    assert second[-1].more is not None
-
-
-def test_paging_a_filtered_level_reaches_the_end():
-    session = FakeSession(total=250, filtered=10)
-    rows = favourite_tracks_level(session)
-    pages = 1
-    while rows[-1].more is not None:
-        rows = rows[-1].more()
-        pages += 1
-        assert pages < 10, "no debería hacer falta paginar eternamente"
-
-    assert pages == 3  # offsets 0, 100 y 200
-    assert session.favorites.calls == [(0, PAGE), (PAGE, PAGE), (2 * PAGE, PAGE)]
 
 
 def test_search_is_paginated_too():
@@ -344,117 +133,6 @@ def test_every_playlist_row_carries_a_cache_key(monkeypatch):
     assert [r.key for r in rows] == ["playlist:p0", "playlist:p1", "playlist:p2"]
 
 
-# ------------------------------------------------------- playlist creation
-
-
-class WritablePlaylist:
-    def __init__(self, fail_on: int | None = None) -> None:
-        self.fail_on = fail_on
-        self.calls: list[tuple[list[str], bool, int, int]] = []
-
-    def add(self, media_ids, allow_duplicates=False, position=-1, limit=100):
-        batch = list(media_ids)
-        self.calls.append((batch, allow_duplicates, position, limit))
-        if self.fail_on == len(self.calls):
-            raise RuntimeError("sin red")
-        return batch
-
-
-class PlaylistOwner:
-    def __init__(self, playlist: WritablePlaylist) -> None:
-        self.playlist = playlist
-        self.calls: list[tuple[str, str]] = []
-
-    def create_playlist(self, title: str, description: str):
-        self.calls.append((title, description))
-        return self.playlist
-
-
-def queue_entries(count: int) -> list[Entry]:
-    return [Entry(id=i, title=f"pista {i}", artist="artista") for i in range(count)]
-
-
-def test_saving_a_queue_creates_and_fills_the_playlist_in_order_and_batches():
-    playlist = WritablePlaylist()
-    owner = PlaylistOwner(playlist)
-    session = SimpleNamespace(user=owner)
-    entries = queue_entries(700)
-    library.cached("playlists", lambda: [Row(label="vieja")])()
-
-    added = library.save_queue_playlist(session, "Viaje", entries)
-
-    assert owner.calls == [("Viaje", "")]
-    assert [len(call[0]) for call in playlist.calls] == [100] * 7
-    assert [ident for batch, *_ in playlist.calls for ident in batch] == [
-        str(entry.id) for entry in entries
-    ]
-    assert all(call[1:] == (True, -1, library.PLAYLIST_BATCH) for call in playlist.calls)
-    assert added == 700
-    assert "playlists" not in library._LEVELS
-
-
-def test_a_failed_batch_reports_the_completed_count_and_keeps_the_source_queue():
-    playlist = WritablePlaylist(fail_on=3)
-    owner = PlaylistOwner(playlist)
-    session = SimpleNamespace(user=owner)
-    entries = queue_entries(205)
-    before = [entry.id for entry in entries]
-
-    with pytest.raises(library.PlaylistSaveFailed) as raised:
-        library.save_queue_playlist(session, "Viaje", entries)
-
-    assert raised.value.title == "Viaje"
-    assert raised.value.added == 200
-    assert raised.value.total == 205
-    assert str(raised.value) == "sin red"
-    assert [entry.id for entry in entries] == before
-    assert len(playlist.calls) == 3
-
-
-# ------------------------------------------------------------------- caching
-
-
-def test_a_level_is_fetched_once_and_then_remembered():
-    calls: list[int] = []
-
-    def loader() -> list[Row]:
-        calls.append(1)
-        return [Row(label="x")]
-
-    cached = library.cached("nivel", loader)
-
-    assert cached()[0].label == "x"
-    assert cached()[0].label == "x"
-    assert calls == [1]
-
-    library.forget("nivel")
-    cached()
-    assert calls == [1, 1]
-
-
-def test_the_cached_level_is_the_same_list_the_browser_extends():
-    """Loading another page mutates the level in place; the cache must see it."""
-    cached = library.cached("nivel", lambda: [Row(label="x")])
-    rows = cached()
-    rows.append(Row(label="y"))
-
-    assert [r.label for r in cached()] == ["x", "y"]
-
-
-def test_forgetting_everything_clears_every_level():
-    library.cached("a", lambda: [Row(label="a")])()
-    library.cached("b", lambda: [Row(label="b")])()
-    library.forget()
-    assert library._LEVELS == {}
-
-
-def test_favourite_levels_are_cached_too(monkeypatch):
-    session = FakeSession(total=3)
-    library.root(session)[1].loader()
-    library.root(session)[1].loader()
-    assert session.favorites.calls == [(0, PAGE)]
-
-
 # ----------------------------------------------------------------- favoritos
 
 
@@ -478,55 +156,6 @@ class FakeFavoritesWriter:
 def writer_session():
     favorites = FakeFavoritesWriter()
     return SimpleNamespace(user=SimpleNamespace(favorites=favorites)), favorites
-
-
-# ------------------------------------------------------------------- filtrar
-
-
-def track_row(title: str, artist: str = "TOOL", album: str = "") -> Row:
-    entry = Entry(id=1, title=title, artist=artist, album=album)
-    return Row(label=entry.label, detail="4:00", entry=entry)
-
-
-def test_the_filter_reads_label_and_detail():
-    row = Row(label="Mis mejores canciones", detail="42 pistas")
-    assert library.matches("mejores", row)
-    assert library.matches("42", row)
-    assert not library.matches("peores", row)
-
-
-def test_the_filter_ignores_case_and_accents():
-    """Typing accents to search is a tax nobody pays, and TIDAL writes the
-    same name both ways depending on the release."""
-    row = Row(label="Sinfonía nº 9")
-    assert library.matches("sinfonia", row)
-    assert library.matches("SINFONÍA", row)
-    assert library.matches("sinfonía", row)
-
-
-def test_every_term_has_to_match_somewhere():
-    row = track_row("Schism", album="Lateralus")
-    assert library.matches("tool schism", row)
-    assert library.matches("schism tool", row)
-    assert not library.matches("tool sober", row)
-
-
-def test_a_track_is_found_by_its_album_even_when_no_column_shows_it():
-    """The album is what people remember, and it is only on the line if the
-    user turned that column on."""
-    row = track_row("Schism", album="Lateralus")
-    assert library.matches("lateralus", row)
-    assert library.matches("tool lateralus", row)
-
-
-def test_a_level_row_without_an_entry_is_matched_by_its_name():
-    row = Row(label="Pistas favoritas", key="fav:tracks")
-    assert library.matches("favoritas", row)
-    assert not library.matches("albumes", row)
-
-
-def test_an_empty_query_matches_everything():
-    assert library.matches("   ", track_row("Schism"))
 
 
 def test_a_track_row_favourites_the_track():
@@ -712,82 +341,6 @@ def test_an_entry_with_no_album_id_asks_nothing():
     assert session.asked == []
 
 
-# ------------------------------------------- añadir a una playlist existente
-
-
-class FakeUserPlaylist:
-    def __init__(self, name="Mi playlist", fail_after=None):
-        self.name = name
-        self.batches: list[list[str]] = []
-        self._fail_after = fail_after
-
-    def add(self, items, allow_duplicates=False, position=-1, limit=100):
-        if self._fail_after is not None and len(self.batches) >= self._fail_after:
-            raise RuntimeError("TIDAL dijo que no")
-        self.batches.append(list(items))
-        return list(range(len(items)))
-
-
-class FakeReadOnlyPlaylist:
-    """What a playlist someone else owns parses into: no `add`."""
-
-    name = "De otra persona"
-
-
-class FakePlaylistSession:
-    def __init__(self, playlist):
-        self._playlist = playlist
-
-    def playlist(self, playlist_id):
-        return self._playlist
-
-
-def entries(count):
-    return [Entry(id=i, title=f"t{i}", artist="a") for i in range(count)]
-
-
-def test_adding_to_a_playlist_sends_every_track_in_batches():
-    playlist = FakeUserPlaylist()
-    added = library.add_to_playlist(
-        FakePlaylistSession(playlist), "7", entries(250), batch_size=100
-    )
-
-    assert added == 250
-    assert [len(b) for b in playlist.batches] == [100, 100, 50]
-    assert [b[0] for b in playlist.batches] == ["0", "100", "200"], "en orden"
-
-
-def test_a_batch_that_fails_keeps_what_already_went_in():
-    playlist = FakeUserPlaylist(fail_after=2)
-
-    with pytest.raises(library.PlaylistSaveFailed) as caught:
-        library.add_to_playlist(
-            FakePlaylistSession(playlist), "7", entries(250), batch_size=100
-        )
-
-    assert caught.value.added == 200
-    assert caught.value.total == 250
-    assert len(playlist.batches) == 2, "no se deshace lo que sí entró"
-
-
-def test_a_playlist_this_account_cannot_write_to_is_reported():
-    with pytest.raises(library.PlaylistNotWritable):
-        library.add_to_playlist(
-            FakePlaylistSession(FakeReadOnlyPlaylist()), "7", entries(1)
-        )
-
-
-def test_adding_forgets_the_listing_and_that_playlist_level():
-    """Otherwise opening it afterwards shows it as it was."""
-    library._LEVELS["playlists"] = ["viejo"]
-    library._LEVELS["playlist:7"] = ["viejo"]
-
-    library.add_to_playlist(FakePlaylistSession(FakeUserPlaylist()), "7", entries(1))
-
-    assert "playlists" not in library._LEVELS
-    assert "playlist:7" not in library._LEVELS
-
-
 def kinds(row: Row) -> set[str]:
     return {order.by for order in row.orders if order is not None}
 
@@ -795,8 +348,8 @@ def kinds(row: Row) -> set[str]:
 def test_favourite_tracks_are_sorted_by_tidal_four_ways_both_ways_round(monkeypatch):
     """TIDAL sorts the whole collection; a sort over the page already loaded
     would order 100 tracks of 766 and call it the library."""
-    monkeypatch.setattr(library, "_CHOSEN", {})
-    library.forget()
+    monkeypatch.setattr(levels, "_CHOSEN", {})
+    levels.forget()
     session = FakeSession(total=3)
     tracks = next(row for row in library.root(session) if row.key == "fav:tracks")
 
@@ -804,15 +357,15 @@ def test_favourite_tracks_are_sorted_by_tidal_four_ways_both_ways_round(monkeypa
     assert kinds(tracks) == {"date", "name", "artist", "album"}
     assert len(tracks.orders) == 9
     # Dates newest first, names A to Z first.
-    assert tracks.orders[1] == library.Order("date", descending=True)
-    assert tracks.orders[3] == library.Order("name")
+    assert tracks.orders[1] == levels.Order("date", descending=True)
+    assert tracks.orders[3] == levels.Order("name")
 
-    key, loader = tracks.sort(library.Order("name"))
+    key, loader = tracks.sort(levels.Order("name"))
     assert key == "fav:tracks|name-asc"
     loader()
     assert session.favorites.orders[-1] == (ItemOrder.Name, OrderDirection.Ascending)
     assert tracks.sort(None)[0] == "fav:tracks"
-    library.forget()
+    levels.forget()
 
 
 def test_each_section_offers_only_the_orders_that_mean_something():
@@ -821,19 +374,19 @@ def test_each_section_offers_only_the_orders_that_mean_something():
     assert kinds(rows["fav:artists"]) == {"date", "name"}
     assert kinds(rows["playlists"]) == {"date", "name"}
     # A playlist's date is when it was made, not when it was added.
-    assert library.order_label(rows["playlists"].orders[1]) == (
+    assert levels.order_label(rows["playlists"].orders[1]) == (
         "fecha de creación: recientes primero"
     )
-    assert library.order_label(None) == "orden original"
+    assert levels.order_label(None) == "orden original"
 
 
 def test_my_playlists_ask_tidal_for_the_order(monkeypatch):
     monkeypatch.setattr(library.tidalapi, "Playlist", FakePlaylistPrototype)
-    library.forget()
+    levels.forget()
     session = FakeSession(playlists=3)
     row = next(row for row in library.root(session) if row.key == "playlists")
 
-    key, loader = row.sort(library.Order("name", descending=True, created=True))
+    key, loader = row.sort(levels.Order("name", descending=True, created=True))
     loader()
 
     assert key == "playlists|name-desc"
@@ -843,89 +396,12 @@ def test_my_playlists_ask_tidal_for_the_order(monkeypatch):
         "order": "NAME",
         "orderDirection": "DESC",
     }
-    library.forget()
-
-
-def test_a_level_tidal_cannot_sort_is_sorted_here_with_more_last():
-    """Inside an album or an artist TIDAL takes no order. The rows are sorted
-    here, into a new list: the cached level stays as TIDAL gave it."""
-    titles = ["Sober", "Aenema", "Schism"]
-    albums = ["Undertow", "Aenima", "Lateralus"]
-    rows = [
-        Row(label=title, entry=Entry(id=i, title=title, artist="TOOL", album=album))
-        for i, (title, album) in enumerate(zip(titles, albums, strict=True))
-    ]
-    rows.append(Row(label="más…", more=list))
-
-    by_name = library._in_order(rows, library.Order("name"))
-    assert [row.label for row in by_name] == ["Aenema", "Schism", "Sober", "más…"]
-    by_album = library._in_order(rows, library.Order("album", descending=True))
-    assert [row.label for row in by_album] == ["Sober", "Schism", "Aenema", "más…"]
-    assert [row.label for row in rows][:3] == titles
-
-
-class FakeOwnedPlaylist:
-    """A playlist the account owns: it lists its tracks and removes by index."""
-
-    def __init__(self, ids, name="Mía"):
-        self.name = name
-        self.ids = list(ids)
-        self.num_tracks = len(self.ids)
-        self.pages: list[int] = []
-        self.removed: list[int] = []
-
-    def tracks(self, limit=None, offset=0, **order):
-        self.pages.append(offset)
-        return [SimpleNamespace(id=i) for i in self.ids[offset : offset + limit]]
-
-    def remove_by_index(self, index):
-        self.removed.append(index)
-        del self.ids[index]
-        return True
-
-
-def test_removing_from_a_playlist_finds_the_track_past_the_first_page(monkeypatch):
-    """tidalapi's own lookup reads one page and calls a later track absent."""
-    monkeypatch.setattr(
-        library,
-        "_LEVELS",
-        {"playlist:7": [], "playlist:7|name-asc": [], "playlists": [], "fav:tracks": []},
-    )
-    playlist = FakeOwnedPlaylist(range(250))
-
-    name = library.remove_from_playlist(
-        FakePlaylistSession(playlist), "7", Entry(id=230, title="t", artist="a")
-    )
-
-    assert name == "Mía"
-    assert playlist.removed == [230]
-    # Three pages to find it, then one track read to confirm the position.
-    assert playlist.pages == [0, PAGE, 2 * PAGE, 230]
-    # The playlist in every order, and the list of playlists with its count.
-    assert set(library._LEVELS) == {"fav:tracks"}
-
-
-def test_a_playlist_someone_else_owns_is_left_alone():
-    with pytest.raises(library.PlaylistNotWritable):
-        library.remove_from_playlist(
-            FakePlaylistSession(FakeReadOnlyPlaylist()),
-            "7",
-            Entry(id=1, title="t", artist="a"),
-        )
-
-
-def test_a_track_already_gone_says_so_and_removes_nothing():
-    playlist = FakeOwnedPlaylist([1, 2])
-    with pytest.raises(library.TrackNotInPlaylist):
-        library.remove_from_playlist(
-            FakePlaylistSession(playlist), "7", Entry(id=9, title="t", artist="a")
-        )
-    assert playlist.removed == []
+    levels.forget()
 
 
 def test_unfavouriting_forgets_the_favourites_level_in_every_order(monkeypatch):
     monkeypatch.setattr(
-        library,
+        levels,
         "_LEVELS",
         {"fav:tracks": [], "fav:tracks|name-asc": [], "fav:albums": []},
     )
@@ -934,42 +410,7 @@ def test_unfavouriting_forgets_the_favourites_level_in_every_order(monkeypatch):
     library.favourite(session, track_row("Schism"), add=False)
 
     assert favorites.calls == [("remove_track", "1")]
-    assert set(library._LEVELS) == {"fav:albums"}
-
-
-def test_the_order_picked_for_a_level_survives_a_restart():
-    """Kept on disk by the level's key, and read back as that level's own
-    order: a playlist's date is still its creation date the next day."""
-    rows = {row.key: row for row in library.root(FakeSession())}
-    playlists, tracks = rows["playlists"], rows["fav:tracks"]
-
-    library.remember(playlists, playlists.orders[1])
-    library.remember(tracks, library.Order("album", descending=True))
-    library.remember(tracks, library.Order("name"))
-
-    library._CHOSEN = None  # what a new process starts with
-    assert library.chosen(tracks) == library.Order("name")
-    back = library.chosen(playlists)
-    assert back is not None and back.created
-    assert library.order_label(back) == "fecha de creación: recientes primero"
-
-    library.remember(tracks, None)
-    library._CHOSEN = None
-    assert library.chosen(tracks) is None
-
-
-def test_an_order_that_cannot_be_written_still_holds_and_says_why(tmp_path, monkeypatch):
-    """Not written is not forgotten: the order holds for the session, and the
-    error goes back to the app, which says so, instead of being swallowed."""
-
-    def refused(*args, **kwargs):
-        raise PermissionError("read-only")
-
-    monkeypatch.setattr(library, "ORDERS_FILE", tmp_path / "library-orders.json")
-    monkeypatch.setattr(library, "write_atomically", refused)
-    tracks = {row.key: row for row in library.root(FakeSession())}["fav:tracks"]
-    assert isinstance(library.remember(tracks, library.Order("name")), OSError)
-    assert library.chosen(tracks) == library.Order("name")
+    assert set(levels._LEVELS) == {"fav:albums"}
 
 
 def a_disc(ident: int, name: str) -> SimpleNamespace:
@@ -1029,7 +470,7 @@ def test_m_on_an_artist_still_plays_its_popular_tracks():
     row = library._artist_rows([artist])[0]
 
     assert row.tracks is not None
-    assert [e.id for e in library.all_entries(row.tracks)] == [1, 2]
+    assert [e.id for e in levels.all_entries(row.tracks)] == [1, 2]
 
 
 def a_linked_session(asked: list[str]) -> SimpleNamespace:
@@ -1135,76 +576,6 @@ def test_go_to_the_artist_that_was_picked_asks_for_that_one():
     assert asked == ["artist:9"]
 
 
-def test_a_broken_orders_file_is_no_orders_at_all():
-    library.ORDERS_FILE.write_text("{esto no es json", encoding="utf-8")
-    tracks = next(row for row in library.root(FakeSession()) if row.key == "fav:tracks")
-    assert library.chosen(tracks) is None
-
-
-class FakeGappyPlaylist(FakeOwnedPlaylist):
-    """A playlist TIDAL hands back with gaps: a track it cannot serve is left
-    out of a page after the limit is applied, so positions after it shift."""
-
-    def __init__(self, ids, hidden):
-        super().__init__(ids)
-        self.hidden = set(hidden)
-
-    def tracks(self, limit=None, offset=0, **order):
-        self.pages.append(offset)
-        window = self.ids[offset : offset + limit]
-        return [SimpleNamespace(id=i) for i in window if i not in self.hidden]
-
-
-def test_a_gap_in_the_page_does_not_delete_the_neighbour():
-    """Counting the page put track 7 at position 6, behind the hidden 3; the
-    position is checked before deleting, and the real one is 7."""
-    playlist = FakeGappyPlaylist(range(10), hidden={3})
-
-    library.remove_from_playlist(
-        FakePlaylistSession(playlist), "7", Entry(id=7, title="t", artist="a")
-    )
-
-    assert playlist.removed == [7]
-    assert 7 not in playlist.ids and 6 in playlist.ids
-
-
-def test_a_playlist_whose_creation_answer_is_lost_is_not_created_twice(monkeypatch):
-    import requests
-
-    monkeypatch.setattr("tidalamp.net.time.sleep", lambda _: None)
-
-    class LostAnswer(PlaylistOwner):
-        def create_playlist(self, title, description):
-            super().create_playlist(title, description)
-            raise requests.ReadTimeout()
-
-    owner = LostAnswer(WritablePlaylist())
-    with pytest.raises(requests.ReadTimeout):
-        library.save_queue_playlist(
-            SimpleNamespace(user=owner), "Viaje", queue_entries(3)
-        )
-
-    assert len(owner.calls) == 1, "un reintento sería una segunda playlist"
-
-
-def test_a_batch_whose_answer_is_lost_is_not_sent_twice(monkeypatch):
-    import requests
-
-    monkeypatch.setattr("tidalamp.net.time.sleep", lambda _: None)
-
-    class LostBatch(FakeUserPlaylist):
-        def add(self, items, **kwargs):
-            self.batches.append(list(items))
-            raise requests.ReadTimeout()
-
-    playlist = LostBatch()
-    with pytest.raises(library.PlaylistSaveFailed) as caught:
-        library.add_to_playlist(FakePlaylistSession(playlist), "7", entries(50))
-
-    assert len(playlist.batches) == 1, "un reintento duplicaría el lote"
-    assert caught.value.added == 0
-
-
 # ------------------------------------------- «Lofi sin copyright»: a station,
 # the only level in the browser that is not TIDAL's
 
@@ -1256,7 +627,7 @@ def fake_archive(monkeypatch, albums=None, songs=None):
 
 
 def free_level(monkeypatch, session=None) -> list[Row]:
-    library.forget()
+    levels.forget()
     rows = library.root(session or FakeSession())
     return next(r for r in rows if r.key == "free").loader()
 
@@ -1295,10 +666,10 @@ def test_the_section_opens_straight_onto_music(monkeypatch):
 def test_playing_the_whole_row_plays_the_day_and_not_the_catalogue_row(monkeypatch):
     """`a` on «Lofi sin copyright» is the station's play button."""
     fake_archive(monkeypatch)
-    library.forget()
+    levels.forget()
     row = next(r for r in library.root(FakeSession()) if r.key == "free")
     assert row.loader is not None
-    entries = library.all_entries(row.loader)
+    entries = levels.all_entries(row.loader)
     assert [entry.title for entry in entries] == ["pista 1", "pista 2", "pista 3"]
 
 

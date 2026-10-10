@@ -5,11 +5,12 @@ a session, a loader, a `Settings` — and reports back through `dismiss`, which
 is what keeps `app.py` from having to know how any of them are laid out.
 
 `RowList` lives here rather than in `widgets.py` because it renders a
-`library.Row`, and `library` imports tidalapi: putting it there would drag
-TIDAL into the one module that is deliberately ignorant of it.
+`levels.Row`, whose entry is a `queue.Entry`, and `queue` imports tidalapi:
+putting it there would drag TIDAL into the one module that is deliberately
+ignorant of it.
 """
 
-from .browser import BROWSER_HINTS, HINT_GAP, BrowserScreen, favourite_message, fit_hints
+from .browser import BROWSER_HINTS, HINT_GAP, BrowserScreen, fit_hints
 from .choice import ChoiceScreen
 from .column_picker import ColumnsScreen, _crop, column_label
 from .config_window import _ATTRIBUTES, _FLAGS, ConfigScreen, Option
@@ -19,6 +20,7 @@ from .fullscreen import FullscreenScreen
 from .help import HelpScreen
 from .logout import LogoutScreen
 from .lyrics_window import LyricsScreen
+from .playlist_edits import favourite_message
 from .prompts import PlaylistNameScreen, SearchScreen
 from .rowlist import RowChosen, RowList, RowMenu, _hex, _Paint
 from .speed import SpeedScreen, speed_text

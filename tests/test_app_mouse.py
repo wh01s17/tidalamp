@@ -9,13 +9,15 @@ from app_helpers import FakeMpv, isolate_runtime, settle
 
 from tidalamp import config
 from tidalamp.app import RowList, TidalAmp
-from tidalamp.library import Row
+from tidalamp.levels import Row
+from tidalamp.playback import Playback
 from tidalamp.queue import Entry
 from tidalamp.screens import (
     BrowserScreen,
     FullscreenScreen,
     PlaylistPickerScreen,
     TrackActionsScreen,
+    playlist_edits,
 )
 from tidalamp.screens import browser as browser_module
 from tidalamp.screens.grid import GridList
@@ -42,12 +44,12 @@ def a_queue(application, count: int = 4) -> None:
     application.queue.replace(
         [Entry(id=i, title=f"t{i}", artist="a") for i in range(count)], start=-1
     )
-    application._sync_queue()
+    application.queue_view.sync()
 
 
 def spy_on_plays(monkeypatch) -> list[int]:
     played: list[int] = []
-    monkeypatch.setattr(TidalAmp, "_play_index", lambda self, index: played.append(index))
+    monkeypatch.setattr(Playback, "play_index", lambda self, index: played.append(index))
     return played
 
 
@@ -184,7 +186,7 @@ def quiet(monkeypatch, view: str = "list") -> None:
     isolate_runtime(monkeypatch)
     monkeypatch.setattr(config, "LIBRARY_VIEW", view)
     monkeypatch.setattr(browser_module, "cover_cells", lambda url: None)
-    monkeypatch.setattr(browser_module, "ensure_fresh", lambda session: None)
+    monkeypatch.setattr(playlist_edits, "ensure_fresh", lambda session: None)
 
 
 def test_the_browser_opens_a_tracks_menu_on_a_right_click(monkeypatch):

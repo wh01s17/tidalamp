@@ -16,10 +16,11 @@ from app_helpers import FakeMpv, isolate_runtime, settle
 from test_app_gapless import playing_first
 
 from tidalamp import app as app_module
-from tidalamp import stream
+from tidalamp import auth, lyrics, media_bridge, stream
 from tidalamp.app import TidalAmp
 from tidalamp.freemusic import Track
 from tidalamp.lyrics import LyricsUnavailable
+from tidalamp.playback import Playback
 from tidalamp.queue import Entry
 
 
@@ -89,12 +90,12 @@ def test_playing_a_free_row_never_refreshes_the_tidal_token(monkeypatch):
     isolate_runtime(monkeypatch)
     refreshed: list[object] = []
     monkeypatch.setattr(
-        app_module, "ensure_fresh", lambda session: refreshed.append(session) or False
+        auth, "ensure_fresh", lambda session: refreshed.append(session) or False
     )
     started: list[tuple[Entry, object]] = []
     monkeypatch.setattr(
-        TidalAmp,
-        "_start",
+        Playback,
+        "start",
         lambda self, entry, playable: started.append((entry, playable)),
     )
 
@@ -103,8 +104,8 @@ def test_playing_a_free_row_never_refreshes_the_tidal_token(monkeypatch):
         async with application.run_test(size=(100, 40)) as pilot:
             await pilot.pause()
             entry = free_entry()
-            application._resolving = entry
-            application._resolve_worker(entry)
+            application.playback.resolving = entry
+            application.playback.resolve_worker(entry)
             await settle(pilot, lambda: bool(started))
 
     asyncio.run(scenario())
@@ -117,15 +118,15 @@ def test_prefetching_a_free_row_queues_its_url_and_skips_the_lyrics(monkeypatch)
     """The cover still arrives ahead of the sound; the lyrics cannot, because
     TIDAL is the only provider and it has never heard of this track."""
     isolate_runtime(monkeypatch)
-    monkeypatch.setattr(TidalAmp, "_resolve_worker", lambda self, e: None)
+    monkeypatch.setattr(Playback, "resolve_worker", lambda self, e: None)
     fetched: list[str] = []
     asked_for_lyrics: list[object] = []
-    monkeypatch.setattr(app_module, "ensure_fresh", lambda session: False)
+    monkeypatch.setattr(auth, "ensure_fresh", lambda session: False)
     monkeypatch.setattr(
         app_module.artwork, "fetch", lambda url: fetched.append(url) or b""
     )
     monkeypatch.setattr(
-        app_module,
+        lyrics,
         "load_lyrics",
         lambda track: asked_for_lyrics.append(track) or "letra",
     )
@@ -135,7 +136,7 @@ def test_prefetching_a_free_row_queues_its_url_and_skips_the_lyrics(monkeypatch)
         application = TidalAmp(Exploding(), mpv)
         async with application.run_test(size=(100, 40)) as pilot:
             await pilot.pause()
-            application.art_protocol = app_module.artwork.Protocol.BLOCKS
+            application.cover.protocol = app_module.artwork.Protocol.BLOCKS
             entries = [
                 Entry(id=1, title="Schism", artist="TOOL", duration=200),
                 free_entry(2),
@@ -144,8 +145,8 @@ def test_prefetching_a_free_row_queues_its_url_and_skips_the_lyrics(monkeypatch)
             # gapless tests do it, so only the prefetch is under test.
             await playing_first(application, mpv, pilot, entries)
 
-            application._prefetching = entries[1]
-            application._prefetch_worker(entries[1], True)
+            application.prefetch.prefetching = entries[1]
+            application.prefetch.worker(entries[1], True)
             await settle(pilot, lambda: bool(fetched))
 
     asyncio.run(scenario())
@@ -155,7 +156,7 @@ def test_prefetching_a_free_row_queues_its_url_and_skips_the_lyrics(monkeypatch)
 
 def test_the_lyrics_of_a_free_row_say_why_there_are_none(monkeypatch):
     """Every lyrics view — `y`, the split pane, the full-screen panel — goes
-    through `_lyrics_for`, so the guard belongs there and nowhere else."""
+    through `LyricsFeed.for_entry`, so the guard belongs there and nowhere else."""
     isolate_runtime(monkeypatch)
 
     async def scenario() -> str:
@@ -163,7 +164,7 @@ def test_the_lyrics_of_a_free_row_say_why_there_are_none(monkeypatch):
         async with application.run_test(size=(100, 40)) as pilot:
             await pilot.pause()
             with pytest.raises(LyricsUnavailable) as caught:
-                application._lyrics_for(free_entry())
+                application.lyrics.for_entry(free_entry())
             return str(caught.value)
 
     assert "TIDAL" in asyncio.run(scenario())
@@ -174,14 +175,14 @@ def test_mpris_publishes_the_real_url_of_a_free_row():
     client could open it. The audio has a URL of its own, so it is the one
     that goes out."""
     entry = free_entry()
-    assert app_module._entry_metadata(entry)["url"] == entry.url
+    assert media_bridge.entry_metadata(entry)["url"] == entry.url
     tidal = Entry(id=42, title="Schism", artist="TOOL")
-    assert app_module._entry_metadata(tidal)["url"] == "tidal://track/42"
+    assert media_bridge.entry_metadata(tidal)["url"] == "tidal://track/42"
 
 
 def test_a_free_row_still_gets_a_valid_mpris_track_path():
     """The path is built from `uid`, a positive counter, not from the id.
     A negative number in a D-Bus object path would be rejected outright."""
-    path = app_module._track_path(free_entry())
+    path = media_bridge.track_path(free_entry())
     assert path.startswith("/org/mpris/MediaPlayer2/tidalamp/track/")
     assert "-" not in path.rsplit("/", 1)[-1]

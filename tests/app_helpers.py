@@ -13,10 +13,12 @@ from tidalamp import app as app_module
 from tidalamp import audio as audio_module
 from tidalamp.app import BrowserScreen, ConfigScreen, RowList, TidalAmp
 from tidalamp.artwork import Cover, Protocol
-from tidalamp.library import Row
+from tidalamp.levels import Row
+from tidalamp.output import Output
 from tidalamp.player import Mpv
 from tidalamp.queue import Entry, Queue
 from tidalamp.settings import Settings
+from tidalamp.spectrum_feed import SpectrumFeed
 
 
 async def settle(pilot, done, timeout: float = 10.0) -> None:
@@ -174,12 +176,12 @@ def isolate_runtime(monkeypatch) -> None:
     monkeypatch.setattr(Queue, "load", lambda self: False)
     monkeypatch.setattr(Queue, "save", lambda self: None)
     monkeypatch.setattr(Settings, "load", classmethod(lambda cls: Settings()))
-    monkeypatch.setattr(TidalAmp, "_start_spectrum", lambda self: None)
+    monkeypatch.setattr(SpectrumFeed, "start", lambda self: None)
     monkeypatch.setattr(TidalAmp, "_start_mpris", no_mpris)
     # The app-level audio worker is unrelated to these UI tests: it polls the
     # sink for SINK_SETTLE seconds and would overwrite the one a test sets by
     # hand. Closing the app under it is covered in test_app_threads.
-    monkeypatch.setattr(TidalAmp, "_refresh_sink_worker", lambda self: None)
+    monkeypatch.setattr(Output, "follow", lambda self: None)
     monkeypatch.setattr(ConfigScreen, "_probe", probe_audio)
     monkeypatch.setattr(audio_module, "sink", lambda: audio_module.Sink())
     monkeypatch.setattr(audio_module, "allowed_rates", lambda: ())
@@ -294,7 +296,7 @@ async def opened(pilot) -> None:
 def open_menu_on_b(application, rows):
     """Push the browser wired to the app, exactly as `/` and `l` do."""
     application.push_screen(
-        BrowserScreen("BUSCAR: x", lambda: rows), application._browser_result
+        BrowserScreen("BUSCAR: x", lambda: rows), application.queue_view.browser_answered
     )
 
 
@@ -304,7 +306,7 @@ def a_queue(application, *titles: str) -> None:
         [Entry(id=i, title=t, artist="TOOL", duration=60) for i, t in enumerate(titles)],
         start=-1,
     )
-    application._sync_queue()
+    application.queue_view.sync()
 
 
 def queue_lines(application) -> list[str]:

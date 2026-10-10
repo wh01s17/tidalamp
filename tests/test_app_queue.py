@@ -18,8 +18,10 @@ from app_helpers import (
 from textual.widgets import Input
 
 from tidalamp import app as app_module
-from tidalamp import library
+from tidalamp import auth, levels, library, playlists
 from tidalamp.app import RowList, TidalAmp
+from tidalamp.library_tasks import LibraryTasks
+from tidalamp.playback import Playback
 from tidalamp.queue import Entry
 from tidalamp.screens import (
     PlaylistNameScreen,
@@ -57,8 +59,8 @@ def test_shuffle_and_repeat_are_lit_buttons_on_the_transport_row(monkeypatch):
             assert lit(application)["⟳"] is True
             assert "⟳ A" in transport(application)
 
-            application.mpris_set_loop_status("Track")
-            application.mpris_set_shuffle(False)
+            application.media.mpris_set_loop_status("Track")
+            application.media.mpris_set_shuffle(False)
             await pilot.pause()
             assert lit(application)["⇄"] is False
             assert "⟳ 1" in transport(application)
@@ -116,7 +118,7 @@ def test_the_track_list_is_the_queue_with_one_id_per_row(monkeypatch):
                 ]
             )
 
-            tracks = application.mpris_tracks()
+            tracks = application.media.mpris_tracks()
             ids = [t["trackid"] for t in tracks]
             assert len(set(ids)) == 2
             assert all(t["title"] == "Schism" for t in tracks)
@@ -127,7 +129,7 @@ def test_the_track_list_is_the_queue_with_one_id_per_row(monkeypatch):
 def test_go_to_plays_the_row_with_that_id(monkeypatch):
     isolate_runtime(monkeypatch)
     played: list[int] = []
-    monkeypatch.setattr(TidalAmp, "_play_index", lambda self, index: played.append(index))
+    monkeypatch.setattr(Playback, "play_index", lambda self, index: played.append(index))
 
     async def scenario() -> None:
         application = TidalAmp(object(), FakeMpv())
@@ -137,9 +139,9 @@ def test_go_to_plays_the_row_with_that_id(monkeypatch):
                 [Entry(id=i, title=f"t{i}", artist="a") for i in range(3)]
             )
 
-            application.mpris_go_to(application.mpris_tracks()[2]["trackid"])
+            application.media.mpris_go_to(application.media.mpris_tracks()[2]["trackid"])
             # An id we never handed out is ignored, not an index error.
-            application.mpris_go_to("/org/mpris/MediaPlayer2/tidalamp/track/999999")
+            application.media.mpris_go_to("/org/mpris/MediaPlayer2/tidalamp/track/999999")
 
             assert played == [2]
 
@@ -155,7 +157,7 @@ def test_g_returns_the_cursor_to_the_playing_track(monkeypatch):
             await pilot.pause()
             a_queue(application, "Schism", "Lateralus", "The Grudge")
             application.queue.playing = 1
-            application._sync_queue()
+            application.queue_view.sync()
             playlist = application.query_one("#playlist", RowList)
             playlist.cursor = 2
 
@@ -242,8 +244,8 @@ def test_saving_the_queue_uses_the_written_name_and_a_queue_snapshot(monkeypatch
         application = TidalAmp(object(), FakeMpv())
         async with application.run_test(size=(100, 30)) as pilot:
             await pilot.pause()
-            monkeypatch.setattr(app_module, "ensure_fresh", fresh)
-            monkeypatch.setattr(library, "save_queue_playlist", save)
+            monkeypatch.setattr(auth, "ensure_fresh", fresh)
+            monkeypatch.setattr(playlists, "save_queue_playlist", save)
             monkeypatch.setattr(
                 application,
                 "call_from_thread",
@@ -253,9 +255,9 @@ def test_saving_the_queue_uses_the_written_name_and_a_queue_snapshot(monkeypatch
             def run_now(title, entries):
                 spinner = application.query_one("#busy", Spinner)
                 busy_during_save.append((spinner.busy, spinner.label))
-                TidalAmp._save_playlist_worker.__wrapped__(application, title, entries)
+                LibraryTasks.save_worker.__wrapped__(application.tasks, title, entries)
 
-            monkeypatch.setattr(application, "_save_playlist_worker", run_now)
+            monkeypatch.setattr(application.tasks, "save_worker", run_now)
             a_queue(application, "Schism", "Lateralus", "The Grudge")
             application.queue.shuffle = True
 
@@ -280,7 +282,9 @@ def test_saving_the_queue_uses_the_written_name_and_a_queue_snapshot(monkeypatch
 def test_saving_an_empty_queue_opens_nothing_and_calls_nothing(monkeypatch):
     isolate_runtime(monkeypatch)
     calls = []
-    monkeypatch.setattr(library, "save_queue_playlist", lambda *args: calls.append(args))
+    monkeypatch.setattr(
+        playlists, "save_queue_playlist", lambda *args: calls.append(args)
+    )
 
     async def scenario() -> None:
         application = TidalAmp(object(), FakeMpv())
@@ -320,7 +324,7 @@ def test_the_queue_fills_its_missing_years_in_the_background(monkeypatch):
                 ],
                 start=-1,
             )
-            application._sync_queue()
+            application.queue_view.sync()
             await settle(pilot, lambda: len(asked) >= 2)
 
             assert sorted(asked) == [7, 8], "una petición por álbum, no por pista"
@@ -343,7 +347,7 @@ def test_a_queue_saved_before_the_album_id_existed_asks_nothing(monkeypatch):
             application.queue.replace(
                 [Entry(id=1, title="a", artist="x", album="y")], start=-1
             )
-            application._sync_queue()
+            application.queue_view.sync()
             await pilot.pause()
 
             assert asked == []
@@ -401,7 +405,7 @@ def test_a_second_clear_replaces_what_undo_is_holding(monkeypatch):
 
 def test_radio_replaces_the_queue_with_the_station_behind_its_seed(monkeypatch):
     isolate_runtime(monkeypatch)
-    monkeypatch.setattr(TidalAmp, "_resolve_worker", lambda self, entry: None)
+    monkeypatch.setattr(Playback, "resolve_worker", lambda self, entry: None)
     asked: list[str] = []
 
     def station(session, entry, limit=100):
@@ -459,8 +463,8 @@ def test_a_track_with_no_radio_says_so_and_leaves_the_queue_alone(monkeypatch):
     asyncio.run(scenario())
 
 
-def _a_place(label: str, key: str, inside: str) -> library.Row:
-    return library.Row(label=label, key=key, loader=lambda: [library.Row(label=inside)])
+def _a_place(label: str, key: str, inside: str) -> levels.Row:
+    return levels.Row(label=label, key=key, loader=lambda: [levels.Row(label=inside)])
 
 
 def test_go_to_the_artist_from_the_queue_opens_the_browser_there(monkeypatch):
@@ -470,7 +474,7 @@ def test_go_to_the_artist_from_the_queue_opens_the_browser_there(monkeypatch):
     from tidalamp.screens import BrowserScreen
 
     isolate_runtime(monkeypatch)
-    monkeypatch.setattr(library, "root", lambda session: [library.Row(label="Favoritos")])
+    monkeypatch.setattr(library, "root", lambda session: [levels.Row(label="Favoritos")])
     monkeypatch.setattr(library, "track_artists", lambda session, entry: [(7, "TOOL")])
     went: list[tuple[str, str]] = []
 
@@ -485,7 +489,7 @@ def test_go_to_the_artist_from_the_queue_opens_the_browser_there(monkeypatch):
         async with application.run_test(size=(100, 30)) as pilot:
             a_queue(application, "Schism", "Parabola")
             await pilot.pause()
-            application.action_track_menu()
+            application.queue_view.track_menu()
             await pilot.pause()
             await pilot.press("t")
             await settle(
@@ -544,7 +548,7 @@ def test_a_track_with_several_artists_asks_which_one(monkeypatch):
     from tidalamp.screens import BrowserScreen, ChoiceScreen
 
     isolate_runtime(monkeypatch)
-    monkeypatch.setattr(library, "root", lambda session: [library.Row(label="Favoritos")])
+    monkeypatch.setattr(library, "root", lambda session: [levels.Row(label="Favoritos")])
     monkeypatch.setattr(
         library,
         "track_artists",
@@ -564,7 +568,7 @@ def test_a_track_with_several_artists_asks_which_one(monkeypatch):
             a_queue(application, "Schism")
             await pilot.pause()
 
-            application.action_track_menu()
+            application.queue_view.track_menu()
             await pilot.pause()
             await pilot.press("t")
             await settle(pilot, lambda: isinstance(application.screen, ChoiceScreen))
@@ -573,7 +577,7 @@ def test_a_track_with_several_artists_asks_which_one(monkeypatch):
             assert went == []
             assert not isinstance(application.screen, BrowserScreen)
 
-            application.action_track_menu()
+            application.queue_view.track_menu()
             await pilot.pause()
             await pilot.press("t")
             await settle(pilot, lambda: isinstance(application.screen, ChoiceScreen))
@@ -598,7 +602,7 @@ def test_while_the_artist_is_on_its_way_the_library_is_not_shown(monkeypatch):
     from tidalamp.screens import BrowserScreen
 
     isolate_runtime(monkeypatch)
-    monkeypatch.setattr(library, "root", lambda session: [library.Row(label="Favoritos")])
+    monkeypatch.setattr(library, "root", lambda session: [levels.Row(label="Favoritos")])
     monkeypatch.setattr(library, "track_artists", lambda session, entry: [(7, "TOOL")])
     # What the window looked like while TIDAL was being asked. Taken from
     # inside the lookup, in the worker: the pilot waits for workers, so a
@@ -620,7 +624,7 @@ def test_while_the_artist_is_on_its_way_the_library_is_not_shown(monkeypatch):
         async with application.run_test(size=(100, 30)) as pilot:
             a_queue(application, "Schism")
             await pilot.pause()
-            application.action_track_menu()
+            application.queue_view.track_menu()
             await pilot.pause()
             await pilot.press("t")
             await settle(
@@ -645,14 +649,14 @@ def _two_tracks_playing_the_last(application) -> None:
         [Entry(id=1, title="A", artist="x"), Entry(id=2, title="B", artist="x")],
         start=1,
     )
-    application._sync_queue()
+    application.queue_view.sync()
 
 
 def test_autoplay_carries_on_with_the_last_track_s_radio(monkeypatch):
     """At the end of the queue, with autoplay on: the last track's radio goes
     on the end, without the seed or what the queue already has, and plays."""
     isolate_runtime(monkeypatch)
-    monkeypatch.setattr(TidalAmp, "_resolve_worker", lambda self, entry: None)
+    monkeypatch.setattr(Playback, "resolve_worker", lambda self, entry: None)
     monkeypatch.setattr(app_module.config, "AUTOPLAY", True)
     asked: list[str] = []
 
@@ -671,9 +675,9 @@ def test_autoplay_carries_on_with_the_last_track_s_radio(monkeypatch):
         async with application.run_test(size=(100, 30)) as pilot:
             await pilot.pause()
             _two_tracks_playing_the_last(application)
-            application.action_next()
+            application.playback.next()
             # A second «next» while the radio is on its way asks nothing more.
-            application.action_next()
+            application.playback.next()
             await settle(pilot, lambda: len(application.queue) == 4)
 
             assert asked == ["B"]
@@ -695,7 +699,7 @@ def test_without_autoplay_the_end_of_the_queue_stops(monkeypatch):
         async with application.run_test(size=(100, 30)) as pilot:
             await pilot.pause()
             _two_tracks_playing_the_last(application)
-            application.action_next()
+            application.playback.next()
             await pilot.pause()
             assert asked == []
             assert application.queue.playing == -1
@@ -718,7 +722,7 @@ def test_a_radio_with_nothing_new_stops_and_says_so(monkeypatch):
         async with application.run_test(size=(100, 30)) as pilot:
             await pilot.pause()
             _two_tracks_playing_the_last(application)
-            application.action_next()
+            application.playback.next()
             await settle(pilot, lambda: "no hay más" in application.status)
             assert application.queue.playing == -1
             assert len(application.queue) == 2
@@ -730,11 +734,11 @@ def test_stopping_while_the_radio_is_on_its_way_keeps_it_stopped(monkeypatch):
     """A station arriving after the user pressed stop, or played something
     else, must not start by itself."""
     isolate_runtime(monkeypatch)
-    monkeypatch.setattr(TidalAmp, "_resolve_worker", lambda self, entry: None)
+    monkeypatch.setattr(Playback, "resolve_worker", lambda self, entry: None)
     monkeypatch.setattr(app_module.config, "AUTOPLAY", True)
     asked: list[Entry] = []
     monkeypatch.setattr(
-        TidalAmp, "_autoplay_worker", lambda self, seed: asked.append(seed)
+        Playback, "autoplay_worker", lambda self, seed: asked.append(seed)
     )
 
     async def scenario() -> None:
@@ -742,21 +746,21 @@ def test_stopping_while_the_radio_is_on_its_way_keeps_it_stopped(monkeypatch):
         async with application.run_test(size=(100, 30)) as pilot:
             await pilot.pause()
             _two_tracks_playing_the_last(application)
-            application.action_next()
+            application.playback.next()
             assert len(asked) == 1
-            application.action_stop()
+            application.playback.stop()
             station = [Entry(id=90, title="R0", artist="x")]
-            application._autoplay_ready(asked[0], station)
+            application.playback.autoplay_ready(asked[0], station)
             await pilot.pause()
             assert len(application.queue) == 2
             assert application.queue.playing == -1
 
             # Back to the last track, so «next» runs past the end again.
             _two_tracks_playing_the_last(application)
-            application.action_next()
+            application.playback.next()
             assert len(asked) == 2
-            application._play_index(0)
-            application._autoplay_ready(asked[1], station)
+            application.playback.play_index(0)
+            application.playback.autoplay_ready(asked[1], station)
             assert len(application.queue) == 2
             assert application.queue.playing == 0
 

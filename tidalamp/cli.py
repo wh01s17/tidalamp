@@ -120,7 +120,7 @@ def _offer_installs(platform: str = sys.platform) -> None:
 )
 def show_config() -> None:
     """Muestra la configuración efectiva y crea el fichero si no existe."""
-    from .app import DEFAULT_KEYS, keys_for, unknown_key_actions
+    from .keys import DEFAULT_KEYS, keys_for, unknown_key_actions
 
     path = settings.write_template()
     typer.echo(_("Fichero: {path}").format(path=path))

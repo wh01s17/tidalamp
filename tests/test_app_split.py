@@ -20,7 +20,10 @@ from textual.widgets import Static
 from tidalamp import app as app_module
 from tidalamp.app import RowList, TidalAmp
 from tidalamp.artwork import Protocol
+from tidalamp.cover import DISPLAY_HEIGHT
+from tidalamp.lyrics_feed import LyricsFeed
 from tidalamp.queue import Entry
+from tidalamp.theme import LAYOUTS
 from tidalamp.widgets import (
     Artwork,
     Marquee,
@@ -49,7 +52,7 @@ def test_switching_to_split_moves_the_halves_without_remounting_them(
                 [Entry(id=n, title=f"t{n}", artist="a", duration=9) for n in range(30)],
                 start=0,
             )
-            application._sync_queue()
+            application.queue_view.sync()
             playlist = application.query_one("#playlist", RowList)
             art = application.query_one(Artwork)
             transport = application.query_one("#transport")
@@ -61,11 +64,11 @@ def test_switching_to_split_moves_the_halves_without_remounting_them(
             assert queue.region.y > player.region.y, "apilada: la cola va debajo"
 
             app_module.config.set_option("arrangement", "split")
-            application._setting_changed("arrangement")
+            application.setting_changes.apply("arrangement")
             await pilot.pause()
             await pilot.pause()
 
-            assert application.split
+            assert application.looks.split
             assert application.query_one("#playlist", RowList) is playlist
             assert application.query_one(Artwork) is art
             assert application.query_one("#transport") is transport
@@ -79,10 +82,10 @@ def test_switching_to_split_moves_the_halves_without_remounting_them(
             assert heading.size.width < 100
 
             app_module.config.set_option("arrangement", "stacked")
-            application._setting_changed("arrangement")
+            application.setting_changes.apply("arrangement")
             await pilot.pause()
             await pilot.pause()
-            assert not application.split
+            assert not application.looks.split
             assert application.query_one("#playlist", RowList) is playlist
             assert playlist.cursor == 17
             # Back at full width, the hints go back to the right edge instead
@@ -105,17 +108,17 @@ def test_split_falls_back_to_stacked_where_it_does_not_fit(monkeypatch, tmp_path
         application = TidalAmp(object(), FakeMpv())
         async with application.run_test(size=(120, 34)) as pilot:
             await pilot.pause()
-            assert not application.split
-            application._setting_changed("arrangement")
+            assert not application.looks.split
+            application.setting_changes.apply("arrangement")
             assert "160" in application.status
 
             await pilot.resize_terminal(170, 34)
-            await wait_for(pilot, lambda: application.split, what="dos columnas")
+            await wait_for(pilot, lambda: application.looks.split, what="dos columnas")
 
             await pilot.resize_terminal(170, 20)
             await wait_for(
                 pilot,
-                lambda: not application.split,
+                lambda: not application.looks.split,
                 what="demasiado bajo para dos columnas",
             )
 
@@ -130,14 +133,14 @@ def test_every_look_fits_both_halves_of_the_narrowest_split(monkeypatch, tmp_pat
     app_module.config.set_option("arrangement", "split")
 
     async def scenario() -> None:
-        for name in app_module.LAYOUTS:
+        for name in LAYOUTS:
             app_module.config.THEME = name
             application = TidalAmp(object(), FakeMpv())
             size = (TidalAmp.SPLIT_MIN_WIDTH, TidalAmp.SPLIT_MIN_HEIGHT)
             async with application.run_test(size=size) as pilot:
                 await pilot.pause()
                 await pilot.pause()
-                assert application.split, name
+                assert application.looks.split, name
                 queue = application.query_one("#queue-half")
                 transport = application.query_one("#transport")
                 play = application.query_one("#transport-play")
@@ -153,7 +156,7 @@ def test_every_look_fits_both_halves_of_the_narrowest_split(monkeypatch, tmp_pat
                 display = application.query_one("#display")
                 seek = application.query_one("#seek")
                 assert display.region.bottom <= seek.region.y, name
-                assert application.query_one(Artwork).rows >= app_module.DISPLAY_HEIGHT
+                assert application.query_one(Artwork).rows >= DISPLAY_HEIGHT
                 # The rule under the lyrics is drawn on the pane's ground; on
                 # any other ground than the band's it left half a row of the
                 # wrong colour under the line.
@@ -186,7 +189,7 @@ def test_split_shows_the_lyrics_above_the_player_and_follows_the_song(
             )
         )
 
-    monkeypatch.setattr(TidalAmp, "_lyrics_for", lyrics_for)
+    monkeypatch.setattr(LyricsFeed, "for_entry", lyrics_for)
 
     async def scenario() -> None:
         mpv = FakeMpv()
@@ -225,7 +228,7 @@ def test_split_shows_the_lyrics_above_the_player_and_follows_the_song(
             assert fetched == [7], "una sola carga por pista"
 
             app_module.config.set_option("arrangement", "stacked")
-            application._setting_changed("arrangement")
+            application.setting_changes.apply("arrangement")
             await pilot.pause()
             assert not pane.display or pane.size.height == 0
 
@@ -281,7 +284,7 @@ def test_the_emblem_is_painted_on_a_short_line_too(monkeypatch, tmp_path):
                 ],
                 start=0,
             )
-            application._sync_queue()
+            application.queue_view.sync()
             await pilot.pause()
             for y in (middle, middle + 1):
                 drawn = playlist.render_line(y)
@@ -309,7 +312,7 @@ def test_moving_the_cursor_repaints_two_rows_not_the_whole_queue(monkeypatch):
                 [Entry(id=n, title=f"t{n}", artist="a", duration=9) for n in range(200)],
                 start=0,
             )
-            application._sync_queue()
+            application.queue_view.sync()
             await pilot.pause()
             playlist = application.query_one("#playlist", RowList)
             height = playlist.size.height
@@ -352,15 +355,15 @@ def test_falling_back_from_split_redraws_a_pixel_cover_where_it_now_is(
         application = TidalAmp(object(), FakeMpv())
         async with application.run_test(size=(180, 44)) as pilot:
             await pilot.pause()
-            assert application.split
+            assert application.looks.split
             art = application.query_one(Artwork)
             cover = a_cover(Protocol.KITTY)
-            application._art_ready(cover)
+            application.cover.ready(cover)
             erased.clear()
 
             await pilot.resize_terminal(150, 44)
-            await wait_for(pilot, lambda: not application.split, what="una columna")
-            assert not application.split
+            await wait_for(pilot, lambda: not application.looks.split, what="una columna")
+            assert not application.looks.split
             assert erased, "la colocación vieja se borra"
             assert art.cover is not None, "y la carátula sigue puesta"
 
@@ -418,7 +421,7 @@ def test_the_lyrics_window_follows_a_track_changed_by_the_media_keys(monkeypatch
     def lyrics_for(self, entry):
         return parse_lyrics(text=f"letra de {entry.title}")
 
-    monkeypatch.setattr(TidalAmp, "_lyrics_for", lyrics_for)
+    monkeypatch.setattr(LyricsFeed, "for_entry", lyrics_for)
 
     async def scenario() -> None:
         application = TidalAmp(object(), FakeMpv())
@@ -439,7 +442,7 @@ def test_the_lyrics_window_follows_a_track_changed_by_the_media_keys(monkeypatch
 
             await settle(pilot, lambda: "letra de Schism" in body())
 
-            application.mpris_next()
+            application.media.mpris_next()
             await settle(pilot, lambda: "letra de Parabola" in body())
             title = str(application.screen.query_one("#lyrics-title").content)
             assert "Parabola" in title
@@ -459,7 +462,7 @@ def test_the_lyrics_window_title_spends_the_head_and_glides_when_it_does_not_fit
     isolate_runtime(monkeypatch)
     monkeypatch.setattr(Glide, "HOLD", 0)
     monkeypatch.setattr(
-        TidalAmp, "_lyrics_for", lambda self, entry: parse_lyrics(text="verso")
+        LyricsFeed, "for_entry", lambda self, entry: parse_lyrics(text="verso")
     )
 
     async def scenario() -> None:

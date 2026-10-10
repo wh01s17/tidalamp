@@ -22,11 +22,13 @@ from tidalamp import columns as columns_module
 from tidalamp import library
 from tidalamp.app import ConfigScreen, RowList, TidalAmp
 from tidalamp.backends.linux import audio as linux_audio
+from tidalamp.output import Output
 from tidalamp.queue import Entry
 from tidalamp.screens import (
     ChoiceScreen,
     ColumnsScreen,
 )
+from tidalamp.theme import LAYOUTS
 from tidalamp.widgets import (
     Analyzer,
     Artwork,
@@ -60,13 +62,13 @@ def test_a_failed_save_is_said_once_and_not_on_every_track(monkeypatch):
         application = TidalAmp(object(), FakeMpv())
         async with application.run_test(size=(160, 26)) as pilot:
             await pilot.pause()
-            application._saved(application.queue.save())
+            application.saved(application.queue.save())
             assert "no se pudo guardar" in application.status
             assert "Permission denied" in application.status
 
             application.status = "reproduciendo"
-            application._saved(application.queue.save())
-            application._saved(application.settings.save())
+            application.saved(application.queue.save())
+            application.saved(application.settings.save())
             assert application.status == "reproduciendo"
 
             # The next message wrote over the warning at once, and the
@@ -105,7 +107,7 @@ def test_the_setting_changes_the_shape_without_moving_the_analyser(monkeypatch):
             where = analyzer.region
 
             monkeypatch.setattr(app_module.config, "VISUALIZER", "curve")
-            application._setting_changed("visualizer")
+            application.setting_changes.apply("visualizer")
             await pilot.pause()
 
             assert analyzer.mode == "curve"
@@ -129,7 +131,7 @@ def test_the_config_screen_offers_every_shape_and_writes_the_one_chosen(
 
             def applied(name: str) -> None:
                 changed.append(name)
-                application._setting_changed(name)
+                application.setting_changes.apply(name)
 
             screen = ConfigScreen(applied)
             application.push_screen(screen)
@@ -162,7 +164,7 @@ def test_nobody_pays_for_the_year_column_they_turned_off(monkeypatch):
             application.queue.replace(
                 [Entry(id=1, title="a", artist="x", album="y", album_id=7)], start=-1
             )
-            application._sync_queue()
+            application.queue_view.sync()
             await pilot.pause()
 
             assert asked == []
@@ -199,7 +201,7 @@ def test_changing_a_setting_writes_the_file_and_takes_effect(monkeypatch, tmp_pa
         application = TidalAmp(object(), FakeMpv())
         async with application.run_test(size=(100, 34)) as pilot:
             await pilot.pause()
-            application.push_screen(ConfigScreen(application._setting_changed))
+            application.push_screen(ConfigScreen(application.setting_changes.apply))
             await pilot.pause()
 
             assert app_module.config.DEFAULT_QUALITY == "HI_RES_LOSSLESS"
@@ -253,7 +255,7 @@ def test_the_settings_are_grouped_by_what_they_are_about(monkeypatch, tmp_path):
         application = TidalAmp(object(), FakeMpv())
         async with application.run_test(size=(120, 40)) as pilot:
             await pilot.pause()
-            application.push_screen(ConfigScreen(application._setting_changed))
+            application.push_screen(ConfigScreen(application.setting_changes.apply))
             await pilot.pause()
             drawn = application.screen.query_one("#config-list").render_line
             lines = [drawn(y).text for y in range(30)]
@@ -283,7 +285,7 @@ def test_the_settings_list_scrolls_instead_of_hiding_the_cursor(monkeypatch, tmp
         application = TidalAmp(object(), FakeMpv())
         async with application.run_test(size=(60, 18)) as pilot:
             await pilot.pause()
-            screen = ConfigScreen(application._setting_changed)
+            screen = ConfigScreen(application.setting_changes.apply)
             application.push_screen(screen)
             await pilot.pause()
             last = len(screen._rows) - 1
@@ -308,7 +310,7 @@ def test_a_modal_is_solid_until_transparency_is_turned_on(monkeypatch, tmp_path)
         application = TidalAmp(object(), FakeMpv())
         async with application.run_test(size=(120, 34)) as pilot:
             await pilot.pause()
-            screen = ConfigScreen(application._setting_changed)
+            screen = ConfigScreen(application.setting_changes.apply)
             application.push_screen(screen)
             await pilot.pause()
             assert not screen.has_class("transparent")
@@ -348,12 +350,12 @@ def test_choosing_columns_redraws_the_queue_that_is_already_there(monkeypatch, t
                 ],
                 start=0,
             )
-            application._sync_queue()
+            application.queue_view.sync()
             await pilot.pause()
             playlist = application.query_one("#playlist", RowList)
             assert "64" not in playlist.render_line(0).text
 
-            screen = ConfigScreen(application._setting_changed)
+            screen = ConfigScreen(application.setting_changes.apply)
             application.push_screen(screen)
             await pilot.pause()
             screen.cursor = config_row(screen, "Columnas de la cola")
@@ -477,7 +479,7 @@ def test_the_output_rate_is_followed_until_pipewire_settles(monkeypatch):
     the *previous* track's rate, so the badge said 44.1 kHz while the DAC's
     own screen read 96K. The worker has to keep looking.
     """
-    from tidalamp import app as app_module
+    from tidalamp import output as output_module
 
     rates = iter([44100, 44100, 96000, 96000, 96000, 96000, 96000, 96000])
     seen: list[int] = []
@@ -491,16 +493,23 @@ def test_the_output_rate_is_followed_until_pipewire_settles(monkeypatch):
         )
 
     monkeypatch.setattr(audio_module, "sink", fake_sink)
-    monkeypatch.setattr(app_module, "SINK_SETTLE", 0.3)
-    monkeypatch.setattr(app_module, "SINK_POLL", 0.0)
+    monkeypatch.setattr(output_module, "SINK_SETTLE", 0.3)
+    monkeypatch.setattr(output_module, "SINK_POLL", 0.0)
     monkeypatch.setattr(
-        app_module, "get_current_worker", lambda: type("W", (), {"is_cancelled": False})
+        output_module,
+        "get_current_worker",
+        lambda: type("W", (), {"is_cancelled": False}),
     )
 
     class Recorder:
         mpv = FakeMpv()
 
-        def _set_sink(self, sink, stream_rate=0):
+        @property
+        def app(self):
+            # The worker asks the app for mpv and for the UI thread.
+            return self
+
+        def set_sink(self, sink, stream_rate=0):
             seen.append(sink.rate)
 
         def call_from_thread(self, fn, *args):
@@ -508,7 +517,7 @@ def test_the_output_rate_is_followed_until_pipewire_settles(monkeypatch):
 
     recorder = Recorder()
     # The worker body, called straight rather than through Textual's runner.
-    TidalAmp._refresh_sink_worker.__wrapped__(recorder)
+    Output.follow.__wrapped__(recorder)
 
     # It published the stale rate first, then corrected itself, and it did not
     # repeat a rate that had not moved.
@@ -523,7 +532,7 @@ def test_a_running_dac_is_forced_to_the_rate_of_the_next_track(monkeypatch):
     worker forces the stream's rate, and hands the choice back once the sink
     has followed.
     """
-    from tidalamp import app as app_module
+    from tidalamp import output as output_module
 
     forced: list[int] = []
     state = {"rate": 48000}
@@ -543,24 +552,31 @@ def test_a_running_dac_is_forced_to_the_rate_of_the_next_track(monkeypatch):
     monkeypatch.setattr(audio_module, "hardware_rates", lambda name: linux_audio.RATES)
     monkeypatch.setattr(audio_module, "streams_on", lambda sink: 1)
     monkeypatch.setattr(audio_module, "force_rate", fake_force)
-    monkeypatch.setattr(app_module, "SINK_SETTLE", 0.3)
-    monkeypatch.setattr(app_module, "SINK_POLL", 0.0)
+    monkeypatch.setattr(output_module, "SINK_SETTLE", 0.3)
+    monkeypatch.setattr(output_module, "SINK_POLL", 0.0)
     monkeypatch.setattr(
-        app_module, "get_current_worker", lambda: type("W", (), {"is_cancelled": False})
+        output_module,
+        "get_current_worker",
+        lambda: type("W", (), {"is_cancelled": False}),
     )
     seen: list[tuple[int, int]] = []
 
     class Recorder:
         mpv = FakeMpv()
 
-        def _set_sink(self, sink, stream_rate=0):
+        @property
+        def app(self):
+            # The worker asks the app for mpv and for the UI thread.
+            return self
+
+        def set_sink(self, sink, stream_rate=0):
             seen.append((sink.rate, stream_rate))
 
         def call_from_thread(self, fn, *args):
             fn(*args)
 
     Recorder.mpv.samplerate = 44100
-    TidalAmp._refresh_sink_worker.__wrapped__(Recorder())
+    Output.follow.__wrapped__(Recorder())
 
     assert forced == [44100, 0]
     assert seen == [(48000, 44100), (44100, 44100)]
@@ -570,7 +586,7 @@ def test_a_running_dac_is_forced_to_the_rate_of_the_next_track(monkeypatch):
 def test_the_rate_is_not_forced_under_another_application(monkeypatch):
     """With something else playing through the same sink, forcing would switch
     it under that application's feet. Resampling is the lesser harm there."""
-    from tidalamp import app as app_module
+    from tidalamp import output as output_module
 
     forced: list[int] = []
     monkeypatch.setattr(
@@ -582,23 +598,30 @@ def test_the_rate_is_not_forced_under_another_application(monkeypatch):
     monkeypatch.setattr(audio_module, "hardware_rates", lambda name: ())
     monkeypatch.setattr(audio_module, "streams_on", lambda sink: 2)
     monkeypatch.setattr(audio_module, "force_rate", lambda rate: forced.append(rate))
-    monkeypatch.setattr(app_module, "SINK_SETTLE", 0.1)
-    monkeypatch.setattr(app_module, "SINK_POLL", 0.0)
+    monkeypatch.setattr(output_module, "SINK_SETTLE", 0.1)
+    monkeypatch.setattr(output_module, "SINK_POLL", 0.0)
     monkeypatch.setattr(
-        app_module, "get_current_worker", lambda: type("W", (), {"is_cancelled": False})
+        output_module,
+        "get_current_worker",
+        lambda: type("W", (), {"is_cancelled": False}),
     )
 
     class Recorder:
         mpv = FakeMpv()
 
-        def _set_sink(self, sink, stream_rate=0):
+        @property
+        def app(self):
+            # The worker asks the app for mpv and for the UI thread.
+            return self
+
+        def set_sink(self, sink, stream_rate=0):
             pass
 
         def call_from_thread(self, fn, *args):
             fn(*args)
 
     Recorder.mpv.samplerate = 44100
-    TidalAmp._refresh_sink_worker.__wrapped__(Recorder())
+    Output.follow.__wrapped__(Recorder())
 
     assert forced == []
 
@@ -620,7 +643,7 @@ def test_a_translated_theme_name_still_cycles_through_every_theme(monkeypatch, t
             application.push_screen(screen)
             await pilot.pause()
             row = next(option for option in screen._rows if option.key == "theme")
-            names = list(app_module.LAYOUTS)
+            names = list(LAYOUTS)
             for step in (1, -1):
                 seen = [app_module.config.THEME]
                 for _turn in names:

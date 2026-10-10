@@ -8,7 +8,7 @@ import asyncio
 from app_helpers import FakeMpv, isolate_runtime, settle
 
 from tidalamp.app import BrowserScreen, RowList, TidalAmp
-from tidalamp.library import Row
+from tidalamp.levels import Row
 from tidalamp.queue import Entry
 
 

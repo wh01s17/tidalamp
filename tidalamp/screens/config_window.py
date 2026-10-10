@@ -850,7 +850,7 @@ class ConfigScreen(ModalScreen[None]):
         """
         if config.ARTWORK in self.ARTWORKS_OVER_PLAYER:
             return
-        loses_the_image = self.player.art_protocol in self.PIXEL_PROTOCOLS
+        loses_the_image = self.player.cover.protocol in self.PIXEL_PROTOCOLS
         config.set_option("artwork", "blocks")
         if self._on_change is not None:
             self._on_change("artwork")
@@ -874,7 +874,7 @@ class ConfigScreen(ModalScreen[None]):
 
     def _restart(self) -> None:
         # mpv is holding the sink; let go of it before the daemon goes away.
-        self.player._stop_for_pipewire()
+        self.player.playback.stop_for_pipewire()
         self.player.status = _("reiniciando PipeWire…")
         self._restart_worker()
 
@@ -885,7 +885,7 @@ class ConfigScreen(ModalScreen[None]):
 
     def _restarted(self, message: str) -> None:
         self.player.status = message
-        self.player._back_from_pipewire()
+        self.player.playback.back_from_pipewire()
         self._probe()
 
     @property
