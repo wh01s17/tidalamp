@@ -5,6 +5,15 @@ versioning is [semantic](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- Internal: no source or test file is longer than 1000 lines. The player's app is a
+  root that composes thirteen parts, one object each (looks, transport, cover,
+  readout, spectrum, output, playback, prefetch, queue, lyrics, TIDAL errands,
+  settings and the media keys); the library is split into what every level shares,
+  TIDAL's tree and the playlist writes; the English catalogue is its own package; and
+  the largest test files are split by topic. Nothing changes for whoever uses it.
+
 ## [0.21.0] - 2026-09-26
 
 ### Added

@@ -231,14 +231,46 @@ tidalamp/
                 equalizer, lyrics_window, column_picker, prompts, speed) y `rowlist.py`
                 con RowList y `fit_hints()`. `__init__.py` lo reexporta todo. No
                 guardan estado del reproductor: reciben lo que necesitan al
-                construirse y contestan por `dismiss`.
-  app.py        TidalAmp: layout, transporte, workers y el pegamento con MPRIS.
+                construirse y contestan por `dismiss`. `playlist_edits.py` es lo
+                que el navegador escribe en TIDAL: quitar de favoritos o de una
+                playlist, mover una pista, renombrar, describir y borrar.
+  app.py        TidalAmp, la raíz que lo compone todo: los widgets, las teclas,
+                los dos ticks y las ventanas. Lo que hace cada parte del
+                reproductor vive en un objeto suyo que la app crea y por el que
+                las demás lo alcanzan (`app.looks`, `app.playback`...):
+    looks.py          Looks: tamaño, compacto, split, clases del look, emblema,
+                      paleta y el margen de Windows Terminal.
+    transport.py      Transport: los botones y el menú, uno por look.
+    cover.py          CoverView: la carátula del display, su worker y esconderla
+                      tras una ventana.
+    readout.py        Readout: las líneas de la pista, SRC y OUT.
+    spectrum_feed.py  SpectrumFeed: cava o el medidor RMS para el analizador.
+    output.py         Output: el sink, su ritmo y el dispositivo elegido.
+    playback.py       Playback: resolver, cargar, reintentar, recuperar mpv,
+                      PipeWire, reproducción automática y el segundo guardado.
+    prefetch.py       Prefetcher: la siguiente pista, encolada en mpv antes.
+    queue_view.py     QueueView: la cola en pantalla, su filtro y sus ediciones.
+    lyrics_feed.py    LyricsFeed: la puerta única a las letras, y el panel split.
+    library_tasks.py  LibraryTasks: recados a la cuenta (artista, playlists,
+                      radio, favoritos).
+    setting_changes.py SettingChanges: lo que hace un ajuste cambiado en marcha.
+    media_bridge.py   MediaBridge: el PlayerBackend que ven MPRIS y SMTC.
+  keys.py       DEFAULT_KEYS y `keys_for`: qué tecla hace qué, del fichero o por
+                defecto. Sin Textual más allá de `Binding`.
+  workers.py    `thread_worker` (el `@work` de Textual para objetos que no son
+                widgets), `call_from_thread` y `quiet_after_teardown`.
   styles/       La hoja en cinco ficheros que `CSS_PATH` lee en orden: base
                 (pantalla y ventanas), player, compact, looks y themed. A igual
                 especificidad gana la regla posterior, así que el orden importa.
   queue.py      Entry (metadatos serializables + Track perezoso) y Queue (orden,
                 shuffle, repeat, persistencia). No conoce la UI.
-  library.py    Navegación de la biblioteca. Devuelve listas de Row, paginadas.
+  levels.py     Lo común a todo nivel del navegador: Row, la caché de niveles,
+                los órdenes que se recuerdan, el paginado con «más…» y `matches`.
+                No pregunta nada a TIDAL.
+  library.py    El árbol de TIDAL: raíz, favoritos, mixes, Descubrir, artistas,
+                búsqueda y la sección libre. Devuelve listas de Row (`levels`).
+  playlists.py  Escribir en las playlists de la cuenta: crear desde la cola,
+                añadir, quitar, mover, renombrar, describir y borrar.
   columns.py    El catálogo de columnas de la cola: nombre, ancho, alineación y
                 orden en que se dejan caer cuando no caben. No importa nada del
                 reproductor, así que la ventana de `o` y `RowList` lo leen igual.
@@ -265,7 +297,9 @@ tidalamp/
                 `LAYOUT_TABLE`. `app.py` no compara `config.THEME` con nombres.
   artwork.py    Carátula: descarga con cache, y codificación kitty / sixel /
                 medios bloques. Sin Textual ni tidalapi.
-  i18n.py       Español como fuente y fallback, catálogo inglés y detección de locale.
+  i18n.py       Español como fuente y fallback, `_()` y detección de locale.
+  catalogue/    El catálogo inglés, en tres ficheros por zona (player, windows,
+                messages) que `__init__.py` junta en `ENGLISH`.
   about.py      Créditos, licencia, repositorio y notas de versión, más el mapa de
                 atajos que pinta la ayuda. Datos puros: sin Textual.
   audio.py      Fachadas: eligen el backend del sistema y reexportan su API
@@ -296,11 +330,11 @@ tidalamp/
     audio.py    Lo que mpv dice del dispositivo WASAPI; nada que forzar.
     media.py    SMTC: el panel multimedia y las teclas, con el contrato de MPRIS.
     desktop.py  El acceso directo `TidalAmp.lnk` en el menú Inicio.
-packaging/windows/
-  tidalamp.spec La receta de PyInstaller del `.exe`, y `smoke.py`, que lo prueba.
   media.py      El contrato entre la app y la integración de medios: los
                 Protocol PlayerBackend y MediaService.
   cli.py        Entrypoint typer: login / tui / config / search, y `--version`.
+packaging/windows/
+  tidalamp.spec La receta de PyInstaller del `.exe`, y `smoke.py`, que lo prueba.
 
 packaging/
   README.md     Procedimiento de publicación en PyPI y en el AUR.
@@ -313,18 +347,28 @@ packaging/
 Dependencia en un solo sentido:
 
 ```text
-cli -> app -> {player, stream, widgets, screens, mpris, lyrics, spectrum, settings}
-       app -> {queue, net, artwork, library} -> {auth, config}
+cli -> app -> {looks, transport, cover, readout, spectrum_feed, output, playback,
+              prefetch, queue_view, lyrics_feed, library_tasks, setting_changes,
+              media_bridge}
+       app y sus partes -> {player, stream, widgets, screens, mpris, lyrics,
+                            spectrum, settings, keys, workers}
+       app y sus partes -> {queue, net, artwork, library, playlists} -> {auth, config}
+       {library, playlists} -> levels -> {queue, net, config}
        library -> freemusic -> {jamendo, archive} -> music -> {net, i18n}
        jamendo -> config
-       screens -> {widgets, library, settings, lyrics, theme, about, audio, config}
+       screens -> {widgets, levels, library, playlists, settings, lyrics, theme,
+                   about, audio, config, keys}
        widgets -> {analyzer, scrolling}
        widgets -> artwork  (sólo los tipos Cover/Protocol y el borrado de kitty)
 ```
 
 `RowList` vive en `screens/rowlist.py` y no en `widgets.py` a propósito: pinta un
-`library.Row`, y `library` importa `tidalapi`. Ponerlo con los demás widgets
-arrastraría TIDAL al único módulo que deliberadamente no lo conoce.
+`levels.Row`, cuya entrada es un `queue.Entry`, y `queue` importa `tidalapi`.
+Ponerlo con los demás widgets arrastraría TIDAL al único módulo que
+deliberadamente no lo conoce.
+
+Ningún fichero de código ni de tests pasa de 1000 líneas (2026-10-09). Cuando uno se acerque, se parte
+por lo que hace, como §4 «El reparto de `app.py`» cuenta.
 
 `widgets.py`, `analyzer.py` y `scrolling.py` no conocen TIDAL ni mpv; recibe valores por reactives. Mantener esa
 separación: es lo que permitiría añadir otro frontend (ver §6).
@@ -379,14 +423,14 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
 - [x] Marquee del título con scroll. Lleva **el número y el título y nada más**: es una
       línea, y el artista, el álbum, el año y la duración caben mejor bajo el reloj, que
       tenía cinco filas vacías debajo. `#clockbox` agrupa los dos y conserva las 24
-      celdas que el reloj declaraba, porque `_fit_artwork` mide esa columna con
+      celdas que el reloj declaraba, porque `CoverView.fit` mide esa columna con
       `CLOCK_WIDTH` para calcular el recuadro de la carátula.
 - [x] El bloque bajo el reloj recorta en vez de envolver: veintitrés celdas de ancho, y
       un álbum largo envuelto empujaría el año fuera de la banda. El año desaparece
       cuando vale `0`, que es lo que trae una cola guardada antes de que existiera esa
       columna, en vez de dejar un separador suelto.
-- [x] Se escribe al arrancar la pista (`_refresh_track_meta`) y no sólo desde
-      `_refresh_readout`: la línea del códec espera a que resuelva el stream y esto no
+- [x] Se escribe al arrancar la pista (`Readout.refresh_track_meta`) y no sólo desde
+      `Readout.refresh`: la línea del códec espera a que resuelva el stream y esto no
       tiene por qué. En la disposición compacta desaparece; cinco filas de banda son el
       reloj y nada más.
 - [x] Analizador de 19 bandas con balística ataque rápido / caída lenta y marcas de pico.
@@ -527,7 +571,7 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
       la red útil eran 0,25 s. Como no editamos playlists, `_playlists_level()` parsea
       el listado con `Playlist.parse()` (que no pide nada) y se salta la factoría.
       Además ahora pagina como el resto. Resultado en la app real: **0,39 s**.
-- [x] **Filtro del nivel con `/`** (`library.matches` + `BrowserScreen`). Una barra al
+- [x] **Filtro del nivel con `/`** (`levels.matches` + `BrowserScreen`). Una barra al
       pie del navegador, como el buscador de un navegador web: no es un modal, no tapa
       la lista, la estrecha debajo mientras se teclea y a la derecha dice «12 de 103».
       Filtra lo que el nivel contenga, que es justo lo que el usuario pidió: pistas en
@@ -551,7 +595,7 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
         bajo un filtro el número en pantalla no es su sitio en el nivel. Sigue siendo un
         empalme in situ sobre la lista que entregó la caché, así que las páginas ya
         traídas siguen ahí al volver.
-- [x] Caché de niveles en memoria (`library.cached` / `library.forget`): volver a
+- [x] Caché de niveles en memoria (`levels.cached` / `levels.forget`): volver a
       entrar en un nivel ya visitado es instantáneo. Sólo en memoria, porque una
       biblioteca cambia desde otros dispositivos; `R` en el navegador olvida el nivel y
       lo vuelve a pedir. La lista cacheada se entrega tal cual, no copiada, para que
@@ -573,12 +617,12 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
 - [x] La ventana crece con su propio texto (`height: auto`) con un suelo de 24 filas.
       Un `1fr` dentro de una caja `auto` se come todas las filas del terminal —se probó,
       y quedaba media ventana vacía en 4K—; una altura fija dejaba el mismo hueco.
-- [x] **La carátula sigue al ajuste en vivo** (`_reload_art`). Antes pedía reiniciar, lo
+- [x] **La carátula sigue al ajuste en vivo** (`CoverView.reload`). Antes pedía reiniciar, lo
       cual convertía «enciendo la transparencia para ver el reproductor» en «veo el
       reproductor con un agujero donde estaba la carátula hasta el próximo arranque».
       Baja la imagen vieja con `show(None)` —que es lo que manda el borrado de kitty—,
       redetecta el protocolo y vuelve a pedir la carátula de la pista en curso.
-- [x] **Una carátula que aterriza con un modal abierto se retira sola** (`_art_ready`).
+- [x] **Una carátula que aterriza con un modal abierto se retira sola** (`CoverView.ready`).
       No era sólo cosa del cambio de protocolo: una imagen de píxeles se pinta sobre el
       texto llegue cuando llegue, así que empezar una pista desde el navegador dejaba la
       portada encima del navegador. Las de medios bloques se quedan donde caen.
@@ -665,8 +709,8 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
       `~/.local/state/tidalamp/tidalamp.log`. Sin él, un `NullHandler` en el paquete
       evita que el handler de último recurso de `logging` pinte sobre la TUI.
 - [x] **Un guardado que falla se dice, una vez.** `Queue.save`, `Settings.save` y
-      `library.remember` ya no se tragan el `OSError` con `pass`: lo devuelven. Esos
-      módulos no conocen Textual, así que es `TidalAmp._saved()` quien lo registra con
+      `levels.remember` ya no se tragan el `OSError` con `pass`: lo devuelven. Esos
+      módulos no conocen Textual, así que es `TidalAmp.saved()` quien lo registra con
       `log.warning` y lo pone en la línea de estado, sólo la primera vez de la sesión
       (`_save_warned`): la cola se guarda en cada cambio de pista y con el disco lleno
       se comería la línea. **Pero una vez no basta**: el mantenedor lo probó con la
@@ -713,7 +757,7 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
       - *Lo que cambió en los tests:* `isolate_runtime` sigue apagando el worker del
         sink, pero por aislamiento y no por la carrera: sondea `SINK_SETTLE` (4 s) y
         pisa el sink que un test pone a mano. `test_app_threads.py` lo deja encendido y
-        cierra la app a mitad de una lectura: sin la guarda, `_set_sink` corre con la
+        cierra la app a mitad de una lectura: sin la guarda, `Output.set_sink` corre con la
         app ya cerrada.
       - *Un error por el camino:* se quitó también la espera de `settle` a los
         workers, tomándola por un apaño de esta carrera. No lo era: los tests leían
@@ -807,7 +851,7 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
 
 ### Dos teclas que unifican lo que ya había — `app.py`
 
-- [x] **`space` reproduce y pausa**, detrás de `x`. Va segunda a propósito: `_button_key`
+- [x] **`space` reproduce y pausa**, detrás de `x`. Va segunda a propósito: `transport.button_key`
       dibuja en el botón del transporte la **primera** tecla enlazada, así que el botón
       conserva su letra de Winamp y el espacio no la ensucia. Nada en la ventana
       principal la usaba, y es lo que hace cualquier otro reproductor.
@@ -817,7 +861,7 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
       dónde entrar.
 - [x] La única respuesta que difiere es `play`: en el navegador manda el nivel a la cola
       y arranca ahí, y en la cola el nivel **ya es** la cola, así que sólo arranca. El
-      resto reutiliza `_browser_result`, que ya sabía qué hacer con cada una.
+      resto reutiliza `QueueView.browser_answered`, que ya sabía qué hacer con cada una.
 
 ### Cola: deshacer el vaciado — `app.py`
 
@@ -828,7 +872,7 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
 - [x] No reanuda la reproducción. Vaciar detuvo, y devolver la lista no es devolver el
       sonido: una canción arrancando sola porque alguien deshizo un error sorprende más
       que el error.
-- [x] Un solo nivel y en memoria. `_sync_queue` ya reescribió `queue.json` cuando se
+- [x] Un solo nivel y en memoria. `QueueView.sync` ya reescribió `queue.json` cuando se
       pulsa la tecla, así que lo restaurado vive sólo en RAM; cerrar la app entre medias
       lo pierde, y está bien: esto es para el resbalón de hace dos segundos.
 - [x] Un segundo `C` reemplaza lo guardado. No es una pila.
@@ -909,7 +953,7 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
       escribir no impide ver la carátula.
 - [x] Recorte centrado al aspecto del recuadro antes de escalar, para no deformar una
       portada cuadrada dentro de un rectángulo de celdas.
-- [x] El recuadro **crece con el terminal** (`Artwork.resize`, `TidalAmp._fit_artwork`):
+- [x] El recuadro **crece con el terminal** (`Artwork.resize`, `CoverView.fit`):
       de 18×9 en el mínimo de 76×20 hasta 40×20, con dos topes — un cuarto de la altura,
       para no comerse la playlist, y lo que deje la fila que comparte con el reloj (24
       celdas) y el marquee (30). Un terminal alto pero estrecho se queda en 18×9. Al
@@ -965,13 +1009,13 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
       `len()`: `◀◀` y `▶▶` no miden una celda en todos los terminales.
 - [x] Separador `·` en el color atenuado de la paleta para el menú de la derecha, no
       `│`: es una lista de cosas pequeñas y una barra sólida entre cada una pesa más
-      que lo que separa. `_separated()` parte la cadena traducida y atenúa sólo los
+      que lo que separa. `transport.separated()` parte la cadena traducida y atenúa sólo los
       separadores, así que el catálogo sigue teniendo una entrada por mitad.
 - [x] El menú se **recorta a mano** al ancho de su widget. `text-wrap: nowrap` de la
       hoja de estilos no sirve sobre un `Text` de Rich —comprobado—, y al envolverse se
       metía en las filas donde se dibujan los botones. Como `? ayuda` va primero, lo
       que se pierde es la cola. El recorte necesita el ancho, que sólo existe tras el
-      layout, así que `_check_size()` vuelve a pintar la barra al redimensionar.
+      layout, así que `Looks.check_size()` vuelve a pintar la barra al redimensionar.
 - [x] Shuffle y repetición dejaron de ser una fila propia con las palabras
       `SHUF OFF` / `REP ALL`: ahora son dos botones más del transporte, `s ⇄` y `r ⟳`,
       encendidos con el acento del tema cuando están activos. Repetir-una es `r ⟳ 1`,
@@ -989,7 +1033,7 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
       los tres estados. La `c` de Winamp desapareció: después de fusionar los botones
       hacía exactamente lo mismo que `x`, y dos atajos para una función es el desorden
       que la fusión venía a quitar. `pause` ya no está en `DEFAULT_KEYS` ni en la
-      plantilla de configuración; el toggle sobrevive como `_toggle_pause()`, sin
+      plantilla de configuración; el toggle sobrevive como `Playback.toggle_pause()`, sin
       prefijo `action_`, porque MPRIS `PlayPause` lo usa y nada del teclado lo alcanza
       —un nombre bindeable que no se puede bindear miente en el fichero de config.
 - [x] El botón sigue el estado desde `_tick_fast`, pero sólo repinta cuando el estado
@@ -1053,8 +1097,8 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
       cualquier tema. `artwork.shape` corta la imagen ya encajada con una máscara
       dibujada a 4x y reducida, y pinta las esquinas con el fondo real de la banda
       (`#display`, que en nova y `cuaderno` es el panel): sixel no tiene alfa fiable
-      y los bloques ninguna, así que así se ve igual en los tres. `_art_look` guarda
-      con qué forma y fondo se cortó la que está en pantalla, y `_reshape_art` la
+      y los bloques ninguna, así que así se ve igual en los tres. `CoverView.cut_with` guarda
+      con qué forma y fondo se cortó la que está en pantalla, y `CoverView.reshape` la
       vuelve a pedir si un cambio de tema o de ajuste los cambia. Se probó también
       que cada tema cambiara la barra, los sliders y el analizador (`Skin`); al
       mantenedor no le gustó y se quitó entero.
@@ -1069,7 +1113,7 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
       etiqueta entre los nombres guardados, no la encontraba y volvía al primero;
       ahora recorre `_stored`, y un test en inglés da la vuelta entera a los temas en
       los dos sentidos.
-- [x] El transporte de `ascii` pasó a `_transport_keycaps`, con las tapas de cada tecla
+- [x] El transporte de `ascii` pasó a `Transport._keycaps`, con las tapas de cada tecla
       en `Layout.keycaps`: `ascii` las deja en `[ ]` y en glifos ASCII, y cinco temas
       traen las suyas (`⟦ ⟧`, `( )`, `▐ ▌`, `{ }`, `╣ ╠`). Los demás reutilizan
       `quattro`, `retro` o `nova`. La estructura propia de cada uno (marco, qué barras
@@ -1124,13 +1168,13 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
       la caché caliente y 26 en frío.
 - [x] Al salir de split, la banda de la carátula cambia de sitio sin cambiar siempre de
       tamaño, y una carátula kitty se queda donde se pintó hasta que alguien la borra:
-      `_replace_pixel_cover` la quita y la vuelve a poner, así que se borra la
+      `CoverView.replace_pixel` la quita y la vuelve a poner, así que se borra la
       colocación vieja, haga lo que haga el terminal. La letra sin sincronizar avanza
       sola en el panel de split con la canción (`LyricsPane._plain_start`): sin
       marcas de tiempo no hay línea que seguir, y el panel no tiene teclas propias
       porque son de la cola. Las dos cosas eran lo que quedaba de split en `next.md`.
-- [x] Trampa de la carátula de píxeles tras una ventana: `_art_ready` la ponía y
-      llamaba a `_hide_art` para quitarla, pero `_hide_art` vuelve sin hacer nada si ya
+- [x] Trampa de la carátula de píxeles tras una ventana: `CoverView.ready` la ponía y
+      llamaba a `CoverView.hide` para quitarla, pero `CoverView.hide` vuelve sin hacer nada si ya
       hay una oculta, y la hay siempre que la ventana se abrió sobre una carátula kitty
       o sixel. Una segunda carátula (pista cambiada desde la biblioteca, o el tema
       cambiado en ajustes, que vuelve a medir el recuadro y la descarga otra vez) se
@@ -1188,7 +1232,7 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
       transporte entre los dos como hermano de ambos, también en la forma apilada.
       Cambiar de forma es la clase `split` en `#main`: la CSS convierte `#main` en una
       rejilla de dos columnas con el título, el transporte y la barra de estado
-      ocupando las dos (`column-span: 2`), y `_place_transport()` pasa el transporte
+      ocupando las dos (`column-span: 2`), y `Looks.place_transport()` pasa el transporte
       detrás de la cola con `move_child`, porque la rejilla coloca las celdas en el
       orden de los hijos. `move_child` solo reordena: **no se reparenta ni se remonta
       nada**, así que el `RowList` conserva el cursor, la carátula no se vuelve a
@@ -1199,8 +1243,8 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
       envolverse en una segunda fila; a lo ancho de las dos columnas cabe entero, y el
       umbral dejó de depender de él.
 - [x] Ajuste `arrangement` (`stacked` o `split`, `TIDALAMP_ARRANGEMENT`), en la
-      pantalla de ajustes bajo Apariencia. Se aplica desde `_setting_changed` llamando
-      a `_check_size()`, que es quien decide la clase: no toca mpv.
+      pantalla de ajustes bajo Apariencia. Se aplica desde `SettingChanges.apply` llamando
+      a `Looks.check_size()`, que es quien decide la clase: no toca mpv.
 - [x] Umbral propio: `SPLIT_MIN_WIDTH = 160` y `SPLIT_MIN_HEIGHT = 26`. La mitad del
       reproductor necesita reloj y readout (54 columnas) más la carátula, casi las 80
       de la forma apilada entera. Por debajo **vuelve sola** a apilada y la línea de
@@ -1214,13 +1258,13 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
       lo ya cantado atenuado. `follow()` solo repinta cuando cambia la línea.
 - [x] El resto de lo que se dibuja por ancho (título, encabezado de la cola, menú del
       transporte) ya se medía contra su propio widget; como el panel no cambia de
-      tamaño al cambiar de forma y no llega ningún resize, `_refresh_widths()` se vuelve
+      tamaño al cambiar de forma y no llega ningún resize, `Looks.refresh_widths()` se vuelve
       a llamar con `call_after_refresh`.
 - [x] Aire alrededor de la carátula (2026-09-10, a petición del mantenedor tras verlo en
       su terminal): la banda lleva una fila arriba y otra abajo y dos celdas a la
       izquierda. Antes iba pegada al marco a propósito, con la idea de que un hueco la
-      hacía parecer suelta; en uso se leía como pegada al borde. `_fit_artwork` resta
-      las dos columnas y `_fit_display_band` ya sumaba el padding vertical.
+      hacía parecer suelta; en uso se leía como pegada al borde. `CoverView.fit` resta
+      las dos columnas y `CoverView.fit_band` ya sumaba el padding vertical.
 - [x] El seek es una línea con un punto (`●`), lo reproducido en `━` del acento, y una
       fila de margen hasta el volumen (no en compacto). El `▓` de antes, de celda
       entera, parecía un bloque clavado en la barra.
@@ -1305,7 +1349,7 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
       y la cola volvía. Un fichero que ya no está no es un fallo; uno que no se puede
       borrar sí, se intenta el resto igual y el primer `OSError` vuelve a la ventana,
       que lo avisa y **no** cierra la app.
-- [x] **La cola volvía tras borrarla.** `_close_player` guarda la cola y
+- [x] **La cola volvía tras borrarla.** `TidalAmp.close_player` guarda la cola y
       `settings.json` al salir, después del borrado. Con la casilla, la ventana pone
       `TidalAmp.forget_on_exit`: al salir no se guarda nada y, cerrado mpv, se vuelve a
       borrar todo, porque mientras la ventana final estaba abierta la app seguía
@@ -1345,9 +1389,9 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
       puede quitar el demonio de debajo. `TIDALAMP_NO_RESTART` lo desactiva.
 - [x] **Y la retoma después** (2026-09-24). Parar era todo: la música se quedaba
       parada y la pista volvía a 0:00, y el mantenedor esperaba que siguiera.
-      `_stop_for_pipewire` guarda la pista, el segundo (leído de mpv, no del último
-      tick) y si estaba en pausa; `_back_from_pipewire` la vuelve a resolver y sigue
-      desde ahí con `_resume`, el mismo camino que un mpv reiniciado. Se resuelve otra
+      `Playback.stop_for_pipewire` guarda la pista, el segundo (leído de mpv, no del último
+      tick) y si estaba en pausa; `Playback.back_from_pipewire` la vuelve a resolver y sigue
+      desde ahí con `Playback.resume`, el mismo camino que un mpv reiniciado. Se resuelve otra
       vez y no se reusa la URL, porque la de un stream de TIDAL caduca. En pausa no
       arranca sola: espera en su segundo al play, como una cola restaurada. Si
       mientras tanto se pidió otra cosa (otra pista, parar), no se toca. Ahí mismo
@@ -1399,7 +1443,7 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
       todo a una playlist. Sin radio: nace de una pista y TIDAL no la da para un álbum.
       `TrackActionsScreen` recibe la lista de acciones; las letras son las mismas y
       una que el menú no enseña no hace nada.
-- [x] El contenedor se carga entero con `library.all_entries()`, que sigue los «más…»
+- [x] El contenedor se carga entero con `levels.all_entries()`, que sigue los «más…»
       hasta el final, y en el orden elegido con `s` (`_level_of`). Antes `a` sobre un
       contenedor se quedaba en la primera página, cien pistas. En un artista, «todo»
       son sus pistas más escuchadas: `Row.tracks`, porque `↵` ya no abre a ellas sino
@@ -1464,7 +1508,7 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
 
 ### Alto de la banda del display — `app.py`
 
-- [x] La banda se dimensiona con `_fit_display_band()`: el alto de la carátula **más el
+- [x] La banda se dimensiona con `CoverView.fit_band()`: el alto de la carátula **más el
       padding** que le ponga la disposición. `height` es border-box, así que el padding
       sale del contenido y una banda medida sólo por la carátula la deja una fila corta.
 - [x] Y esa fila importa porque **un protocolo gráfico no se recorta a su widget**:
@@ -1475,7 +1519,7 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
       la otra, porque cada una lleva un padding distinto, y al cambiar de tema en vivo
       la banda conservaba el alto calculado bajo la anterior. En `nova` eso ponía la
       carátula justo encima de la línea de tiempo.
-- [x] Por eso el alto se reasigna **siempre** que corre `_fit_artwork`, y no sólo cuando
+- [x] Por eso el alto se reasigna **siempre** que corre `CoverView.fit`, y no sólo cuando
       la carátula cambió de tamaño. El padding se asienta a su ritmo: al arrancar, la
       clase de la disposición se pone antes de que Textual recalcule los estilos, así
       que la primera pasada lee cero padding y la segunda —la del tamaño real del
@@ -1552,7 +1596,7 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
       URLs y a 76×20 se cortarían.
 - [x] `push_screen` ya retiraba la carátula de kitty al apilar; la ayuda lo hereda.
 - [x] Buscador (`/`, 2026-09-10): una caja bajo el texto, como la de la cola y la del
-      navegador, que estrecha la pestaña en curso con `library.text_matches` (la misma
+      navegador, que estrecha la pestaña en curso con `levels.text_matches` (la misma
       regla que `matches`, sin tildes ni mayúsculas). Cada fila que queda va bajo el
       título de su sección, y un título que coincide trae su sección entera. `esc`
       quita la búsqueda antes de cerrar; la barra de abajo nombra la tecla. Al abrir y
@@ -1637,7 +1681,7 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
       esas 100 pistas cuestan 15 peticiones. La caché `_YEARS` dura la sesión y guarda
       también el `0` de un álbum sin fecha, para no volver a preguntar por él en cada
       repintado. Un fallo no se cachea: la próxima cola puede reintentarlo.
-- [x] Se rellena **en segundo plano** (`_fill_years` y su worker), después de que la
+- [x] Se rellena **en segundo plano** (`QueueView.fill_years` y su worker), después de que la
       cola esté en pantalla, no mientras carga el nivel. Si no, cada nivel esperaría una
       petición por disco antes de dibujar una sola fila. Y sólo si la columna está
       encendida: quien no mira el año no lo paga.
@@ -1656,24 +1700,24 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
       cuadra mientras ninguna pista pasa de diez minutos no es una columna.
 - [x] **Buscador en la cola con `ctrl+f`** (`filter_queue`, rebindeable). Barra bajo la
       lista, la misma forma que el filtro `/` del navegador porque es el mismo gesto
-      sobre otra lista, y `library.matches` es la misma función: acentos, varias
+      sobre otra lista, y `levels.matches` es la misma función: acentos, varias
       palabras y el álbum de la pista.
 - [x] La tecla no es `/` porque `/` ya es «buscar en TIDAL» en la ventana principal.
       `ctrl+f` es lo que busca en un navegador o en un editor, y es de las pocas
       combinaciones que no chocaban con las letras sueltas del reproductor.
 - [x] Filtrar rompe la equivalencia «fila en pantalla = posición en la cola», que era
-      lo que usaban `↵`, `d`, `alt+↑↓` y la marca de reproducción. `_shown` es el mapa
-      entre las dos, y `_queue_index`, `_cursor_index` y `_row_at` son los tres únicos
+      lo que usaban `↵`, `d`, `alt+↑↓` y la marca de reproducción. `QueueView.shown` es el mapa
+      entre las dos, y `QueueView.index_at`, `QueueView.cursor_index` y `QueueView.row_at` son los tres únicos
       sitios donde se traduce: ninguna acción vuelve a leer el cursor a pelo.
 - [x] Las filas conservan **el número real** en la cola (`Row.number`). Renumerar las
       coincidencias 1, 2, 3 habría afirmado un orden de reproducción que no es el que
       sigue el reproductor, y el número es justo lo que dice dónde está la pista.
-- [x] `_row_at` devuelve `-1` cuando el filtro esconde la posición, y eso es una
+- [x] `QueueView.row_at` devuelve `-1` cuando el filtro esconde la posición, y eso es una
       respuesta: la pista que suena puede no ser una de las que se están buscando. La
       marca `▶` desaparece, el cursor no salta a una fila ajena, y la reproducción
       sigue exactamente igual.
 - [x] **`g` (`to_playing`) vuelve a lo que suena.** Usa `_row_at(queue.playing)`; si da
-      `-1`, limpia el filtro con `_clear_queue_filter()` y traduce de nuevo antes de
+      `-1`, limpia el filtro con `QueueView.clear_filter()` y traduce de nuevo antes de
       mover cursor y marca. Con `playing < 0` no inventa la primera fila: no mueve nada
       y deja la explicación en estado.
 - [x] **`p` (`save_playlist`) abre `PlaylistNameScreen`** sólo con una cola no vacía.
@@ -1801,11 +1845,11 @@ fichero en sí.
       ajustes): cuando `action_next` llega al final de la cola, pide la radio de TIDAL
       de la última pista en vez de detenerse. Engancha ahí porque es por donde pasan
       tanto el tick (mpv en reposo tras haber sonado) como la tecla de siguiente.
-- [x] No reutiliza `_radio_ready`, que reemplaza la cola y empieza por la semilla:
+- [x] No reutiliza `LibraryTasks.radio_ready`, que reemplaza la cola y empieza por la semilla:
       aquí la semilla es lo que acaba de sonar y la cola sigue siendo del usuario.
       La radio se **añade** al final sin las pistas que la cola ya tiene (la semilla
       incluida) y suena la primera añadida.
-- [x] Una sola petición en vuelo (`_autoplaying`): mientras llega, mpv sigue en
+- [x] Una sola petición en vuelo (`Playback.autoplaying`): mientras llega, mpv sigue en
       reposo y otro «siguiente» no pide más. Radio vacía o sin nada nuevo, o fallida:
       se detiene como antes y lo dice.
 
@@ -1836,7 +1880,7 @@ fichero en sí.
       (`SIXEL_ROWS`, 64 filas): 2,7 MB en 0,9 s. Una medición en 2 s de vista con
       carátula kitty mostró que la barra de abajo no provoca reenvíos de la imagen.
 - [x] **Las ventanas sobre la vista no son translúcidas**, ni con `transparency`
-      (`_see_through`, que decide `push_screen` y también el cambio del ajuste con
+      (`TidalAmp.see_through`, que decide `push_screen` y también el cambio del ajuste con
       ventanas abiertas). Medido en un pty a 480x130 con la carátula en `blocks`:
       abrir la ayuda sobre la vista, 0,86 MB translúcida contra 0,22 opaca; 20 líneas
       de scroll, 1,21 MB contra 0,35. No era la caja: con la caja opaca y el velo
@@ -1849,7 +1893,7 @@ fichero en sí.
       La vista se había guardado su carátula kitty al abrirse los ajustes y la volvía
       a poner al cerrarlos, aunque la transparencia había pasado la carátula a
       `blocks`; en kitty esa imagen quedaba en pantalla sobre el reproductor.
-      Reproducido en un pty contando envíos y borrados por id. Ahora `_reload_art`
+      Reproducido en un pty contando envíos y borrados por id. Ahora `CoverView.reload`
       avisa a la vista (`reload_cover`), que tira la carátula guardada y pide una en
       el protocolo nuevo; al volver de una ventana no pone una guardada en otro
       protocolo; y al cerrarse borra su imagen kitty por id siempre que haya mostrado
@@ -1861,9 +1905,9 @@ fichero en sí.
 - [x] **La cola del panel es la del reproductor**, no una copia con su propio
       cursor: muestra `main.rows`, su marca y su cursor, así que una fila de aquí es
       la misma de allí y `g`, `d`, `alt+↑↓`, `m` y `f` actúan donde apuntan. Un
-      `watch` sobre el cursor del reproductor lo sigue al instante y `_sync_queue`
+      `watch` sobre el cursor del reproductor lo sigue al instante y `QueueView.sync`
       avisa cuando cambian las filas. Con el panel cerrado, las que editan una fila
-      piden abrirlo (`_queue_hidden`) en vez de actuar a ciegas; `g` lo abre, y
+      piden abrirlo (`TidalAmp.queue_hidden`) en vez de actuar a ciegas; `g` lo abre, y
       `ctrl+f` avisa de que la búsqueda está en el reproductor. `w` otra vez cierra la
       vista, como `esc`. `?` abre la ayuda con la sección `fullscreen` sola, como la
       biblioteca con la suya.
@@ -1884,7 +1928,7 @@ pausa es `❚❚`, con
       borde donde la puso `tab`. La carátula encoge y se vuelve a pedir a su tamaño
       (`_fit`), como al abrir la cola. El panel lo dibuja `LyricsBoard`, el mismo
       widget que la ventana de `y` (ver «Letras»), y se carga con un worker por pista
-      contra la misma cache (`_lyrics_for`); `_prefetch_next` también calienta la
+      contra la misma cache (`LyricsFeed.for_entry`); `Prefetcher.start` también calienta la
       letra de la pista siguiente mientras el panel esté abierto. La letra sin
       timestamps la lleva la canción (`drift`), porque aquí las flechas son de la
       cola. `action_lyrics` mira si la vista está delante y, si lo está, alterna el
@@ -1921,10 +1965,10 @@ pausa es `❚❚`, con
       colgado costaba la espera entera en cada propiedad que leen los ticks, varias
       por tick, para siempre.
 - [x] **El sondeo y el reinicio, en workers.** Mientras está atascado, el tick lento
-      escribe «mpv no contesta» y lanza `_probe_mpv_worker`, que es el único comando al
+      escribe «mpv no contesta» y lanza `Playback.probe_mpv_worker`, que es el único comando al
       que el atasco deja esperar el timeout completo. Si contesta, se sigue. Si pasan
-      `STALL_LIMIT` (5 s), `_recover_mpv` lo reinicia en `_restart_mpv_worker`. Los
-      ticks no hacen nada mientras `_recovering`. Un reinicio que falla espera
+      `STALL_LIMIT` (5 s), `Playback.recover_mpv` lo reinicia en `Playback.restart_mpv_worker`. Los
+      ticks no hacen nada mientras `Playback.recovering`. Un reinicio que falla espera
       `MPV_RETRY` (5 s) antes del siguiente intento; antes se reintentaba cuatro veces
       por segundo.
 - [x] `restart()` sólo sujeta el lock para quitar el socket viejo. Matar el proceso y
@@ -1938,7 +1982,7 @@ pausa es `❚❚`, con
 - [x] **La pista vuelve donde iba, no a 0:00.** Salía del principio tras cada
       reinicio, y el mantenedor lo oyó en las dos pruebas a mano. A un mpv muerto o
       atascado ya no se le puede preguntar la posición, así que el tick guarda la suya
-      (`_last_position`); `_recover_mpv` la deja en `_resume` con la pista, y `_start`
+      (`Playback.last_position`); `Playback.recover_mpv` la deja en `Playback.resume` con la pista, y `Playback.start`
       carga esa pista con la opción por fichero `start=<segundos>` en el propio
       `loadfile`, como `volume-gain`. No un `seek` después: tendría que esperar a que el
       stream abra, y nada dice cuándo. Sólo esa recarga y sólo esa pista: un
@@ -1952,11 +1996,11 @@ efecto las tres trampas que lo hacían caro:
 
 - [x] **El seek tras resolver** ya no existe: el segundo va como opción del `loadfile`.
 - [x] **Guardar en cada tick** reescribiría `queue.json` diez veces por segundo. Se
-      guarda una vez, en `_close_player` (`_remember_position`), que es por donde salen
+      guarda una vez, en `TidalAmp.close_player` (`Playback.remember_position`), que es por donde salen
       `q` y `ctrl+c`. El precio: un cuelgue conserva el segundo de la última salida
       limpia, no el del cuelgue.
-- [x] **`_was_idle` lee un mpv en idle como «la pista terminó»**, y por eso nada se pone
-      a sonar solo al arrancar: `_restore_position` deja el segundo en `_resume`, la
+- [x] **`Playback.was_idle` lee un mpv en idle como «la pista terminó»**, y por eso nada se pone
+      a sonar solo al arrancar: `Playback.restore_position` deja el segundo en `Playback.resume`, la
       barra de estado dice ««Título» sigue en 1:23», y se aplica cuando esa pista
       suena, por el mismo camino que la recarga tras un reinicio. Otra pista antes lo
       descarta.
@@ -1968,37 +2012,37 @@ efecto las tres trampas que lo hacían caro:
 ### Sin corte entre pistas - `app.py`, `player.py`
 
 - [x] **La siguiente se resuelve antes de que haga falta.** A `PREFETCH_LEAD` (20 s)
-      del final, el tick lento pide la siguiente a TIDAL en `_prefetch_worker` y
-      `_prefetched` la pone en la playlist de mpv con `loadfile … append`. Con
+      del final, el tick lento pide la siguiente a TIDAL en `Prefetcher.worker` y
+      `Prefetcher.landed` la pone en la playlist de mpv con `loadfile … append`. Con
       `--prefetch-playlist=yes` mpv la abre antes de terminar la actual, y con el
       `gapless-audio=weak` que trae por defecto pasa a ella sin cortar. No antes de 20
       s: la URL del stream caduca.
 - [x] **El avance se detecta por `playlist-pos`.** mpv no pasa por idle entre las dos,
-      así que el `_was_idle` de siempre no se entera. Lo que suena está siempre en la
+      así que el `Playback.was_idle` de siempre no se entera. Lo que suena está siempre en la
       posición 0 y lo preparado en la 1; cuando `playlist_pos` vale 1,
-      `_advance_to_prepared` hace `playlist-clear` (queda sólo lo que suena, otra vez
-      en la 0) y `_announce` + `_now_playing` ponen la pantalla al día sin cargar nada.
+      `Prefetcher.advance` hace `playlist-clear` (queda sólo lo que suena, otra vez
+      en la 0) y `Playback.announce` + `Playback.now_playing` ponen la pantalla al día sin cargar nada.
       Se eligió la posición y no la URL porque repetir una pista puede traer la misma.
-- [x] **Sólo se guarda lo que la cola dice que va después.** `_check_prepared` corre
-      en cada `_sync_queue`, que es por donde pasa toda edición de la cola, y al cambiar
+- [x] **Sólo se guarda lo que la cola dice que va después.** `Prefetcher.check` corre
+      en cada `QueueView.sync`, que es por donde pasa toda edición de la cola, y al cambiar
       shuffle o repeat. Si la siguiente ya no es la preparada, sale de mpv
       (`drop_queued`). Un resultado que vuelve para una pista que ya no es la siguiente
-      se descarta en `_prefetched`, con el mismo cuidado que `_resolving`.
-- [x] `_play_index` quita lo preparado antes de resolver: la pista vieja sigue sonando
+      se descarta en `Prefetcher.landed`, con el mismo cuidado que `Playback.resolving`.
+- [x] `Playback.play_index` quita lo preparado antes de resolver: la pista vieja sigue sonando
       mientras la nueva resuelve y, si terminara en ese hueco, mpv pasaría a la
       preparada y no a la pedida. `stop` y el reinicio de mpv ya vacían su playlist,
-      así que sólo olvidan (`_forget_prepared`).
+      así que sólo olvidan (`Prefetcher.forget`).
 - [x] Lo preparado caduca a los `PREPARED_TTL` (5 min): una pista en pausa cerca del
       final volvería a una URL muerta. Un fallo al preparar no dice nada y no se
-      reintenta en cada tick (`_prefetch_failed`): cuando le toque se resuelve como
+      reintenta en cada tick (`Prefetcher.failed`): cuando le toque se resuelve como
       siempre, y ese fallo sí se enseña.
-- [x] `_play_index` se partió en `_announce` (marcador, cursor, título, carátula) y la
-      resolución; `_start`, en la carga y `_now_playing`. Las dos mitades sirven para
+- [x] `Playback.play_index` se partió en `Playback.announce` (marcador, cursor, título, carátula) y la
+      resolución; `Playback.start`, en la carga y `Playback.now_playing`. Las dos mitades sirven para
       las dos formas de empezar una pista.
 - [x] **La carátula y la letra, también por adelantado.** El sonido pasaba sin corte y
-      la carátula llegaba un momento después, de la red. `_warm` baja la carátula a su
+      la carátula llegaba un momento después, de la red. `Prefetcher.warm` baja la carátula a su
       caché de disco y, si algo en pantalla sigue la letra (split o la ventana de `y`),
-      la letra a `_lyrics_cache`. Va **después** de encolar el audio, porque es
+      la letra a `LyricsFeed.cache`. Va **después** de encolar el audio, porque es
       decoración, y sus fallos no dicen nada. Sólo se adelanta la descarga: dibujarla
       depende del recuadro y del aspecto de ese momento, y desde el disco es rápido. La
       letra no se pide si nada la enseña: sería una petición por pista que nadie lee.
@@ -2227,7 +2271,7 @@ efecto las tres trampas que lo hacían caro:
       `audio.sink()` mira `Mpv.device`, y con él los rates, el forzado, `OUT` y los
       avisos. cava escucha el `.monitor` de ese sink (`audio.monitor`).
 - [x] **Desenchufado y vuelta**, con lo mismo que Windows: `connected()` mira la lista
-      de `pactl`, `_output_gone` pasa a `auto` y `_watch_output` vuelve al elegido
+      de `pactl`, `Output.gone` pasa a `auto` y `Output.watch` vuelve al elegido
       cuando reaparece. Un sink que no está nunca se le pasa a mpv.
 - [x] **Visto por el mantenedor** en kitty (2026-09-26): elegir el FiiO BTR15 con la
       pista sonando dice «output device changed» y `OUT` pasa a él, a 96 kHz.
@@ -2291,7 +2335,7 @@ efecto las tres trampas que lo hacían caro:
       no decía nada más y pasaba a la siguiente pista segundo y medio después. Una
       racha de ellas se comía la cola en segundos, y desde fuera parecía que las
       canciones «no resolvían».
-- [x] **`_opened` es lo que las distingue:** si mpv llegó a abrir el fichero. Se pone a
+- [x] **`Playback.opened` es lo que las distingue:** si mpv llegó a abrir el fichero. Se pone a
       cierto con `position > 0` **o con `duration > 0`**, y lo segundo importa: mpv
       publica la duración en cuanto abre, y una pista de dos segundos puede empezar y
       acabar entre dos ticks del reloj de 4 Hz sin que se lea ninguna posición. Juzgar
@@ -2305,8 +2349,8 @@ efecto las tres trampas que lo hacían caro:
 - [x] **El aviso del salto va después de `action_next()`,** no antes: `action_next`
       escribe su propio estado al pasar, así que decirlo primero era decírselo a nadie.
       Lo cazó su test.
-- [x] **El contador se limpia en `_now_playing`,** que es por donde pasan las dos formas
-      de que una pista empiece: `_start` y el salto sin corte. Una pista preparada que
+- [x] **El contador se limpia en `Playback.now_playing`,** que es por donde pasan las dos formas
+      de que una pista empiece: `Playback.start` y el salto sin corte. Una pista preparada que
       no abre heredaba el «ya sonó» de la anterior y se saltaba como si hubiera acabado.
 
 ### Lofi sin copyright - `freemusic.py`, `jamendo.py`, `archive.py`, `music.py`
@@ -2428,7 +2472,7 @@ desconocidos disco a disco, y el que se abría estaba lleno de basura.
       cola, el prefetch, el sin corte, la carátula, MPRIS— es el mismo código.
 - [x] **Lo que sólo TIDAL puede hacer no se ofrece**, en vez de ofrecerlo y fallar:
       `actions_for` y `container_actions_for`. La guarda de las letras está en
-      `_lyrics_for`, la única puerta por la que pasan `y`, el panel partido y el de
+      `LyricsFeed.for_entry`, la única puerta por la que pasan `y`, el panel partido y el de
       pantalla completa. `favourite()` lo dice con su motivo.
 - [x] **La insignia `SRC` deja fuera lo que no sabe.** La licencia va donde una pista de
       TIDAL pone su tier, y `quality` queda vacío: `downgraded` habla de lo que TIDAL
@@ -2474,6 +2518,47 @@ es código y por qué.
       `windows.md` §12 se haya hecho en una máquina real: un clasificador es una
       promesa, y todavía nadie ha oído sonar tidalamp en Windows.
 
+### El reparto de `app.py` - `app.py` y sus partes, `levels.py`, `playlists.py`, `catalogue/`
+
+Hecho el 2026-10-09, a petición del mantenedor: ningún fichero de código ni de tests
+por encima de 1000 líneas. `app.py` tenía 3726 líneas y 230 métodos; queda en unas
+990, y el resto vive en trece objetos con su propio diseño (§3), que es lo que pedía
+la entrada «Sacar objetos de verdad de `TidalAmp`» de `next.md`.
+
+- [x] **Objetos, no mixins.** Los mixins se probaron y se revirtieron (`next.md`,
+      «Descartado por ahora»): mypy no acepta `self: TidalAmp`. Cada parte es una
+      clase con `self.app`, y la app la crea en `__init__`. Se alcanzan entre ellas
+      por la app (`self.app.playback.stop()`), así que el orden en que nacen no
+      importa.
+- [x] **`TidalAmp` se queda con lo que Textual exige de ella:** `compose`, los
+      `BINDINGS` y sus `action_*` (las que pertenecen a una parte son una línea que
+      delega), los `@on`, los dos ticks, `push_screen` y la salida. Lo demás, fuera.
+- [x] **`@work` sólo decora métodos de un nodo de Textual**, porque le pide a
+      `self` que lance el worker. `workers.thread_worker` hace lo mismo sobre
+      `self.node`, que en las partes de la app es la app y en `PlaylistEdits` es el
+      navegador. Así un worker exclusivo sigue cancelando sólo a los de su grupo en
+      el mismo nodo, como antes.
+- [x] **`quiet_after_teardown` y `call_from_thread`** pasaron a `workers.py`. El
+      primero decora también métodos de las partes (`Looks.check_size`,
+      `Looks.refresh_theme`) y mira el `_running` de su `app`.
+- [x] **Los tests parchean donde vive lo que parchean.** Un `monkeypatch` sobre
+      `tidalamp.app.ensure_fresh` dejaba de surtir efecto en cuanto la llamada se
+      iba a otro módulo, sin fallar. Por eso las partes llaman por el módulo
+      dueño (`auth.ensure_fresh`, `lyrics.load_lyrics`, `stream.playable_for`,
+      `theme.load_palette`) y los tests parchean ese módulo, y nadie reexporta un
+      nombre que se haya ido: `library.forget` no existe, es `levels.forget`.
+- [x] **`library.py`** se partió en `levels.py` (lo común a cualquier fuente: Row,
+      caché, órdenes, paginado, `matches`), `playlists.py` (las escrituras) y el
+      árbol de TIDAL, que se queda. Es la mitad de la costura `Source` de
+      `next.md`: lo común ya no sabe de TIDAL.
+- [x] **El navegador** sacó lo que escribe en TIDAL a `screens/playlist_edits.py`,
+      y **el catálogo inglés** salió de `i18n.py` a `catalogue/`, cortado en tres
+      por zonas; un test comprueba que ninguna cadena esté en dos ficheros.
+- [x] **Los tests grandes** se partieron por tema: `test_library.py` en
+      `test_levels.py`, `test_playlists.py` y él mismo, con los dobles comunes en
+      `library_fakes.py`, y `test_app_windows.py` en `test_app_browser.py`,
+      `test_app_menus.py`, `test_app_queue_filter.py` y él mismo.
+
 ### Revisión antes de la 0.8.0 (2026-09-11)
 
 Leído todo lo nuevo desde la `0.7.0` buscando lo que los tests no cubrían. Cuatro
@@ -2487,7 +2572,7 @@ cosas, con su test cada una:
       la ventana de la página pista a pista antes de borrar nada.
 - [x] **La reproducción automática pisaba al usuario:** una radio que llegaba después
       de detener o de elegir otra pista se ponía a sonar. `action_stop` y
-      `_play_index` la cancelan y una respuesta tardía se descarta.
+      `Playback.play_index` la cancelan y una respuesta tardía se descarta.
 - [x] **Cambiar la forma de la carátula con la pantalla completa abierta** no llegaba a
       la vista, que corta su propia carátula: ahora se la pide de nuevo.
 - [x] **`TidalAmp._shutdown` pisaba el `App._shutdown` de Textual**, el que cierra
@@ -2495,11 +2580,11 @@ cosas, con su test cada una:
       nuestro método del mismo nombre lo reemplazaba sin llamarlo, así que al salir
       Textual corría el nuestro en lugar del suyo. Salía igual, pero no por su camino.
       Lo destapó un test que lo sustituía y dejaba a Textual esperando un cierre que
-      no llegaba. Ahora se llama `_close_player`. Con el cierre de Textual corriendo de
+      no llegaba. Ahora se llama `TidalAmp.close_player`. Con el cierre de Textual corriendo de
       verdad salió otra cosa: un tick o un cambio de tamaño ya en cola podía llegar
       después de que Textual vaciara las pantallas y buscar widgets que ya no estaban
-      (solo bajo carga, en la suite completa). `_quiet_after_teardown` envuelve
-      `_check_size` y los tres temporizadores: durante el cierre no hacen nada, y con la
+      (solo bajo carga, en la suite completa). `workers.quiet_after_teardown` envuelve
+      `Looks.check_size` y los tres temporizadores: durante el cierre no hacen nada, y con la
       app en marcha el error sigue saliendo.
 - [x] **Las tablas del codificador de sixel** se construían al importar `artwork`,
       unos 20 ms de cada arranque para un protocolo que casi ningún terminal usa;
@@ -2528,7 +2613,7 @@ Distinguir esto importa: parte del código nunca se ha ejecutado contra TIDAL re
 | Transparencia como ajuste          | **Verificado**                    | Tres unitarias: el modal abre sólido, encenderla lo vuelve translúcido en la ventana ya abierta, y con carátula kitty escribe `artwork = blocks` y enseña el aviso con el enlace; con carátula de bloques no toca nada. |
 | Ventanas proporcionales y velo    | **Verificado**                    | Renderizado real a 240x62, 100x30 y el mínimo 60x18, con captura a imagen de biblioteca, búsqueda, configuración, ayuda y ecualizador. |
 | Coste del velo                     | **Medido**                        | 240x62 con la biblioteca abierta: 37,7% de un núcleo con el fondo animándose, 8,8% con el modal opaco de antes, **0,5%** con el fondo congelado. Tres pruebas fijan que el analizador y el reloj se paran detrás de un modal y que la línea de estado no. |
-| Filtro del nivel (`/`)             | **Verificado**                    | Seis unitarias de `library.matches` (acentos, varias palabras, álbum) y siete en la app real headless: la barra abre sin tapar el nivel, «sober» deja 1 de 3, la fila «más…» sobrevive, la página que llega bajo filtro cae en su sitio dentro del nivel, `esc` quita el filtro antes de cerrar y el nivel siguiente abre limpio. Falta verlo contra la biblioteca real. |
+| Filtro del nivel (`/`)             | **Verificado**                    | Seis unitarias de `levels.matches` (acentos, varias palabras, álbum) y siete en la app real headless: la barra abre sin tapar el nivel, «sober» deja 1 de 3, la fila «más…» sobrevive, la página que llega bajo filtro cae en su sitio dentro del nivel, `esc` quita el filtro antes de cerrar y el nivel siguiente abre limpio. Falta verlo contra la biblioteca real. |
 | Formas del analizador              | **Verificado**                    | Dieciséis unitarias: las cuatro usan todas las columnas que se les dan a 80, 200 y 380, `mirror` es simétrica sobre su línea central y cae a `bars` cuando no caben tres filas, `curve` dibuja un glifo por columna y nada debajo, `fine` dibuja sólo Braille o espacios, pasa por todas las columnas con un espectro en rampa —que es donde se vería si no uniera las muestras—, no rellena hasta el suelo con la señal al máximo y pone dos bandas por columna; el remuestreo promedia al bajar e interpola al subir, y las cuatro leen el mismo frame de 128 bandas. En la app real: cambiar el ajuste cambia la forma sin mover el widget, la forma llega al borde, el analizador empieza en la misma columna que los datos de la pista y a la derecha de la carátula, un valor inventado cae a `bars`, y la ventana de ajustes escribe el fichero y lo aplica al instante. Render de las cuatro a 120x32 en retro + nord. Falta verlo con audio real y cava, y `fine` en la fuente del usuario. |
 | Coste del analizador en 4K         | **Medido**                        | 380x50 a 10 fps con la app real headless: `bars` **54,5% de un núcleo → 7,3%**, `mirror` 57,9% → 8,2%, `curve` 12,2% → 7,7%. `fine` llegó después y va a 9,5%, la más cara de las cuatro y aun así lejos del problema. Los tramos de estilo por frame pasan de 950 a 76 en `bars`, de 950 a 49 en `mirror` y de 379 a 28 en `curve`; el render del widget, de 4,56 ms a 0,45 ms. Dos pruebas fijan el techo. |
 | Buscador de la cola (`ctrl+f`)      | **Verificado**                    | Siete unitarias en la app real headless: `ctrl+f` abre la barra y enfoca la caja, «later» deja 1 de 3, `esc` la cierra y devuelve las 3 filas dejando el cursor en la pista a la que se había llegado, la fila filtrada conserva el número 3, `↵` sobre ella reproduce la tercera de la cola y `d` quita esa, la marca `▶` desaparece mientras el filtro esconde lo que suena y vuelve cuando lo enseña, y escribir `x` en la caja no pausa el reproductor. Render a 96x28 con la barra abierta. Falta verlo contra una cola larga real. |
@@ -2554,7 +2639,7 @@ Distinguir esto importa: parte del código nunca se ha ejecutado contra TIDAL re
 | Configuración y teclas             | **Verificado**                    | `tidalamp config` sobre un XDG temporal crea la plantilla, y con `quality`, `artwork` y dos teclas cambiadas la app arranca con `HIGH`, `Protocol.BLOCKS` y `play→p`, `quit→ctrl+q`; la acción inventada sale avisada. 13 unitarias de precedencia, TOML roto y plantilla. |
 | Reordenar la cola                  | **Verificado**                    | Unitarias de `Queue.move` (bordes, cursor, shuffle intacto) y `alt+↓` en la app real.                                                                                           |
 | Reinicio de mpv                    | **Verificado**                    | SIGKILL a mpv con la app corriendo: el tick lo relanza con otro PID y la pista vuelve a sonar. Desde la 0.9.0 el reinicio va en un worker, y el SIGKILL se repitió a mano con él (2026-09-12): mpv nuevo al instante, sin la espera de 5 s de un atasco, y la pista otra vez sonando desde 0:00. Ahora vuelve al segundo donde iba (opción `start=` del `loadfile`, comprobada contra mpv 0.41); repetido el SIGKILL a mano con esto (2026-09-12): un segundo de espera, lo que tarda en volver a resolver, y la canción sigue donde iba. |
-| mpv que no contesta (0.9.0)        | **VERIFICADO POR EL USUARIO**     | El mantenedor congeló el mpv de la app con `kill -STOP` mientras sonaba (2026-09-12): la pantalla siguió dibujándose, a los 5 s se levantó un mpv nuevo y la pista volvió a sonar, desde 0:00; desde entonces vuelve al segundo donde iba: es el mismo `_recover_mpv` que el SIGKILL, verificado a mano en la fila de «Reinicio de mpv»; el `kill -STOP` en sí no se ha repetido. En tests: contra el mpv falso por el socket de verdad: un mpv colgado cuesta una espera y no más, un sondeo lo despeja, el EOF se lee como muerte, las respuestas partidas de tres en tres bytes se recomponen. En la app: el atasco se dice en la línea de estado y se sondea fuera del hilo, un mpv muerto se reinicia en un worker y recarga la pista, un reinicio fallido espera. Queda sin ver a mano el otro camino, descongelarlo antes de los 5 s (`kill -CONT`) y que diga «mpv vuelve a contestar»; está cubierto por tests. |
+| mpv que no contesta (0.9.0)        | **VERIFICADO POR EL USUARIO**     | El mantenedor congeló el mpv de la app con `kill -STOP` mientras sonaba (2026-09-12): la pantalla siguió dibujándose, a los 5 s se levantó un mpv nuevo y la pista volvió a sonar, desde 0:00; desde entonces vuelve al segundo donde iba: es el mismo `Playback.recover_mpv` que el SIGKILL, verificado a mano en la fila de «Reinicio de mpv»; el `kill -STOP` en sí no se ha repetido. En tests: contra el mpv falso por el socket de verdad: un mpv colgado cuesta una espera y no más, un sondeo lo despeja, el EOF se lee como muerte, las respuestas partidas de tres en tres bytes se recomponen. En la app: el atasco se dice en la línea de estado y se sondea fuera del hilo, un mpv muerto se reinicia en un worker y recarga la pista, un reinicio fallido espera. Queda sin ver a mano el otro camino, descongelarlo antes de los 5 s (`kill -CONT`) y que diga «mpv vuelve a contestar»; está cubierto por tests. |
 | Sin corte entre pistas (0.9.0)     | **VERIFICADO POR EL USUARIO**     | Oído por el mantenedor contra TIDAL real en un disco en vivo, sin corte (2026-09-12); que suene así dice también que la URL resuelta 20 s antes aguantó. También probado a mano: quitar o barajar la siguiente en los últimos 20 s hace sonar la que dice la cola, y la carátula y la letra de la siguiente llegan con el sonido. En tests: la siguiente se prepara a 20 s del final y no antes, mpv pasa a ella sin volver a resolver, una cola editada o un repeat cambiado quitan lo preparado y se prepara la correcta, un resultado tardío no se encola, lo caducado se vuelve a pedir. Contra el mpv falso: `append`, `playlist-clear` y `playlist-pos`. |
 | Volumen normalizado (0.9.0)        | **VERIFICADO POR EL USUARIO**     | Oído por el mantenedor contra TIDAL real, con la insignia `RG` enseñando los valores de cada pista (2026-09-12). En tests: | Los tres modos, el pico como techo, la caída de disco a pista, el 1.0 de relleno de tidalapi, la ganancia como opción por fichero y el reintento sin ella. En la app: la ganancia que llega a mpv cambia con el modo, la preparada lleva la suya, y al apagarlo vuelve a 0; la insignia `RG` enseña la aplicada, y `RG —` sin datos. **Falta oírlo**; los valores reales de TIDAL se leen ahora en la propia insignia. |
 | Recordar el segundo al salir (0.9.0) | **VERIFICADO POR EL USUARIO**   | El mantenedor cerró a mitad de una canción y al volver a abrir la pista siguió donde había quedado (2026-09-12). En tests: `queue.json` guarda y carga `position`, una cola de antes o con basura arranca en 0:00, la restaurada no suena sola y se aplica una vez al reproducirla, otra pista antes la descarta, y salir sin tocarla o mientras se recarga conserva el segundo. |
@@ -2565,7 +2650,7 @@ Distinguir esto importa: parte del código nunca se ha ejecutado contra TIDAL re
 | Letras sincronizadas               | **VERIFICADO CONTRA TIDAL REAL**  | Una letra real de TIDAL, probada por el mantenedor (2026-09-11). 9 pruebas de LRC, texto plano, ventanas, carga y fallos transitorios; el trabajo de red queda fuera del loop. |
 | Paletas: Omarchy, integradas y propias | **Verificado**                 | Unitarias con paletas temporales, las seis integradas (`classic`, `tokyo-night`, `catppuccin`, `nord`, `gruvbox`, `black`), un TOML propio leído de su directorio y un nombre con `../` rechazado sin tocar el disco; más montaje Textual y cambio en vivo. La máquina cambió de Wh01s17 a Tokyo Night y el lector tomó el nuevo acento. |
 | Estructuras (`theme`): las cuatro | **VERIFICADO A LA VISTA, A MEDIAS** | Pruebas Textual por estructura: los botones cuadrados de `retro` y sus dos barras regladas, el subrayado del acento en `nova`, los corchetes de `ascii`, que ninguna se sale a 60×18 y que ninguna deja la carátula sobre la barra de posición. **A la vista en kitty el usuario confirmó `quattro` y `nova`.** De `retro` sólo llegó a verse la versión de medios bloques, que se descartó por eso mismo (§7); la de teclas cuadradas y `ascii` no se han visto nunca en un terminal real, sólo bajo prueba. |
-| Red, escrituras y estado (0.8.1) | **CUBIERTO POR TESTS** | Toda petición a TIDAL, el login incluido, pasa por `net.TimeoutSession` (5 s para conectar, 20 s por lectura). `with_retries(..., idempotent=False)` solo reintenta un 429 o un `ConnectTimeout`: crear una playlist y cada lote de `add` no se repiten si la respuesta se pierde. `config.write_atomically` escribe a un temporal en la misma carpeta, fsync y `os.replace`, y conserva los permisos; lo usan cola, ajustes, órdenes, `config.toml` y los ritmos de PipeWire. `_resolving` descarta en `_start` y `_resolve_failed` una resolución que vuelve después de pedir otra pista. Tests: lectura perdida y conexión cortada no se reintentan en una escritura, 429 y `ConnectTimeout` sí; el timeout por defecto sin pisar uno explícito; la sesión de tidalapi es la nuestra; una playlist y un lote con la respuesta perdida se mandan una vez; un fallo a mitad deja el fichero anterior entero y sin temporales; una resolución vieja no carga nada ni apaga el indicador. Revisión externa (Codex). |
+| Red, escrituras y estado (0.8.1) | **CUBIERTO POR TESTS** | Toda petición a TIDAL, el login incluido, pasa por `net.TimeoutSession` (5 s para conectar, 20 s por lectura). `with_retries(..., idempotent=False)` solo reintenta un 429 o un `ConnectTimeout`: crear una playlist y cada lote de `add` no se repiten si la respuesta se pierde. `config.write_atomically` escribe a un temporal en la misma carpeta, fsync y `os.replace`, y conserva los permisos; lo usan cola, ajustes, órdenes, `config.toml` y los ritmos de PipeWire. `Playback.resolving` descarta en `Playback.start` y `Playback.resolve_failed` una resolución que vuelve después de pedir otra pista. Tests: lectura perdida y conexión cortada no se reintentan en una escritura, 429 y `ConnectTimeout` sí; el timeout por defecto sin pisar uno explícito; la sesión de tidalapi es la nuestra; una playlist y un lote con la respuesta perdida se mandan una vez; un fallo a mitad deja el fichero anterior entero y sin temporales; una resolución vieja no carga nada ni apaga el indicador. Revisión externa (Codex). |
 | Permisos de la sesión (0.8.0) | **CUBIERTO POR TESTS** | La sesión guarda los tokens de TIDAL y salía 0644 con el umask 022, legible por cualquier usuario. Ahora el fichero se crea 0600 antes de que tidalapi escriba en él, y la carpeta queda 0700; al cargar, una sesión antigua se corrige. Dos tests: guardar bajo umask 022 deja 0600 y 0700, y cargar una sesión 0644 la cierra. Detectado por una revisión externa (Codex). |
 | Refresco del token                 | **VERIFICADO CONTRA TIDAL REAL**  | Copia de la sesión real con el access token invalidado a mano: la app arranca, reescribe el token, completa el handshake (user id y país) y la API responde. El fichero real quedó intacto. Además 10 unitarias con dobles, incluida la del 401 que tidalapi deja escapar. |
 | **`login` y reproducción real**    | **VERIFICADO POR EL USUARIO**     | El usuario ejecutó `tidalamp tui` con su cuenta y reprodujo TOOL - Schism (Lateralus) el 2026-09-08. Login, búsqueda, `stream.resolve()` y salida de audio funcionan de verdad. |
@@ -2584,7 +2669,7 @@ Distinguir esto importa: parte del código nunca se ha ejecutado contra TIDAL re
 | «Mis playlists» y caché de niveles | **Verificado contra TIDAL real**  | cProfile sobre la cuenta del usuario localizó las 111 peticiones; tras el cambio, la app real bajo un pty abre «Mis playlists» en 0,39 s (antes 19,87 s) y en 0,13 s la segunda vez. Unitarias: una petición por página, paginación, claves de caché y `R`. |
 | Secciones del artista              | **VERIFICADO CONTRA TIDAL REAL**  | El mantenedor lo probó a mano (2026-09-14) con varios artistas: uno grande, uno pequeño sin EPs (bôa, sin «Otros») y uno con recopilatorios. Salen las secciones esperadas y ninguna vacía; álbumes y EPs traen sus pistas; «más…» aparece en un artista con más de 100 discos; el tiempo de apertura con las cuatro peticiones de sondeo es aceptable. `m` y `a` sobre el artista añaden sus populares, `s` ordena las populares y no hace nada en los discos, y `f` lo añade a favoritos. En tests: sesión simulada con álbumes, EPs y nada en «otros». |
 | Ir al artista y al álbum (`t`, `b`) | **VERIFICADO CONTRA TIDAL REAL** | El mantenedor lo probó a mano (2026-09-14) desde la búsqueda, la biblioteca y la cola; `⌫` vuelve a la raíz desde la cola y al nivel anterior desde el navegador. Una pista con varios artistas iba al principal; ahora pregunta cuál, y el mantenedor lo verificó a mano (2026-09-14): la lista sale con el principal primero, abre el elegido y esc no abre nada. Una cola guardada antes de `artist_id` funciona y la segunda vez no tarda más: el id queda puesto. El spinner se vio en la terminal real en inglés y en español. En tests: `go_to` con y sin `artist_id`, la app desde la cola y desde la búsqueda, y el spinner mientras se busca. |
-| Aviso de guardado fallido          | **VERIFICADO POR EL USUARIO**     | El mantenedor quitó la escritura a `~/.local/state/tidalamp` (2026-09-14). La primera vez no vio el aviso: el mensaje siguiente lo pisaba al instante. Con la marca «· sin guardar en disco», que se queda en la línea de estado hasta cerrar, sí se ve; la reproducción sigue y la cola de esa sesión no se guarda, como debe. En tests: `Queue.save`, `Settings.save` y `library.remember` devuelven el error con un directorio de sólo lectura, y la app lo dice una vez y deja la marca aunque otro mensaje lo pise. |
+| Aviso de guardado fallido          | **VERIFICADO POR EL USUARIO**     | El mantenedor quitó la escritura a `~/.local/state/tidalamp` (2026-09-14). La primera vez no vio el aviso: el mensaje siguiente lo pisaba al instante. Con la marca «· sin guardar en disco», que se queda en la línea de estado hasta cerrar, sí se ve; la reproducción sigue y la cola de esa sesión no se guarda, como debe. En tests: `Queue.save`, `Settings.save` y `levels.remember` devuelven el error con un directorio de sólo lectura, y la app lo dice una vez y deja la marca aunque otro mensaje lo pise. |
 | Ruta de socket demasiado larga     | **VERIFICADO POR EL USUARIO**     | El mantenedor lanzó la app con un `XDG_CACHE_HOME` de 100 caracteres (2026-09-14): sale al instante con «mpv's socket path is too long (123 bytes, at most 107): …/tidalamp/mpv.sock», en vez de esperar 5 s y culpar a mpv. En tests: el mensaje con una ruta de 120 caracteres en menos de un segundo, y la suite de `test_player.py` con `--basetemp` largo en 3 s. |
 | Ayuda del menú de la pista (`t`, `b`) | **VERIFICADO POR EL USUARIO**  | El mantenedor abrió `?` en la app (2026-09-14, en inglés): el menú de la pista lista `t` «go to the artist» y `b` «go to the album». Le faltaba `l` (añadir a una playlist), que el menú sí tenía desde antes de esta versión; añadido antes de publicarla. |
 
@@ -2816,7 +2901,7 @@ Cosas que ya costaron tiempo una vez:
   se llevaría por delante el `astats` del que vive el vúmetro. Para cambiar un filtro
   con etiqueta: `af remove @etiqueta` y luego `af add @etiqueta:lavfi=[…]`.
 - **No reaplicar filtros desde un tick de sondeo.** `af remove` + `af add` reinicializa
-  el filtro y puede introducir un hueco audible. `_apply_audio()` sólo corresponde al
+  el filtro y puede introducir un hueco audible. `TidalAmp.apply_audio()` sólo corresponde al
   montaje, a un cambio explícito y al reinicio de mpv.
 - **Las rutas de socket unix se cortan en ~108 bytes.** El directorio de scratchpad de
   la sesión ya gasta casi todo el presupuesto, así que un `--input-ipc-server` ahí
@@ -2838,7 +2923,7 @@ Cosas que ya costaron tiempo una vez:
   pulsar «v» rearrancaba la lista desde el principio.
 - **Una prueba que no espera al tick pasa en vacío.** La primera versión de la
   regresión de «v» ponía `idle = False` y hacía `pilot.pause()` sin retardo: el tick
-  lento de 250 ms nunca corría, `_was_idle` seguía en `True`, la transición no se
+  lento de 250 ms nunca corría, `Playback.was_idle` seguía en `True`, la transición no se
   producía y la prueba pasaba **también sin el arreglo**. Toda prueba de esta clase
   tiene que afirmar el estado previo (`assert application._was_idle is False`) antes
   de provocar el suceso.
@@ -2922,7 +3007,7 @@ Cosas que ya costaron tiempo una vez:
   no aparece hasta que el bloque termina. Para sacar datos de una app que sigue viva,
   escribe a un fichero.
 - **Un mpv sin corte no pasa por idle.** Con una pista en cola (`loadfile … append`),
-  mpv va de una a otra sin que `idle-active` se encienda, así que el `_was_idle` que
+  mpv va de una a otra sin que `idle-active` se encienda, así que el `Playback.was_idle` que
   detecta el final no se entera. El avance se lee en `playlist-pos`.
 - **`loadfile` cambió de forma en mpv 0.38**: entró un índice entre las banderas y las
   opciones. Por posición, las opciones de una versión son el índice de la otra; con

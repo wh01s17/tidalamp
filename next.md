@@ -74,18 +74,21 @@ mezcla.**
 - **Arrancar sin TIDAL.** `cli.tui` sale con error si `load_session()` lanza
   `NotLoggedIn`. Con música local hay algo que escuchar sin cuenta, así que se arranca
   igual y TIDAL sale sin vincular. Lo que
-  hoy pregunta `entry.is_tidal` (letras, radio, favoritos, año del disco, en `app.py`,
-  `library.py`, `stream.py` y `screens/tracks.py`) pasa a preguntarle a la fuente qué
-  sabe hacer, en vez de sumar un `if` por fuente.
+  hoy pregunta `entry.is_tidal` (letras, radio, favoritos, año del disco; a
+  2026-10-09 en `app.py`, `levels.py`, `library.py`, `lyrics_feed.py`, `playback.py`,
+  `prefetch.py`, `queue.py`, `stream.py`, `screens/browser.py` y `screens/tracks.py`)
+  pasa a preguntarle a la fuente qué sabe hacer, en vez de sumar un `if` por fuente.
 
 - **Una costura `Source`**, como `music.py` lo es hoy para la sección libre: un
   Protocol con la raíz, la búsqueda, resolver una pista a algo que mpv reproduzca, sus
   playlists, y lo demás declarado como capacidades (favoritos, radio, letras, escribir
   playlists, vincular cuenta). Con tres fuentes (TIDAL, libre y local) ya compensa.
-  `library.py` (1542 líneas, casi todo TIDAL) se reparte: lo de TIDAL a su fuente;
-  `Row`, `matches`, la caché de niveles y el paginado quedan comunes. Es el momento
-  natural de «Sacar objetos de verdad de `TidalAmp`» (Sin fecha): mejor una vez y bien
-  que a medias en los dos sitios.
+  La mitad ya está: lo común (`Row`, `matches`, la caché de niveles, los órdenes y el
+  paginado) salió a `levels.py` y no sabe de TIDAL, y las escrituras en playlists a
+  `playlists.py` (2026-10-09, `plan.md` §4 «El reparto de `app.py`»). Lo que queda en
+  `library.py` es el árbol de TIDAL, y es lo que pasa a su fuente. Las partes de la
+  app (`playback.py`, `library_tasks.py`, `lyrics_feed.py`...) son donde las
+  capacidades de cada fuente se van a preguntar.
 
 - **`Entry` con identidad por fuente.** `Entry.id` es un `int` de TIDAL, y una pista
   local es una ruta. Pasa a (`source`, `id` como texto), y `queue.json` necesita
@@ -115,7 +118,7 @@ mezcla.**
     y mtime poco fiable en unidades de red. Probar con una carpeta en otra unidad.
 
 - **Letras para lo que no es de TIDAL, y de respaldo para lo que sí.** Hoy TIDAL es
-  el único proveedor: `TidalAmp._lyrics_for` (`app.py`) rechaza toda fila que no sea
+  el único proveedor: `LyricsFeed.for_entry` (`lyrics_feed.py`) rechaza toda fila que no sea
   de TIDAL, y `lyrics.load_lyrics` llama a `track.lyrics()` de `tidalapi`. Lo que se
   puede reutilizar tal cual es `parse_lyrics`, que ya lee LRC y no sabe de TIDAL.
   - *Orden de búsqueda:* (1) TIDAL, para sus pistas, como hasta ahora; (2) para una
@@ -247,22 +250,6 @@ mezcla.**
   un `session.view_all` que no existe. Habría que pedir la ruta de `_more.api_path`
   a mano, como ya se hace con los enlaces de Explorar (`library._page_at`).
 
-- **Sacar objetos de verdad de `TidalAmp`.** **3665 líneas y 226 métodos** en `app.py`
-  a 2026-09-24, y la cuenta sube en cada versión: eran 2635 y 182 cuando se escribió
-  esta entrada y 3393 y 214 el 2026-09-20; la `0.15.0` le sumó `_gave_up`,
-  `action_credits` y el reparto de `_now_playing`, y Windows, el dispositivo de salida
-  y a qué oye cava (`_cava_hears_mpv`, `_pick_spectrum`). `_setting_changed` sigue siendo lo más enredado. No en mixins (ver
-  «Descartado»), sino objetos con su propio diseño: reproducción, carátula,
-  presentación de la cola y aplicación de ajustes, dejando `TidalAmp` como raíz de
-  composición. Es un rediseño grande que no arregla ningún fallo, así que solo cuando
-  haya tiempo para hacerlo bien — pero cada versión que pasa lo encarece.
-  - Codex llegó a la misma conclusión (2026-09-12): objetos con diseño propio. Vigilar
-    además que `Mpv._request` (53 líneas, cada rama con su test) no crezca hasta ser
-    otro núcleo.
-  - *Después de Windows, no antes.* `windows.md` está pensado para que `app.py` apenas
-    cambie, y las fachadas de su fase F0 (MPRIS y audio como backends) ya son un primer
-    paso en esta dirección. Hacer las dos cosas a la vez se pisaría.
-
 - **Seleccionar varias pistas en la cola** para quitarlas o moverlas juntas; hoy se
   hace de a una. Interesa, pero sin versión decidida.
 
@@ -316,6 +303,6 @@ No se borran: quedan escritos con el motivo para no volver a discutirlos desde c
   así que las ~1100 líneas movidas quedan sin comprobar o piden un stub con las ~170
   firmas duplicadas. Además los `@on` solo cuentan en clases que construye Textual, y
   seis métodos tienen que quedarse porque los tests parchean nombres en
-  `tidalamp.app`. Si se retoma, que sea extrayendo objetos de verdad (MPRIS, carátula,
-  cola), con su propio diseño. El resto del reparto (`screens/`, `styles/`,
+  `tidalamp.app`. En su lugar se sacaron objetos de verdad, el 2026-10-09 (`plan.md`
+  §4, «El reparto de `app.py`»). El resto del reparto (`screens/`, `styles/`,
   `widgets.py`, los tests de la app) está hecho y en `.git-blame-ignore-revs`.

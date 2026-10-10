@@ -9,3 +9,5 @@ b90e17a8b41d05df4d4bd69a94b3c03839c55f80
 48a7a847c97d082a167aec7402d38f091c569eca
 # refactor(styles): styles.tcss en cinco ficheros, en el mismo orden
 44a613793f07c099ce3fe3608426d711f70d89b6
+# refactor: ningún fichero pasa de 1000 líneas
+5c7545d8dc0bd3f9b28fde9c458bcab2de19433a

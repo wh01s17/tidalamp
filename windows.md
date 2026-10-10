@@ -1346,7 +1346,7 @@ su pantalla, como el FiiO BTR15:
       es ese y no el predeterminado: el FiiO, con el JBL de predeterminado (2026-09-24, automatizado)
 
 Código: `player._exclusive_option`, `player._device_option`, `Mpv.set_exclusive`,
-`Mpv.set_device`, `app._setting_changed` («exclusive», «audio_device») y
+`Mpv.set_device`, `SettingChanges.apply` («exclusive», «audio_device») y
 `backends/windows/audio.py` (`devices`, `system_default`, `connected`).
 
 ### 12.6 La terminal
@@ -1409,7 +1409,7 @@ En una máquina, o un usuario, sin Python instalado:
       a 96 kHz en el FiiO y el lanzador del menú. De ahí salió un fallo que ya estaba
       antes de Windows: tras «Reiniciar PipeWire» el analizador se quedaba en `RMS`
       hasta volver a abrir tidalamp, porque cava muere con el daemon y nadie lo
-      relanzaba. Arreglado (`TidalAmp._back_from_pipewire`), y de paso el reinicio ya
+      relanzaba. Arreglado (`Playback.back_from_pipewire`), y de paso el reinicio ya
       no deja la música parada: sigue desde el segundo en el que iba. Las dos cosas,
       vistas por el mantenedor sonando y en pausa (2026-09-25)
 - [x] Los cambios desde la 0.18.0 dejan Linux igual: el `cava.conf` que se escribe
@@ -1510,7 +1510,7 @@ Cada una puede costar una tarde si no se conoce de antemano.
     son blancos (que borran la imagen) y luego la imagen, y Windows Terminal enseñaba
     el estado de en medio. Textual envuelve cada frame en la salida sincronizada
     (modo 2026) sólo si el terminal dice que la tiene, y **sólo lo pregunta en el
-    driver de Linux**. `TidalAmp._ask_for_synchronized_output` hace la pregunta en
+    driver de Linux**. `Looks.ask_for_synchronized_output` hace la pregunta en
     Windows; la respuesta entra por el mismo `XTermParser` (el driver de Windows lee
     con `ENABLE_VIRTUAL_TERMINAL_INPUT`) y Textual la activa solo. Con
     `TIDALAMP_DEBUG=1`, el log dice «el terminal acepta frames enteros (modo 2026)»
@@ -1529,7 +1529,7 @@ Cada una puede costar una tarde si no se conoce de antemano.
     derecha y 31 abajo, contra 10 arriba y a la izquierda, medidas en una captura
     del mantenedor a 1920 px (2026-09-24). La app sí usaba todas las columnas. Con
     OSC 11 el fondo por defecto pasa a ser el `panel` de la paleta, que es el de
-    `#main` en todos los temas (`TidalAmp._paint_terminal_margin`), y al salir OSC
+    `#main` en todos los temas (`Looks.paint_terminal_margin`), y al salir OSC
     111 devuelve el del perfil. Sólo con `WT_SESSION`: no está comprobado que el
     conhost de Windows 10 entienda OSC 111, y sin él el prompt se quedaría morado.
     Con opacidad o acrílico en el perfil, el margen sale algo más translúcido que las
@@ -1550,13 +1550,13 @@ Cada una puede costar una tarde si no se conoce de antemano.
     `end-file` `reason=error` («audio output initialization failed»), y como había
     sonado, la app la daba por terminada y pasaba a la siguiente, que ya no abría;
     así se saltó la cola entera al quitar un FiiO BTR15 (visto por el mantenedor,
-    2026-09-24). `TidalAmp._output_gone` lo reconoce cuando mpv se para (el
+    2026-09-24). `Output.gone` lo reconoce cuando mpv se para (el
     dispositivo en que lo puso tidalamp, `Mpv.device`, ya no está activo) y
-    `_play_on_the_default` pasa a `auto` y retoma la pista donde iba. Sólo para la
+    `Playback.play_on_the_default` pasa a `auto` y retoma la pista donde iba. Sólo para la
     sesión: el ajuste conserva el dispositivo. **Y hay que volver a él**: con el FiiO
     otra vez enchufado, el sonido seguía en el JBL, y elegirlo en `o` no hacía nada
     porque el ajuste ya lo decía y la ventana descarta lo que no cambia. Ahora
-    `TidalAmp._watch_output` pregunta cada 2 s, en un worker y sólo mientras mpv no
+    `Output.watch` pregunta cada 2 s, en un worker y sólo mientras mpv no
     está en el elegido, si ha vuelto; y elegir el mismo dispositivo en `o` lo aplica
     otra vez. Uno que no está no se le pasa nunca a mpv: sonaría mudo. Sólo se ofrecen las salidas `wasapi/`: el exclusivo es de
     WASAPI, y `openal` es otra vía a los mismos dispositivos. Desde la 0.21.0
@@ -1584,14 +1584,14 @@ Cada una puede costar una tarde si no se conoce de antemano.
     da `""` en Windows), cava oye un tono en modo compartido con bandas hasta 1,0.
     Aparte, y medido igual: **con el modo exclusivo cava no oye nada** (0,0 con el
     mismo tono), porque la captura en bucle de WASAPI sólo recibe la mezcla de
-    Windows y un flujo exclusivo la salta. `TidalAmp._cava_hears_mpv` deja entonces el
+    Windows y un flujo exclusivo la salta. `SpectrumFeed.hears_mpv` deja entonces el
     analizador al medidor RMS, que sale del filtro `astats` de mpv y oye el flujo
     mismo; cambiar el modo en `o` cambia la fuente. **Y cava sólo oye el
     predeterminado**: la captura en bucle es la del dispositivo predeterminado de
     Windows, y cava no deja elegir otro. Con el FiiO elegido y el JBL de
     predeterminado, el analizador decía `FFT` sobre una línea casi plana. Ahí también
     se usa el medidor RMS, y se decide de nuevo en cada cambio de dispositivo
-    (`TidalAmp._cava_hears_mpv`, `_pick_spectrum`). Todo el 2026-09-24, en la
+    (`SpectrumFeed.hears_mpv`, `SpectrumFeed.pick`). Todo el 2026-09-24, en la
     máquina del mantenedor.
 29. **Un dispositivo silenciado en Windows suena en exclusivo y no en compartido.**
     En modo compartido el flujo pasa por el mezclador de Windows y obedece su
