@@ -5,6 +5,21 @@ versioning is [semantic](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.21.1] - 2026-10-11
+
+### Fixed
+
+- **A track moved in the queue plays where it was moved to.** Moving a track up with
+  `alt+↑` to play next changed the list on screen but not the order of play: the
+  track it jumped over still played first, and with the next one already queued for
+  a gapless start, the moved track was skipped altogether. Without shuffle the list
+  is now the order of play again; with shuffle, moving still leaves the shuffled
+  order alone.
+- **The debug log starts when it is switched on in `o`.** It said «debug log: on» and
+  wrote nothing until tidalamp was opened again. It now starts and stops with the
+  setting, and logs how one track hands over to the next: what is asked for, what mpv
+  has queued and what did not open.
+
 ### Changed
 
 - Internal: no source or test file is longer than 1000 lines. The player's app is a

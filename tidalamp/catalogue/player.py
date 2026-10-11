@@ -264,6 +264,16 @@ ENGLISH: dict[str, str] = {
     "«{name}» no viene de TIDAL, que es de donde salen las letras": (
         "“{name}” does not come from TIDAL, which is where the lyrics come from"
     ),
+    # --- 0.21.1, in the help's list of changes
+    "Una pista subida con alt+flechas suena justo en su nuevo puesto.": (
+        "A track moved up with alt+arrows plays in its new place."
+    ),
+    "El debug log empieza y termina al cambiarlo en o, sin reabrir.": (
+        "The debug log starts and stops when switched in o, no restart."
+    ),
+    "El debug log cuenta el paso de una pista a la siguiente.": (
+        "The debug log tells how one track hands over to the next."
+    ),
     # --- 0.21.0, in the help's list of changes
     "Linux: elige el dispositivo de salida en o; auto dice cuál es.": (
         "Linux: choose the output device in o; auto says which it is."

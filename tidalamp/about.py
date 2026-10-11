@@ -65,6 +65,15 @@ def releases() -> tuple[Release, ...]:
     """Newest first. Translated at call time, not at import time."""
     return (
         Release(
+            "0.21.1",
+            "2026-10-11",
+            (
+                _("Una pista subida con alt+flechas suena justo en su nuevo puesto."),
+                _("El debug log empieza y termina al cambiarlo en o, sin reabrir."),
+                _("El debug log cuenta el paso de una pista a la siguiente."),
+            ),
+        ),
+        Release(
             "0.21.0",
             "2026-09-26",
             (
