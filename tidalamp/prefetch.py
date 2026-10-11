@@ -9,6 +9,7 @@ their caches on the way. Only the entry the queue says is next is ever kept.
 from __future__ import annotations
 
 import contextlib
+import logging
 import time
 from typing import TYPE_CHECKING, NamedTuple
 
@@ -20,6 +21,8 @@ from .workers import thread_worker
 
 if TYPE_CHECKING:
     from .app import TidalAmp
+
+log = logging.getLogger("tidalamp.prefetch")
 
 
 class Prepared(NamedTuple):
@@ -155,6 +158,7 @@ class Prefetcher:
         ):
             return
         self.app.mpv.append(playable.url, gain_for(playable))
+        log.debug("«%s» en cola en mpv, para empezar sin pausa", entry.title)
         self.prepared = Prepared(entry, playable, time.monotonic())
 
     def gave_up(self, entry: Entry) -> None:
@@ -171,6 +175,11 @@ class Prefetcher:
         # queued is position 1 again.
         self.app.mpv.drop_queued()
         index = self.app.queue.next_index()
+        log.debug(
+            "mpv pasó sola a «%s»; la cola dice %s",
+            prepared.entry.title,
+            "fin" if index is None else index + 1,
+        )
         if index is None or self.app.queue[index] is not prepared.entry:
             # Every change to the queue checks what is prepared, so this is
             # not expected; if it happens, the queue is what gets played.
@@ -191,7 +200,10 @@ class Prefetcher:
 
     def drop(self) -> None:
         """Forget the track resolved ahead, and take it out of mpv's playlist."""
-        queued = self.prepared is not None
+        prepared = self.prepared
+        queued = prepared is not None
+        if prepared is not None:
+            log.debug("«%s» sale de la cola de mpv", prepared.entry.title)
         self.forget()
         if queued:
             self.app.mpv.drop_queued()

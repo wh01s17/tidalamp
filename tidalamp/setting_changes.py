@@ -163,6 +163,7 @@ class SettingChanges:
                 else _("transparencia desactivada")
             )
         elif name == "debug":
+            config.setup_logging()
             self.app.status = _("debug log: {value}").format(
                 value=_("activado") if config.DEBUG else _("desactivado")
             )

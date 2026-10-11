@@ -11,6 +11,7 @@ kept for the next one.
 
 from __future__ import annotations
 
+import logging
 import time
 from typing import TYPE_CHECKING
 
@@ -29,6 +30,8 @@ if TYPE_CHECKING:
 # What `Playback.resolving` holds after a stop: an entry no resolve is ever
 # for, so whatever comes back late is dropped instead of starting to play.
 STOPPED = Entry(id=-1, title="", artist="")
+
+log = logging.getLogger("tidalamp.playback")
 
 
 class Playback:
@@ -230,6 +233,7 @@ class Playback:
 
     def next(self) -> None:
         index = self.app.queue.next_index()
+        log.debug("siguiente: %s", "fin de la cola" if index is None else index + 1)
         if index is None:
             if config.AUTOPLAY and self.autoplay():
                 return
@@ -311,6 +315,7 @@ class Playback:
         # meanwhile, mpv would go on to the queued track, not to this.
         self.app.prefetch.drop()
         entry = self.announce(index)
+        log.debug("reproducir %s. «%s»", index + 1, entry.title)
         # The spinner carries the message while we wait; repeating it in the
         # status text next to it would just say the same thing twice.
         self.app.status = ""
@@ -440,6 +445,7 @@ class Playback:
         entry, playable = self.app.queue.current, self.playable
         if entry is None or playable is None:
             return
+        log.debug("«%s» no abrió (intento %s)", entry.title, self.retries + 1)
         if self.retries < self.LOAD_RETRIES:
             self.retries += 1
             self.app.status = _("«{title}» no abrió; reintentando…").format(

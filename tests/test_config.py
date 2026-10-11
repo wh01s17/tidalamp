@@ -366,3 +366,27 @@ def test_a_switch_in_the_environment_can_turn_it_off_too(
     settings.FILE = settings.read_file(path)
     monkeypatch.setenv("TIDALAMP_DEBUG", value)
     assert settings.flag("debug", "TIDALAMP_DEBUG") is on
+
+
+def test_debug_switched_in_the_settings_starts_and_stops_the_log(monkeypatch, tmp_path):
+    """Switched on in `o`, it said «debug log: on» and wrote nothing until the
+    next start: the log file was only set up at start."""
+    import logging
+
+    log_file = tmp_path / "tidalamp.log"
+    monkeypatch.setattr(config, "LOG_FILE", log_file)
+    monkeypatch.setattr(config, "_log_handler", None)
+    logger = logging.getLogger("tidalamp")
+    monkeypatch.setattr(logger, "level", logger.level)
+
+    monkeypatch.setattr(config, "DEBUG", True)
+    config.setup_logging()
+    config.setup_logging()
+    logging.getLogger("tidalamp.playback").debug("una vez")
+    monkeypatch.setattr(config, "DEBUG", False)
+    config.setup_logging()
+    logging.getLogger("tidalamp.playback").debug("ya no")
+
+    assert config._log_handler is None
+    assert log_file.read_text(encoding="utf-8").count("una vez") == 1
+    assert "ya no" not in log_file.read_text(encoding="utf-8")

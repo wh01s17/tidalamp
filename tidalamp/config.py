@@ -446,22 +446,39 @@ def ensure_dirs() -> None:
     STATE_DIR.mkdir(parents=True, exist_ok=True)
 
 
+# The file handler `setup_logging` installed, so turning debugging off in
+# the settings can take it away again, and turning it on twice does not log
+# every line twice.
+_log_handler: logging.Handler | None = None
+
+
 def setup_logging() -> None:
-    """Log to ``LOG_FILE`` when debugging is on.
+    """Log to ``LOG_FILE`` when debugging is on, and stop when it is off.
 
     The TUI owns the terminal, so there is nowhere to print: debugging goes to
     a file or nowhere. Off by default, since a long session would otherwise
     keep writing while nobody reads it.
+
+    Called at start and again when the setting changes: it used to be called
+    only at start, so switching it on in `o` said «debug log: on» and wrote
+    nothing until tidalamp was opened again (2026-10-11).
     """
+    global _log_handler
+    logger = logging.getLogger("tidalamp")
     if not DEBUG:
         # The package already installs a NullHandler, which is what keeps
         # logging's last-resort handler off the TUI.
+        if _log_handler is not None:
+            logger.removeHandler(_log_handler)
+            _log_handler.close()
+            _log_handler = None
+        return
+    if _log_handler is not None:
         return
     ensure_dirs()
-    handler = logging.FileHandler(LOG_FILE, encoding="utf-8")
-    handler.setFormatter(
+    _log_handler = logging.FileHandler(LOG_FILE, encoding="utf-8")
+    _log_handler.setFormatter(
         logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s")
     )
-    logger = logging.getLogger("tidalamp")
     logger.setLevel(logging.DEBUG)
-    logger.addHandler(handler)
+    logger.addHandler(_log_handler)
