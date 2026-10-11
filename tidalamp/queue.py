@@ -360,6 +360,10 @@ class Queue:
         two indices swap inside ``_order``, so each position in the shuffle
         still points at the same song and reordering the visible list does not
         silently reshuffle what plays next.
+
+        Only under shuffle. In order, the list *is* the play order, and
+        remapping there kept the old order: a track moved up to play next
+        still played after the one it jumped over.
         """
         target = index + delta
         if not (0 <= index < len(self.entries) and 0 <= target < len(self.entries)):
@@ -369,7 +373,7 @@ class Queue:
             self.entries[target],
             self.entries[index],
         )
-        for position, value in enumerate(self._order):
+        for position, value in enumerate(self._order if self._shuffle else ()):
             if value == index:
                 self._order[position] = target
             elif value == target:

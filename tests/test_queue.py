@@ -92,6 +92,19 @@ def test_move_does_not_reshuffle(entries):
     assert [q.entries[i].id for i in q._order] == order_before
 
 
+def test_a_track_moved_up_to_next_plays_next(entries):
+    """In order, moving is changing what plays: Alt+↑ brought a track up
+    under the one playing, and the one it jumped over played anyway."""
+    q = make(entries)
+    q.playing = 0
+    q.move(3, -1)
+    q.move(2, -1)
+    assert [e.id for e in q] == [0, 3, 1, 2, 4]
+    assert q.next_index() == 1
+    q.playing = 1
+    assert q.next_index() == 2
+
+
 def test_persistence_roundtrip(entries, queue_file):
     q = make(entries)
     q.playing = 2
