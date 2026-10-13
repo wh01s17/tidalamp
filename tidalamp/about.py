@@ -66,7 +66,7 @@ def releases() -> tuple[Release, ...]:
     return (
         Release(
             "0.22.0",
-            "2026-10-12",
+            "2026-10-13",
             (
                 _("Tema, paleta, fondo y disposición se previsualizan antes de aplicar."),
                 _("Aplicar guarda la apariencia; Cancelar conserva el reproductor."),
