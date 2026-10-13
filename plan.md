@@ -4,9 +4,13 @@ Documento de traspaso. Describe qué existe, qué está verificado, qué falta y
 criterio se tomaron las decisiones, para que cualquiera (humano o modelo) pueda
 retomar el trabajo sin contexto previo.
 
-**Última actualización:** 2026-10-11, versión `0.21.1` publicada en PyPI y en GitHub,
-con el tag `v0.21.1` sobre `770af35` y el checksum del tarball en `9570866`. Lo
-nuevo: una pista subida en la cola con alt+flechas suena en su nuevo puesto (sin
+**Última actualización:** 2026-10-13, versión `0.22.0` publicada en PyPI y en GitHub,
+con el tag `v0.22.0` sobre `ee9311b` y el checksum del tarball en `packaging/aur/`.
+Lo nuevo: Tema, Paleta, Fondo de la cola y Disposición se previsualizan antes de
+guardar; con menos de 110 columnas la lista sigue disponible sin la muestra.
+Antes, 2026-10-11, versión `0.21.1` publicada en PyPI y en GitHub, con el tag
+`v0.21.1` sobre `770af35` y el checksum del tarball en `9570866`. Lo nuevo:
+una pista subida en la cola con alt+flechas suena en su nuevo puesto (sin
 shuffle, `Queue.move` remapeaba `_order` y conservaba el orden viejo), y el debug
 log empieza y termina al cambiarlo en `o`. Por dentro, ningún fichero pasa de 1000
 líneas. Antes, 2026-09-26, versión `0.21.0` publicada en PyPI y en GitHub,
@@ -2716,8 +2720,9 @@ una pista en cada calidad y leer `~/.local/state/tidalamp/tidalamp.log`.
 > (2026-09-24) el dispositivo de salida y el acceso en el escritorio, la `0.19.0`
 > (2026-09-25) lo que salió de ver entero `windows.md` §12, la `0.20.0`
 > (2026-09-26) los artistas y el ratón en las listas, la `0.21.0` (2026-09-26)
-> el dispositivo de salida en Linux, y la `0.21.1` (2026-10-11) la cola movida con
-> alt+flechas y el debug log en caliente; allí quedan las
+> el dispositivo de salida en Linux, la `0.21.1` (2026-10-11) la cola movida con
+> alt+flechas y el debug log en caliente, y la `0.22.0` (2026-10-13) la
+> previsualización de Apariencia; allí quedan las
 > comprobaciones a mano. Esta sección sigue siendo el estado general
 > y aquella, la cola de trabajo.
 
@@ -2726,16 +2731,16 @@ reproductor sirva, sino acabado, distribución y confirmar contra TIDAL real cos
 probadas sólo con dobles.
 
 **Orden propuesto (2026-09-11):** ~~P5 empaquetado~~ y ~~carátula~~ ✅ hechos. Cada
-versión se publica siguiendo `publish.md`; la última publicada es la `0.21.1`
-(2026-10-11), en PyPI y en GitHub con el zip de Windows, y con el checksum del tarball
-ya en el PKGBUILD (`9570866`). Lo que queda abierto aquí pide
+versión se publica siguiendo `publish.md`; la última publicada es la `0.22.0`
+(2026-10-13), en PyPI y en GitHub con el zip de Windows, y con el checksum del tarball
+ya en el PKGBUILD. Lo que queda abierto aquí pide
 credenciales tuyas o un par de ojos.
 
 1. Publicar en el AUR cuando vuelva a abrir el registro de cuentas nuevas. El paquete
    está preparado y se puede probar localmente, pero el alta final depende del
    servicio externo y no tiene fecha anunciada. **Todo lo del AUR queda pendiente**
-   (decidido por el mantenedor el 2026-09-14): de la `0.21.1` sólo está hecho el
-   checksum (`publish.md` §8.1 y §8.3, en `9570866`, con `updpkgsums` y validado por
+   (decidido por el mantenedor el 2026-09-14): de la `0.22.0` sólo está hecho el
+   checksum (`publish.md` §8.1 y §8.3, con `updpkgsums` y validado por
    `makepkg` contra el tarball del tag); §8.2 (`makepkg -Csi`, `namcap`) no se ha ejecutado: esta máquina no
    tiene instaladas las dependencias del paquete ni las de construcción, que están
    en `extra` pero piden `sudo pacman -S`, ni `namcap`. §8.4 a §8.6 esperan al
