@@ -5,6 +5,8 @@ versioning is [semantic](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.22.0] - 2026-10-12
+
 ### Added
 
 - **Preview Appearance choices before saving.** Theme, palette, queue backdrop and

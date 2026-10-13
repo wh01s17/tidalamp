@@ -266,6 +266,16 @@ ENGLISH: dict[str, str] = {
     "«{name}» no viene de TIDAL, que es de donde salen las letras": (
         "“{name}” does not come from TIDAL, which is where the lyrics come from"
     ),
+    # --- 0.22.0, in the help's list of changes
+    "Tema, paleta, fondo y disposición se previsualizan antes de aplicar.": (
+        "Preview theme, palette, backdrop and arrangement before applying."
+    ),
+    "Aplicar guarda la apariencia; Cancelar conserva el reproductor.": (
+        "Apply saves the look; Cancel keeps the current player."
+    ),
+    "La vista previa aparece desde 110 columnas.": (
+        "The preview appears from 110 terminal columns."
+    ),
     # --- 0.21.1, in the help's list of changes
     "Una pista subida con alt+flechas suena justo en su nuevo puesto.": (
         "A track moved up with alt+arrows plays in its new place."
