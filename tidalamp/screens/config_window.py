@@ -24,6 +24,7 @@ from ..scrolling import Glide, window
 from ..settings import REPLAYGAIN_MODES
 from ..theme import LAYOUTS, available_palettes, paired_palette, palette_for
 from ..widgets import Analyzer
+from .appearance_preview import APPEARANCE_KEYS, AppearancePreviewScreen
 from .choice import ChoiceScreen
 from .column_picker import ColumnsScreen, _crop
 from .logout import LogoutScreen
@@ -200,7 +201,7 @@ class ConfigScreen(ModalScreen[None]):
                 _("Tema"),
                 key="theme",
                 choices=LAYOUTS,
-                note=_("estructura visual; se aplica al instante"),
+                note=_("estructura visual; Enter muestra una previsualización"),
                 group=looks,
             ),
             Option(
@@ -591,7 +592,11 @@ class ConfigScreen(ModalScreen[None]):
         output device too: an arrow would have moved the sound to another
         speaker, and a list of names reads better than stepping through them.
         """
-        return option.key in ("quality", "audio_device") or option.action in (
+        return option.key in (
+            "quality",
+            "audio_device",
+            *APPEARANCE_KEYS,
+        ) or option.action in (
             "rates",
             "restart",
             "launcher",
@@ -615,7 +620,12 @@ class ConfigScreen(ModalScreen[None]):
 
     def _pick(self, option: Option) -> None:
         """Open the list for one of the three picked rows."""
-        if option.key == "quality":
+        if option.key in APPEARANCE_KEYS:
+            self.app.push_screen(
+                AppearancePreviewScreen(option.key, option.choices),
+                lambda value: self._set(option, value),
+            )
+        elif option.key == "quality":
             labels = {"LOSSLESS": _("LOSSLESS  (con device flow llega como HIGH)")}
             self.app.push_screen(
                 ChoiceScreen(

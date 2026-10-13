@@ -25,7 +25,7 @@ from tidalamp.app import ConfigScreen, RowList, TidalAmp
 from tidalamp.cover import DISPLAY_HEIGHT
 from tidalamp.layouts import LAYOUT_TABLE
 from tidalamp.queue import Entry
-from tidalamp.screens import config_window as screens_module
+from tidalamp.screens.appearance_preview import AppearancePreviewScreen
 from tidalamp.theme import DEFAULT_COLORS, LAYOUTS, ThemePalette
 from tidalamp.widgets import (
     Artwork,
@@ -413,6 +413,9 @@ def test_theme_and_palette_change_live_and_persist(monkeypatch, tmp_path):
 
             screen.cursor = config_row(screen, "Tema")
             await pilot.press("enter")
+            preview = application.screen
+            assert isinstance(preview, AppearancePreviewScreen)
+            await pilot.press("down", "enter")
             await pilot.pause()
             assert app_module.config.THEME == "retro"
             assert not application.query_one("#main").has_class("quattro")
@@ -421,6 +424,7 @@ def test_theme_and_palette_change_live_and_persist(monkeypatch, tmp_path):
 
             screen.cursor = config_row(screen, "Paleta")
             await pilot.press("enter")
+            await pilot.press("down", "enter")
             await pilot.pause()
             assert app_module.config.PALETTE == "classic"
             assert application.tidalamp_palette.source == "classic"
@@ -433,17 +437,10 @@ def test_theme_and_palette_change_live_and_persist(monkeypatch, tmp_path):
 def test_a_paired_theme_writes_its_palette_once_and_then_lets_go(monkeypatch, tmp_path):
     """Choosing the layout brings its colours; the palette stays free after.
 
-    No pair ships yet, so `retro` is paired with `nord` for the test. What is
-    under test is the screen: one write on choosing the layout, and nothing
-    that puts the pair back when the palette or another layout is chosen.
+    The screen previews the pair, then writes it once on confirmation.
     """
     isolate_runtime(monkeypatch)
     path = isolate_config(monkeypatch, tmp_path)
-    monkeypatch.setattr(
-        screens_module,
-        "paired_palette",
-        lambda layout: "nord" if layout == "retro" else None,
-    )
 
     async def scenario() -> None:
         application = TidalAmp(object(), FakeMpv())
@@ -455,26 +452,37 @@ def test_a_paired_theme_writes_its_palette_once_and_then_lets_go(monkeypatch, tm
 
             screen.cursor = config_row(screen, "Tema")
             await pilot.press("enter")
+            preview = application.screen
+            assert isinstance(preview, AppearancePreviewScreen)
+            preview.cursor = preview.choices.index("pirata")
+            preview.draft = preview.original.choosing("theme", "pirata")
+            await pilot.press("enter")
             await pilot.pause()
-            assert app_module.config.THEME == "retro"
-            assert app_module.config.PALETTE == "nord"
-            assert application.tidalamp_palette.source == "builtin:nord"
-            assert app_module.config.read_file(path)["palette"] == "nord"
+            assert app_module.config.THEME == "pirata"
+            assert app_module.config.PALETTE == "pirata"
+            assert application.tidalamp_palette.source == "builtin:pirata"
+            assert app_module.config.read_file(path)["palette"] == "pirata"
 
             # The palette moves on its own and the layout stays where it was.
             screen.cursor = config_row(screen, "Paleta")
             await pilot.press("enter")
+            await pilot.press("down", "enter")
             await pilot.pause()
             chosen = app_module.config.PALETTE
-            assert chosen != "nord"
-            assert app_module.config.THEME == "retro"
-            assert application.query_one("#main").has_class("retro")
+            assert chosen != "pirata"
+            assert app_module.config.THEME == "pirata"
+            assert application.query_one("#main").has_class("pirata")
 
             # And leaving the paired layout does not revert the palette.
             screen.cursor = config_row(screen, "Tema")
             await pilot.press("enter")
+            preview = application.screen
+            assert isinstance(preview, AppearancePreviewScreen)
+            preview.cursor = preview.choices.index("retro")
+            preview.draft = preview.original.choosing("theme", "retro")
+            await pilot.press("enter")
             await pilot.pause()
-            assert app_module.config.THEME != "retro"
+            assert app_module.config.THEME == "retro"
             assert chosen == app_module.config.PALETTE
             assert app_module.config.read_file(path)["palette"] == chosen
 
@@ -684,14 +692,23 @@ def test_choosing_a_themed_look_writes_its_palette_and_its_backdrop(
             await pilot.pause()
             row = config_row(screen, "Tema")
             screen.cursor = row
-            while app_module.config.THEME != "pirata":
-                await pilot.press("enter")
-                await pilot.pause()
+            await pilot.press("enter")
+            preview = application.screen
+            assert isinstance(preview, AppearancePreviewScreen)
+            preview.cursor = preview.choices.index("pirata")
+            preview.draft = preview.original.choosing("theme", "pirata")
+            await pilot.press("enter")
+            await pilot.pause()
             assert app_module.config.PALETTE == "pirata"
             assert app_module.config.BACKDROP == "pirata"
             assert app_module.config.read_file(path)["backdrop"] == "pirata"
 
             screen.cursor = config_row(screen, "Fondo de la cola")
+            await pilot.press("enter")
+            preview = application.screen
+            assert isinstance(preview, AppearancePreviewScreen)
+            preview.cursor = preview.choices.index("none")
+            preview.draft = preview.original.choosing("backdrop", "none")
             await pilot.press("enter")
             await pilot.pause()
             chosen = app_module.config.BACKDROP

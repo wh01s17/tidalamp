@@ -608,6 +608,18 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
 
 ### Configuración — `screens/config_window.py`, `config.py`
 
+- [x] **Previsualización de Apariencia antes de guardar.** Tema, Paleta, Fondo de la
+      cola y Disposición abren `AppearancePreviewScreen` al pulsar Enter. La lista
+      queda a la izquierda de una muestra del reproductor con títulos y transporte
+      derivados de `layouts.py`, colores de `theme.py` y emblema de `artwork.py`.
+      La muestra tiene un marco y encabezado propios; aparece a la derecha con
+      al menos 110 columnas. Por debajo de ese ancho queda la lista y un aviso.
+      `split` solo se dibuja si el terminal mide al menos 160×26, como el
+      reproductor real. El estado temporal `Appearance` incorpora paleta y fondo
+      al recorrer un tema emparejado sin escribir nada. Aplicar devuelve el valor
+      a `ConfigScreen._set`, que guarda y actualiza el reproductor; Cancelar/Esc
+      descarta el estado temporal.
+      La muestra usa pistas de ejemplo y no toca la reproducción ni la cola.
 - [x] **Agrupada por temática**: Audio (calidad, ritmos hi-res, reiniciar PipeWire),
       Apariencia (tema, paleta, transparencia, carátula, columnas) y General (idioma,
       registro). Diez ajustes en una columna se leían como diez interruptores sin

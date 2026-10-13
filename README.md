@@ -621,6 +621,13 @@ of failing with a codec error. If it happens frequently, lower the quality with
 Two independent settings. `theme` picks the **layout** — how the interface is drawn.
 `palette` picks the **colours** it is drawn in. Any layout works with any palette, and
 both can be changed from the settings window (`o`) without restarting playback.
+In Appearance, press Enter on Theme, Palette, Queue backdrop or Arrangement to open
+a list beside a player preview. Move through the choices, then choose **Apply** to
+save or **Cancel** (Esc) to keep the current look. The preview uses sample track
+details; it does not interrupt playback. On terminals smaller than 160×26, a
+selected split arrangement is previewed stacked, as it will appear there. The
+preview is shown beside the list from 110 terminal columns; below that width,
+the list remains usable and shows the required width.
 
 | `theme`   | Look                                                                                                                                                                                                   |
 | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |

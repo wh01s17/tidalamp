@@ -104,7 +104,9 @@ ENGLISH: dict[str, str] = {
     "sin configurar": "not configured",
     "al reiniciar": "on restart",
     "se aplica a la siguiente pista": "applies to the next track",
-    "estructura visual; se aplica al instante": "visual structure; applies instantly",
+    "estructura visual; Enter muestra una previsualización": (
+        "visual structure; Enter opens a preview"
+    ),
     "auto es classic: la paleta de Omarchy sólo existe en Linux": (
         "auto is classic: Omarchy's palette only exists on Linux"
     ),

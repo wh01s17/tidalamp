@@ -5,6 +5,14 @@ versioning is [semantic](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **Preview Appearance choices before saving.** Theme, palette, queue backdrop and
+  arrangement now open a selector with the choices beside a sample player. Apply saves
+  the choice; Cancel or Esc keeps the current player and configuration. Paired themes
+  preview their palette and picture together. The preview has a distinct frame and is
+  shown from 110 terminal columns; narrower terminals keep the full choice list.
+
 ## [0.21.1] - 2026-10-11
 
 ### Fixed
