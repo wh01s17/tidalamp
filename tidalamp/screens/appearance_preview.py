@@ -10,6 +10,7 @@ from rich.text import Text
 from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, Vertical
+from textual.events import Resize
 from textual.screen import ModalScreen
 from textual.widgets import Button, Static
 
@@ -252,9 +253,9 @@ class AppearancePreviewScreen(ModalScreen[str | None]):
     def on_mount(self) -> None:
         self._redraw()
 
-    def on_resize(self, _event) -> None:
+    def on_resize(self, event: Resize) -> None:
         self.query_one("#appearance-preview-box").set_class(
-            self.size.width < MIN_PREVIEW_WIDTH, "narrow"
+            event.size.width < MIN_PREVIEW_WIDTH, "narrow"
         )
         # The class changes the child sizes on the next layout pass.
         self.app.call_after_refresh(self._redraw)
@@ -282,7 +283,7 @@ class AppearancePreviewScreen(ModalScreen[str | None]):
         options.update(listing)
 
         note_widget = self.query_one("#appearance-preview-note", Static)
-        if self.size.width < MIN_PREVIEW_WIDTH:
+        if self.app.size.width < MIN_PREVIEW_WIDTH:
             note_widget.update(
                 _("Previsualización: mínimo {width} columnas").format(
                     width=MIN_PREVIEW_WIDTH

@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 
 import pytest
-from app_helpers import FakeMpv, config_row, isolate_config, isolate_runtime
+from app_helpers import FakeMpv, config_row, isolate_config, isolate_runtime, wait_for
 from textual.widgets import Static
 
 from tidalamp import artwork, config
@@ -233,13 +233,16 @@ def test_preview_appears_and_hides_when_terminal_crosses_minimum(monkeypatch, tm
             assert stage.styles.display == "none"
 
             await pilot.resize_terminal(MIN_PREVIEW_WIDTH, 26)
-            await pilot.pause()
-            assert stage.styles.display != "none"
-            assert "Pista de ejemplo" in _preview_text(preview)
+            await wait_for(
+                pilot,
+                lambda: (
+                    stage.styles.display != "none"
+                    and "Pista de ejemplo" in _preview_text(preview)
+                ),
+            )
 
             await pilot.resize_terminal(MIN_PREVIEW_WIDTH - 1, 26)
-            await pilot.pause()
-            assert stage.styles.display == "none"
+            await wait_for(pilot, lambda: stage.styles.display == "none")
 
     asyncio.run(scenario())
 
