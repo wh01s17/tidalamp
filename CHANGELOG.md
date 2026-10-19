@@ -5,6 +5,8 @@ versioning is [semantic](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.23.0] - 2026-10-19
+
 ### Added
 
 - **Phosphor palette**: the wh01s17.com green-on-near-black colour scheme is now

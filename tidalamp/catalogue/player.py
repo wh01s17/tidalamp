@@ -266,6 +266,13 @@ ENGLISH: dict[str, str] = {
     "«{name}» no viene de TIDAL, que es de donde salen las letras": (
         "“{name}” does not come from TIDAL, which is where the lyrics come from"
     ),
+    # --- 0.23.0, in the help's list of changes
+    "Fósforo: verde sobre negro, independiente del tema del escritorio.": (
+        "Phosphor: green on black, independent of the desktop theme."
+    ),
+    "Elige Fósforo en Apariencia → Paleta, con vista previa y guardado.": (
+        "Choose Phosphor in Appearance → Palette, with preview and persistence."
+    ),
     # --- 0.22.0, in the help's list of changes
     "Tema, paleta, fondo y disposición se previsualizan antes de aplicar.": (
         "Preview theme, palette, backdrop and arrangement before applying."

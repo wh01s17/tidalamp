@@ -4,8 +4,12 @@ Documento de traspaso. Describe qué existe, qué está verificado, qué falta y
 criterio se tomaron las decisiones, para que cualquiera (humano o modelo) pueda
 retomar el trabajo sin contexto previo.
 
-**Última actualización:** 2026-10-19, cambios sin publicar: paleta integrada
-`phosphor` (Fósforo), copia de los colores actuales de wh01s17.com; detalle en §4.
+**Última actualización:** 2026-10-19, versión `0.23.0` preparada para publicar:
+paleta integrada `phosphor` (Fósforo), copia de los colores actuales de
+wh01s17.com; detalle en §4. Suite completa: 1243 tests pasan, 4 omitidos,
+87,88 % de cobertura; Ruff y mypy para linux/win32 pasan. Wheel y sdist pasan
+`twine check`, y el wheel se instala y responde a `--help` y `--version` en
+un entorno limpio. Falta el CI remoto y la publicación por el tag `v0.23.0`.
 
 2026-10-13, versión `0.22.0` publicada en PyPI y en GitHub,
 con el tag `v0.22.0` sobre `ee9311b` y el checksum del tarball en `packaging/aur/`.

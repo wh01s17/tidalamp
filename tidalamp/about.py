@@ -65,6 +65,14 @@ def releases() -> tuple[Release, ...]:
     """Newest first. Translated at call time, not at import time."""
     return (
         Release(
+            "0.23.0",
+            "2026-10-19",
+            (
+                _("Fósforo: verde sobre negro, independiente del tema del escritorio."),
+                _("Elige Fósforo en Apariencia → Paleta, con vista previa y guardado."),
+            ),
+        ),
+        Release(
             "0.22.0",
             "2026-10-13",
             (
