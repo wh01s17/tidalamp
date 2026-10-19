@@ -137,6 +137,7 @@ ENGLISH: dict[str, str] = {
     "comodin": "wild-card",
     "gotico": "gothic",
     "bosque": "forest",
+    "Fósforo": "Phosphor",
     "Forma de la carátula": "Cover shape",
     "cuadrada, redondeada o redonda, con cualquier tema": (
         "square, rounded or round, under any theme"

@@ -300,6 +300,7 @@ def backdrop_for(setting: str, layout: Layout) -> Layout | None:
 # Functions, so a change of language is read when the label is drawn.
 # Names that read the same in both languages are not here.
 _LABELS: dict[str, Callable[[], str]] = {
+    "phosphor": lambda: _("Fósforo"),
     "unidad-morada": lambda: _("unidad-morada"),
     "pirata": lambda: _("pirata"),
     "cuaderno": lambda: _("cuaderno"),

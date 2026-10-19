@@ -89,6 +89,28 @@ _OMARCHY_KEYS = {
 # ``colors.toml``. They are available on every Linux distribution; ``auto``
 # remains the bridge to the active Omarchy theme when that file exists.
 _BUILTIN_SOURCES: dict[str, dict[str, str]] = {
+    # Freeze the current wh01s17.com Omarchy colours as a portable choice.
+    # Keep every semantic input, including the secondary foregrounds and
+    # selection ground, so switching from auto preserves the whole palette.
+    "phosphor": {
+        "accent": "#84c959",
+        "selection": "#84c959",
+        "selection_background": "#2b4221",
+        "muted": "#33454f",
+        "background": "#0a0e0f",
+        "dark_background": "#070a0b",
+        "darker_background": "#040607",
+        "lighter_background": "#171e23",
+        "foreground": "#cbd5ce",
+        "dark_foreground": "#748178",
+        "light_foreground": "#a6b4ac",
+        "bright_foreground": "#f3fbee",
+        "red": "#ff6b66",
+        "yellow": "#e8b53f",
+        "green": "#84c959",
+        "blue": "#4aa8ff",
+        "bright_green": "#a6dd84",
+    },
     "tokyo-night": {
         "accent": "#7aa2f7",
         "background": "#1a1b26",

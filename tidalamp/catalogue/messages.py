@@ -149,7 +149,7 @@ ENGLISH: dict[str, str] = {
     "# gotico, death-metal o bosque.\n"
     'theme = "quattro"\n\n'
     "# Paleta: auto sigue Omarchy; también classic, tokyo-night, catppuccin,\n"
-    "# nord, gruvbox, black, la de cualquier tema o un TOML en\n"
+    "# nord, gruvbox, phosphor, black, la de cualquier tema o un TOML en\n"
     "# ~/.config/tidalamp/palettes/.\n"
     'palette = "auto"\n\n'
     "# Disposición: stacked pone la cola debajo del reproductor; split la pone\n"
@@ -204,7 +204,7 @@ ENGLISH: dict[str, str] = {
         "# comodin, gotico, death-metal or bosque.\n"
         'theme = "quattro"\n\n'
         "# Palette: auto follows Omarchy; also classic, tokyo-night, catppuccin,\n"
-        "# nord, gruvbox, black, any theme's own, or a TOML file in\n"
+        "# nord, gruvbox, phosphor, black, any theme's own, or a TOML file in\n"
         "# ~/.config/tidalamp/palettes/.\n"
         'palette = "auto"\n\n'
         "# Arrangement: stacked puts the queue under the player; split puts it in a\n"

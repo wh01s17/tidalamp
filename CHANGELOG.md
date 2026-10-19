@@ -5,6 +5,12 @@ versioning is [semantic](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **Phosphor palette**: the wh01s17.com green-on-near-black colour scheme is now
+  a built-in choice in Appearance → Palette (`palette = "phosphor"`), with preview
+  and persistence on Linux and Windows, independent of the active Omarchy theme.
+
 ## [0.22.0] - 2026-10-13
 
 ### Added

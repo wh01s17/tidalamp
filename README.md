@@ -705,11 +705,17 @@ Split, with the timed lyrics following the song above the cover. The queue carri
 ### Palettes
 
 `palette` accepts `auto` (follow Omarchy), `classic` (green-on-black, the player's own),
-the built-ins `tokyo-night`, `catppuccin`, `nord`, `gruvbox` and `black` (pure black
-with grey and white accents, where lightness carries what hue carries elsewhere), the
-ten that come with the themed looks, or the name of a TOML file you drop in `~/.config/tidalamp/palettes/`. Custom palettes use the same format as
+the built-ins `phosphor`, `tokyo-night`, `catppuccin`, `nord`, `gruvbox` and `black`
+(pure black with grey and white accents, where lightness carries what hue carries
+elsewhere), the ten that come with the themed looks, or the name of a TOML file you
+drop in `~/.config/tidalamp/palettes/`. Custom palettes use the same format as
 Omarchy's `colors.toml`, so the built-ins and your own work on any Linux, with or
 without Omarchy.
+
+`phosphor` preserves the wh01s17.com colour scheme: phosphor green (`#84c959`)
+over near-black surfaces, with grey-green text. Choose **Phosphor** under
+Appearance → Palette, or set `palette = "phosphor"`, to keep these colours
+independently of the desktop theme. It works on Linux and Windows.
 
 The same layout, repainted. These are Omarchy themes picked up through `auto`, plus
 the player's own `classic` green-on-black, which is what you get anywhere else.

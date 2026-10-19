@@ -153,7 +153,7 @@ def config_template() -> str:
         "# gotico, death-metal o bosque.\n"
         'theme = "quattro"\n\n'
         "# Paleta: auto sigue Omarchy; también classic, tokyo-night, catppuccin,\n"
-        "# nord, gruvbox, black, la de cualquier tema o un TOML en\n"
+        "# nord, gruvbox, phosphor, black, la de cualquier tema o un TOML en\n"
         "# ~/.config/tidalamp/palettes/.\n"
         'palette = "auto"\n\n'
         "# Disposición: stacked pone la cola debajo del reproductor; split la pone\n"

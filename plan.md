@@ -4,7 +4,10 @@ Documento de traspaso. Describe qué existe, qué está verificado, qué falta y
 criterio se tomaron las decisiones, para que cualquiera (humano o modelo) pueda
 retomar el trabajo sin contexto previo.
 
-**Última actualización:** 2026-10-13, versión `0.22.0` publicada en PyPI y en GitHub,
+**Última actualización:** 2026-10-19, cambios sin publicar: paleta integrada
+`phosphor` (Fósforo), copia de los colores actuales de wh01s17.com; detalle en §4.
+
+2026-10-13, versión `0.22.0` publicada en PyPI y en GitHub,
 con el tag `v0.22.0` sobre `ee9311b` y el checksum del tarball en `packaging/aur/`.
 Lo nuevo: Tema, Paleta, Fondo de la cola y Disposición se previsualizan antes de
 guardar; con menos de 110 columnas la lista sigue disponible sin la muestra.
@@ -480,12 +483,30 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
 - [x] `nova` no dibuja ni una caja: un único fondo, aire por separación, y el color
       reservado a los dos controles que llevan estado, con una regla del acento debajo
       del que está encendido.
-- [x] Paletas portables además de Omarchy: `classic`, `tokyo-night`, `catppuccin`,
-      `nord`, `gruvbox`, `black`, o un TOML propio en `~/.config/tidalamp/palettes/` con el
-      mismo formato que el `colors.toml` de Omarchy. El nombre se valida contra
+- [x] Paletas portables además de Omarchy: `classic`, `phosphor`, `tokyo-night`,
+      `catppuccin`, `nord`, `gruvbox`, `black`, o un TOML propio en
+      `~/.config/tidalamp/palettes/` con el mismo formato que el `colors.toml` de
+      Omarchy. El nombre se valida contra
       `[a-z0-9_-]+` antes de tocar el disco, así que una paleta no es una ruta.
 - [x] Paleta completa tomada del tema Omarchy activo cuando existe; recarga en vivo
       cada dos segundos. En otras distros conserva exactamente los colores clásicos.
+- [x] **Fósforo (`phosphor`, 2026-10-19).** Copia portable del esquema wh01s17.com
+      activo en Omarchy: verde `#84c959`, panel `#0a0e0f`, fondo `#040607` y texto
+      `#cbd5ce`. Conserva los 25 roles semánticos, incluidos los grises secundarios,
+      selección y pico del espectro. Se incorpora en `_BUILTIN_SOURCES`, así que la
+      lista, previsualización y guardado existentes la ofrecen en Linux y Windows.
+      `layouts.label` muestra Fósforo/Phosphor; el fichero guarda `phosphor`.
+      No se empareja con una disposición: se puede usar con cualquiera. `auto`
+      sigue al escritorio; elegir Fósforo conserva estos colores aunque éste cambie.
+      Verificado: los 25 colores coinciden con el Omarchy actual y siguen cargando
+      sin él; etiquetas y plantilla en es/en. Pilot a 60×18, 80×24 y 120×34:
+      selección por teclado, cancelar sin guardar, aplicar en vivo y recargar el
+      valor guardado. Usa el selector existente, sin añadir marcos ni controles;
+      por debajo de 110 columnas conserva la lista sin la muestra.
+      Ruff (formato y lint) y mypy para linux/win32 pasan. La suite completa fuera
+      del sandbox pasa: 1243 tests, 4 omitidos y 87,88 % de cobertura. Incluye la
+      prueba de emblema en split que se había bloqueado en el sandbox al cerrar
+      `asyncio.run`; no hizo falta modificar el código para completar la suite.
 - [x] `Spinner`: indicador animado de espera que dice **qué** se está cargando, en la
       barra de título del navegador, en la de la letra y en la de estado. Cada trabajo
       lento corre en un worker para que la UI siga pintando, y precisamente por eso una
