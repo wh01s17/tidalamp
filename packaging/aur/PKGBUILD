@@ -23,7 +23,7 @@ makedepends=('python-build' 'python-installer' 'python-wheel' 'python-hatchling'
 checkdepends=('python-pytest')
 source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
 # SHA-256 del tarball del tag publicado en GitHub.
-sha256sums=('SKIP')
+sha256sums=('6d06561a1ce574023438abced3086e09654c42fd5b4fb254438ccedeeb569258')
 
 build() {
   cd "$srcdir/$pkgname-$pkgver"
