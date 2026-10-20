@@ -25,12 +25,11 @@ LICENSE_URL = "https://www.gnu.org/licenses/gpl-3.0.html"
 def pause_glyph(platform: str = sys.platform) -> str:
     """The pause sign of the transport and the help.
 
-    «⏸» where the terminal's font draws it. On Windows it does not (Consolas
-    lacks it, for one), and the fallback Windows finds is Segoe UI Emoji: a
-    blue emoji button in the middle of the theme. «‖» is in Consolas, and
-    takes one cell like «▶», so the button keeps its width.
+    Two strokes in one text cell, without the emoji fallback of «⏸».
+    The transport draws it in bold, at the same cell width as «▶»;
+    two separate heavy bars made pause dwarf play.
     """
-    return "‖" if platform == "win32" else "⏸"
+    return "Ⅱ"
 
 
 PAUSE = pause_glyph()
@@ -64,6 +63,14 @@ class Release:
 def releases() -> tuple[Release, ...]:
     """Newest first. Translated at call time, not at import time."""
     return (
+        Release(
+            "0.23.1",
+            "2026-10-19",
+            (
+                _("Play y pausa: símbolos de una celda en negrita, sin emoji."),
+                _("La pausa ya no invade el botón siguiente ni empequeñece play."),
+            ),
+        ),
         Release(
             "0.23.0",
             "2026-10-19",

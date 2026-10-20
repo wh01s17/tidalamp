@@ -1078,6 +1078,13 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
       como motas al lado del texto. Y el signo va separado de su marca (`s ⇄ ⬤`,
       `r ⟳ A`) con el mismo `separator` que ya había entre la tecla y el glifo, que en
       compacto es la cadena vacía y los deja pegados.
+- [x] **Pausa sin emoji y con barras sólidas** (2026-10-19). `⏸` también cae en
+      una fuente emoji en Linux y puede invadir el botón de parar; `‖`, que se
+      usaba en Windows, resulta demasiado fino. `❚❚` ocupaba dos celdas y dejaba
+      play desproporcionado; cambiar `▶` por `►` lo empeoró en la fuente del
+      mantenedor. El resultado usa `▶` y `Ⅱ`, ambos de una celda y en negrita.
+      La ayuda comparte el símbolo de pausa. La regresión comprueba play → pausa
+      → play y las mismas zonas de clic a 150×30, 80×24 y 60×18.
 - [x] Play y pausa son **un solo botón y una sola tecla**: `x ▶` parado o en pausa,
       `x ⏸` sonando —el icono es la acción que hará al pulsarlo—. `action_play` cubre
       los tres estados. La `c` de Winamp desapareció: después de fusionar los botones

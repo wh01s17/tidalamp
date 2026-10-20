@@ -100,8 +100,7 @@ def test_every_section_has_a_title_and_rows():
             assert key and description
 
 
-def test_pause_is_not_an_emoji_on_windows():
-    """In Windows Terminal «⏸» fell back to Segoe UI Emoji and the transport
-    showed a blue emoji button. Linux keeps the glyph it always had."""
-    assert about.pause_glyph("win32") == "‖"
-    assert about.pause_glyph("linux") == "⏸"
+@pytest.mark.parametrize("platform", ["win32", "linux"])
+def test_pause_uses_solid_text_bars_instead_of_an_emoji(platform):
+    """«⏸» could fall back to an oversized emoji; «‖» was too thin."""
+    assert about.pause_glyph(platform) == "Ⅱ"

@@ -5,6 +5,14 @@ versioning is [semantic](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.23.1] - 2026-10-19
+
+### Fixed
+
+- **Play and pause use matching single-cell text symbols.** The pause symbol
+  could turn into an oversized emoji. Both symbols now render in bold, with
+  pause kept to one cell so it does not dwarf play or move neighbouring controls.
+
 ## [0.23.0] - 2026-10-19
 
 ### Added

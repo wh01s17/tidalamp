@@ -30,7 +30,7 @@ if TYPE_CHECKING:
 SEPARATOR = " · "
 
 # The transport is drawn as boxed buttons three rows tall. The play/pause
-# glyph is the action it will do: "▶" while stopped or paused, "⏸" while
+# glyph is the action it will do: "▶" while stopped or paused, "Ⅱ" while
 # something is playing, which is what every transport in the world does.
 # Every state remains legible without colour and keeps a fixed width.
 # The sign and the mark it carries, kept apart so a view with room to spare
@@ -143,9 +143,7 @@ class Transport:
             marks = REPEAT_MARKS_ASCII
         else:
             prev = "◀" if compact else "◀◀"
-            # «⏸», the pause of the media keys, in one cell like «▶»: two
-            # heavy bars would be two, and the button must not change width.
-            # «‖» on Windows, where «⏸» comes out an emoji (`about.pause_glyph`).
+            # Both text glyphs occupy one cell, including in compact mode.
             play = about.PAUSE if playing else "▶"
             stop = "■"
             nxt = "▶" if compact else "▶▶"
@@ -321,6 +319,7 @@ class Transport:
         builder = getattr(self, f"_{app.looks.layout.transport}")
         rows = builder(hits, body, dim, lit)
         for row in rows:
+            row.highlight_words(["▶", about.PAUSE], style="bold")
             row.append("  ", style=body)
         app.query_one("#transport-play", Static).update(
             Text("\n", style=body).join(rows), layout=relayout

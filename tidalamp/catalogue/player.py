@@ -266,6 +266,13 @@ ENGLISH: dict[str, str] = {
     "«{name}» no viene de TIDAL, que es de donde salen las letras": (
         "“{name}” does not come from TIDAL, which is where the lyrics come from"
     ),
+    # --- 0.23.1, in the help's list of changes
+    "Play y pausa: símbolos de una celda en negrita, sin emoji.": (
+        "Play and pause: bold single-cell text symbols, without emoji."
+    ),
+    "La pausa ya no invade el botón siguiente ni empequeñece play.": (
+        "Pause no longer overlaps the next button or dwarfs play."
+    ),
     # --- 0.23.0, in the help's list of changes
     "Fósforo: verde sobre negro, independiente del tema del escritorio.": (
         "Phosphor: green on black, independent of the desktop theme."

@@ -103,7 +103,8 @@ def test_the_buttons_show_the_rebound_key_not_the_shipped_one(monkeypatch):
     asyncio.run(scenario())
 
 
-def test_play_and_pause_are_one_button_showing_what_it_will_do(monkeypatch):
+@pytest.mark.parametrize("size", [(150, 30), (80, 24), (60, 18)])
+def test_play_and_pause_are_one_button_showing_what_it_will_do(monkeypatch, size):
     """There used to be «x ▶» and «c ⏸» side by side, and only one of them
     ever made sense at a given moment."""
     isolate_runtime(monkeypatch)
@@ -112,23 +113,28 @@ def test_play_and_pause_are_one_button_showing_what_it_will_do(monkeypatch):
     async def scenario() -> None:
         mpv = FakeMpv()
         application = TidalAmp(object(), mpv)
-        async with application.run_test(size=(150, 30)) as pilot:
+        async with application.run_test(size=size) as pilot:
             await pilot.pause()
             # Stopped: the button offers to play, and there is no second one.
             drawn = transport(application)
-            assert "x ▶" in drawn
+            play_label = "x▶" if application.looks.compact else "x ▶"
+            assert play_label in drawn
             assert drawn.count(about.PAUSE) == 0
+            hits = list(application.transport.hits)
 
             application.queue.replace(
                 [Entry(id=1, title="t", artist="a", duration=9)], start=0
             )
             mpv.idle = False
-            await wait_for(pilot, lambda: f"x {about.PAUSE}" in transport(application))
+            pause_label = play_label.replace("▶", about.PAUSE)
+            await wait_for(pilot, lambda: pause_label in transport(application))
             drawn = transport(application)
-            assert drawn.count("▶") == 2, "los dos del ▶▶ de «siguiente», y ninguno más"
+            assert drawn.count("▶") == (1 if application.looks.compact else 2)
+            assert application.transport.hits == hits
 
             mpv.paused = True
-            await wait_for(pilot, lambda: "x ▶" in transport(application))
+            await wait_for(pilot, lambda: play_label in transport(application))
+            assert application.transport.hits == hits
 
     asyncio.run(scenario())
 
