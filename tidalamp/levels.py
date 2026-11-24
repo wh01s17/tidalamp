@@ -91,6 +91,11 @@ PLAYLIST_BY = ("date", "name")
 # page, so the rows are sorted here.
 ALBUM_TRACK_BY = ("name", "artist")
 ARTIST_TRACK_BY = ("name", "album")
+# «Música local» is sorted here too, and by date as well: a file knows when
+# it arrived on the disk.
+LOCAL_TRACK_BY = ("date", "name", "artist", "album")
+LOCAL_ALBUM_BY = ("date", "name", "artist", "release")
+LOCAL_ARTIST_BY = ("date", "name")
 
 # The order picked for each level, by the level's key: its code, as in
 # `name-asc`. Kept on disk so a level opens the next day the way it was left;
@@ -209,10 +214,22 @@ def _in_order(rows: list[Row], order: Order | None) -> list[Row]:
     items = [row for row in rows if row.more is None]
     more = [row for row in rows if row.more is not None]
 
+    if order.by in ("date", "release"):
+
+        def stamp(row: Row) -> float:
+            if order.by == "date":
+                return row.added
+            return row.year or (row.entry.year if row.entry is not None else 0)
+
+        return sorted(items, key=stamp, reverse=order.descending) + more
+
     def value(row: Row) -> str:
         entry = row.entry
         if entry is None:
-            return _folded(row.label)
+            # A record or an artist: its name is the caption a tile shows,
+            # its artist the byline under it.
+            field = row.byline if order.by == "artist" else row.caption
+            return _folded(field or row.label)
         field = {"artist": entry.artist, "album": entry.album}.get(order.by, entry.title)
         return _folded(field or "")
 
@@ -296,6 +313,11 @@ class Row:
     # for a track. Only «Lofi sin copyright» is not TIDAL's, and the screens
     # read it to know which verbs to offer over the row.
     source: str = TIDAL
+    # What a level sorted here (not by TIDAL) sorts by date and by release:
+    # when the row's file or record arrived, and the year it came out. Only
+    # «Música local» fills them; everywhere else TIDAL sorts by date itself.
+    added: float = 0.0
+    year: int = 0
 
     @property
     def is_playable(self) -> bool:

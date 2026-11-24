@@ -28,6 +28,7 @@ from .appearance_preview import APPEARANCE_KEYS, AppearancePreviewScreen
 from .choice import ChoiceScreen
 from .column_picker import ColumnsScreen, _crop
 from .logout import LogoutScreen
+from .prompts import PlaylistNameScreen
 
 if TYPE_CHECKING:  # The screens report back to the app; the app owns them.
     from ..app import TidalAmp
@@ -275,6 +276,12 @@ class ConfigScreen(ModalScreen[None]):
                 group=looks,
             ),
             Option(
+                _("Carpetas de música"),
+                action="folders",
+                note=_("de dónde lee «Música local»: FLAC, hi-res, DSD, MP3…"),
+                group=general,
+            ),
+            Option(
                 _("Idioma"),
                 key="language",
                 choices=self.LANGUAGES,
@@ -423,6 +430,10 @@ class ConfigScreen(ModalScreen[None]):
             return _("{count} de {total}").format(
                 count=len(config.COLUMNS), total=len(columns.ALL)
             )
+        if option.action == "folders":
+            if not config.LOCAL_FOLDERS:
+                return _("ninguna")
+            return _("{count} carpetas").format(count=len(config.LOCAL_FOLDERS))
         return _("acción")
 
     def _detail(self, option: Option) -> str:
@@ -435,6 +446,13 @@ class ConfigScreen(ModalScreen[None]):
         if option.action == "rates":
             return self._rates_detail()
         if option.action in ("columns", "logout"):
+            return option.note
+        if option.action == "folders":
+            shadowing = config.overridden("local_folders")
+            if shadowing:
+                return _("lo pisa {variable} del entorno").format(variable=shadowing)
+            if config.LOCAL_FOLDERS:
+                return ", ".join(config.LOCAL_FOLDERS)
             return option.note
         if option.action == "launcher":
             if self._launcher is not None:
@@ -601,6 +619,7 @@ class ConfigScreen(ModalScreen[None]):
             "restart",
             "launcher",
             "logout",
+            "folders",
         )
 
     def action_activate(self) -> None:
@@ -692,6 +711,75 @@ class ConfigScreen(ModalScreen[None]):
 
         elif option.action == "logout":
             self.app.push_screen(LogoutScreen(), self._logout_chosen)
+
+        elif option.action == "folders":
+            self._offer_folders()
+
+    # ------------------------------------------------------- music folders
+
+    def _offer_folders(self) -> None:
+        """The folders «Música local» reads, and a way to add one.
+
+        ↵ on a folder takes it out of the list; nothing on the disk is
+        touched. The window comes back after each change, so adding three
+        folders is three paths typed and not three trips through the menu.
+        """
+        self.app.push_screen(
+            ChoiceScreen(
+                _("CARPETAS DE MÚSICA"),
+                [
+                    ("+add", _("+ añadir una carpeta…")),
+                    *[
+                        (folder, _("✕ quitar {path}").format(path=folder))
+                        for folder in config.LOCAL_FOLDERS
+                    ],
+                ],
+                message=_(
+                    "Se buscan FLAC, ALAC, WAV, AIFF, DSD, WavPack, APE, MP3,\n"
+                    "Opus y Vorbis en cada carpeta y sus subcarpetas."
+                ),
+            ),
+            self._folder_chosen,
+        )
+
+    def _folder_chosen(self, value: object) -> None:
+        if value is None:
+            return
+        if value == "+add":
+            self.app.push_screen(
+                PlaylistNameScreen(
+                    _("AÑADIR UNA CARPETA DE MÚSICA"),
+                    placeholder=_("ruta de la carpeta, p. ej. ~/Música"),
+                ),
+                self._folder_typed,
+            )
+            return
+        self._write_folders([f for f in config.LOCAL_FOLDERS if f != value])
+        self._offer_folders()
+
+    def _folder_typed(self, value: str | None) -> None:
+        typed = (value or "").strip()
+        if not typed:
+            self._offer_folders()
+            return
+        path = Path(typed).expanduser()
+        if not path.is_dir():
+            self._notice = _("  No es una carpeta: {path}").format(path=typed)
+            self._render_list()
+            return
+        # As typed when it starts at the home folder, so the file still reads
+        # `~/Música` on the next machine; absolute otherwise.
+        written = typed if typed.startswith("~") else str(path.resolve())
+        if written not in config.LOCAL_FOLDERS:
+            self._write_folders([*config.LOCAL_FOLDERS, written])
+        self._offer_folders()
+
+    def _write_folders(self, folders: list[str]) -> None:
+        self._notice = ""
+        config.set_option("local_folders", folders)
+        if self._on_change is not None:
+            self._on_change("local_folders")
+        self._render_list()
 
     def _logout_chosen(self, value: object) -> None:
         """Forget the account, then say how to come back and close the app.

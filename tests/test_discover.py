@@ -143,8 +143,8 @@ def test_a_link_opens_the_page_it_points_to(monkeypatch):
 
 
 def test_discover_is_the_last_tidal_row_of_the_library_and_lists_three_pages():
-    """Last of TIDAL's, not last of the browser: «Lofi sin copyright» sits
-    under it, after everything the account holds and everything TIDAL
+    """Last of TIDAL's, not last of the browser: «Música local» and «Lofi sin
+    copyright» sit under it, after everything the account holds and everything TIDAL
     proposes (`test_library.py`)."""
     session = SimpleNamespace(
         # `root` hands the counters to the levels it builds, uncalled.
@@ -160,7 +160,9 @@ def test_discover_is_the_last_tidal_row_of_the_library_and_lists_three_pages():
     rows = library.root(session)
 
     discover = next(row for row in rows if row.key == "discover")
-    assert rows.index(discover) == len(rows) - 2
+    # «Música local» between them: the files on this computer, not TIDAL's.
+    assert rows.index(discover) == len(rows) - 3
+    assert rows[-2].key == "local"
     assert discover.label == "Descubrir"
     assert [row.label for row in discover.loader()] == ["Inicio", "Para ti", "Explorar"]
 

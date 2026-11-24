@@ -516,4 +516,14 @@ ENGLISH: dict[str, str] = {
     "La página siguiente llega sola; el filtro busca en todo.": (
         "The next page comes on its own; the filter searches it all."
     ),
+    # «Música local», the files on this computer.
+    "Música local": "Local music",
+    "FLAC y hi-res desde tus carpetas": "FLAC and hi-res from your folders",
+    "Todas las pistas": "All tracks",
+    "{count} discos": "{count} albums",
+    "{count} pistas · {hires} hi-res": "{count} tracks · {hires} hi-res",
+    "Artista desconocido": "Unknown artist",
+    "Varios artistas": "Various artists",
+    "Carpetas": "Folders",
+    "la estructura de tus carpetas": "your folders as they are on disk",
 }

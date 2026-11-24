@@ -42,6 +42,9 @@ def _claim_uid(value: int) -> int:
 # the session on every play; a free one already knows its URL.
 TIDAL = "tidal"
 FREE = "free"
+# A file on this computer, from «Música local». Like a free row it carries
+# its own URL — a path — and plays without a session.
+LOCAL = "local"
 
 
 def _artist_names(track: tidalapi.Track) -> str:
@@ -178,6 +181,29 @@ class Entry:
             licence=track.licence,
             source_url=track.source_url,
         )
+
+    @classmethod
+    def from_local(cls, track: Any) -> Entry:
+        """A row out of a `local.Track`, typed loosely like `from_free`."""
+        return cls(
+            id=track.id,
+            title=track.title,
+            artist=track.artist,
+            album=track.album,
+            year=track.year,
+            duration=track.duration,
+            art_url=track.art_url,
+            track_num=track.track_num,
+            disc=track.disc,
+            quality=track.quality,
+            source=LOCAL,
+            url=track.path,
+        )
+
+    @property
+    def is_local(self) -> bool:
+        """Whether this row is a file on this computer."""
+        return self.source == LOCAL
 
     @property
     def is_tidal(self) -> bool:

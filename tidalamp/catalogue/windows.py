@@ -674,4 +674,22 @@ ENGLISH: dict[str, str] = {
         "  TIDAL AMP needs at least {min_width}×{min_height}.\n\n"
         "  Make the terminal bigger or the font smaller.\n"
     ),
+    # The music folders, in the settings.
+    "Carpetas de música": "Music folders",
+    "de dónde lee «Música local»: FLAC, hi-res, DSD, MP3…": (
+        "where «Local music» reads from: FLAC, hi-res, DSD, MP3…"
+    ),
+    "ninguna": "none",
+    "{count} carpetas": "{count} folders",
+    "CARPETAS DE MÚSICA": "MUSIC FOLDERS",
+    "+ añadir una carpeta…": "+ add a folder…",
+    "✕ quitar {path}": "✕ remove {path}",
+    "Se buscan FLAC, ALAC, WAV, AIFF, DSD, WavPack, APE, MP3,\n"
+    "Opus y Vorbis en cada carpeta y sus subcarpetas.": (
+        "FLAC, ALAC, WAV, AIFF, DSD, WavPack, APE, MP3, Opus and\n"
+        "Vorbis are looked for in each folder and its subfolders."
+    ),
+    "AÑADIR UNA CARPETA DE MÚSICA": "ADD A MUSIC FOLDER",
+    "ruta de la carpeta, p. ej. ~/Música": "the folder's path, e.g. ~/Music",
+    "  No es una carpeta: {path}": "  Not a folder: {path}",
 }

@@ -243,4 +243,13 @@ ENGLISH: dict[str, str] = {
         "[keys]\n"
         "%(keys)s\n"
     ),
+    # «Música local».
+    "carpetas de música: {count}": "music folders: {count}",
+    "no hay carpetas de música: añádelas en la configuración (o)": (
+        "no music folders: add them in the settings (o)"
+    ),
+    "no se encontró ninguna de las carpetas de música configuradas": (
+        "none of the configured music folders could be found"
+    ),
+    "«{name}» ya no está en {path}": "«{name}» is no longer at {path}",
 }

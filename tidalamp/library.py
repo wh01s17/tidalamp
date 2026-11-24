@@ -9,24 +9,30 @@ a worker thread, never on the UI loop. Writing to a playlist is in
 from __future__ import annotations
 
 import logging
+import os
 from collections.abc import Callable, Iterable
 from functools import partial
+from pathlib import Path
 from typing import Any, cast
 
 import tidalapi
 from tidalapi.types import AlbumOrder, ArtistOrder, ItemOrder, OrderDirection
 
-from . import archive, freemusic, jamendo
+from . import archive, freemusic, jamendo, local
 from .i18n import _
 from .levels import (
     ALBUM_BY,
     ALBUM_TRACK_BY,
     ARTIST_BY,
     ARTIST_TRACK_BY,
+    LOCAL_ALBUM_BY,
+    LOCAL_ARTIST_BY,
+    LOCAL_TRACK_BY,
     PLAYLIST_BY,
     TRACK_BY,
     Order,
     Row,
+    _folded,
     _paged,
     _sortable,
     cached,
@@ -34,7 +40,7 @@ from .levels import (
 )
 from .music import Track
 from .net import with_retries
-from .queue import FREE, Entry
+from .queue import FREE, LOCAL, Entry
 
 log = logging.getLogger("tidalamp.library")
 
@@ -574,6 +580,229 @@ def _free_level() -> Callable[[], list[Row]]:
     return load
 
 
+# ------------------------------------------------------------- «Música local»
+
+# The scan the local levels share, so opening «Álbumes» after «Música local»
+# does not walk the folders a second time. Refreshed whenever the section's
+# own level loads, which is on opening it and on `R` over it.
+_LOCAL: list[local.Track] | None = None
+
+
+def forget_local() -> None:
+    """Drop the scan and every local level, after the folders changed."""
+    global _LOCAL
+    _LOCAL = None
+    forget_level("local")
+    from .levels import _LEVELS
+
+    for key in [key for key in _LEVELS if key.startswith("local:")]:
+        _LEVELS.pop(key, None)
+
+
+def _local_tracks(*, fresh: bool = False) -> list[local.Track]:
+    global _LOCAL
+    if _LOCAL is None or fresh:
+        _LOCAL = local.scan()
+    return _LOCAL
+
+
+def _whatever_order(
+    load: Callable[[], list[Row]],
+) -> Callable[[Order | None], Callable[[], list[Row]]]:
+    """A ``build`` for `_sortable` over a level sorted here: the same rows
+    for every order, which `_in_order` then sorts."""
+    return lambda order: load
+
+
+def _local_track_rows(tracks: Iterable[local.Track]) -> list[Row]:
+    rows = []
+    for track in tracks:
+        entry = Entry.from_local(track)
+        rows.append(
+            Row(
+                label=entry.label,
+                detail=" · ".join(part for part in (track.quality, entry.length) if part),
+                entry=entry,
+                added=track.added,
+                year=track.year,
+                source=LOCAL,
+            )
+        )
+    return rows
+
+
+def _local_album_rows(records: Iterable[local.Album]) -> list[Row]:
+    rows = []
+    for album in records:
+        key = f"local:album:{album.tracks[0].album_key}"
+        rows.append(
+            Row(
+                label=f"{album.artist} - {album.title}" if album.artist else album.title,
+                detail=" · ".join(
+                    part for part in (str(album.year or ""), album.quality) if part
+                ),
+                art=album.art_url,
+                caption=album.title,
+                byline=album.artist,
+                source=LOCAL,
+                added=album.added,
+                year=album.year,
+                # In disc and track order until another is picked: a record's
+                # own order is the one it was made to be heard in.
+                **_sortable(
+                    key,
+                    ("name", "artist"),
+                    _whatever_order(partial(_local_track_rows, list(album.tracks))),
+                    local=True,
+                ),
+            )
+        )
+    return rows
+
+
+def _local_artist_rows(found: dict[str, list[local.Album]]) -> list[Row]:
+    rows = []
+    for name, records in found.items():
+        label = name or _("Artista desconocido")
+        rows.append(
+            Row(
+                label=label,
+                detail=_("{count} discos").format(count=len(records)),
+                art=next((album.art_url for album in records if album.art_url), ""),
+                caption=label,
+                source=LOCAL,
+                added=max(album.added for album in records),
+                **_sortable(
+                    f"local:artist:{name.casefold()}",
+                    LOCAL_ALBUM_BY,
+                    _whatever_order(partial(_local_album_rows, records)),
+                    local=True,
+                ),
+                tracks=partial(
+                    _local_track_rows,
+                    [track for album in records for track in album.tracks],
+                ),
+            )
+        )
+    return rows
+
+
+def _local_folder_row(directory: Path, tracks: list[local.Track], label: str = "") -> Row:
+    """One folder: it opens to what is inside it, and `m` or `a` on it play
+    every track under it, subfolders included, in the order they are on disk."""
+    inside = sorted(tracks, key=lambda track: track.path)
+    return Row(
+        label=label or f"{directory.name}/",
+        detail=_("{count} pistas").format(count=len(inside)),
+        art=next((track.art_url for track in inside if track.art_url), ""),
+        caption=label or directory.name,
+        source=LOCAL,
+        key=f"local:dir:{directory}",
+        loader=cached(
+            f"local:dir:{directory}", partial(_local_folder_level, directory, inside)
+        ),
+        tracks=partial(_local_track_rows, inside),
+    )
+
+
+def _local_folder_level(directory: Path, tracks: list[local.Track]) -> list[Row]:
+    """A folder as it is on the disk: its subfolders first, then its files,
+    each by name. Only what holds audio: a folder of scans is not shown."""
+    subfolders: dict[str, list[local.Track]] = {}
+    files: list[local.Track] = []
+    for track in tracks:
+        parts = Path(track.path).relative_to(directory).parts
+        if len(parts) == 1:
+            files.append(track)
+        else:
+            subfolders.setdefault(parts[0], []).append(track)
+    rows = [
+        _local_folder_row(directory / name, subfolders[name])
+        for name in sorted(subfolders, key=_folded)
+    ]
+    files.sort(key=lambda track: _folded(Path(track.path).name))
+    return rows + _local_track_rows(files)
+
+
+def _local_roots_level() -> list[Row]:
+    """The configured folders, one row each, with what the scan found in them."""
+    tracks = _local_tracks()
+    rows = []
+    for root in local.folders():
+        real = Path(os.path.realpath(root))
+        inside = [track for track in tracks if Path(track.path).is_relative_to(real)]
+        if inside:
+            try:
+                shown = f"~/{root.relative_to(Path.home())}"
+            except ValueError:
+                shown = str(root)
+            rows.append(_local_folder_row(real, inside, label=f"{shown}/"))
+    return rows
+
+
+def _local_level() -> list[Row]:
+    """The section's own level: its three ways in, over a fresh scan.
+
+    The scan happens here and not in the root, so a library with no folders
+    or a slow disk costs nothing until the row is opened.
+    """
+    tracks = _local_tracks(fresh=True)
+    # What the levels below were cut from is gone: they are cut again.
+    from .levels import _LEVELS
+
+    for key in [key for key in _LEVELS if key.startswith("local:")]:
+        _LEVELS.pop(key, None)
+    hires = sum(1 for track in tracks if track.hires)
+    return [
+        Row(
+            _("Álbumes"),
+            _("{count} discos").format(count=len(local.albums(tracks))),
+            source=LOCAL,
+            **_sortable(
+                "local:albums",
+                LOCAL_ALBUM_BY,
+                _whatever_order(lambda: _local_album_rows(local.albums(_local_tracks()))),
+                local=True,
+            ),
+        ),
+        Row(
+            _("Artistas"),
+            "",
+            source=LOCAL,
+            **_sortable(
+                "local:artists",
+                LOCAL_ARTIST_BY,
+                _whatever_order(
+                    lambda: _local_artist_rows(
+                        local.artists(local.albums(_local_tracks()))
+                    )
+                ),
+                local=True,
+            ),
+        ),
+        Row(
+            _("Todas las pistas"),
+            _("{count} pistas · {hires} hi-res").format(count=len(tracks), hires=hires),
+            source=LOCAL,
+            **_sortable(
+                "local:tracks",
+                LOCAL_TRACK_BY,
+                _whatever_order(lambda: _local_track_rows(_local_tracks())),
+                local=True,
+            ),
+        ),
+        # The disk as it is, for whoever keeps their music in an order of
+        # their own: by name, as a file manager shows it, and not by date.
+        Row(
+            _("Carpetas"),
+            _("la estructura de tus carpetas"),
+            source=LOCAL,
+            key="local:folders",
+            loader=cached("local:folders", _local_roots_level),
+        ),
+    ]
+
+
 def root(session: tidalapi.Session) -> list[Row]:
     """The top level of the browser."""
     favorites = _me(session).favorites
@@ -649,6 +878,15 @@ def root(session: tidalapi.Session) -> list[Row]:
             "",
             key="discover",
             loader=cached("discover", partial(_discover_rows, session)),
+        ),
+        # The files on this computer: FLAC up to 24/192, DSD, and whatever
+        # else mpv opens. After what TIDAL proposes, before the free section.
+        Row(
+            _("Música local"),
+            _("FLAC y hi-res desde tus carpetas"),
+            key="local",
+            loader=cached("local", _local_level),
+            source=LOCAL,
         ),
         # The only level that is not TIDAL's. Last, after everything the
         # account holds and everything TIDAL proposes, because it is the odd

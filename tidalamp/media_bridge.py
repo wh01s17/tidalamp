@@ -8,6 +8,7 @@ contract's name, whatever the system.
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from .player import Mpv
@@ -36,7 +37,12 @@ def entry_metadata(entry: Entry) -> dict:
         "art_url": entry.art_url,
         # A free row's audio is a real URL; a TIDAL one has none that
         # outlives the play, so it gets the scheme its own clients use.
-        "url": entry.url or f"tidal://track/{entry.id}",
+        # A local one is a path, and MPRIS wants a URI for it.
+        "url": (
+            Path(entry.url).as_uri()
+            if entry.is_local
+            else entry.url or f"tidal://track/{entry.id}"
+        ),
     }
 
 

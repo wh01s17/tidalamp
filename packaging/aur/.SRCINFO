@@ -16,6 +16,7 @@ pkgbase = tidalamp
 	depends = python-typer
 	depends = python-dbus-fast
 	depends = python-requests
+	depends = python-mutagen
 	depends = mpv
 	optdepends = cava: real spectrum analyzer instead of the RMS meter
 	optdepends = python-pillow: album cover art in the display

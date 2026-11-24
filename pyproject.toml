@@ -36,6 +36,9 @@ dependencies = [
     "winrt-Windows.Media.Playback>=3.2; sys_platform == 'win32'",
     "winrt-Windows.Storage.Streams>=3.2; sys_platform == 'win32'",
     "requests>=2.31",
+    # «Música local»: tags, length, rate and depth of FLAC, ALAC, DSD and the
+    # rest, read from the header without decoding a sample. Pure Python.
+    "mutagen>=1.47",
 ]
 
 [project.urls]

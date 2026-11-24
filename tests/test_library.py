@@ -711,7 +711,10 @@ def test_nothing_in_the_section_is_tidals(monkeypatch):
     assert not rows[0].is_tidal, "la pista del día"
     assert not rows[-1].is_tidal, "la fila del catálogo"
     assert not rows[-1].loader()[0].is_tidal, "un disco del catálogo"
-    assert all(row.is_tidal for row in library.root(FakeSession())[:-1])
+    # Everything above it is TIDAL's, but for the files on this computer.
+    assert all(
+        row.is_tidal for row in library.root(FakeSession())[:-1] if row.key != "local"
+    )
 
 
 def test_opening_a_record_from_the_catalogue_gives_playable_rows(monkeypatch):

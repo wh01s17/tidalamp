@@ -799,7 +799,7 @@ class TidalAmp(App):
         if entry is None:
             self.status = _("no hay una pista reproduciéndose")
             return
-        if entry.is_tidal:
+        if entry.is_tidal or entry.is_local:
             # Not a failure worth a red line: TIDAL's catalogue has no licence
             # that asks anything of the listener and no page to point at.
             self.status = _("los créditos son de «Lofi sin copyright»")

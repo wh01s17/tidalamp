@@ -38,6 +38,14 @@ class SettingChanges:
                 with contextlib.suppress(Exception):
                     session_config.quality = tidalapi.Quality(config.DEFAULT_QUALITY)
             self.app.status = _("calidad: {value}").format(value=config.DEFAULT_QUALITY)
+        elif name == "local_folders":
+            # What «Música local» showed was cut from the old folders.
+            from . import library
+
+            library.forget_local()
+            self.app.status = _("carpetas de música: {count}").format(
+                count=len(config.LOCAL_FOLDERS)
+            )
         elif name == "language":
             i18n.refresh()
             self.app.status = _("el idioma cambia al reiniciar tidalamp")

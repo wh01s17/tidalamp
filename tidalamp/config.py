@@ -125,6 +125,7 @@ ENV_VARS: dict[str, str] = {
     "mpv_path": "TIDALAMP_MPV_PATH",
     "exclusive": "TIDALAMP_EXCLUSIVE",
     "audio_device": "TIDALAMP_AUDIO_DEVICE",
+    "local_folders": "TIDALAMP_LOCAL_FOLDERS",
 }
 
 
@@ -293,6 +294,31 @@ EXCLUSIVE = flag("exclusive", "TIDALAMP_EXCLUSIVE")
 # on Linux so a DAC can play tidalamp while the desktop stays on the speakers.
 AUDIO_DEVICE = setting("audio_device", "TIDALAMP_AUDIO_DEVICE", "auto")
 
+
+def local_folders() -> tuple[str, ...]:
+    """The folders «Música local» scans, as the user wrote them.
+
+    A TOML array in the file, because a path may hold any character a
+    separator could be; in the environment, the system's path separator
+    (`:` here, `;` on Windows), the way `PATH` lists folders.
+    """
+    from_env = os.environ.get("TIDALAMP_LOCAL_FOLDERS")
+    if from_env:
+        raw: object = from_env.split(os.pathsep)
+    else:
+        raw = FILE.get("local_folders") or []
+    if isinstance(raw, str):
+        raw = [raw]
+    if not isinstance(raw, list):
+        return ()
+    return tuple(dict.fromkeys(str(item).strip() for item in raw if str(item).strip()))
+
+
+# The folders of music on this computer, for «Música local». Empty until the
+# user adds one in the settings: scanning a home folder nobody pointed at
+# would read every sound a browser cache ever kept.
+LOCAL_FOLDERS = local_folders()
+
 # Key overrides, action name to key. Empty means "the defaults in app.py".
 KEYS: dict[str, str] = {
     str(action): str(key) for action, key in (FILE.get("keys") or {}).items()
@@ -319,6 +345,8 @@ _SECTION = re.compile(r"^\s*\[")
 
 
 def _toml(value: object) -> str:
+    if isinstance(value, list | tuple):
+        return "[" + ", ".join(_toml(item) for item in value) + "]"
     if isinstance(value, bool):
         return "true" if value else "false"
     if isinstance(value, int | float):
@@ -367,7 +395,7 @@ def reload() -> None:
     global FILE, DEFAULT_QUALITY, ARTWORK, LANGUAGE, THEME, PALETTE, COLUMNS
     global DEBUG, TRANSPARENCY, KEYS, VISUALIZER, ARRANGEMENT, BACKDROP, COVER_SHAPE
     global AUTOPLAY, REPLAYGAIN, LIBRARY_VIEW, JAMENDO_ID, MPV_PATH, EXCLUSIVE
-    global AUDIO_DEVICE
+    global AUDIO_DEVICE, LOCAL_FOLDERS
     FILE = read_file()
     DEFAULT_QUALITY = setting("quality", "TIDALAMP_QUALITY", "HI_RES_LOSSLESS")
     ARTWORK = setting("artwork", "TIDALAMP_ART", "auto")
@@ -388,6 +416,7 @@ def reload() -> None:
     EXCLUSIVE = flag("exclusive", "TIDALAMP_EXCLUSIVE")
     AUDIO_DEVICE = setting("audio_device", "TIDALAMP_AUDIO_DEVICE", "auto")
     LIBRARY_VIEW = setting("library_view", "TIDALAMP_LIBRARY_VIEW", "list")
+    LOCAL_FOLDERS = local_folders()
     KEYS = {str(action): str(key) for action, key in (FILE.get("keys") or {}).items()}
 
 

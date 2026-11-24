@@ -53,6 +53,10 @@ FREE_TRACK_ACTIONS: tuple[tuple[str, str, str, str], ...] = (
     ("credits", "©", "k", _("créditos y licencia")),
 )
 
+# And what a file on this computer offers: playing it. There is no licence
+# to credit — it is the user's own copy — so not even `k`.
+LOCAL_TRACK_ACTIONS = FREE_TRACK_ACTIONS[:2]
+
 # What `m` offers on an album, an artist or a playlist: the same verbs, over
 # every track inside it, with the same letters. No radio: it grows from one
 # track, and TIDAL has no radio for an album.
@@ -82,7 +86,9 @@ FREE_CONTAINER_ACTIONS: tuple[tuple[str, str, str, str], ...] = (
 
 
 def actions_for(entry: object | None) -> tuple[tuple[str, str, str, str], ...]:
-    """The menu a track row gets: the whole one, or the free one."""
+    """The menu a track row gets: the whole one, the free one or the local one."""
+    if getattr(entry, "is_local", False):
+        return LOCAL_TRACK_ACTIONS
     return TRACK_ACTIONS if getattr(entry, "is_tidal", True) else FREE_TRACK_ACTIONS
 
 

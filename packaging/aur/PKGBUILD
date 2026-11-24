@@ -13,6 +13,7 @@ depends=(
   'python-typer'
   'python-dbus-fast'
   'python-requests'
+  'python-mutagen'
   'mpv'
 )
 optdepends=(

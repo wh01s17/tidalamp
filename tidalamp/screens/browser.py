@@ -778,7 +778,7 @@ class BrowserScreen(ModalScreen[tuple | None]):
         row = self._list().current
         if row is None or row.entry is None:
             return
-        if not row.entry.is_tidal:
+        if not row.entry.is_tidal and not row.entry.is_local:
             self.app.push_screen(CreditsScreen(row.entry))
 
     def _act_on_container(self, row: Row, action: str | None) -> None:

@@ -140,8 +140,14 @@ def fetch(url: str, *, root: Path | None = None) -> bytes:
     """Return the cover bytes, from the cache when we have already seen it.
 
     Covers never change under a URL — TIDAL puts the image id in the path — so
-    the cache needs no expiry.
+    the cache needs no expiry. A ``file://`` cover is a local record's, read
+    where it is: copying it into the cache would only keep a second one.
     """
+    if url.startswith("file://"):
+        from urllib.parse import unquote, urlparse
+        from urllib.request import url2pathname
+
+        return Path(url2pathname(unquote(urlparse(url).path))).read_bytes()
     path = cache_path(url, root=root)
     try:
         return path.read_bytes()

@@ -40,6 +40,7 @@ _CONFIG_GLOBALS = (
     "KEYS",
     "MPV_PATH",
     "EXCLUSIVE",
+    "LOCAL_FOLDERS",
 )
 
 # What only one system has. `skipif` and not deleting: when the other system
@@ -137,6 +138,18 @@ def private_library_orders(tmp_path_factory, monkeypatch):
         levels, "ORDERS_FILE", tmp_path_factory.mktemp("state") / "library-orders.json"
     )
     monkeypatch.setattr(levels, "_CHOSEN", None)
+
+
+@pytest.fixture(autouse=True)
+def private_local_index(tmp_path_factory, monkeypatch):
+    """«Música local» keeps an index and covers in the cache: never the
+    developer's own, and no scan carried from one test into the next."""
+    from tidalamp import library, local
+
+    folder = tmp_path_factory.mktemp("local-cache")
+    monkeypatch.setattr(local, "INDEX_FILE", folder / "local-index.json")
+    monkeypatch.setattr(local, "ART_DIR", folder / "local-art")
+    monkeypatch.setattr(library, "_LOCAL", None)
 
 
 @pytest.fixture(autouse=True)

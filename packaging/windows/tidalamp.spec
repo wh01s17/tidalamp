@@ -35,6 +35,8 @@ hidden = (
     # fail at the first screen, not at build time.
     + collect_submodules("textual")
     + collect_submodules("rich._unicode_data")
+    # mutagen.File imports each format's module only when it meets one.
+    + collect_submodules("mutagen")
     # SMTC's WinRT projections, imported the first time the controls start.
     + (collect_submodules("winrt") if sys.platform == "win32" else [])
 )

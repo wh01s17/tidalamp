@@ -264,6 +264,8 @@ def direct(entry: Any) -> Playable:
             _("«{name}» no trae audio que reproducir").format(name=entry.title)
         )
     log.debug("«%s» directa: %s (%s)", entry.title, entry.url, entry.licence)
+    if getattr(entry, "is_local", False):
+        return _local(entry)
     return Playable(
         url=entry.url,
         # Not a TIDAL tier, and deliberately not faked as one: `downgraded`
@@ -274,6 +276,29 @@ def direct(entry: Any) -> Playable:
         codec=entry.quality,
         manifest="FREE",
         licence=entry.licence,
+    )
+
+
+def _local(entry: Any) -> Playable:
+    """A file on this computer: mpv opens it at its own rate and depth, and
+    the header says which, so the badge can say «FLAC · 24-bit · 192 kHz»
+    the way it does for TIDAL's hi-res."""
+    from . import local
+
+    if not Path(entry.url).is_file():
+        raise StreamUnavailable(
+            _("«{name}» ya no está en {path}").format(name=entry.title, path=entry.url)
+        )
+    rate, depth = local.header(entry.url)
+    return Playable(
+        url=entry.url,
+        quality="",
+        sample_rate=rate or None,
+        bit_depth=depth or None,
+        # The codec alone: «FLAC 24/96» is the queue's column, and the badge
+        # draws the depth and the rate on their own.
+        codec=entry.quality.split(" ", 1)[0] if entry.quality else "",
+        manifest="LOCAL",
     )
 
 

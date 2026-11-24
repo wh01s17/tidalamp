@@ -696,3 +696,41 @@ def test_the_arrows_leave_quality_rates_and_restart_alone(monkeypatch, tmp_path)
             assert restarts == []
 
     asyncio.run(scenario())
+
+
+def test_music_folders_are_added_and_removed_from_the_settings(monkeypatch, tmp_path):
+    """«Música local» reads what this row lists: typed in, written to the file
+    as a list, and taken out again with ↵ on the folder."""
+    from tidalamp.screens.prompts import PlaylistNameScreen
+
+    isolate_runtime(monkeypatch)
+    path = isolate_config(monkeypatch, tmp_path)
+    music = tmp_path / "Música"
+    music.mkdir()
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(120, 34)) as pilot:
+            await pilot.pause()
+            screen = ConfigScreen(application.setting_changes.apply)
+            application.push_screen(screen)
+            await pilot.pause()
+            screen.cursor = config_row(screen, "Carpetas de música")
+            await pilot.press("enter")
+            await settle(pilot, lambda: isinstance(application.screen, ChoiceScreen))
+            await pilot.press("enter")  # «+ añadir una carpeta…»
+            await settle(
+                pilot, lambda: isinstance(application.screen, PlaylistNameScreen)
+            )
+            await pilot.press(*str(music), "enter")
+            await settle(pilot, lambda: isinstance(application.screen, ChoiceScreen))
+
+            assert list(app_module.config.LOCAL_FOLDERS) == [str(music)]
+            assert app_module.config.read_file(path)["local_folders"] == [str(music)]
+            assert "carpetas de música: 1" in application.status
+
+            await pilot.press("down", "enter")  # ✕ the folder just added
+            await pilot.pause()
+            assert app_module.config.LOCAL_FOLDERS == ()
+
+    asyncio.run(scenario())
