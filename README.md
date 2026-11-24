@@ -388,6 +388,26 @@ What only TIDAL can do is simply not offered on those rows: no favourites, no
 playlists, no radio, no artist or album to go to, and no lyrics. Nothing is downloaded
 — the audio is streamed from the Archive, exactly as TIDAL's is streamed from TIDAL.
 
+**Local music** plays the files on this computer: FLAC (up to 24-bit/384 kHz), ALAC,
+WAV, AIFF, WavPack, APE, DSD (`.dsf`, `.dff`), MP3, Opus and Vorbis. Add the folders it
+reads under **Music folders** in the settings (`o`), or set them in `config.toml`
+as `local_folders = ["~/Music", "/mnt/nas/flac"]`. Subfolders are scanned too. The
+`TIDALAMP_LOCAL_FOLDERS` variable overrides the setting, with folders separated as in
+`PATH`. The section opens to albums, artists, all tracks and **Folders**, which shows your
+folders as they are on disk: subfolders first, then files, each by name. Only folders
+that hold audio are listed, and `m` or `a` on a folder plays everything under it. Tags, length, sample rate
+and bit depth are read from each file's header with [mutagen](https://mutagen.readthedocs.io/),
+and the badge shows a 24/192 FLAC as `FLAC · 24-bit · 192 kHz`, just as it does for
+TIDAL's hi-res. The cover is the folder's `cover.jpg` (or `folder.jpg`, `front.jpg`…),
+or else the one embedded in the files. The first scan reads every file. After that,
+only new or changed files are read, and `R` over the section scans again. DSD is
+converted to PCM by mpv (ffmpeg) and is not sent to the DAC as native DSD or DoP.
+
+**Every level that can be sorted by date opens newest first**: playlists, favourite
+tracks, albums and artists, a playlist's tracks and local music. Pick *original order*
+with `s` to get TIDAL's own order back. That choice is remembered per level too.
+Reordering a playlist's tracks needs that original order.
+
 **The grid.** `v` in the browser (or Library view in the settings window) shows a level
 of albums, playlists, artists or mixes as tiles, each with its cover, its name and a
 line under it; `v` again goes back to the list, and the choice is kept in

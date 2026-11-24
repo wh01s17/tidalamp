@@ -5,6 +5,21 @@ versioning is [semantic](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **Local music** in the library: FLAC up to 24/384, ALAC, WAV, AIFF, WavPack, APE,
+  DSD, MP3, Opus and Vorbis from the folders set under **Music folders** in the
+  settings (`local_folders` in `config.toml`). Opens to albums, artists, all
+  tracks and the folder structure. The badge shows each file's own rate and
+  depth. Covers come from the folder or the file, and an index keeps later scans
+  quick. New dependency: `mutagen`.
+
+### Changed
+
+- **The library opens newest first.** Every level that can be sorted by date
+  starts with the most recent date instead of TIDAL's order, which was alphabetical.
+  Choosing *original order* with `s` brings TIDAL's order back and is remembered.
+
 ## [0.23.1] - 2026-10-19
 
 ### Fixed
