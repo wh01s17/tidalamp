@@ -165,6 +165,34 @@ def test_a_card_that_is_not_the_sink_is_skipped(monkeypatch, tmp_path):
     assert audio.hardware_rates("alsa_output.pci-0000_00_1f.3.analog-stereo") == ()
 
 
+EVO8 = "alsa_output.usb-Audient_EVO8-00.pro-output-0"
+
+
+def _card(tmp_path, header, capture_state):
+    card = tmp_path / "card2"
+    (card / "pcm0c" / "sub0").mkdir(parents=True)
+    (card / "stream0").write_text(f"{header}\n\nPlayback:\n")
+    (card / "pcm0c" / "sub0" / "status").write_text(capture_state)
+
+
+@pytest.mark.parametrize(
+    ("state", "busy"),
+    [("state: RUNNING\nowner_pid   : 1271\n", True), ("closed\n", False)],
+)
+def test_a_card_whose_inputs_are_open_is_capturing(monkeypatch, tmp_path, state, busy):
+    _card(tmp_path, "Audient EVO8 at usb-0000:00:14.0-4, high speed : USB Audio", state)
+    monkeypatch.setattr(audio, "Path", lambda _path: tmp_path)
+
+    assert audio.capturing(EVO8) is busy
+
+
+def test_recording_on_another_card_does_not_count(monkeypatch, tmp_path):
+    _card(tmp_path, "HDA Intel PCH at 0xdc528000", "state: RUNNING\n")
+    monkeypatch.setattr(audio, "Path", lambda _path: tmp_path)
+
+    assert audio.capturing(EVO8) is False
+
+
 def test_a_machine_without_proc_asound_answers_empty(monkeypatch, tmp_path):
     monkeypatch.setattr(audio, "Path", lambda _path: tmp_path / "nada")
     assert audio.hardware_rates() == ()

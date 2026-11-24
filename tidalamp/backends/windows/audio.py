@@ -305,6 +305,11 @@ def hardware_rates(sink_name: str = "") -> tuple[int, ...]:
     return ()
 
 
+def capturing(sink_name: str) -> bool:
+    """Never asked: nothing forces a rate on Windows."""
+    return False
+
+
 def rate_to_force(
     target: Sink,
     stream_rate: int,

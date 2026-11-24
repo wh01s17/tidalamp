@@ -123,7 +123,13 @@ class Output:
                 if forced and sink.rate == forced:
                     audio.force_rate(0)
                     forced = 0
-                elif not forced and stream and sink.rate and stream != sink.rate:
+                elif (
+                    not forced
+                    and stream
+                    and sink.rate
+                    and stream != sink.rate
+                    and not audio.capturing(sink.name)
+                ):
                     target = audio.rate_to_force(
                         sink,
                         stream,

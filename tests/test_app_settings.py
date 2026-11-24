@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 
+import pytest
 from app_helpers import (
     FakeMpv,
     config_row,
@@ -551,6 +552,7 @@ def test_a_running_dac_is_forced_to_the_rate_of_the_next_track(monkeypatch):
     monkeypatch.setattr(audio_module, "allowed_rates", lambda: linux_audio.RATES)
     monkeypatch.setattr(audio_module, "hardware_rates", lambda name: linux_audio.RATES)
     monkeypatch.setattr(audio_module, "streams_on", lambda sink: 1)
+    monkeypatch.setattr(audio_module, "capturing", lambda name: False)
     monkeypatch.setattr(audio_module, "force_rate", fake_force)
     monkeypatch.setattr(output_module, "SINK_SETTLE", 0.3)
     monkeypatch.setattr(output_module, "SINK_POLL", 0.0)
@@ -583,9 +585,20 @@ def test_a_running_dac_is_forced_to_the_rate_of_the_next_track(monkeypatch):
 
 
 @linux_only  # PipeWire: on Windows no rate is ever forced, so it would prove nothing
-def test_the_rate_is_not_forced_under_another_application(monkeypatch):
-    """With something else playing through the same sink, forcing would switch
-    it under that application's feet. Resampling is the lesser harm there."""
+@pytest.mark.parametrize(
+    ("streams", "recording"),
+    [
+        (2, False),  # another application plays through the same sink
+        (1, True),  # the card's inputs are open: a switch drops them too
+    ],
+)
+def test_the_rate_is_not_forced_under_another_application(
+    monkeypatch, streams, recording
+):
+    """With something else on the same card, forcing would switch it under
+    that application's feet. Resampling is the lesser harm there. That covers
+    a recording too: an EVO 8 feeding a virtual microphone keeps its inputs
+    open, and every switch of rate cut the music for a moment."""
     from tidalamp import output as output_module
 
     forced: list[int] = []
@@ -596,7 +609,8 @@ def test_the_rate_is_not_forced_under_another_application(monkeypatch):
     )
     monkeypatch.setattr(audio_module, "allowed_rates", lambda: linux_audio.RATES)
     monkeypatch.setattr(audio_module, "hardware_rates", lambda name: ())
-    monkeypatch.setattr(audio_module, "streams_on", lambda sink: 2)
+    monkeypatch.setattr(audio_module, "streams_on", lambda sink: streams)
+    monkeypatch.setattr(audio_module, "capturing", lambda name: recording)
     monkeypatch.setattr(audio_module, "force_rate", lambda rate: forced.append(rate))
     monkeypatch.setattr(output_module, "SINK_SETTLE", 0.1)
     monkeypatch.setattr(output_module, "SINK_POLL", 0.0)

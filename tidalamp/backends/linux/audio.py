@@ -277,6 +277,34 @@ def hardware_rates(sink_name: str = "") -> tuple[int, ...]:
     return ()
 
 
+def capturing(sink_name: str) -> bool:
+    """Whether the card behind ``sink_name`` is recording right now.
+
+    A switch of rate closes and reopens the whole card, its inputs included.
+    An interface whose inputs are always open — an Audient EVO 8 feeding a
+    virtual microphone, seen 2026-11-24 — dropped the music for a moment at
+    every track and again when PipeWire took the graph back to its own rate.
+    Read from ALSA, like the rates: it knows the card, whoever holds it.
+    """
+    cards = Path("/proc/asound")
+    if not sink_name or not cards.is_dir():
+        return False
+    for stream in sorted(cards.glob("card*/stream*")):
+        try:
+            first = stream.read_text(errors="replace").split("\n", 1)[0]
+        except OSError:
+            continue
+        if not _same_device(first, sink_name):
+            continue
+        for status in stream.parent.glob("pcm*c/sub*/status"):
+            try:
+                if status.read_text(errors="replace").startswith("state: RUNNING"):
+                    return True
+            except OSError:
+                continue
+    return False
+
+
 def _same_device(alsa_line: str, sink_name: str) -> bool:
     """Do an ALSA stream header and a PipeWire sink name describe one device?
 
