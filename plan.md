@@ -4,7 +4,10 @@ Documento de traspaso. Describe qué existe, qué está verificado, qué falta y
 criterio se tomaron las decisiones, para que cualquiera (humano o modelo) pueda
 retomar el trabajo sin contexto previo.
 
-**Última actualización:** 2026-11-24, versión `0.24.1` preparada para publicar:
+**Última actualización:** 2026-11-24, versión `0.24.1` publicada en PyPI y GitHub,
+con el tag `v0.24.1` sobre `89b24f8` y el checksum del tarball en `packaging/aur/`.
+CI en verde en Linux (Python 3.11–3.14), Windows (3.11 y 3.14), instalaciones sin
+extras y lint; ZIP de Windows adjunto al Release. Lo nuevo:
 tidalamp ya no fuerza el rate del grafo mientras la tarjeta de la salida está
 grabando (`audio.capturing`, leído de `/proc/asound`). En una Audient EVO 8 con
 las entradas siempre abiertas por un micrófono virtual, cada cambio de rate
