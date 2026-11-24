@@ -5,6 +5,17 @@ versioning is [semantic](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.24.1] - 2026-11-24
+
+### Fixed
+
+- **No more dropouts on interfaces that are recording.** tidalamp switches the
+  graph to each track's rate, and a switch closes and reopens the whole card. On
+  an interface whose inputs stay open (an Audient EVO 8 feeding a virtual
+  microphone, say) the music cut out for a moment at every track and again when
+  PipeWire went back to its own rate. While the card is recording, the rate is
+  left alone and the track is resampled instead.
+
 ## [0.24.0] - 2026-11-23
 
 ### Added

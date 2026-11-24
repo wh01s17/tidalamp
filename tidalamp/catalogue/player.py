@@ -280,6 +280,10 @@ ENGLISH: dict[str, str] = {
     "La biblioteca abre por fecha, lo más reciente primero.": (
         "The library opens by date, most recent first."
     ),
+    # --- 0.24.1, in the help's list of changes
+    "Sin cortes en interfaces que graban mientras suena la música.": (
+        "No more dropouts on interfaces that record while music plays."
+    ),
     # --- 0.23.0, in the help's list of changes
     "Fósforo: verde sobre negro, independiente del tema del escritorio.": (
         "Phosphor: green on black, independent of the desktop theme."

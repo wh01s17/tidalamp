@@ -1,6 +1,6 @@
 # Maintainer: wh01s17 <joja.perezo@gmail.com>
 pkgname=tidalamp
-pkgver=0.24.0
+pkgver=0.24.1
 pkgrel=1
 pkgdesc="Terminal TIDAL client with a retro interface and hi-res playback"
 arch=('any')
@@ -23,8 +23,8 @@ optdepends=(
 makedepends=('python-build' 'python-installer' 'python-wheel' 'python-hatchling')
 checkdepends=('python-pytest')
 source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
-# SHA-256 del tarball del tag publicado en GitHub.
-sha256sums=('236f01dd4b329c9ff066d2d3f57136d9a1cf400fa59234becde33305ca0131c9')
+# SKIP hasta que el tag exista; después, rellenar con `updpkgsums`.
+sha256sums=('SKIP')
 
 build() {
   cd "$srcdir/$pkgname-$pkgver"
