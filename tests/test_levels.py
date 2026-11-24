@@ -220,6 +220,23 @@ def test_an_order_that_cannot_be_written_still_holds_and_says_why(tmp_path, monk
 
 
 def test_a_broken_orders_file_is_no_orders_at_all():
+    """Nothing picked reads back as the default: newest first."""
     levels.ORDERS_FILE.write_text("{esto no es json", encoding="utf-8")
     tracks = next(row for row in library.root(FakeSession()) if row.key == "fav:tracks")
-    assert levels.chosen(tracks) is None
+    assert levels.chosen(tracks) == levels.Order("date", descending=True)
+
+
+def test_every_level_with_a_date_opens_newest_first_until_told_otherwise():
+    """The default is the date, newest first; TIDAL's own order, once picked,
+    is kept and is not overridden by the default the next day."""
+    rows = {row.key: row for row in library.root(FakeSession())}
+    for key in ("playlists", "fav:tracks", "fav:albums", "fav:artists"):
+        order = levels.chosen(rows[key])
+        assert order is not None and order.by == "date" and order.descending
+    assert levels.order_label(levels.chosen(rows["playlists"])) == (
+        "fecha de creación: recientes primero"
+    )
+
+    levels.remember(rows["fav:albums"], None)
+    levels._CHOSEN = None
+    assert levels.chosen(rows["fav:albums"]) is None

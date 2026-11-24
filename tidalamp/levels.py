@@ -94,8 +94,11 @@ ARTIST_TRACK_BY = ("name", "album")
 
 # The order picked for each level, by the level's key: its code, as in
 # `name-asc`. Kept on disk so a level opens the next day the way it was left;
-# read the first time it is asked for. TIDAL's own order is not stored.
+# read the first time it is asked for.
 ORDERS_FILE = STATE_DIR / "library-orders.json"
+# What is stored for a level the user put back in TIDAL's order, so it does
+# not fall back to `default_order` the next time it opens.
+ORIGINAL = "original"
 _CHOSEN: dict[str, str] | None = None
 
 
@@ -155,14 +158,30 @@ def _orders() -> dict[str, str]:
     return _CHOSEN
 
 
+def default_order(row: Row) -> Order | None:
+    """The order a level opens in before one is picked: newest first, for
+    every level that can be sorted by date; TIDAL's own for the rest."""
+    return next(
+        (
+            order
+            for order in row.orders
+            if order is not None and order.by == "date" and order.descending
+        ),
+        None,
+    )
+
+
 def chosen(row: Row) -> Order | None:
     """The order last picked for the level ``row`` opens, or None for TIDAL's.
 
     Looked up among the row's own orders by code, so a playlist's date still
     reads as its creation date, and an order the level no longer offers is
-    simply TIDAL's.
+    simply TIDAL's. A level nobody sorted yet opens in `default_order`;
+    TIDAL's order, once picked, is kept as ``original``.
     """
     code = _orders().get(row.key)
+    if code is None:
+        return default_order(row)
     return next(
         (order for order in row.orders if order is not None and order.code == code),
         None,
@@ -174,10 +193,7 @@ def remember(row: Row, order: Order | None) -> OSError | None:
     fatal: the order still holds for this session, and the error comes back
     so the app can say so."""
     orders = _orders()
-    if order is None:
-        orders.pop(row.key, None)
-    else:
-        orders[row.key] = order.code
+    orders[row.key] = ORIGINAL if order is None else order.code
     try:
         ORDERS_FILE.parent.mkdir(parents=True, exist_ok=True)
         write_atomically(ORDERS_FILE, json.dumps(orders, ensure_ascii=False))
