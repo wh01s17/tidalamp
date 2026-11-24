@@ -4,7 +4,15 @@ Documento de traspaso. Describe qué existe, qué está verificado, qué falta y
 criterio se tomaron las decisiones, para que cualquiera (humano o modelo) pueda
 retomar el trabajo sin contexto previo.
 
-**Última actualización:** 2026-10-19, versión `0.23.0` publicada en PyPI y GitHub,
+**Última actualización:** 2026-11-23, versión `0.24.0` preparada para publicar:
+«Música local» (FLAC, ALAC, WAV, AIFF, WavPack, APE, DSD, MP3, Opus y Vorbis
+desde las carpetas de `local_folders`, con álbumes, artistas, pistas y la vista de
+carpetas; DSD se convierte a PCM en mpv, sin DoP), y la biblioteca abre por fecha,
+lo más reciente primero. Dependencia nueva: `mutagen`. Suite completa: 1260 tests
+pasan, 4 omitidos; Ruff y mypy pasan. Wheel y sdist pasan `twine check`, y el
+wheel se instala y responde a `--version` en un entorno limpio.
+
+2026-10-19, versión `0.23.0` publicada en PyPI y GitHub,
 con el tag `v0.23.0` sobre `fe87933` y el checksum del tarball en `packaging/aur/`.
 CI en verde en Linux (Python 3.11–3.14), Windows (3.11 y 3.14), instalaciones sin
 extras y lint. Instalación desde PyPI en un entorno limpio comprobada; ZIP de

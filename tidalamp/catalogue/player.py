@@ -273,6 +273,13 @@ ENGLISH: dict[str, str] = {
     "La pausa ya no invade el botón siguiente ni empequeñece play.": (
         "Pause no longer overlaps the next button or dwarfs play."
     ),
+    # --- 0.24.0, in the help's list of changes
+    "Música local: FLAC, hi-res y DSD desde tus carpetas, con su vista.": (
+        "Local music: FLAC, hi-res and DSD from your folders, with a folder view."
+    ),
+    "La biblioteca abre por fecha, lo más reciente primero.": (
+        "The library opens by date, most recent first."
+    ),
     # --- 0.23.0, in the help's list of changes
     "Fósforo: verde sobre negro, independiente del tema del escritorio.": (
         "Phosphor: green on black, independent of the desktop theme."

@@ -5,6 +5,8 @@ versioning is [semantic](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.24.0] - 2026-11-23
+
 ### Added
 
 - **Local music** in the library: FLAC up to 24/384, ALAC, WAV, AIFF, WavPack, APE,
