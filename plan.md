@@ -299,7 +299,11 @@ tidalamp/
                 los órdenes que se recuerdan, el paginado con «más…» y `matches`.
                 No pregunta nada a TIDAL.
   library.py    El árbol de TIDAL: raíz, favoritos, mixes, Descubrir, artistas,
-                búsqueda y la sección libre. Devuelve listas de Row (`levels`).
+                búsqueda, la sección libre y «Música local». Devuelve listas de
+                Row (`levels`).
+  local.py      «Música local»: recorre las carpetas de `local_folders`, lee tags,
+                duración, rate y profundidad con mutagen, guarda un índice en
+                `CACHE_DIR` y agrupa en discos y artistas. No conoce Row.
   playlists.py  Escribir en las playlists de la cuenta: crear desde la cola,
                 añadir, quitar, mover, renombrar, describir y borrar.
   columns.py    El catálogo de columnas de la cola: nombre, ancho, alineación y
@@ -1867,6 +1871,11 @@ fichero en sí.
 - [x] Dentro de un álbum o de un artista TIDAL no ordena, y el nivel es una página:
       `_in_order` lo ordena aquí, en una lista nueva (la de la caché sigue como vino),
       con «más…» al final.
+- [x] **Por defecto, lo más reciente primero** (`0.24.0`): un nivel que nadie ordenó
+      abre en `default_order`, la fecha descendente, si el nivel ofrece fecha; si no,
+      en el orden de TIDAL. El orden de TIDAL venía alfabético. Elegir «orden
+      original» se guarda como `original`, para que el defecto no lo pise al día
+      siguiente. Mover pistas de una playlist sigue pidiendo el orden original.
 - [x] Cada orden es un nivel propio en la caché (`clave|name-asc`) y el de TIDAL
       conserva la clave de siempre. El elegido se recuerda por nivel y persiste entre
       sesiones, en `~/.local/state/tidalamp/library-orders.json` (`ORDERS_FILE`),
@@ -2558,6 +2567,46 @@ delata en los metadatos, y el Archive no tiene un campo que lo diga; si aparece 
 artista que no debería estar, la cura es una palabra más en `JUNK` o en `VOCALS`, no
 una lista de identificadores. Con Jamendo el problema no existe: el artista marcó la
 casilla.
+
+### Música local - `local.py`, `library.py`, `config.py`, `screens/config_window.py`
+
+`0.24.0`. Los ficheros del propio equipo, como una fila más de la biblioteca, entre
+«Descubrir» y «Lofi sin copyright». Es la versión corta del plan de `next.md` («El
+siguiente gran cambio»): sin panel de fuentes ni costura `Source`.
+
+- [x] **Formatos:** FLAC, ALAC, WAV, AIFF, WavPack, APE, TTA, DSD (`.dsf`, `.dff`),
+  MP3, Opus, Vorbis, AAC y Musepack. mpv reproduce el fichero tal cual, a su rate y
+  su profundidad; `stream._local` lee la cabecera para el badge
+  (`FLAC · 24-bit · 192 kHz`) y avisa si el fichero ya no está. DSD lo convierte mpv
+  (ffmpeg) a PCM: no hay DSD nativo ni DoP, y así se queda (decisión del
+  mantenedor, 2026-11-23).
+- [x] **`mutagen`** lee tags, duración, rate y profundidad sin decodificar. Es
+  dependencia obligatoria (Python puro, `python-mutagen` en `extra`); PyInstaller
+  necesita `collect_submodules("mutagen")` porque `mutagen.File` importa cada
+  formato al encontrarlo. Un fichero que mutagen no lee sigue siendo pista: el nombre
+  es el título y la carpeta, el disco.
+- [x] **Índice** en `CACHE_DIR/local-index.json` (`INDEX_VERSION`): por ruta, con
+  mtime y tamaño; el segundo escaneo sólo relee lo nuevo o lo tocado. El escaneo se
+  rehace al abrir la sección y con `R` sobre ella, y `library.forget_local()` lo tira
+  cuando cambian las carpetas.
+- [x] **Niveles:** Álbumes (por artista del disco y nombre, o por carpeta si no hay
+  tags; pistas en orden de disco y pista), Artistas, Todas las pistas y Carpetas (el
+  árbol del disco por nombre, sólo carpetas con audio; `m`/`a` sobre una carpeta
+  tocan todo lo de debajo). Los tres primeros se ordenan aquí (`_in_order`) y por
+  fecha usan `Row.added`, el mtime del fichero, así que abren recientes primero.
+- [x] **Carátula:** `cover`/`folder`/`front`/`album`… de la carpeta, o la embebida
+  escrita una vez a `CACHE_DIR/local-art/`. Se pasa como `file://`, y
+  `artwork.fetch` la lee del disco sin copiarla a la caché.
+- [x] **Carpetas:** `local_folders`, array TOML en `config.toml` (`_toml` escribe
+  listas), o `TIDALAMP_LOCAL_FOLDERS` separado como `PATH`. En `o`, «Carpetas de
+  música» abre la lista: «+ añadir una carpeta…» pide la ruta (con `~`), y ↵ sobre
+  una la quita.
+- [x] **Fila de la cola:** `Entry.source = "local"`, `url` es la ruta e `id` es
+  negativo derivado de ella (`-crc32("local:" + ruta)`), como en las libres. Sin
+  radio, favoritos, playlists, letras ni créditos: el menú sólo ofrece reproducir y
+  a continuación. MPRIS recibe la ruta como `file://`.
+- [ ] Selector de carpetas en la TUI, playlists `.m3u8`, letras `.lrc`/embebidas y
+  la prueba en Windows: `next.md`, «Música local».
 
 ### Windows - `backends/`, `player.py`, `config.py`, `i18n.py`
 

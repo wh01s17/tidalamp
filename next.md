@@ -49,8 +49,14 @@ Decidido el 2026-10-02. Va **después** de cerrar Windows (arriba), no a la vez:
 tocan `app.py`, `config.py` y la ventana `o`, y se pisarían. YouTube Music y Spotify se
 miraron el mismo día y quedaron fuera (ver «Descartado por ahora»).
 
-Hoy tidalamp es un cliente de TIDAL con una sola fila ajena («Lofi sin copyright»). La
-idea es sumarle la música del propio equipo como una fuente más, al lado de TIDAL.
+**Primera versión publicada en la `0.24.0` (2026-11-24)**, sin esperar a los pasos
+1–4 del orden de abajo: «Música local» es una fila más de la biblioteca, como «Lofi
+sin copyright», y no una fuente con su panel. Lo que se hizo y lo que falta está en
+la entrada «Música local» de esta lista. El resto del plan sigue en pie.
+
+Antes de la `0.24.0`, tidalamp era un cliente de TIDAL con una sola fila ajena
+(«Lofi sin copyright»). La idea es sumarle la música del propio equipo como una
+fuente más, al lado de TIDAL.
 **Cada fuente tiene su biblioteca y sus playlists, y la cola es lo único que las
 mezcla.**
 
@@ -96,16 +102,22 @@ mezcla.**
   `Entry.source` ya existe (`tidal` / `free`) y `Entry.url` ya sirve para lo que mpv
   reproduce sin resolver, así que lo local encaja casi sin tocar.
 
-- **Música local.**
-  - Pestaña «Música local» en la configuración: añadir y quitar carpetas del equipo
-    (`local_folders` en `config.toml`) y reescanear. Añadir necesita un selector de
-    carpetas dentro de la TUI (Textual trae `DirectoryTree`), además de poder escribir
-    la ruta.
-  - El escaneo va en un worker y deja un índice en `CACHE_DIR` (ruta, mtime, tamaño,
-    tags), para que el segundo arranque no relea miles de ficheros. Tags y carátula
-    embebida con `mutagen` como extra opcional, igual que Pillow con `[art]`; sin él,
-    el título sale del nombre del fichero. `cover.jpg` o `folder.jpg` de la carpeta
-    como respaldo de la carátula.
+- **Música local.** *Hecho en la `0.24.0`* (`local.py`, `plan.md` §4 «Música
+  local»): fila «Música local» con Álbumes, Artistas, Todas las pistas y Carpetas;
+  carpetas en `local_folders`, que se añaden y se quitan desde «Carpetas de música»
+  en `o` escribiendo la ruta; índice en `CACHE_DIR/local-index.json` (ruta, mtime,
+  tamaño, tags) y `R` para reescanear; `mutagen` como dependencia **obligatoria**, no
+  extra (es Python puro y está en `extra` de Arch); carátula de `cover.jpg`/`folder.jpg`
+  o embebida; DSD se reproduce convertido a PCM por mpv, sin DoP (descartado por el
+  mantenedor el 2026-11-23). La pista local tiene un id negativo derivado de la ruta,
+  como las libres, así que `Entry` no tuvo que cambiar de identidad todavía.
+  **Falta:**
+  - Selector de carpetas dentro de la TUI (Textual trae `DirectoryTree`); hoy sólo se
+    escribe la ruta.
+  - Playlists (abajo) y letras locales (entrada siguiente).
+  - Probarlo en Windows (abajo, *Trampa*).
+
+  Plan original, para lo que queda:
   - Raíz: Artistas, Álbumes, Pistas, Carpetas y Playlists.
   - mpv reproduce el fichero tal cual, así que rates, hi-res, cava, ecualizador y
     gapless siguen valiendo. Es la fuente que mejor casa con lo que tidalamp promete:
@@ -207,7 +219,8 @@ mezcla.**
      sin TIDAL. Sin cambios a la vista.
   3. Configuración en pestañas; vincular y cerrar sesión de TIDAL desde la TUI.
   4. Panel de fuentes en la biblioteca, con TIDAL y Lofi.
-  5. Música local.
+  5. Música local. *Primera versión adelantada a la `0.24.0`* como fila de la
+     biblioteca; al llegar aquí se muda a su fuente.
 
 - *Comprobación:* una fuente falsa en los tests, como `fake_mpv.py`, para que la suite
   no dependa de la cuenta, y una carpeta de ficheros de prueba diminutos para la

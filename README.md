@@ -304,9 +304,10 @@ work in it as they do everywhere.
 in three category rows above; a category is fetched only when opened.
 
 Press `l` to open the library browser: playlists, favourite tracks, albums, artists,
-and your mixes (the daily ones, discovery, new arrivals and the rest TIDAL makes for
-your account). Enter a level with `↵` and go back with `⌫`. A mix opens like a
-playlist, but it cannot be sorted or edited, so `s` and `d` do nothing there.
+your mixes (the daily ones, discovery, new arrivals and the rest TIDAL makes for
+your account), and the music on your own computer. Enter a level with `↵` and go back
+with `⌫`. A mix opens like a playlist, but it cannot be sorted or edited, so `s` and
+`d` do nothing there.
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/wh01s17/tidalamp/main/img/library.webp?v=0.24.0" alt="The library browser open over the player: My library, with my playlists, favourite tracks, albums and artists, my mixes, Discover, and Copyright-free lofi, marked experimental and today's selection" width="880">
@@ -325,7 +326,8 @@ holds, which plays and opens like anything else in the library. Videos and TIDAL
 banners are left out, and a category shows what TIDAL puts on the page, usually the
 first ten.
 
-**Copyright-free lofi** is the last row, and the only one that is not TIDAL's. It is
+**Copyright-free lofi** is the last row, and the only one streamed from somewhere
+other than TIDAL. It is
 **experimental**, and the row says so: what it can promise and what somebody arrives
 wanting are not the same thing. The *lofi hip hop radio* sound people have in mind is a
 label's catalogue, and none of it is Creative Commons; this is the closest a freely
