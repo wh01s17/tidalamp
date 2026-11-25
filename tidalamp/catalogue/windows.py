@@ -692,4 +692,64 @@ ENGLISH: dict[str, str] = {
     "AÑADIR UNA CARPETA DE MÚSICA": "ADD A MUSIC FOLDER",
     "ruta de la carpeta, p. ej. ~/Música": "the folder's path, e.g. ~/Music",
     "  No es una carpeta: {path}": "  Not a folder: {path}",
+    # --- offline mode and logging in from the settings
+    "TIDAL": "TIDAL",
+    "Modo offline": "Offline mode",
+    "sólo música local; la sesión de TIDAL se conserva": (
+        "local music only; the TIDAL session is kept"
+    ),
+    "Iniciar sesión en TIDAL": "Log in to TIDAL",
+    "↵ muestra el enlace para autorizar; o en una terminal: tidalamp login": (
+        "↵ shows the link to approve; or in a terminal: tidalamp login"
+    ),
+    "sesión guardada": "session saved",
+    "sin sesión": "no session",
+    "MÚSICA LOCAL": "LOCAL MUSIC",
+    "INICIAR SESIÓN EN TIDAL": "LOG IN TO TIDAL",
+    "pidiendo un enlace a TIDAL…": "asking TIDAL for a link…",
+    "Abre este enlace y autoriza el acceso:": "Open this link and approve the access:",
+    "Código: {code} · caduca en {minutes} minutos.": (
+        "Code: {code} · expires in {minutes} minutes."
+    ),
+    "Esperando la autorización…": "Waiting for approval…",
+    "Abierto en el navegador. Esperando la autorización…": (
+        "Opened in the browser. Waiting for approval…"
+    ),
+    "Enlace copiado. Esperando la autorización…": "Link copied. Waiting for approval…",
+    "No se pudo abrir el navegador: c copia el enlace.": (
+        "Could not open the browser: c copies the link."
+    ),
+    " ↵ abrir en el navegador   c copiar   esc cancelar": (
+        " ↵ open in the browser   c copy   esc cancel"
+    ),
+    "copiar": "copy",
+    "El enlace caducó sin autorizarse. Cierra y vuelve a intentarlo.": (
+        "The link expired before it was approved. Close and try again."
+    ),
+    "no se pudo hablar con TIDAL: {error}": "could not reach TIDAL: {error}",
+    "TIDAL no aceptó el inicio de sesión: {error}": "TIDAL refused the login: {error}",
+    "No se pudo hablar con TIDAL ({error}).": "Could not reach TIDAL ({error}).",
+    "¿Arrancar en modo offline, sólo con la música local?": (
+        "Start in offline mode, with local music only?"
+    ),
+    "Para iniciar sesión: tidalamp login": "To log in: tidalamp login",
+    "TIDAL no contesta ({error})": "TIDAL does not answer ({error})",
+    "modo offline: TIDAL no está disponible": "offline mode: TIDAL is not available",
+    "modo offline: la búsqueda es de TIDAL; l abre tu música local": (
+        "offline mode: search is TIDAL's; l opens your local music"
+    ),
+    "modo offline: las letras vienen de TIDAL": "offline mode: lyrics come from TIDAL",
+    "modo offline: sólo música local · o para iniciar sesión en TIDAL": (
+        "offline mode: local music only · o to log in to TIDAL"
+    ),
+    "modo offline: sólo música local; la sesión se conserva": (
+        "offline mode: local music only; the session is kept"
+    ),
+    "recuperando la sesión de TIDAL…": "getting the TIDAL session back…",
+    "sesión de TIDAL iniciada": "logged in to TIDAL",
+    "sesión de TIDAL recuperada": "TIDAL session back",
+    "sigue en modo offline: {reason}": "still offline: {reason}",
+    "«{label}» es de TIDAL: no suena en modo offline": (
+        "“{label}” is TIDAL's: it does not play offline"
+    ),
 }

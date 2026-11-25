@@ -13,6 +13,7 @@ import os
 import shutil
 import sys
 from pathlib import Path
+from typing import Any
 
 import tidalapi
 
@@ -27,6 +28,34 @@ log = logging.getLogger("tidalamp.auth")
 
 class NotLoggedIn(RuntimeError):
     pass
+
+
+class Offline(NotLoggedIn, AttributeError):
+    """What anything that asks TIDAL gets while tidalamp runs offline.
+
+    A `NotLoggedIn`, so every path that already says «inicia sesión» on a dead
+    session says this instead, with no `if` of its own. And an
+    `AttributeError`, so a `getattr(session, "config", None)` reads the
+    stand-in as a session without that attribute rather than as a crash.
+    """
+
+
+class OfflineSession:
+    """The session while offline: local music plays, TIDAL is not asked.
+
+    It stands where the `tidalapi.Session` stood, so the app has one object to
+    hand around in both modes. Anything a caller reaches for on it raises
+    `Offline`, which the player turns into a line on the status bar. The real
+    session, when there was one, is kept by `connection.Connection` and comes
+    back without a new login when the mode is turned off.
+    """
+
+    def __getattr__(self, name: str):
+        raise Offline(_("modo offline: TIDAL no está disponible"))
+
+
+def is_offline(session: object) -> bool:
+    return isinstance(session, OfflineSession)
 
 
 def _new_session() -> tidalapi.Session:
@@ -163,6 +192,25 @@ def load_session() -> tidalapi.Session:
     return session
 
 
+def has_session() -> bool:
+    """Whether a session is saved, whatever state its tokens are in."""
+    return SESSION_FILE.exists()
+
+
+def restore(kept: tidalapi.Session | None = None) -> tidalapi.Session:
+    """The TIDAL session back after offline mode, with no new login.
+
+    The one kept in memory when there is one, refreshed if its token expired
+    meanwhile; otherwise the one on disk, which offline mode never deletes.
+    Raises `NotLoggedIn` when there is neither, and a network error when TIDAL
+    cannot be reached.
+    """
+    if kept is not None:
+        ensure_fresh(kept)
+        return kept
+    return load_session()
+
+
 def ensure_fresh(session: tidalapi.Session) -> bool:
     """Refresh the access token if it expired mid-session.
 
@@ -222,6 +270,36 @@ def logout(paths: tuple[Path, ...]) -> OSError | None:
             log.warning("no se pudo borrar %s (%s)", path, exc)
             failure = failure or exc
     return failure
+
+
+def start_login() -> tuple[tidalapi.Session, Any]:
+    """The first half of the device flow, for the TUI: the session that will
+    hold the tokens and TIDAL's link, whose `verification_uri_complete`,
+    `user_code`, `expires_in` and `interval` the window shows and waits by."""
+    ensure_dirs()
+    session = _new_session()
+    return session, session.get_link_login()
+
+
+def finish_login(session: tidalapi.Session, link: Any) -> bool:
+    """One check of the link: True once the user approved it, with the session
+    saved; False while it is still waiting.
+
+    One check and not tidalapi's own loop, which blocks until the link expires
+    — minutes, with no way to stop it. Each check takes about `link.interval`
+    seconds, because tidalapi sleeps that long before reporting «not yet»; a
+    window that closes is listened to between two of them. The caller keeps
+    the deadline: an expired link reads as «not yet» here too.
+    """
+    try:
+        approved = session.process_link_login(link, until_expiry=False)
+    except TimeoutError:
+        return False
+    if not approved:
+        return False
+    _private(SESSION_FILE)
+    session.save_session_to_file(SESSION_FILE)
+    return True
 
 
 def login(on_link) -> tidalapi.Session:

@@ -119,6 +119,7 @@ ENV_VARS: dict[str, str] = {
     "debug": "TIDALAMP_DEBUG",
     "transparency": "TIDALAMP_TRANSPARENCY",
     "autoplay": "TIDALAMP_AUTOPLAY",
+    "offline": "TIDALAMP_OFFLINE",
     "replaygain": "TIDALAMP_REPLAYGAIN",
     "library_view": "TIDALAMP_LIBRARY_VIEW",
     "mpv_path": "TIDALAMP_MPV_PATH",
@@ -251,6 +252,11 @@ TRANSPARENCY = flag("transparency", "TIDALAMP_TRANSPARENCY")
 # instead of stopping. Off by default: it changes what the end of a queue does.
 AUTOPLAY = flag("autoplay", "TIDALAMP_AUTOPLAY")
 
+# Start without TIDAL, with local music only: no session is loaded and the
+# library opens straight onto «Música local». The saved session stays on disk
+# and comes back, without a new login, when this is turned off.
+OFFLINE = flag("offline", "TIDALAMP_OFFLINE")
+
 # Normalised volume: off, track or album (see `settings.replaygain`). Off by
 # default: it changes how loud everything plays.
 REPLAYGAIN = setting("replaygain", "TIDALAMP_REPLAYGAIN", "off")
@@ -378,7 +384,7 @@ def reload() -> None:
     """
     global FILE, DEFAULT_QUALITY, ARTWORK, LANGUAGE, THEME, PALETTE, COLUMNS
     global DEBUG, TRANSPARENCY, KEYS, VISUALIZER, ARRANGEMENT, BACKDROP, COVER_SHAPE
-    global AUTOPLAY, REPLAYGAIN, LIBRARY_VIEW, MPV_PATH, EXCLUSIVE
+    global AUTOPLAY, OFFLINE, REPLAYGAIN, LIBRARY_VIEW, MPV_PATH, EXCLUSIVE
     global AUDIO_DEVICE, LOCAL_FOLDERS
     FILE = read_file()
     DEFAULT_QUALITY = setting("quality", "TIDALAMP_QUALITY", "HI_RES_LOSSLESS")
@@ -394,6 +400,7 @@ def reload() -> None:
     DEBUG = flag("debug", "TIDALAMP_DEBUG")
     TRANSPARENCY = flag("transparency", "TIDALAMP_TRANSPARENCY")
     AUTOPLAY = flag("autoplay", "TIDALAMP_AUTOPLAY")
+    OFFLINE = flag("offline", "TIDALAMP_OFFLINE")
     REPLAYGAIN = setting("replaygain", "TIDALAMP_REPLAYGAIN", "off")
     MPV_PATH = setting("mpv_path", "TIDALAMP_MPV_PATH", "")
     EXCLUSIVE = flag("exclusive", "TIDALAMP_EXCLUSIVE")

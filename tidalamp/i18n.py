@@ -187,6 +187,9 @@ def config_template() -> str:
         "# de cada álbum, playlist, artista o mix). Un nivel de pistas es siempre un\n"
         "# listado.\n"
         'library_view = "list"\n\n'
+        "# Modo offline: arranca sin TIDAL, sólo con la música local. La sesión\n"
+        "# guardada se conserva y vuelve, sin otro login, al desactivarlo.\n"
+        "offline = false\n\n"
         "# Teclas. La izquierda es la acción, la derecha la tecla; varias se "
         "separan con\n"
         "# comas. Las de navegación (flechas, RePág/AvPág, Enter, Esc) no se cambian.\n"

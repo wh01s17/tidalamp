@@ -10,7 +10,7 @@ import typer
 
 from . import about, desktop
 from . import config as settings
-from .auth import NotLoggedIn, load_session
+from .auth import NotLoggedIn, OfflineSession, load_session
 from .auth import login as do_login
 from .config import LOG_FILE, setup_logging
 from .i18n import _
@@ -50,11 +50,7 @@ def tui() -> None:
     if settings.DEBUG:
         typer.echo(_("Debug log en {path}").format(path=LOG_FILE))
 
-    try:
-        session = load_session()
-    except NotLoggedIn as exc:
-        typer.secho(str(exc), fg=typer.colors.RED)
-        raise typer.Exit(1) from exc
+    session = _session_or_offline()
 
     _offer_installs()
     try:
@@ -71,6 +67,35 @@ def tui() -> None:
         application.run()
     finally:
         mpv.close()
+
+
+def _session_or_offline():
+    """The TIDAL session, or offline mode when there is none to be had.
+
+    `offline = true` skips TIDAL altogether. Otherwise a missing or dead
+    session, or a TIDAL that does not answer, no longer ends the start: with
+    local music there is something to play without it, so the user is asked.
+    Without a terminal to ask on, it fails as it always did.
+    """
+    if settings.OFFLINE:
+        return OfflineSession()
+    try:
+        return load_session()
+    except NotLoggedIn as exc:
+        reason = str(exc)
+    except Exception as exc:
+        # The session is fine and the network is not: offline mode keeps it
+        # on disk for when TIDAL answers again.
+        reason = _("No se pudo hablar con TIDAL ({error}).").format(error=exc)
+    typer.secho(reason, fg=typer.colors.YELLOW)
+    if not sys.stdin.isatty():
+        raise typer.Exit(1)
+    if typer.confirm(
+        _("¿Arrancar en modo offline, sólo con la música local?"), default=True
+    ):
+        return OfflineSession()
+    typer.echo(_("Para iniciar sesión: tidalamp login"))
+    raise typer.Exit(1)
 
 
 def _offer_installs(platform: str = sys.platform) -> None:
@@ -133,6 +158,7 @@ def show_config() -> None:
     typer.echo(f"  arrangement {settings.ARRANGEMENT}")
     typer.echo(f"  cover_shape {settings.COVER_SHAPE}")
     typer.echo(f"  autoplay    {settings.AUTOPLAY}")
+    typer.echo(f"  offline     {settings.OFFLINE}")
     typer.echo(f"  backdrop    {settings.BACKDROP}")
     typer.echo(f"  visualizer  {settings.VISUALIZER}")
     typer.echo(f"  debug       {str(settings.DEBUG).lower()}")

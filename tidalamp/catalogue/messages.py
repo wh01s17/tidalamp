@@ -179,6 +179,9 @@ ENGLISH: dict[str, str] = {
     "# de cada álbum, playlist, artista o mix). Un nivel de pistas es siempre un\n"
     "# listado.\n"
     'library_view = "list"\n\n'
+    "# Modo offline: arranca sin TIDAL, sólo con la música local. La sesión\n"
+    "# guardada se conserva y vuelve, sin otro login, al desactivarlo.\n"
+    "offline = false\n\n"
     "# Teclas. La izquierda es la acción, la derecha la tecla; varias se separan con\n"
     "# comas. Las de navegación (flechas, RePág/AvPág, Enter, Esc) no se cambian.\n"
     "[keys]\n"
@@ -237,6 +240,9 @@ ENGLISH: dict[str, str] = {
         "# Library view: list, or grid (tiles with the cover of each album,\n"
         "# playlist, artist or mix). A level of tracks is always a list.\n"
         'library_view = "list"\n\n'
+        "# Offline mode: start without TIDAL, with local music only. The saved\n"
+        "# session is kept and comes back, with no new login, when it is off.\n"
+        "offline = false\n\n"
         "# Keys. The action is on the left and the key on the right; separate multiple\n"
         "# keys with commas. Navigation keys (arrows, Page Up/Down, Enter, Esc) "
         "are fixed.\n"

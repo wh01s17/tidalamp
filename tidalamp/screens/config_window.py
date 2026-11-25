@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
+import tidalapi
 from rich.cells import cell_len, set_cell_size
 from rich.text import Text
 from textual import work
@@ -27,6 +28,7 @@ from ..widgets import Analyzer
 from .appearance_preview import APPEARANCE_KEYS, AppearancePreviewScreen
 from .choice import ChoiceScreen
 from .column_picker import ColumnsScreen, _crop
+from .login import LoginScreen
 from .logout import LogoutScreen
 from .prompts import PlaylistNameScreen
 
@@ -163,6 +165,46 @@ class ConfigScreen(ModalScreen[None]):
                 group=group,
             ),
         ]
+
+    def _tidal_rows(self) -> list[Option]:
+        """Offline mode, and while in it the way to log in.
+
+        Last, so the rows above keep their places whether it shows its
+        second one or not. The login row only shows offline: online there is a session,
+        and «Cerrar sesión» in General is the row about it.
+        """
+        group = _("TIDAL")
+        rows = [
+            Option(
+                _("Modo offline"),
+                key="offline",
+                choices=self.SWITCH,
+                note=_("sólo música local; la sesión de TIDAL se conserva"),
+                group=group,
+            )
+        ]
+        if self._offline():
+            rows.append(
+                Option(
+                    _("Iniciar sesión en TIDAL"),
+                    action="login",
+                    note=_(
+                        "↵ muestra el enlace para autorizar; o en una terminal: "
+                        "tidalamp login"
+                    ),
+                    group=group,
+                )
+            )
+        return rows
+
+    def _offline(self) -> bool:
+        return bool(getattr(self.app, "offline", False))
+
+    def refresh_rows(self) -> None:
+        """Rebuilt after going on or off line, with the cursor kept in range."""
+        self._rows = self._options()
+        self.cursor = min(self.cursor, len(self._rows) - 1)
+        self._render_list()
 
     def _options(self) -> list[Option]:
         """Every row, in the order they are drawn, grouped by what they are
@@ -306,6 +348,7 @@ class ConfigScreen(ModalScreen[None]):
                 note=_("borra la sesión, y si quieres los datos; cierra tidalamp"),
                 group=general,
             ),
+            *self._tidal_rows(),
         ]
 
     def compose(self) -> ComposeResult:
@@ -403,9 +446,14 @@ class ConfigScreen(ModalScreen[None]):
 
     # --------------------------------------------------------------- drawing
 
-    @staticmethod
-    def _stored(option: Option) -> str:
-        """The row's value as the file holds it, the way `choices` spell it."""
+    def _stored(self, option: Option) -> str:
+        """The row's value as the file holds it, the way `choices` spell it.
+
+        Offline mode is the one row that shows the player and not the file: a
+        start without a session is offline with `offline = false` written.
+        """
+        if option.key == "offline":
+            return "true" if self._offline() else "false"
         current = getattr(config, _ATTRIBUTES[option.key])
         # `debug` is a bool in the file and "true"/"false" in the choices.
         return str(current).lower() if isinstance(current, bool) else str(current)
@@ -430,6 +478,8 @@ class ConfigScreen(ModalScreen[None]):
             return _("{count} de {total}").format(
                 count=len(config.COLUMNS), total=len(columns.ALL)
             )
+        if option.action == "login":
+            return _("sesión guardada") if auth.has_session() else _("sin sesión")
         if option.action == "folders":
             if not config.LOCAL_FOLDERS:
                 return _("ninguna")
@@ -445,7 +495,7 @@ class ConfigScreen(ModalScreen[None]):
             return option.note
         if option.action == "rates":
             return self._rates_detail()
-        if option.action in ("columns", "logout"):
+        if option.action in ("columns", "logout", "login"):
             return option.note
         if option.action == "folders":
             shadowing = config.overridden("local_folders")
@@ -620,6 +670,7 @@ class ConfigScreen(ModalScreen[None]):
             "launcher",
             "logout",
             "folders",
+            "login",
         )
 
     def action_activate(self) -> None:
@@ -714,6 +765,15 @@ class ConfigScreen(ModalScreen[None]):
 
         elif option.action == "folders":
             self._offer_folders()
+
+        elif option.action == "login":
+            self.app.push_screen(LoginScreen(), self._logged_in)
+
+    def _logged_in(self, session: object) -> None:
+        if session is not None:
+            self.player.connection.online(
+                cast("tidalapi.Session", session), _("sesión de TIDAL iniciada")
+            )
 
     # ------------------------------------------------------- music folders
 
@@ -884,6 +944,15 @@ class ConfigScreen(ModalScreen[None]):
         """Write one row's new value, and everything that follows from it."""
         if value is None:
             return
+        if option.key == "offline":
+            # Written when it differs, applied always: the row shows the
+            # player, which can be offline with the file saying otherwise.
+            if value != config.OFFLINE:
+                config.set_option("offline", value)
+            if self._on_change is not None:
+                self._on_change("offline")
+            self._render_list()
+            return
         if value == getattr(config, _ATTRIBUTES[option.key]):
             # The same device again is how the user says it is back: mpv may
             # be on the default since it was unplugged, and nothing else
@@ -996,7 +1065,7 @@ class ConfigScreen(ModalScreen[None]):
 
 # The module attribute each config key is resolved into.
 # Settings the file holds as booleans while the screen cycles "true"/"false".
-_FLAGS = ("debug", "transparency", "autoplay", "exclusive")
+_FLAGS = ("debug", "transparency", "autoplay", "exclusive", "offline")
 
 
 _ATTRIBUTES = {
@@ -1012,6 +1081,7 @@ _ATTRIBUTES = {
     "debug": "DEBUG",
     "transparency": "TRANSPARENCY",
     "autoplay": "AUTOPLAY",
+    "offline": "OFFLINE",
     "replaygain": "REPLAYGAIN",
     "library_view": "LIBRARY_VIEW",
     "exclusive": "EXCLUSIVE",

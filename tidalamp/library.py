@@ -651,6 +651,11 @@ def _local_roots_level() -> list[Row]:
     return rows
 
 
+def local_root() -> list[Row]:
+    """«Música local» as the whole library, for offline mode."""
+    return _local_level()
+
+
 def _local_level() -> list[Row]:
     """The section's own level: its three ways in, over a fresh scan.
 

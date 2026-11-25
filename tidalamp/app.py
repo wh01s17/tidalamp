@@ -37,6 +37,7 @@ from textual.reactive import reactive
 from textual.widgets import Input, Static
 
 from . import artwork, audio, auth, config, desktop, library, theme, workers
+from .connection import Connection
 from .cover import CoverView
 from .i18n import _
 from .keys import bind, keys_for
@@ -232,6 +233,8 @@ class TidalAmp(App):
         self.lyrics = LyricsFeed(self)
         self.tasks = LibraryTasks(self)
         self.setting_changes = SettingChanges(self)
+        # Whether TIDAL is there at all, and the switch to and from offline.
+        self.connection = Connection(self)
         # What the media keys and the desktop's panel reach.
         self.media = MediaBridge(self)
         self.mpris: MediaService = MprisService(self.media)
@@ -386,6 +389,8 @@ class TidalAmp(App):
             and not artwork.have_decoder()
         ):
             self.status = _('sin carátula: falta Pillow (pip install "tidalamp[art]")')
+        # Over everything else: on a start without TIDAL, that is the news.
+        self.connection.announce()
         if self.offer_launcher:
             self._ask_launcher()
 
@@ -653,7 +658,27 @@ class TidalAmp(App):
 
     # ------------------------------------------------- the library and search
 
+    @property
+    def offline(self) -> bool:
+        """Whether the player runs without TIDAL (`connection.py`)."""
+        return self.connection.offline
+
+    def library_title(self) -> str:
+        return _("MÚSICA LOCAL") if self.offline else _("MI BIBLIOTECA")
+
+    def library_root(self) -> list:
+        """The library's top level: TIDAL's, or offline straight onto the
+        local music, since nothing else in it would open."""
+        if self.offline:
+            return library.local_root()
+        return library.root(self.session)
+
     def action_search(self) -> None:
+        if self.offline:
+            self.status = _(
+                "modo offline: la búsqueda es de TIDAL; l abre tu música local"
+            )
+            return
         self.push_screen(SearchScreen(), self._run_search)
 
     def _run_search(self, query: str | None) -> None:
@@ -676,7 +701,7 @@ class TidalAmp(App):
 
     def action_library(self) -> None:
         self.push_screen(
-            BrowserScreen(_("MI BIBLIOTECA"), lambda: library.root(self.session)),
+            BrowserScreen(self.library_title(), self.library_root),
             self.queue_view.browser_answered,
         )
 

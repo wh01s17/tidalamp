@@ -249,7 +249,8 @@ class Playback:
         seed = self.app.queue.current
         if seed is None and len(self.app.queue):
             seed = list(self.app.queue)[-1]
-        if seed is None:
+        if seed is None or self.app.offline:
+            # Offline there is no radio to ask for: the queue just ends.
             return False
         self.autoplaying = True
         self.app.status = _("buscando la radio de «{label}»…").format(label=seed.label)
@@ -349,6 +350,17 @@ class Playback:
 
     @thread_worker()
     def resolve_worker(self, entry: Entry) -> None:
+        if entry.is_tidal and self.app.offline:
+            # Said by name, rather than the session's generic «not available»:
+            # a restored queue can hold TIDAL's tracks next to local ones.
+            self.app.call_from_thread(
+                self.resolve_failed,
+                _("«{label}» es de TIDAL: no suena en modo offline").format(
+                    label=entry.label
+                ),
+                entry,
+            )
+            return
         try:
             # An access token only lasts a few hours, less than a listening
             # session; refresh it here rather than letting the next call fail.

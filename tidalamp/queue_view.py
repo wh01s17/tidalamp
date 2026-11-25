@@ -232,8 +232,8 @@ class QueueView:
         root with that level already on top, so ⌫ goes back to the root."""
         self.app.push_screen(
             BrowserScreen(
-                _("MI BIBLIOTECA"),
-                lambda: library.root(self.app.session),
+                self.app.library_title(),
+                self.app.library_root,
                 goto=functools.partial(
                     library.go_to, self.app.session, entry, kind, artist_id
                 ),

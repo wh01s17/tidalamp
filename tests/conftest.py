@@ -36,6 +36,7 @@ _CONFIG_GLOBALS = (
     "BACKDROP",
     "COVER_SHAPE",
     "AUTOPLAY",
+    "OFFLINE",
     "DEBUG",
     "KEYS",
     "MPV_PATH",

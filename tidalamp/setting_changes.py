@@ -148,6 +148,13 @@ class SettingChanges:
             self.app.output.follow()
             # And cava can hear it again, or no longer (`SpectrumFeed.start`).
             self.app.spectrum.pick()
+        elif name == "offline":
+            # Turning it off asks for the session back, in a worker; the
+            # status line says how that went.
+            if config.OFFLINE:
+                self.app.connection.go_offline()
+            else:
+                self.app.connection.go_online()
         elif name == "autoplay":
             self.app.status = (
                 _("reproducción automática activada")

@@ -53,6 +53,8 @@ class LyricsFeed:
                     name=entry.title
                 )
             )
+        if self.app.offline:
+            raise LyricsUnavailable(_("modo offline: las letras vienen de TIDAL"))
         auth.ensure_fresh(self.app.session)
         track = with_retries(lambda: entry.resolve(self.app.session))
         document = lyrics.load_lyrics(track)
