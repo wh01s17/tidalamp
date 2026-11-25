@@ -10,7 +10,6 @@ import typer
 from app_helpers import (
     FakeMpv,
     config_row,
-    config_text,
     isolate_config,
     isolate_runtime,
     settle,
@@ -254,7 +253,10 @@ def test_going_offline_and_back_keeps_the_session_without_a_login(monkeypatch, t
             assert config.read_file(path)["offline"] is True
             # What TIDAL answered is not shown as if it were still there.
             assert "fav:tracks" not in levels._LEVELS
-            assert "Modo offline                true" in config_text(application)
+            # The value, not the drawn line: the label column is as wide as the
+            # longest label, and Windows has other audio rows than Linux.
+            row = screen._rows[config_row(screen, "Modo offline")]
+            assert screen._value(row) == "true"
 
             await pilot.press("enter")
             await wait_for(pilot, lambda: not application.offline)
