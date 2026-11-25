@@ -4,7 +4,10 @@ Documento de traspaso. Describe qué existe, qué está verificado, qué falta y
 criterio se tomaron las decisiones, para que cualquiera (humano o modelo) pueda
 retomar el trabajo sin contexto previo.
 
-**Última actualización:** 2026-11-25, versión `0.25.0` preparada para publicar:
+**Última actualización:** 2026-11-25, versión `0.25.0` publicada en PyPI y GitHub,
+con el tag `v0.25.0` sobre `0623a3f` y el checksum del tarball en `packaging/aur/`.
+CI en verde en Linux (Python 3.11–3.14), Windows (3.11 y 3.14), instalaciones sin
+extras y lint, ya con `-n auto`; ZIP de Windows adjunto al Release. Lo nuevo:
 la biblioteca en otro orden (favoritos de pistas, álbumes y artistas, Mis
 playlists, Mis mixes, Descubrir y Música local) con un icono por fila; se retira
 «Lofi sin copyright» con sus créditos, la tecla `k` y `jamendo_id`; y la suite
