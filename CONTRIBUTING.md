@@ -16,7 +16,7 @@
 ```sh
 python -m venv .venv
 .venv/bin/pip install -e ".[dev]"
-.venv/bin/python -m pytest
+.venv/bin/python -m pytest -n auto
 ```
 
 You need `mpv` on the system. `cava` is optional (a real spectrum) and so is
@@ -40,7 +40,7 @@ git clone https://github.com/wh01s17/tidalamp.git
 cd tidalamp
 python -m venv .venv
 .venv\Scripts\python -m pip install -e ".[dev]"
-.venv\Scripts\python -m pytest -q
+.venv\Scripts\python -m pytest -q -n auto
 ```
 
 If PowerShell refuses to run scripts, nothing here needs it: every command above
@@ -82,11 +82,14 @@ they said.
 .venv/bin/ruff check .
 .venv/bin/mypy --platform linux
 .venv/bin/mypy --platform win32
-.venv/bin/python -m pytest -q --cov
+.venv/bin/python -m pytest -q -n auto --cov
 ```
 
 On Windows the same five, as `.venv\Scripts\ruff`, `.venv\Scripts\mypy` and
-`.venv\Scripts\python -m pytest`. mypy checks both systems from either one.
+`.venv\Scripts\python -m pytest -n auto`. mypy checks both systems from either one.
+`-n auto` runs the suite on every core (pytest-xdist): over four minutes in one
+process, under one spread out. No test may reach the network: `tests/conftest.py`
+refuses to resolve any host but this machine.
 
 All of it runs in CI, the suite on Linux and on Windows. mypy runs once per system
 because each pass drops the other's branches: without the second, the Windows code

@@ -51,7 +51,17 @@ Changelog = "https://github.com/wh01s17/tidalamp/releases"
 # Album art needs a decoder. Without it the cover is simply not drawn, so it
 # stays out of the hard dependencies: `pip install "tidalamp[art]"`.
 art = ["pillow>=10"]
-dev = ["pytest>=8", "pytest-cov>=5", "pillow>=10", "ruff>=0.14", "mypy>=1.11"]
+dev = [
+    "pytest>=8",
+    "pytest-cov>=5",
+    # The suite is mostly Textual apps started headless, each a fraction of a
+    # second of waiting on its own event loop: spread over the cores, the
+    # whole of it runs in under a minute instead of over four (`-n auto`).
+    "pytest-xdist>=3.6",
+    "pillow>=10",
+    "ruff>=0.14",
+    "mypy>=1.11",
+]
 
 [project.scripts]
 tidalamp = "tidalamp.cli:main"

@@ -301,7 +301,7 @@ Ejecuta todas las comprobaciones desde la raíz del repositorio:
 .venv/bin/ruff check tidalamp tests
 .venv/bin/ruff format --check tidalamp tests
 .venv/bin/mypy tidalamp
-.venv/bin/python -m pytest -q
+.venv/bin/python -m pytest -q -n auto
 git diff --check
 ```
 
@@ -734,7 +734,7 @@ Linux.
 .venv\Scripts\ruff format --check .
 .venv\Scripts\mypy --platform linux
 .venv\Scripts\mypy --platform win32
-.venv\Scripts\python -m pytest -q
+.venv\Scripts\python -m pytest -q -n auto
 git diff --check
 
 $build = Join-Path $env:TEMP "tidalamp-build"
