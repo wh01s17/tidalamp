@@ -125,7 +125,8 @@ def test_split_falls_back_to_stacked_where_it_does_not_fit(monkeypatch, tmp_path
     asyncio.run(scenario())
 
 
-def test_every_look_fits_both_halves_of_the_narrowest_split(monkeypatch, tmp_path):
+@pytest.mark.parametrize("name", LAYOUTS)
+def test_every_look_fits_both_halves_of_the_narrowest_split(name, monkeypatch, tmp_path):
     """At the threshold each half is about 80 columns: the transport runs
     under both, and the cover must not spill onto the seek bar."""
     isolate_runtime(monkeypatch)
@@ -133,35 +134,34 @@ def test_every_look_fits_both_halves_of_the_narrowest_split(monkeypatch, tmp_pat
     app_module.config.set_option("arrangement", "split")
 
     async def scenario() -> None:
-        for name in LAYOUTS:
-            app_module.config.THEME = name
-            application = TidalAmp(object(), FakeMpv())
-            size = (TidalAmp.SPLIT_MIN_WIDTH, TidalAmp.SPLIT_MIN_HEIGHT)
-            async with application.run_test(size=size) as pilot:
-                await pilot.pause()
-                await pilot.pause()
-                assert application.looks.split, name
-                queue = application.query_one("#queue-half")
-                transport = application.query_one("#transport")
-                play = application.query_one("#transport-play")
-                menu = application.query_one("#transport-menu")
-                # Under both columns, not squeezed into the player's.
-                assert transport.region.y >= queue.region.bottom, name
-                assert transport.region.right >= queue.region.right, name
-                assert play.region.right <= menu.region.x, name
-                assert menu.region.right <= transport.region.right, name
-                for y in range(3):
-                    assert cell_len(play.render_line(y).text) <= play.size.width, name
+        app_module.config.THEME = name
+        application = TidalAmp(object(), FakeMpv())
+        size = (TidalAmp.SPLIT_MIN_WIDTH, TidalAmp.SPLIT_MIN_HEIGHT)
+        async with application.run_test(size=size) as pilot:
+            await pilot.pause()
+            await pilot.pause()
+            assert application.looks.split, name
+            queue = application.query_one("#queue-half")
+            transport = application.query_one("#transport")
+            play = application.query_one("#transport-play")
+            menu = application.query_one("#transport-menu")
+            # Under both columns, not squeezed into the player's.
+            assert transport.region.y >= queue.region.bottom, name
+            assert transport.region.right >= queue.region.right, name
+            assert play.region.right <= menu.region.x, name
+            assert menu.region.right <= transport.region.right, name
+            for y in range(3):
+                assert cell_len(play.render_line(y).text) <= play.size.width, name
 
-                display = application.query_one("#display")
-                seek = application.query_one("#seek")
-                assert display.region.bottom <= seek.region.y, name
-                assert application.query_one(Artwork).rows >= DISPLAY_HEIGHT
-                # The rule under the lyrics is drawn on the pane's ground; on
-                # any other ground than the band's it left half a row of the
-                # wrong colour under the line.
-                pane = application.query_one("#lyrics-pane")
-                assert pane.styles.background == display.styles.background, name
+            display = application.query_one("#display")
+            seek = application.query_one("#seek")
+            assert display.region.bottom <= seek.region.y, name
+            assert application.query_one(Artwork).rows >= DISPLAY_HEIGHT
+            # The rule under the lyrics is drawn on the pane's ground; on
+            # any other ground than the band's it left half a row of the
+            # wrong colour under the line.
+            pane = application.query_one("#lyrics-pane")
+            assert pane.styles.background == display.styles.background, name
 
     asyncio.run(scenario())
 

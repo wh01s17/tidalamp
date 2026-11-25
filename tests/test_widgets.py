@@ -247,55 +247,50 @@ def test_columns_are_dropped_in_the_order_the_catalogue_says():
     decision worth protecting.
     """
 
-    async def scenario() -> None:
-        app = TextWidthApp()
-        async with app.run_test(size=(200, 8)) as pilot:
-            rows = app.query_one(RowList)
-            # Short, distinctive values: a long one gets cropped as its
-            # column narrows, and the probe below would read the crop as the
-            # column having gone away.
-            entry = Entry(
-                id=1,
-                title="Titulo",
-                artist="ARTISTA",
-                album="ALBUM",
-                year=1995,
-                duration=304,
+    # Short, distinctive values: a long one gets cropped as its
+    # column narrows, and the probe below would read the crop as the
+    # column having gone away.
+    entry = Entry(
+        id=1,
+        title="Titulo",
+        artist="ARTISTA",
+        album="ALBUM",
+        year=1995,
+        duration=304,
+    )
+    row = Row(label=entry.label, detail=entry.length, entry=entry)
+
+    seen: list[tuple[int, str]] = []
+    for width in range(180, 39, -1):
+        # The line `RowList.render` draws at this width, without laying a
+        # widget out 141 times to get it: the layout is not what is tested.
+        detail_width = min(cell_len(row.detail), width // 3)
+        line = RowList._line(row, 0, -1, width, detail_width)
+        assert cell_len(line) == width, width
+        present = tuple(
+            name
+            for name, text in (
+                ("artist", "ARTISTA"),
+                ("album", "ALBUM"),
+                ("year", "1995"),
             )
-            rows.set_rows([Row(label=entry.label, detail=entry.length, entry=entry)])
+            if text in line
+        )
+        if not seen or seen[-1][1] != present:
+            seen.append((width, present))
 
-            seen: list[tuple[int, str]] = []
-            for width in range(180, 39, -1):
-                rows.styles.width = width
-                await pilot.pause()
-                line = rows.render().plain.splitlines()[0]
-                assert cell_len(line) == width, width
-                present = tuple(
-                    name
-                    for name, text in (
-                        ("artist", "ARTISTA"),
-                        ("album", "ALBUM"),
-                        ("year", "1995"),
-                    )
-                    if text in line
-                )
-                if not seen or seen[-1][1] != present:
-                    seen.append((width, present))
-
-            drawn = [present for _width, present in seen]
-            # Everything, then the year, then the album. The artist is not on
-            # this list at the end because it moves into the title rather
-            # than disappearing — see the test below.
-            assert drawn[0] == ("artist", "album", "year")
-            assert ("artist", "album") in drawn
-            assert "album" not in drawn[-1] and "year" not in drawn[-1]
-            # The year always goes before the album, never the other way.
-            assert drawn.index(("artist", "album")) < len(drawn) - 1
-            # No column ever comes back as the list narrows further.
-            for earlier, later in itertools.pairwise(drawn):
-                assert set(later) <= set(earlier), (earlier, later)
-
-    asyncio.run(scenario())
+    drawn = [present for _width, present in seen]
+    # Everything, then the year, then the album. The artist is not on
+    # this list at the end because it moves into the title rather
+    # than disappearing — see the test below.
+    assert drawn[0] == ("artist", "album", "year")
+    assert ("artist", "album") in drawn
+    assert "album" not in drawn[-1] and "year" not in drawn[-1]
+    # The year always goes before the album, never the other way.
+    assert drawn.index(("artist", "album")) < len(drawn) - 1
+    # No column ever comes back as the list narrows further.
+    for earlier, later in itertools.pairwise(drawn):
+        assert set(later) <= set(earlier), (earlier, later)
 
 
 def test_the_artist_stays_in_the_title_when_it_has_no_column_of_its_own():

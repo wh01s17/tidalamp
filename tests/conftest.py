@@ -76,6 +76,44 @@ def queue_file(tmp_path, monkeypatch):
     return path
 
 
+class NetworkBlocked(RuntimeError):
+    """A test reached for a host that is not this machine."""
+
+
+# What a test may still connect to: this machine. mpv's IPC and D-Bus are
+# Unix sockets and never resolve a name; the local HTTP server one test plays
+# from listens on 127.0.0.1.
+_LOCAL_HOSTS = {"localhost", "127.0.0.1", "::1", "", None}
+
+
+@pytest.fixture(autouse=True)
+def no_network(monkeypatch):
+    """Keep the promise at the top of this file: no test touches the network.
+
+    It used to be a promise and not a rule, and it was broken without a word:
+    every app test that put a row with `art_url="http://cover/1"` in the queue
+    sent the cover worker to resolve `cover`, and `net.with_retries` read the
+    DNS failure as a transient one and waited 0.6 s and 1.2 s before giving up.
+    That was 1.8 s on the close of each of those tests — most of the suite's
+    time — and a test that passed or failed on the machine's network.
+
+    `RuntimeError` and not `OSError` on purpose: nothing in `net` counts it as
+    transient, so the caller fails at once, the way an offline machine whose
+    resolver answers immediately would.
+    """
+    import socket
+
+    real = socket.getaddrinfo
+
+    def local_only(host, *args, **kwargs):
+        name = host.decode() if isinstance(host, bytes) else host
+        if name not in _LOCAL_HOSTS:
+            raise NetworkBlocked(f"los tests no salen a la red: {name}")
+        return real(host, *args, **kwargs)
+
+    monkeypatch.setattr(socket, "getaddrinfo", local_only)
+
+
 @pytest.fixture(autouse=True)
 def clean_library_cache():
     """The browser's level cache is module state; keep it out of other tests."""

@@ -21,7 +21,6 @@ class Playable:
     khz = "44.1"
     quality = "LOSSLESS"
     codec = "flac"
-    licence = ""
 
     def __init__(self, url: str, gain: float | None = None, peak: float | None = None):
         self.url = url

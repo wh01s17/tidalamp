@@ -129,7 +129,8 @@ def test_the_ascii_theme_types_its_chrome_and_keeps_the_brackets(monkeypatch):
     asyncio.run(scenario())
 
 
-def test_no_look_lets_the_cover_spill_onto_the_seek_bar(monkeypatch):
+@pytest.mark.parametrize("name", LAYOUTS)
+def test_no_look_lets_the_cover_spill_onto_the_seek_bar(name, monkeypatch):
     """A graphical protocol paints over what is below it, it does not clip.
 
     `height` is border-box, so a layout that pads the display band takes
@@ -139,45 +140,44 @@ def test_no_look_lets_the_cover_spill_onto_the_seek_bar(monkeypatch):
     isolate_runtime(monkeypatch)
 
     async def scenario() -> None:
-        for name in LAYOUTS:
-            app_module.config.THEME = name
-            application = TidalAmp(object(), FakeMpv())
-            async with application.run_test(size=(120, 40)) as pilot:
-                await pilot.pause()
-                art = application.query_one(Artwork)
-                display = application.query_one("#display")
-                seek = application.query_one("#seek")
-                padding = display.styles.padding
+        app_module.config.THEME = name
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(120, 40)) as pilot:
+            await pilot.pause()
+            art = application.query_one(Artwork)
+            display = application.query_one("#display")
+            seek = application.query_one("#seek")
+            padding = display.styles.padding
 
-                room = display.region.height - padding.top - padding.bottom
-                assert art.rows <= room, f"{name}: la carátula no cabe en su banda"
-                assert display.region.bottom <= seek.region.y, name
-                # And the band is not padded out further than it needs.
-                assert room == max(DISPLAY_HEIGHT, art.rows), name
+            room = display.region.height - padding.top - padding.bottom
+            assert art.rows <= room, f"{name}: la carátula no cabe en su banda"
+            assert display.region.bottom <= seek.region.y, name
+            # And the band is not padded out further than it needs.
+            assert room == max(DISPLAY_HEIGHT, art.rows), name
 
     asyncio.run(scenario())
 
 
-def test_every_look_fits_the_smallest_supported_terminal(monkeypatch):
+@pytest.mark.parametrize("name", LAYOUTS)
+def test_every_look_fits_the_smallest_supported_terminal(name, monkeypatch):
     """A layout that does not fit wraps into the row above and ruins both."""
     isolate_runtime(monkeypatch)
 
     async def scenario() -> None:
-        for name in LAYOUTS:
-            app_module.config.THEME = name
-            application = TidalAmp(object(), FakeMpv())
-            async with application.run_test(size=(60, 18)) as pilot:
-                await pilot.pause()
-                transport_row = application.query_one("#transport")
-                play = application.query_one("#transport-play")
-                menu = application.query_one("#transport-menu")
+        app_module.config.THEME = name
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(60, 18)) as pilot:
+            await pilot.pause()
+            transport_row = application.query_one("#transport")
+            play = application.query_one("#transport-play")
+            menu = application.query_one("#transport-menu")
 
-                assert play.size.height == 3, name
-                assert play.region.right <= menu.region.x, name
-                assert menu.region.right <= transport_row.region.right, name
-                for y in range(3):
-                    drawn = play.render_line(y).text
-                    assert cell_len(drawn) <= play.size.width, f"{name} fila {y}"
+            assert play.size.height == 3, name
+            assert play.region.right <= menu.region.x, name
+            assert menu.region.right <= transport_row.region.right, name
+            for y in range(3):
+                drawn = play.render_line(y).text
+                assert cell_len(drawn) <= play.size.width, f"{name} fila {y}"
 
     asyncio.run(scenario())
 
@@ -508,8 +508,12 @@ def test_a_small_terminal_gets_an_explanation_not_a_broken_layout(monkeypatch):
     asyncio.run(scenario())
 
 
+@pytest.mark.parametrize("name", LAYOUTS)
+@pytest.mark.parametrize(
+    ("arrangement", "size"), [("stacked", (120, 34)), ("split", (170, 40))]
+)
 def test_every_look_keeps_its_title_and_parts_the_cover_from_the_frame(
-    monkeypatch, tmp_path
+    arrangement, size, name, monkeypatch, tmp_path
 ):
     """Both arrangements, every layout. Split once swallowed quattro's title
     (a grid row does not count margins), and the cover used to sit flush on
@@ -517,26 +521,23 @@ def test_every_look_keeps_its_title_and_parts_the_cover_from_the_frame(
     isolate_runtime(monkeypatch)
     isolate_config(monkeypatch, tmp_path)
 
+    app_module.config.ARRANGEMENT = arrangement
+
     async def scenario() -> None:
-        for arrangement, size in (("stacked", (120, 34)), ("split", (170, 40))):
-            app_module.config.ARRANGEMENT = arrangement
-            for name in LAYOUTS:
-                app_module.config.THEME = name
-                application = TidalAmp(object(), FakeMpv())
-                async with application.run_test(size=size) as pilot:
-                    await pilot.pause()
-                    await pilot.pause()
-                    where = f"{name}/{arrangement}"
-                    title = application.query_one("#titlebar", Static)
-                    assert title.size.height >= 1, where
-                    drawn = "".join(
-                        title.render_line(y).text for y in range(title.size.height)
-                    )
-                    assert any(c.isalpha() for c in drawn), where
-                    # The cover is hidden until one arrives, so the band's own
-                    # left padding is what says where it will sit.
-                    display = application.query_one("#display")
-                    assert display.styles.padding.left >= 2, where
+        app_module.config.THEME = name
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=size) as pilot:
+            await pilot.pause()
+            await pilot.pause()
+            where = f"{name}/{arrangement}"
+            title = application.query_one("#titlebar", Static)
+            assert title.size.height >= 1, where
+            drawn = "".join(title.render_line(y).text for y in range(title.size.height))
+            assert any(c.isalpha() for c in drawn), where
+            # The cover is hidden until one arrives, so the band's own
+            # left padding is what says where it will sit.
+            display = application.query_one("#display")
+            assert display.styles.padding.left >= 2, where
 
     asyncio.run(scenario())
 

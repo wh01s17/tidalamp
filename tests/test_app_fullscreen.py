@@ -212,27 +212,27 @@ def test_the_pixel_cover_stays_up_here_and_hides_under_a_window(monkeypatch):
     asyncio.run(scenario())
 
 
-def test_every_look_fits_the_full_screen_view_at_the_minimum(monkeypatch):
+@pytest.mark.parametrize("name", LAYOUTS)
+def test_every_look_fits_the_full_screen_view_at_the_minimum(name, monkeypatch):
     isolate_runtime(monkeypatch)
 
     async def scenario() -> None:
-        for name in LAYOUTS:
-            app_module.config.THEME = name
-            application = TidalAmp(object(), FakeMpv())
-            size = (TidalAmp.MIN_WIDTH, TidalAmp.MIN_HEIGHT)
-            async with application.run_test(size=size) as pilot:
-                await pilot.pause()
-                a_queue_playing(application)
-                await pilot.press("w")
-                await pilot.pause()
-                screen = application.screen
-                assert isinstance(screen, FullscreenScreen), name
-                controls = screen.query_one("#fs-controls")
-                line = controls.render_line(0).text
-                assert cell_len(line.rstrip()) <= controls.size.width, name
-                art = screen.query_one(FullArtwork)
-                bar = screen.query_one("#fs-bar")
-                assert art.region.bottom <= bar.region.y, name
+        app_module.config.THEME = name
+        application = TidalAmp(object(), FakeMpv())
+        size = (TidalAmp.MIN_WIDTH, TidalAmp.MIN_HEIGHT)
+        async with application.run_test(size=size) as pilot:
+            await pilot.pause()
+            a_queue_playing(application)
+            await pilot.press("w")
+            await pilot.pause()
+            screen = application.screen
+            assert isinstance(screen, FullscreenScreen), name
+            controls = screen.query_one("#fs-controls")
+            line = controls.render_line(0).text
+            assert cell_len(line.rstrip()) <= controls.size.width, name
+            art = screen.query_one(FullArtwork)
+            bar = screen.query_one("#fs-bar")
+            assert art.region.bottom <= bar.region.y, name
 
     asyncio.run(scenario())
 

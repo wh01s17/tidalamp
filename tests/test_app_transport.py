@@ -478,13 +478,15 @@ def test_turning_the_volume_up_stops_at_the_ceiling(monkeypatch):
         application = TidalAmp(object(), mpv)
         async with application.run_test(size=(100, 36)) as pilot:
             await pilot.pause()
-            for _ in range(30):
-                await pilot.press("plus")
+            # A step short of each end, then past it: what is under test is
+            # the clamp, not the twenty presses it takes to walk there.
+            mpv.volume = Mpv.VOLUME_MAX - 5
+            await pilot.press("plus", "plus", "plus")
             await pilot.pause()
             assert mpv.volume == Mpv.VOLUME_MAX
 
-            for _ in range(40):
-                await pilot.press("minus")
+            mpv.volume = 5
+            await pilot.press("minus", "minus", "minus")
             await pilot.pause()
             assert mpv.volume == 0
 
@@ -562,7 +564,6 @@ def test_resolving_a_track_says_so_and_stops_saying_it(monkeypatch):
         khz = "44.1"
         quality = "LOSSLESS"
         codec = "flac"
-        licence = ""
 
     async def scenario() -> None:
         application = TidalAmp(object(), FakeMpv())
@@ -598,7 +599,6 @@ def test_a_quality_downgrade_reaches_the_status_line(monkeypatch):
         khz = "44.1"
         quality = "HIGH"
         codec = "aac"
-        licence = ""
         requested = "LOSSLESS"
         downgraded = True
 
@@ -625,7 +625,6 @@ def test_source_output_and_pause_are_separate_truthful_readouts(monkeypatch):
         khz = "176.4"
         quality = "HI_RES_LOSSLESS"
         codec = "flac"
-        licence = ""
         requested = "HI_RES_LOSSLESS"
         downgraded = False
 
@@ -817,7 +816,6 @@ def test_a_resolve_that_comes_back_late_does_not_start_an_older_track(monkeypatc
         khz = "44.1"
         quality = "LOSSLESS"
         codec = "flac"
-        licence = ""
 
         def __init__(self, url: str) -> None:
             self.url = url
@@ -859,7 +857,6 @@ def test_a_resolve_that_comes_back_after_stop_does_not_play(monkeypatch):
         khz = "44.1"
         quality = "LOSSLESS"
         codec = "flac"
-        licence = ""
 
     async def scenario() -> None:
         mpv = FakeMpv()
