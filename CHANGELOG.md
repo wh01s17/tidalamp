@@ -5,6 +5,24 @@ versioning is [semantic](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- **The library has a new order and an icon on every row:** `♪` Favourite
+  tracks, `◎` Favourite albums, `◉` Favourite artists, `≡` My playlists, `≈` My
+  mixes, `✦` Discover and `⌂` Local music. What your account keeps comes first,
+  then what TIDAL proposes, then the files on this computer. The icons are the
+  ones the track menu already uses for the same things.
+- **The test suite runs in under a minute**, down from over four. The app tests
+  were reaching for the network (a placeholder cover URL, retried with backoff
+  on every close); `tests/conftest.py` now refuses any host but this machine.
+  `pytest-xdist` joins the dev extras and the suite runs with `-n auto`.
+
+### Removed
+
+- **Copyright-free lofi**, with its credits window, the `k` key and the
+  `jamendo_id` setting. Its tracks are dropped from a saved queue when it loads,
+  and a `jamendo_id` left in `config.toml` is ignored.
+
 ## [0.24.1] - 2026-11-24
 
 ### Fixed

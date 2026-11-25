@@ -50,20 +50,20 @@ tocan `app.py`, `config.py` y la ventana `o`, y se pisarían. YouTube Music y Sp
 miraron el mismo día y quedaron fuera (ver «Descartado por ahora»).
 
 **Primera versión publicada en la `0.24.0` (2026-11-24)**, sin esperar a los pasos
-1–4 del orden de abajo: «Música local» es una fila más de la biblioteca, como «Lofi
-sin copyright», y no una fuente con su panel. Lo que se hizo y lo que falta está en
+1–4 del orden de abajo: «Música local» es una fila más de la biblioteca, y no una
+fuente con su panel. Lo que se hizo y lo que falta está en
 la entrada «Música local» de esta lista. El resto del plan sigue en pie.
 
 Antes de la `0.24.0`, tidalamp era un cliente de TIDAL con una sola fila ajena
-(«Lofi sin copyright»). La idea es sumarle la música del propio equipo como una
-fuente más, al lado de TIDAL.
+(«Lofi sin copyright», retirada el 2026-11-25; ver `plan.md` §4). La idea es sumarle
+la música del propio equipo como una fuente más, al lado de TIDAL.
 **Cada fuente tiene su biblioteca y sus playlists, y la cola es lo único que las
 mezcla.**
 
 - **Panel de fuentes a la izquierda de la biblioteca.** Hoy `BrowserScreen` es una
-  sola `RowList`, y `library.root()` devuelve las filas de TIDAL más la de lofi. Pasa a
-  dos columnas: a la izquierda las fuentes (TIDAL, Música local y «Lofi sin
-  copyright», que deja de colgar de la raíz de TIDAL), y a la
+  sola `RowList`, y `library.root()` devuelve las filas de TIDAL más la de Música
+  local. Pasa a dos columnas: a la izquierda las fuentes (TIDAL y Música local, que
+  deja de colgar de la raíz de TIDAL), y a la
   derecha la raíz de la fuente elegida, con todo lo que el navegador ya sabe hacer
   (filtro `/`, orden, cuadrícula, «más…», menú `m`, ratón).
   - TIDAL sin vincular sale igual en el panel, atenuada, y su raíz es una sola fila,
@@ -218,7 +218,7 @@ mezcla.**
   2. Costura `Source`, `Entry` con id por fuente y migración de `queue.json`; arrancar
      sin TIDAL. Sin cambios a la vista.
   3. Configuración en pestañas; vincular y cerrar sesión de TIDAL desde la TUI.
-  4. Panel de fuentes en la biblioteca, con TIDAL y Lofi.
+  4. Panel de fuentes en la biblioteca, con TIDAL.
   5. Música local. *Primera versión adelantada a la `0.24.0`* como fila de la
      biblioteca; al llegar aquí se muda a su fuente.
 
