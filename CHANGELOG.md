@@ -5,6 +5,8 @@ versioning is [semantic](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.25.0] - 2026-11-25
+
 ### Changed
 
 - **The library has a new order and an icon on every row:** `♪` Favourite

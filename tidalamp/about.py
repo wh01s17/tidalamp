@@ -64,6 +64,14 @@ def releases() -> tuple[Release, ...]:
     """Newest first. Translated at call time, not at import time."""
     return (
         Release(
+            "0.25.0",
+            "2026-11-25",
+            (
+                _("La biblioteca, en otro orden y con un icono por fila."),
+                _("Se retira «Lofi sin copyright», y con ella la tecla k."),
+            ),
+        ),
+        Release(
             "0.24.1",
             "2026-11-24",
             (_("Sin cortes en interfaces que graban mientras suena la música."),),

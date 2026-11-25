@@ -224,6 +224,13 @@ ENGLISH: dict[str, str] = {
     "La biblioteca abre por fecha, lo más reciente primero.": (
         "The library opens by date, most recent first."
     ),
+    # --- 0.25.0, in the help's list of changes
+    "La biblioteca, en otro orden y con un icono por fila.": (
+        "The library, in a new order and with an icon on every row."
+    ),
+    "Se retira «Lofi sin copyright», y con ella la tecla k.": (
+        "“Copyright-free lofi” is gone, and the k key with it."
+    ),
     # --- 0.24.1, in the help's list of changes
     "Sin cortes en interfaces que graban mientras suena la música.": (
         "No more dropouts on interfaces that record while music plays."
