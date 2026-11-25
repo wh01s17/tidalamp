@@ -77,8 +77,11 @@ mezcla.**
   - *Trampa, el foco:* hoy las flechas son de la lista. Tab pasa entre panel y lista,
     y ⌫ en la raíz de una fuente vuelve al panel.
 
-- **Arrancar sin TIDAL.** `cli.tui` sale con error si `load_session()` lanza
-  `NotLoggedIn`. Con música local hay algo que escuchar sin cuenta, así que se arranca
+- **Arrancar sin TIDAL.** *Primera versión hecha el 2026-11-25 como «modo offline»*
+  (`plan.md` §4 «Modo offline»): sin sesión se pregunta si arrancar offline, la
+  biblioteca abre en «Música local» y la sesión vuelve sin login. Lo de abajo sigue
+  en pie para cuando llegue la costura `Source`. Antes, `cli.tui` salía con error si
+  `load_session()` lanzaba `NotLoggedIn`. Con música local hay algo que escuchar sin cuenta, así que se arranca
   igual y TIDAL sale sin vincular. Lo que
   hoy pregunta `entry.is_tidal` (letras, radio, favoritos, año del disco; a
   2026-10-09 en `app.py`, `levels.py`, `library.py`, `lyrics_feed.py`, `playback.py`,
@@ -180,7 +183,9 @@ mezcla.**
   - La de TIDAL lleva el estado (vinculada, con qué cuenta), «Vincular cuenta»,
     «Cerrar sesión» y sus ajustes (calidad, volumen normalizado). La fila «Cerrar
     sesión» de General y la calidad de Audio se mudan allí.
-  - *Vincular TIDAL desde la TUI:* hoy sólo existe `tidalamp login` en la terminal. El
+  - *Vincular TIDAL desde la TUI:* *hecho para el modo offline* («Iniciar sesión en
+    TIDAL», `screens/login.py`); falta ofrecerlo también con sesión, desde la pestaña.
+    Antes sólo existía `tidalamp login` en la terminal. El
     device flow ya es un enlace y un código, así que cabe en una ventana con el enlace
     y un spinner hasta que se autoriza.
   - *Cerrar sesión:* hoy `auth.forgotten` y `auth.logout` borran la sesión de TIDAL y,

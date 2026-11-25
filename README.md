@@ -30,6 +30,7 @@ Authorize once through the link it prints, and the session is kept at
   - [Important limitation: DRM](#important-limitation-drm)
 - [Themes and colours](#themes-and-colours)
 - [Settings](#settings)
+  - [Offline mode](#offline-mode)
   - [The audio stack](#the-audio-stack)
   - [Language](#language)
 - [Lyrics](#lyrics)
@@ -86,8 +87,9 @@ tidalamp
 Without the `art` extra everything works except the cover, which is simply not drawn;
 tidalamp says so once in the status line at startup.
 
-The first launch has to be from a terminal (`tidalamp login`, then `tidalamp`). The
-player then asks whether to add itself to the application menu: see
+The first launch has to be from a terminal (`tidalamp login`, then `tidalamp`). With
+no session, `tidalamp` offers to start in [offline mode](#offline-mode) instead, with
+your local music only. The player then asks whether to add itself to the application menu: see
 [In the application menu](#in-the-application-menu).
 
 ### Windows (preview)
@@ -723,6 +725,8 @@ writes `~/.config/tidalamp/config.toml`, so a change made once stays made.
 | Debug log | on / off                                  | immediately    |
 | Menu shortcut | created / not created                 | immediately    |
 | Log out   | action                                    | closes tidalamp |
+| Offline mode | on / off                               | immediately    |
+| Log in to TIDAL | action, only while offline          | immediately    |
 
 Normalised volume uses the ReplayGain TIDAL sends with every stream: `track` evens
 out every track, `album` keeps the loud and quiet songs of one record as the record
@@ -763,6 +767,7 @@ visualizer = "bars"           # analyzer shape: bars, mirror, curve, or fine
 autoplay = false              # when the queue ends, carry on with the last track's radio
 replaygain = "off"            # normalised volume: off, track, or album
 library_view = "list"         # the library as a list, or as a grid of covers
+offline = false               # start without TIDAL, with local music only
 mpv_path = ""                 # the mpv to run, when the one on the PATH is not it
 audio_device = "auto"         # the output mpv plays to; auto is the system's default
 exclusive = false             # Windows: WASAPI exclusive mode, see The audio stack
@@ -775,7 +780,7 @@ quit = "ctrl+q"
 
 Precedence is **environment → file → default**. `TIDALAMP_QUALITY`, `TIDALAMP_ART`,
 `TIDALAMP_LANG`, `TIDALAMP_COLUMNS`, `TIDALAMP_THEME`, `TIDALAMP_PALETTE`,
-`TIDALAMP_VISUALIZER`, `TIDALAMP_LIBRARY_VIEW`, `TIDALAMP_MPV_PATH`, `TIDALAMP_AUDIO_DEVICE`, `TIDALAMP_EXCLUSIVE` and `TIDALAMP_DEBUG` therefore override the file for one-off runs; the settings window
+`TIDALAMP_VISUALIZER`, `TIDALAMP_LIBRARY_VIEW`, `TIDALAMP_OFFLINE`, `TIDALAMP_MPV_PATH`, `TIDALAMP_AUDIO_DEVICE`, `TIDALAMP_EXCLUSIVE` and `TIDALAMP_DEBUG` therefore override the file for one-off runs; the settings window
 labels a row whose value is being shadowed that way, rather than showing a value the
 app is not using. A syntax error in the file does not prevent startup; it is logged
 and the defaults take over.
@@ -783,6 +788,36 @@ and the defaults take over.
 Under `[keys]`, the action is on the left and the key on the right; separate multiple
 keys with commas. Valid actions are the ones in the [key table](#keys), and
 `tidalamp config` warns about unknown ones.
+
+### Offline mode
+
+tidalamp also plays the music on your own computer, so it can run without TIDAL.
+**Offline mode** starts with local music only: no session is loaded, `l` opens
+straight onto *Local music* (albums, artists, all tracks and folders), and `/` says
+that search is TIDAL's instead of opening. A TIDAL track left in the queue says it
+does not play offline, and lyrics and autoplay's radio, both TIDAL's, are not asked
+for.
+
+There are three ways in:
+
+- **At startup, with no session** — or with one TIDAL will not accept, or no network
+  to reach it — `tidalamp` asks whether to start offline instead of stopping.
+- **`offline = true`** in `config.toml` (or `TIDALAMP_OFFLINE=1`) starts offline
+  every time, without asking TIDAL anything.
+- **Offline mode** in the settings (`o`, under *TIDAL*) switches it on while playing.
+
+**Your session is kept.** Going offline does not delete it: turning *Offline mode*
+off again brings TIDAL back with the same session, from memory or from
+`~/.config/tidalamp/session.json`, without a new login. Only when there is no
+usable session does the status line say so and the mode stay on.
+
+While offline, the settings also show **Log in to TIDAL**. `↵` on it opens a window
+with TIDAL's link and code, as `tidalamp login` prints them in a terminal. The player
+holds the mouse, so the terminal cannot select or follow the link by itself: `↵` (or
+a click on the window) opens it in your browser, and `c` copies it, with `wl-copy`,
+`xclip` or `xsel` on Linux, `pbcopy` on macOS, `clip` on Windows, or through the
+terminal (OSC 52) when there is none. Approve it in the browser and TIDAL is back at
+once, with offline mode turned off; `esc` closes the window and stops waiting.
 
 ### The audio stack
 
@@ -1053,8 +1088,8 @@ clears it before it closes the window. The footer names the key.
 ## Troubleshooting
 
 If mpv dies, tidalamp starts a fresh process and reloads the current track. Expired
-tokens are refreshed automatically; `tidalamp login` is only needed when there is no
-usable refresh token. Failed TIDAL calls are retried with backoff.
+tokens are refreshed automatically; `tidalamp login` (or **Log in to TIDAL** in the
+settings, offline) is only needed when there is no usable refresh token. Failed TIDAL calls are retried with backoff.
 
 **If `OUT` sits below `SRC` and the settings window reports nothing wrong**, the limit
 is the USB link, not the graph. A cable that negotiates full speed instead of high

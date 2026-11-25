@@ -268,6 +268,8 @@ tidalamp/
   config.py     Rutas XDG, fichero de configuración TOML y ajustes resueltos
                 (entorno → fichero → defecto). Sin dependencias internas.
   auth.py       Device flow y persistencia de sesión. Lanza NotLoggedIn.
+                `OfflineSession` ocupa el sitio de la sesión en modo offline, y
+                `start_login`/`finish_login` parten el device flow para la TUI.
   stream.py     Track -> Playable (URL o playlist HLS local). Lanza StreamUnavailable.
   player.py     Clase Mpv: spawn del proceso, IPC JSON, transporte, medición RMS.
                 El IPC va por un `Transport` (`_UnixSocket` en Linux) y el
@@ -278,7 +280,7 @@ tidalamp/
   analyzer.py   Analyzer (cinco formas) y EqualizerBars: los que pintan bandas.
   scrolling.py  Texto que se mueve: Glide, Marquee y LyricsPane.
   screens/      Un módulo por ventana (browser, tracks, help, config_window,
-                equalizer, lyrics_window, column_picker, prompts, speed) y `rowlist.py`
+                equalizer, lyrics_window, column_picker, prompts, speed, login) y `rowlist.py`
                 con RowList y `fit_hints()`. `__init__.py` lo reexporta todo. No
                 guardan estado del reproductor: reciben lo que necesitan al
                 construirse y contestan por `dismiss`. `playlist_edits.py` es lo
@@ -304,6 +306,10 @@ tidalamp/
     library_tasks.py  LibraryTasks: recados a la cuenta (artista, playlists,
                       radio, favoritos).
     setting_changes.py SettingChanges: lo que hace un ajuste cambiado en marcha.
+    connection.py     Connection: entrar y salir del modo offline, con la sesión
+                      de TIDAL guardada en memoria para volver sin login.
+  links.py      Pasar un enlace al escritorio: abrirlo en el navegador o
+                copiarlo al portapapeles, con la herramienta del sistema.
     media_bridge.py   MediaBridge: el PlayerBackend que ven MPRIS y SMTC.
   keys.py       DEFAULT_KEYS y `keys_for`: qué tecla hace qué, del fichero o por
                 defecto. Sin Textual más allá de `Binding`.
@@ -2493,6 +2499,63 @@ existía sólo para ella:
 
 Cómo se eligió el género, el filtro de voces y las dos fuentes medidas contra las APIs
 reales está en la historia de git, en esta sección hasta el tag `v0.24.1`.
+
+### Modo offline - `connection.py`, `auth.py`, `cli.py`, `screens/login.py`
+
+2026-11-25, pedido por el mantenedor: con «Música local» tidalamp ya es también un
+reproductor de ficheros, y no tener sesión de TIDAL no debería impedir usarlo. Es la
+parte de «Arrancar sin TIDAL» y «Vincular TIDAL desde la TUI» de `next.md` que no
+necesita la costura `Source` ni las pestañas.
+
+- [x] **Offline es una sesión que no está.** `auth.OfflineSession` ocupa el sitio de
+      `app.session`, así que el resto de la app sigue recibiendo un objeto y no hay un
+      `if offline` en cada llamada a TIDAL: cualquier atributo que se le pida lanza
+      `auth.Offline`, que es `NotLoggedIn` (los caminos que ya decían «inicia sesión»
+      lo dicen) y `AttributeError` (un `getattr(session, "config", None)` lee «no
+      lo tiene» en vez de reventar). `app.offline` lo pregunta con `auth.is_offline`.
+- [x] **Explícito sólo donde el mensaje genérico sería peor:** la biblioteca abre
+      directamente «Música local» (`app.library_root`, `library.local_root`, con el
+      título «MÚSICA LOCAL»), `/` dice que la búsqueda es de TIDAL en vez de abrirse,
+      una pista de TIDAL en la cola dice que no suena offline (por su nombre, porque
+      una cola restaurada mezcla las dos), y ni las letras ni la radio de la
+      reproducción automática se piden.
+- [x] **Tres entradas:** al arrancar sin sesión, con una que TIDAL rechaza o sin red
+      para llegar a TIDAL, `cli._session_or_offline` pregunta si arrancar offline
+      (sin terminal en la que preguntar falla como antes); `offline = true` (o
+      `TIDALAMP_OFFLINE`) arranca así siempre sin pedirle nada a TIDAL; y «Modo
+      offline» en `o`, grupo «TIDAL», al final para no mover las filas de arriba.
+- [x] **La sesión se conserva.** `Connection.go_offline` guarda la sesión real en
+      memoria y no toca `session.json`; al desactivar el modo, `auth.restore` usa la
+      de memoria (refrescada si caducó) o la del disco, en un worker. Si no hay
+      ninguna utilizable sigue offline y la línea de estado dice por qué. La fila
+      muestra el estado del reproductor, no el del fichero: un arranque sin sesión
+      está offline con `offline = false` escrito.
+- [x] **Iniciar sesión desde la TUI**, sólo offline: «Iniciar sesión en TIDAL» abre
+      `LoginScreen` con el enlace y el código del device flow. No es el bucle de
+      tidalapi, que bloquea hasta que el enlace caduca sin forma de pararlo:
+      `auth.finish_login` hace una comprobación (`process_link_login(...,
+      until_expiry=False)`, que dura el `interval` de TIDAL) y la ventana repite
+      hasta autorizar, caducar o cerrarse, así que esc se oye entre dos. Autorizado,
+      `Connection.online` pone la sesión y escribe `offline = false`.
+- [x] **El enlace no se puede dejar al terminal** (visto por el mantenedor en su
+      terminal, 2026-11-25: ni copiar ni clic hacían nada). La TUI tiene el ratón,
+      así que ni la selección del terminal ni su clic sobre la URL llegan al texto.
+      `↵` o un clic en la ventana lo abre (`links.open_url`: `xdg-open`/`gio`,
+      `open`, `os.startfile`, con la salida a `/dev/null` y en sesión aparte, porque
+      el navegador escribe en el terminal donde dibuja el reproductor) y `c` lo copia
+      (`links.copy_text`: `wl-copy`, `xclip`, `xsel`, `pbcopy` o `clip`, y si no hay
+      ninguno, OSC 52 con `App.copy_to_clipboard`). La URL se dibuja además como
+      hipervínculo OSC 8 para los terminales que lo siguen con un modificador.
+- [x] Entre dos comprobaciones espera el `interval` de TIDAL (mínimo 0,2 s) sobre el
+      evento de parada: un «todavía no» que vuelve al instante no hace girar el hilo.
+- [x] Cambiar de modo olvida la caché de niveles: lo que había era de TIDAL o salió
+      de lo que TIDAL contestó.
+- [x] **Tests** (`tests/test_offline.py`, 24, con abrir y copiar el enlace): el sustituto, el login en dos
+      mitades, las cuatro salidas del arranque, la biblioteca, la búsqueda y la pista
+      de TIDAL offline, la ida y vuelta conservando la sesión, la vuelta sin sesión y
+      el login desde la ventana (también que esc la cierra sin esperar al enlace).
+- [ ] Pendiente: buscar en la música local con `/` offline, y qué hacer con las
+      pistas de TIDAL que quedan en la cola (hoy se dicen y no suenan).
 
 ### Música local - `local.py`, `library.py`, `config.py`, `screens/config_window.py`
 

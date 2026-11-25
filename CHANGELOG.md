@@ -5,6 +5,18 @@ versioning is [semantic](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **Offline mode**, for local music without TIDAL. With no session (or no TIDAL to
+  reach), `tidalamp` offers to start offline instead of stopping; `offline = true`
+  starts that way every time, and *Offline mode* in the settings switches it on
+  while playing. The library opens straight onto local music. Turning it off brings
+  TIDAL back with the same session, without logging in again.
+- **Log in to TIDAL from the settings** while offline: TIDAL's link and code in a
+  window, the device flow `tidalamp login` runs in a terminal, and TIDAL back as
+  soon as it is approved. `↵` or a click opens the link in the browser and `c`
+  copies it, since the terminal cannot select or follow a link inside the player.
+
 ## [0.25.0] - 2026-11-25
 
 ### Changed
