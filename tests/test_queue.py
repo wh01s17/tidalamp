@@ -338,45 +338,7 @@ def test_a_save_that_works_returns_nothing(queue_file, entries):
 # ------------------------------------------------ rows that are not TIDAL's
 
 
-def free_track(url: str = "https://archive.org/download/x/a.mp3"):
-    """A `freemusic.Track`, built here rather than imported as a fixture so
-    the test says what the queue is actually handed."""
-    from tidalamp.freemusic import Track
-
-    return Track(
-        url=url,
-        title="Tame The Beast",
-        artist="Lofi Lion",
-        album="Tame The Beast",
-        licence="CC BY",
-        duration=174,
-        year=2021,
-        track_num=1,
-        codec="MP3",
-        art_url="https://archive.org/services/img/x",
-    )
-
-
-def test_a_free_entry_carries_its_url_licence_and_codec():
-    entry = Entry.from_free(free_track())
-    assert entry.source == "free"
-    assert entry.url == "https://archive.org/download/x/a.mp3"
-    assert entry.licence == "CC BY"
-    assert entry.quality == "MP3"
-    assert entry.label == "Lofi Lion - Tame The Beast"
-    assert not entry.is_tidal
-
-
-def test_a_free_entry_survives_the_round_trip_to_disk():
-    entry = Entry.from_free(free_track())
-    restored = Entry.from_dict(entry.to_dict())
-    assert restored == entry
-    assert restored.source == "free"
-    assert restored.url == entry.url
-    assert restored.licence == "CC BY"
-
-
-def test_a_queue_written_before_the_free_section_restores_as_tidal():
+def test_a_queue_written_before_local_rows_restores_as_tidal():
     """The three fields are new; a queue saved by 0.14.0 has none of them and
     every row in it came from TIDAL."""
     restored = Entry.from_dict({"id": 42, "title": "Schism", "artist": "TOOL"})
@@ -385,19 +347,42 @@ def test_a_queue_written_before_the_free_section_restores_as_tidal():
     assert restored.url == ""
 
 
-def test_resolving_a_free_entry_refuses_rather_than_asking_tidal():
-    """Its id is negative and TIDAL would answer a 404. A caller that gets
-    here has skipped an `is_tidal` check, which is a bug worth seeing."""
+def test_resolving_a_local_entry_refuses_rather_than_asking_tidal():
+    """A caller that gets here has skipped an `is_tidal` check, which is a
+    bug worth seeing."""
+    entry = Entry(id=-7, title="a", artist="b", source="local", url="/x/a.flac")
     with pytest.raises(ValueError, match="no viene de TIDAL"):
-        Entry.from_free(free_track()).resolve(object())
+        entry.resolve(object())
 
 
-def test_two_free_rows_for_the_same_file_are_the_same_track():
-    """Deduplication, the lyrics cache and restored identity all key off the
-    id, so the same URL has to give the same one."""
-    assert Entry.from_free(free_track()).id == Entry.from_free(free_track()).id
-    assert Entry.from_free(free_track()).id != Entry.from_free(free_track("x")).id
+def test_rows_from_the_removed_lofi_section_are_dropped_on_load(queue_file):
+    """A queue saved by 0.15 to 0.24 may still hold copyright-free lofi
+    tracks. That section is gone, so they go too, and the cursor lands on
+    the track that was playing and not on whatever slid into its place."""
+    queue_file.write_text(
+        """{"entries": [
+            {"id": -1, "title": "lofi", "artist": "x", "source": "free",
+             "url": "https://archive.org/download/x/a.mp3", "licence": "CC BY"},
+            {"id": 1, "title": "Schism", "artist": "TOOL"},
+            {"id": -2, "title": "más lofi", "artist": "x", "source": "free"},
+            {"id": 2, "title": "Lateralus", "artist": "TOOL"}
+        ], "playing": 3}""",
+        encoding="utf-8",
+    )
+    restored = Queue()
+    assert restored.load() is True
+    assert [e.title for e in restored.entries] == ["Schism", "Lateralus"]
+    assert restored.resume_at == 1
 
 
-def test_a_free_id_can_never_collide_with_a_tidal_one():
-    assert Entry.from_free(free_track()).id < 0
+def test_a_queue_that_was_playing_a_lofi_row_resumes_nowhere(queue_file):
+    queue_file.write_text(
+        """{"entries": [
+            {"id": 1, "title": "Schism", "artist": "TOOL"},
+            {"id": -1, "title": "lofi", "artist": "x", "source": "free"}
+        ], "playing": 1}""",
+        encoding="utf-8",
+    )
+    restored = Queue()
+    restored.load()
+    assert restored.resume_at == -1

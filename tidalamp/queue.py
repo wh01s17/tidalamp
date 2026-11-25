@@ -39,12 +39,13 @@ def _claim_uid(value: int) -> int:
 
 
 # The two kinds of row a queue can hold. A TIDAL track is resolved through
-# the session on every play; a free one already knows its URL.
+# the session on every play; a file on this computer, from «Música local»,
+# carries its own URL — a path — and plays without a session.
 TIDAL = "tidal"
-FREE = "free"
-# A file on this computer, from «Música local». Like a free row it carries
-# its own URL — a path — and plays without a session.
 LOCAL = "local"
+# What a queue saved by 0.15 to 0.24 may still hold: a track from the
+# copyright-free lofi section, which is gone. `Queue.load` drops those rows.
+_GONE = frozenset({"free"})
 
 
 def _artist_names(track: tidalapi.Track) -> str:
@@ -106,21 +107,15 @@ class Entry:
     popularity: int = 0
     isrc: str = ""
     quality: str = ""
-    # Where this row comes from: "tidal", or "free" for the copyright-free
-    # section of the library. A free row carries its own URL and needs no
-    # session to play, so everything that would ask TIDAL about it — the
-    # lyrics, the radio, favourites, the year of its record — checks this
-    # first. See `is_tidal`.
+    # Where this row comes from: "tidal", or "local" for a file on this
+    # computer. A local row carries its own URL and needs no session to
+    # play, so everything that would ask TIDAL about it — the lyrics, the
+    # radio, favourites, the year of its record — checks this first. See
+    # `is_tidal`.
     source: str = TIDAL
     # The audio, for a row that is not TIDAL's. Empty for a TIDAL track,
     # whose URL is resolved per play and expires.
     url: str = ""
-    # The licence the audio is published under, shown where a TIDAL track
-    # shows its quality tier.
-    licence: str = ""
-    # The page the audio came from. What the credit points at: CC BY and
-    # CC BY-SA both ask for the source, and a file URL is not one.
-    source_url: str = ""
     # Identity of this row, not of the song. Excluded from equality so two
     # rows for the same track still compare equal, as they always have.
     uid: int = field(default_factory=_new_uid, compare=False)
@@ -159,32 +154,13 @@ class Entry:
         )
 
     @classmethod
-    def from_free(cls, track: Any) -> Entry:
-        """A row out of a `freemusic.Track`.
+    def from_local(cls, track: Any) -> Entry:
+        """A row out of a `local.Track`.
 
         Typed loosely on purpose: `queue` sits under `library` in the import
-        graph and importing `freemusic` here to name the parameter would be
-        the first edge pointing the other way.
+        graph and importing `local` here to name the parameter would be the
+        first edge pointing the other way.
         """
-        return cls(
-            id=track.id,
-            title=track.title,
-            artist=track.artist,
-            album=track.album,
-            year=track.year,
-            duration=track.duration,
-            art_url=track.art_url,
-            track_num=track.track_num,
-            quality=track.codec,
-            source=FREE,
-            url=track.url,
-            licence=track.licence,
-            source_url=track.source_url,
-        )
-
-    @classmethod
-    def from_local(cls, track: Any) -> Entry:
-        """A row out of a `local.Track`, typed loosely like `from_free`."""
         return cls(
             id=track.id,
             title=track.title,
@@ -228,8 +204,8 @@ class Entry:
         """Fetch the real Track, hitting the API only on a restored entry."""
         if not self.is_tidal:
             # Loudly rather than by returning None: a caller that reaches
-            # here has skipped an `is_tidal` check, and a free row's id is a
-            # negative number TIDAL would answer a 404 to anyway.
+            # here has skipped an `is_tidal` check, and a local row's id is
+            # not one TIDAL knows.
             raise ValueError(f"«{self.label}» no viene de TIDAL ({self.source})")
         if self._track is None:
             # tidalapi types the id as a string; the API takes both and every
@@ -257,8 +233,6 @@ class Entry:
             "quality": self.quality,
             "source": self.source,
             "url": self.url,
-            "licence": self.licence,
-            "source_url": self.source_url,
             "uid": self.uid,
         }
 
@@ -285,12 +259,10 @@ class Entry:
             popularity=int(raw.get("popularity", 0) or 0),
             isrc=raw.get("isrc", "") or "",
             quality=raw.get("quality", "") or "",
-            # A queue written before the free section existed is all TIDAL,
-            # which is exactly what the default says.
+            # A queue written before local files existed is all TIDAL, which
+            # is exactly what the default says.
             source=raw.get("source", TIDAL) or TIDAL,
             url=raw.get("url", "") or "",
-            licence=raw.get("licence", "") or "",
-            source_url=raw.get("source_url", "") or "",
             # A queue written before uids existed simply gets fresh ones.
             uid=_claim_uid(int(raw["uid"])) if "uid" in raw else _new_uid(),
         )
@@ -506,7 +478,9 @@ class Queue:
         except (OSError, json.JSONDecodeError):
             return False
 
-        self.entries = [Entry.from_dict(e) for e in raw.get("entries", [])]
+        saved = raw.get("entries", [])
+        kept = [i for i, e in enumerate(saved) if (e.get("source") or TIDAL) not in _GONE]
+        self.entries = [Entry.from_dict(saved[i]) for i in kept]
         # A restored queue is never mid-playback: mpv starts empty.
         self.playing = -1
         try:
@@ -517,7 +491,10 @@ class Queue:
         self._reshuffle()
 
         # Remember where the user left off so the cursor lands there.
-        self.resume_at = int(raw.get("playing", -1))
+        # Counted again over the rows kept: a dropped row before it would
+        # otherwise land the cursor one track further on.
+        playing = int(raw.get("playing", -1))
+        self.resume_at = kept.index(playing) if playing in kept else -1
         # And the second into that track. A queue saved before this existed
         # has none, and a hand-edited one may hold junk: both start at 0:00.
         try:

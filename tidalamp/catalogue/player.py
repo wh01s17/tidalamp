@@ -1,7 +1,7 @@
 """English for the Spanish source strings, part of `tidalamp.catalogue`.
 
 The player: transport, status, quality, artwork, the settings window,
-Discover, the free lofi row and its credits, and the newest release notes.
+Discover, and the newest release notes.
 """
 
 from __future__ import annotations
@@ -203,66 +203,10 @@ ENGLISH: dict[str, str] = {
     "página": "page",
     "{count} elementos": "{count} items",
     "1 elemento": "1 item",
-    # --- copyright-free lofi, from the Internet Archive
-    "Lofi sin copyright": "Copyright-free lofi",
-    "experimental · la selección de hoy": "experimental · today’s selection",
-    # The credits window. CC BY and CC BY-SA require attribution, so this is
-    # not decoration: it is what the licence asks of whoever reuses the work.
-    "▓ CRÉDITOS ▓": "▓ CREDITS ▓",
-    "créditos y licencia": "credits and licence",
-    "Título": "Title",
-    "Fuente": "Source",
-    "Para citarla:": "To credit it:",
-    "de {artist}": "by {artist}",
-    " esc cerrar": " esc close",
-    "no pide nada: está en el dominio público": (
-        "asks for nothing: it is in the public domain"
-    ),
-    "cita al autor, y puedes usarla para lo que quieras": (
-        "credit the author, and use it for whatever you like"
-    ),
-    "cita al autor, y comparte los cambios con esta misma licencia": (
-        "credit the author, and share your changes under this same licence"
-    ),
     "«{title}» no abrió; reintentando…": "“{title}” did not open; trying again…",
     "no se pudo abrir «{title}»; saltando": ("could not open “{title}”; skipping it"),
-    "Todos los discos": "Every record",
-    "el catálogo entero": "the whole catalogue",
-    "ninguno de los discos de hoy trae audio que mpv pueda abrir": (
-        "none of today’s records carries audio mpv can open"
-    ),
-    "dominio público": "public domain",
-    "{who} contestó algo que no es JSON": (
-        "{who} answered with something that is not JSON"
-    ),
-    "no se pudo hablar con {who}: {error}": "could not reach {who}: {error}",
-    "{who} rechazó la petición: {error}": "{who} refused the request: {error}",
-    "{who} contestó sin resultados varias veces seguidas": (
-        "{who} answered with no results several times running"
-    ),
-    "{who} no devolvió nada con licencia permisiva": (
-        "{who} returned nothing under a permissive licence"
-    ),
-    "no hay un client_id de Jamendo configurado": ("no Jamendo client_id is configured"),
-    "no se encontró música con licencia libre": ("no freely licensed music was found"),
-    "créditos": "credits",
-    "créditos y licencia de la pista": "the track’s credits and licence",
-    "créditos y licencia (solo «Lofi sin copyright»)": (
-        "credits and licence (“Copyright-free lofi” only)"
-    ),
-    "los créditos son de «Lofi sin copyright»": ("credits are for “Copyright-free lofi”"),
-    "el Internet Archive no devolvió resultados": (
-        "the Internet Archive returned no results"
-    ),
-    "«Lofi sin copyright» no está en TIDAL: no hay dónde guardarlo": (
-        "“Copyright-free lofi” is not on TIDAL: there is nowhere to save it"
-    ),
-    "«{name}» no trae audio que mpv pueda abrir": (
-        "“{name}” carries no audio mpv can open"
-    ),
     "«{name}» no trae audio que reproducir": "“{name}” carries no audio to play",
-    "«{name}» no trae ficheros": "“{name}” carries no files",
-    "«{name}» es todo con voz": "“{name}” is all vocals",
+    "«{label}» no está en TIDAL": "“{label}” is not on TIDAL",
     "«{name}» no viene de TIDAL, que es de donde salen las letras": (
         "“{name}” does not come from TIDAL, which is where the lyrics come from"
     ),

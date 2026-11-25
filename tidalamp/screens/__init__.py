@@ -14,7 +14,6 @@ from .browser import BROWSER_HINTS, HINT_GAP, BrowserScreen, fit_hints
 from .choice import ChoiceScreen
 from .column_picker import ColumnsScreen, _crop, column_label
 from .config_window import _ATTRIBUTES, _FLAGS, ConfigScreen, Option
-from .credits import CreditsScreen, attribution
 from .equalizer import PRESET_LABELS, EqScreen
 from .fullscreen import FullscreenScreen
 from .help import HelpScreen
@@ -26,7 +25,7 @@ from .rowlist import RowChosen, RowList, RowMenu, _hex, _Paint
 from .speed import SpeedScreen, speed_text
 from .tracks import (
     CONTAINER_ACTIONS,
-    FREE_TRACK_ACTIONS,
+    LOCAL_TRACK_ACTIONS,
     TRACK_ACTIONS,
     PlaylistPickerScreen,
     TrackActionsScreen,
@@ -36,8 +35,8 @@ from .tracks import (
 __all__ = [
     "BROWSER_HINTS",
     "CONTAINER_ACTIONS",
-    "FREE_TRACK_ACTIONS",
     "HINT_GAP",
+    "LOCAL_TRACK_ACTIONS",
     "PRESET_LABELS",
     "TRACK_ACTIONS",
     "_ATTRIBUTES",
@@ -46,7 +45,6 @@ __all__ = [
     "ChoiceScreen",
     "ColumnsScreen",
     "ConfigScreen",
-    "CreditsScreen",
     "EqScreen",
     "FullscreenScreen",
     "HelpScreen",
@@ -65,7 +63,6 @@ __all__ = [
     "_crop",
     "_hex",
     "actions_for",
-    "attribution",
     "column_label",
     "favourite_message",
     "fit_hints",

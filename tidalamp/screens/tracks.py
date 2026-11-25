@@ -38,24 +38,13 @@ TRACK_ACTIONS: tuple[tuple[str, str, str, str], ...] = (
     ("album", "◎", "b", _("ir al álbum")),
 )
 
-# What a track that does not come from TIDAL offers. The other five verbs are
+# What a file on this computer offers: playing it. The other five verbs are
 # all things only TIDAL can do — its radio grows from a track in its
 # catalogue, and its favourites, its playlists, its artists and its albums are
-# its own — so on a free row they would be five entries that answer with an
+# its own — so on a local row they would be five entries that answer with an
 # error. Same actions, same letters, same order: what is missing is missing,
 # nothing has moved.
-FREE_TRACK_ACTIONS: tuple[tuple[str, str, str, str], ...] = (
-    ("play", "▶", "a", _("reproducir ahora")),
-    ("next", "↳", "c", _("reproducir a continuación")),
-    # The verb a TIDAL track has no use for. CC BY and CC BY-SA do not merely
-    # permit attribution, they require it, so the credit has to be reachable
-    # from the track and not buried in an about box.
-    ("credits", "©", "k", _("créditos y licencia")),
-)
-
-# And what a file on this computer offers: playing it. There is no licence
-# to credit — it is the user's own copy — so not even `k`.
-LOCAL_TRACK_ACTIONS = FREE_TRACK_ACTIONS[:2]
+LOCAL_TRACK_ACTIONS: tuple[tuple[str, str, str, str], ...] = TRACK_ACTIONS[:2]
 
 # What `m` offers on an album, an artist or a playlist: the same verbs, over
 # every track inside it, with the same letters. No radio: it grows from one
@@ -76,26 +65,21 @@ PLAYLIST_EXTRA: tuple[tuple[str, str, str, str], ...] = (
 )
 PLAYLIST_ACTIONS = CONTAINER_ACTIONS + PLAYLIST_EXTRA
 
-# And what `m` offers on a record in «Lofi sin copyright»: play it, or queue
-# it. Favourites and playlists belong to a TIDAL account, and this record is
-# not in one.
-FREE_CONTAINER_ACTIONS: tuple[tuple[str, str, str, str], ...] = (
-    ("play", "▶", "a", _("reproducir todo ahora")),
-    ("next", "↳", "c", _("reproducir todo a continuación")),
-)
+# And what `m` offers on a record or a folder in «Música local»: play it, or
+# queue it. Favourites and playlists belong to a TIDAL account, and these
+# files are not in one.
+LOCAL_CONTAINER_ACTIONS: tuple[tuple[str, str, str, str], ...] = CONTAINER_ACTIONS[:2]
 
 
 def actions_for(entry: object | None) -> tuple[tuple[str, str, str, str], ...]:
-    """The menu a track row gets: the whole one, the free one or the local one."""
-    if getattr(entry, "is_local", False):
-        return LOCAL_TRACK_ACTIONS
-    return TRACK_ACTIONS if getattr(entry, "is_tidal", True) else FREE_TRACK_ACTIONS
+    """The menu a track row gets: the whole one, or the local one."""
+    return TRACK_ACTIONS if getattr(entry, "is_tidal", True) else LOCAL_TRACK_ACTIONS
 
 
 def container_actions_for(row: object) -> tuple[tuple[str, str, str, str], ...]:
     """The menu an album, an artist or a playlist gets."""
     if not getattr(row, "is_tidal", True):
-        return FREE_CONTAINER_ACTIONS
+        return LOCAL_CONTAINER_ACTIONS
     return PLAYLIST_ACTIONS if getattr(row, "editable", False) else CONTAINER_ACTIONS
 
 
@@ -190,11 +174,7 @@ class TrackActionsScreen(ModalScreen[str | None]):
         Binding("enter", "choose", _("elegir"), show=False),
         *[
             Binding(letter, f"pick('{action}')", "", show=False)
-            for action, _icon, letter, _label in (
-                *TRACK_ACTIONS,
-                *FREE_TRACK_ACTIONS,
-                *PLAYLIST_EXTRA,
-            )
+            for action, _icon, letter, _label in (*TRACK_ACTIONS, *PLAYLIST_EXTRA)
         ],
     ]
 

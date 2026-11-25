@@ -1,7 +1,7 @@
 """The readout: what the display band says about the track and the sound.
 
 The artist, album and year under the clock, the source line (codec, rate,
-quality or licence, the analyser's source and the playback state, and the
+quality, the analyser's source and the playback state, and the
 gain while the volume is normalised) and the output line (the sink, its
 format and rate, and whether PipeWire is resampling).
 """
@@ -89,17 +89,15 @@ class Readout:
         if playable is None:
             source = f"SRC  — · {analyzer.source} · {self.playback_label()}"
         else:
-            # Only what is known. A TIDAL track knows all of it; a free one
-            # knows its codec and its licence and nothing else, and a line
-            # reading «— · — kHz» spends eleven cells saying so.
+            # Only what is known. A TIDAL track knows all of it; a file whose
+            # header says nothing knows its codec and nothing else, and a
+            # line reading «— · — kHz» spends eleven cells saying so.
             parts = [self.codec_label(playable)]
             if playable.kbps != "—":
                 parts.append(playable.kbps)
             if playable.khz != "—":
                 parts.append(f"{playable.khz} kHz")
-            tier = playable.licence or columns.QUALITY_LABELS.get(
-                playable.quality, playable.quality
-            )
+            tier = columns.QUALITY_LABELS.get(playable.quality, playable.quality)
             if tier:
                 parts.append(tier)
             parts += [analyzer.source, self.playback_label()]

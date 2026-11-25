@@ -56,7 +56,6 @@ from .screens import (
     BrowserScreen,
     ChoiceScreen,
     ConfigScreen,
-    CreditsScreen,
     EqScreen,
     FullscreenScreen,
     HelpScreen,
@@ -166,7 +165,6 @@ class TidalAmp(App):
         bind("save_playlist", _("guardar la cola como playlist")),
         bind("library", _("biblioteca"), show=True),
         bind("lyrics", _("letra"), show=True),
-        bind("credits", _("créditos")),
         bind("equalizer", _("ecualizador"), show=True),
         bind("shuffle", "shuffle", show=True),
         bind("repeat", "repeat", show=True),
@@ -781,30 +779,6 @@ class TidalAmp(App):
 
     def action_vol_down(self) -> None:
         self.mpv.volume = self.mpv.volume - 5
-
-    def action_credits(self) -> None:
-        """The credit of the row under the cursor, or of the track playing.
-
-        The cursor first, because that is what the eye is on: in the queue
-        `k` reads about the row you are looking at, the way `m` acts on it.
-        With the queue hidden, or nothing selected, it falls back to what is
-        sounding, which is the only thing there is to ask about then.
-        """
-        row = None
-        if not self.queue_hidden() and self.query("#playlist"):
-            row = self.query_one("#playlist", RowList).current
-        entry = row.entry if row is not None and row.entry is not None else None
-        if entry is None:
-            entry = self.queue.current
-        if entry is None:
-            self.status = _("no hay una pista reproduciéndose")
-            return
-        if entry.is_tidal or entry.is_local:
-            # Not a failure worth a red line: TIDAL's catalogue has no licence
-            # that asks anything of the listener and no page to point at.
-            self.status = _("los créditos son de «Lofi sin copyright»")
-            return
-        self.push_screen(CreditsScreen(entry))
 
     def action_lyrics(self) -> None:
         # In the full-screen view the words are a panel beside the cover, not

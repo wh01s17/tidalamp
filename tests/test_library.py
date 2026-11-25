@@ -1,6 +1,6 @@
 """Browsing TIDAL: search, the playlist listing, favourites, the radio, the
 album year, TIDAL's own orders, the artist and the album of a track, and
-«Lofi sin copyright»."""
+what is not TIDAL's."""
 
 from __future__ import annotations
 
@@ -576,182 +576,13 @@ def test_go_to_the_artist_that_was_picked_asks_for_that_one():
     assert asked == ["artist:9"]
 
 
-# ------------------------------------------- «Lofi sin copyright»: a station,
-# the only level in the browser that is not TIDAL's
+# ------------------------------------------------------------ not TIDAL's
 
 
-def free_tracks(n: int = 3):
-    from tidalamp.music import Track
-
-    return [
-        Track(
-            url=f"https://archive.org/download/x/{i}.mp3",
-            title=f"pista {i}",
-            artist=f"artista {i}",
-            album="Tame The Beast",
-            licence="CC BY",
-            duration=174,
-            track_num=i,
-            codec="MP3",
-            art_url="https://archive.org/services/img/x",
-        )
-        for i in range(1, n + 1)
-    ]
-
-
-def fake_archive(monkeypatch, albums=None, songs=None):
-    """Stand in for the Internet Archive, station and catalogue both.
-
-    Both, always: a test that patched only one of them went out to the real
-    network for the other, which is how the first draft of these passed
-    against live data without anybody noticing.
-    """
-    from tidalamp.archive import Album
-
-    records = (
-        albums
-        if albums is not None
-        else [
-            Album("x", "Tame The Beast", "Lofi Lion", "CC BY", 2021),
-            Album("y", "Field Experience", "", "CC0", 2012),
-        ]
-    )
-    picked = free_tracks() if songs is None else songs
-    monkeypatch.setattr(library.archive, "albums", lambda offset=0, limit=100: records)
-    monkeypatch.setattr(library.archive, "tracks", lambda album: picked)
-    monkeypatch.setattr(library.freemusic, "station", lambda day=None: picked)
-    # No client id, so the catalogue row is there to test: with Jamendo it
-    # would be a browse of some other library (`_free_level`).
-    monkeypatch.setattr(library.jamendo.config, "JAMENDO_ID", "")
-    return records, picked
-
-
-def free_level(monkeypatch, session=None) -> list[Row]:
-    levels.forget()
-    rows = library.root(session or FakeSession())
-    return next(r for r in rows if r.key == "free").loader()
-
-
-def test_the_free_section_is_the_last_row_of_the_root():
-    """Last on purpose. The four levels above it are what the account holds
-    and the tests that count on their positions must keep counting right."""
-    rows = library.root(FakeSession())
-    assert rows[-1].key == "free"
-    assert rows[-1].label == "Lofi sin copyright"
-    # Experimental, and saying so: the «lofi hip hop radio» sound is a
-    # label's catalogue and none of it is Creative Commons, so the row has to
-    # be honest about being the closest a free one gets.
-    assert rows[-1].detail == "experimental · la selección de hoy"
-    assert [r.key for r in rows[:4]] == [
-        "playlists",
-        "fav:tracks",
-        "fav:albums",
-        "fav:artists",
-    ]
-
-
-def test_the_section_opens_straight_onto_music(monkeypatch):
-    """A station, not a catalogue. Opening it used to land on a list of
-    strangers' records to audition one at a time; it now lands on the day."""
-    fake_archive(monkeypatch)
-    rows = free_level(monkeypatch)
-    assert [row.label for row in rows[:3]] == [
-        "artista 1 - pista 1",
-        "artista 2 - pista 2",
-        "artista 3 - pista 3",
-    ]
-    assert all(row.is_playable for row in rows[:-1])
-
-
-def test_playing_the_whole_row_plays_the_day_and_not_the_catalogue_row(monkeypatch):
-    """`a` on «Lofi sin copyright» is the station's play button."""
-    fake_archive(monkeypatch)
-    levels.forget()
-    row = next(r for r in library.root(FakeSession()) if r.key == "free")
-    assert row.loader is not None
-    entries = levels.all_entries(row.loader)
-    assert [entry.title for entry in entries] == ["pista 1", "pista 2", "pista 3"]
-
-
-def test_the_catalogue_is_the_last_row_and_opens_to_the_records(monkeypatch):
-    """Where the «más…» of every other level sits: there for whoever wants to
-    dig, out of the way of whoever wants to listen."""
-    fake_archive(monkeypatch)
-    last = free_level(monkeypatch)[-1]
-    assert last.label == "Todos los discos"
-    assert not last.is_playable
-    assert last.loader is not None
-    records = last.loader()
-    assert [row.label for row in records] == [
-        "Lofi Lion - Tame The Beast",
-        "Field Experience",
-    ]
-
-
-def test_the_catalogue_has_no_more_row_because_it_is_one_level(monkeypatch):
-    """The Archive's count includes what the junk filter then drops, so a
-    «más…» built from it would lead to nothing."""
-    fake_archive(monkeypatch)
-    records = free_level(monkeypatch)[-1].loader()
-    assert all(row.more is None for row in records)
-
-
-def test_a_free_record_shows_its_licence_where_an_album_shows_its_year(monkeypatch):
-    fake_archive(monkeypatch)
-    records = free_level(monkeypatch)[-1].loader()
-    assert records[0].detail == "2021 · CC BY"
-    # No creator: the licence carries the byline, so the tile is not blank.
-    assert records[1].byline == "CC0"
-
-
-def test_nothing_in_the_section_is_tidals(monkeypatch):
-    """What the menus read to decide which verbs to offer."""
-    fake_archive(monkeypatch)
-    rows = free_level(monkeypatch)
-    assert not rows[0].is_tidal, "la pista del día"
-    assert not rows[-1].is_tidal, "la fila del catálogo"
-    assert not rows[-1].loader()[0].is_tidal, "un disco del catálogo"
-    # Everything above it is TIDAL's, but for the files on this computer.
-    assert all(
-        row.is_tidal for row in library.root(FakeSession())[:-1] if row.key != "local"
-    )
-
-
-def test_opening_a_record_from_the_catalogue_gives_playable_rows(monkeypatch):
-    fake_archive(monkeypatch)
-    tracks = free_level(monkeypatch)[-1].loader()[0].loader()
-    assert [row.label for row in tracks] == [
-        "artista 1 - pista 1",
-        "artista 2 - pista 2",
-        "artista 3 - pista 3",
-    ]
-    entry = tracks[0].entry
-    assert entry is not None and not entry.is_tidal
-    assert entry.url.endswith("/1.mp3")
-    assert entry.licence == "CC BY"
-
-
-def test_a_free_row_cannot_be_favourited(monkeypatch):
-    """Favourites belong to a TIDAL account and nothing here is in one. The
-    message has to say that rather than «eso no es una pista»."""
-    fake_archive(monkeypatch)
-    record = free_level(monkeypatch)[-1].loader()[0]
+def test_a_local_row_cannot_be_favourited():
+    """Favourites belong to a TIDAL account and a file on this computer is
+    not in one. The message has to say that rather than «eso no es una
+    pista»."""
+    row = Row(label="Álbumes", key="local:albums", source="local")
     with pytest.raises(library.NotFavouritable, match="no está en TIDAL"):
-        library.favourite(FakeSession(), record)
-
-
-def test_a_free_track_cannot_be_favourited_either(monkeypatch):
-    fake_archive(monkeypatch)
-    with pytest.raises(library.NotFavouritable, match="no está en TIDAL"):
-        library.favourite(FakeSession(), free_level(monkeypatch)[0])
-
-
-def test_under_a_jamendo_day_there_is_no_archive_catalogue(monkeypatch):
-    """The catalogue is the Internet Archive's, so it only belongs under a
-    day the Archive drew. Under a Jamendo day it would be a browse of some
-    other library, with other records and other artists."""
-    fake_archive(monkeypatch)
-    monkeypatch.setattr(library.jamendo.config, "JAMENDO_ID", "testing")
-    rows = free_level(monkeypatch)
-    assert all(row.is_playable for row in rows), "sólo pistas, sin fila de catálogo"
-    assert not any(row.label == "Todos los discos" for row in rows)
+        library.favourite(FakeSession(), row)

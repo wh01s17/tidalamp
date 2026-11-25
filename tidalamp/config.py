@@ -121,7 +121,6 @@ ENV_VARS: dict[str, str] = {
     "autoplay": "TIDALAMP_AUTOPLAY",
     "replaygain": "TIDALAMP_REPLAYGAIN",
     "library_view": "TIDALAMP_LIBRARY_VIEW",
-    "jamendo_id": "TIDALAMP_JAMENDO_ID",
     "mpv_path": "TIDALAMP_MPV_PATH",
     "exclusive": "TIDALAMP_EXCLUSIVE",
     "audio_device": "TIDALAMP_AUDIO_DEVICE",
@@ -261,21 +260,6 @@ REPLAYGAIN = setting("replaygain", "TIDALAMP_REPLAYGAIN", "off")
 # a list. `v` in the browser switches it and writes it here.
 LIBRARY_VIEW = setting("library_view", "TIDALAMP_LIBRARY_VIEW", "list")
 
-# Which application «Lofi sin copyright» asks Jamendo for its music as.
-#
-# **Not a secret, and not treated as one.** Jamendo hands out two
-# credentials: this one, which names the application and rides along in
-# every read request — it is in plain sight in the JavaScript of every site
-# built on Jamendo — and a `client_secret`, which signs OAuth writes against
-# a user's account. tidalamp only ever reads a catalogue, so it never has a
-# secret to keep, and the project's own id ships here in the open.
-#
-# It is a setting all the same, because the quota is per application: if
-# enough people run tidalamp to crowd the shared one, anybody can register
-# their own at devportal.jamendo.com and put it here. Empty falls back to
-# the Internet Archive.
-JAMENDO_ID = setting("jamendo_id", "TIDALAMP_JAMENDO_ID", "561f5c40")
-
 # The mpv to run, when the one on the PATH is not it or there is none: a full
 # path to the executable. Empty looks for it (`player._find_mpv`).
 MPV_PATH = setting("mpv_path", "TIDALAMP_MPV_PATH", "")
@@ -394,7 +378,7 @@ def reload() -> None:
     """
     global FILE, DEFAULT_QUALITY, ARTWORK, LANGUAGE, THEME, PALETTE, COLUMNS
     global DEBUG, TRANSPARENCY, KEYS, VISUALIZER, ARRANGEMENT, BACKDROP, COVER_SHAPE
-    global AUTOPLAY, REPLAYGAIN, LIBRARY_VIEW, JAMENDO_ID, MPV_PATH, EXCLUSIVE
+    global AUTOPLAY, REPLAYGAIN, LIBRARY_VIEW, MPV_PATH, EXCLUSIVE
     global AUDIO_DEVICE, LOCAL_FOLDERS
     FILE = read_file()
     DEFAULT_QUALITY = setting("quality", "TIDALAMP_QUALITY", "HI_RES_LOSSLESS")
@@ -411,7 +395,6 @@ def reload() -> None:
     TRANSPARENCY = flag("transparency", "TIDALAMP_TRANSPARENCY")
     AUTOPLAY = flag("autoplay", "TIDALAMP_AUTOPLAY")
     REPLAYGAIN = setting("replaygain", "TIDALAMP_REPLAYGAIN", "off")
-    JAMENDO_ID = setting("jamendo_id", "TIDALAMP_JAMENDO_ID", "561f5c40")
     MPV_PATH = setting("mpv_path", "TIDALAMP_MPV_PATH", "")
     EXCLUSIVE = flag("exclusive", "TIDALAMP_EXCLUSIVE")
     AUDIO_DEVICE = setting("audio_device", "TIDALAMP_AUDIO_DEVICE", "auto")

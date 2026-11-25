@@ -18,7 +18,7 @@ from typing import Any, cast
 import tidalapi
 from tidalapi.types import AlbumOrder, ArtistOrder, ItemOrder, OrderDirection
 
-from . import archive, freemusic, jamendo, local
+from . import local
 from .i18n import _
 from .levels import (
     ALBUM_BY,
@@ -38,9 +38,8 @@ from .levels import (
     cached,
     forget_level,
 )
-from .music import Track
 from .net import with_retries
-from .queue import FREE, LOCAL, Entry
+from .queue import LOCAL, Entry
 
 log = logging.getLogger("tidalamp.library")
 
@@ -492,94 +491,6 @@ def _discover_rows(session: Any) -> list[Row]:
     return rows
 
 
-def _free_track_rows(tracks: Iterable[Track]) -> list[Row]:
-    rows = []
-    for track in tracks:
-        entry = Entry.from_free(track)
-        rows.append(Row(label=entry.label, detail=entry.length, entry=entry))
-    return rows
-
-
-def _free_album_level(
-    album: archive.Album, order: Order | None = None
-) -> Callable[[], list[Row]]:
-    """One item's tracks. A single request brings all of them, so there is no
-    «más…» here and the level sorts locally like an album's does — which is
-    why ``order`` is taken and ignored, exactly as `_album_level` does under
-    ``local=True``."""
-    return lambda: _free_track_rows(archive.tracks(album))
-
-
-def _free_album_rows(albums: Iterable[archive.Album]) -> list[Row]:
-    rows = []
-    for album in albums:
-        rows.append(
-            Row(
-                label=(
-                    f"{album.creator} - {album.title}" if album.creator else album.title
-                ),
-                # The licence where a TIDAL album shows its year: it is the
-                # reason this section exists, so it goes where it is read.
-                detail=" · ".join(
-                    part for part in (str(album.year or ""), album.licence) if part
-                ),
-                art=album.art_url,
-                caption=album.title,
-                byline=album.creator or album.licence,
-                source=FREE,
-                **_sortable(
-                    f"free:{album.identifier}",
-                    ALBUM_TRACK_BY,
-                    partial(_free_album_level, album),
-                    local=True,
-                ),
-            )
-        )
-    return rows
-
-
-def _free_catalogue_level() -> Callable[[], list[Row]]:
-    """Every record in the pool, in one level and one request.
-
-    Not paged: the genre filter cut the pool to some 120 records, which is a
-    level the browser draws without noticing, and `_paged` would have to trust
-    the Archive's count — which counts what the junk filter then throws away,
-    so it would offer a «más…» leading to nothing.
-    """
-    return lambda: _free_album_rows(archive.albums(limit=archive.POOL))
-
-
-def _free_level() -> Callable[[], list[Row]]:
-    """The day's station: its tracks, and the catalogue behind the last row.
-
-    Tracks and not records, because this is a station: `a` on the row plays
-    the day straight through, ↵ on a track plays that one, and nobody has to
-    audition strangers a record at a time to hear something. The catalogue is
-    still there for whoever wants to dig, as the last row, where the «más…»
-    of every other level sits.
-    """
-
-    def load() -> list[Row]:
-        rows = _free_track_rows(freemusic.station())
-        # The catalogue is the Internet Archive's, so it only belongs under a
-        # day the Archive drew. Under a Jamendo day it would be a browse of
-        # some other library, with other records and other artists, which is
-        # a worse thing to offer than nothing at all.
-        if not jamendo.configured():
-            rows.append(
-                Row(
-                    label=_("Todos los discos"),
-                    detail=_("el catálogo entero"),
-                    key="free:all",
-                    loader=cached("free:all", _free_catalogue_level()),
-                    source=FREE,
-                )
-            )
-        return rows
-
-    return load
-
-
 # ------------------------------------------------------------- «Música local»
 
 # The scan the local levels share, so opening «Álbumes» after «Música local»
@@ -880,27 +791,14 @@ def root(session: tidalapi.Session) -> list[Row]:
             loader=cached("discover", partial(_discover_rows, session)),
         ),
         # The files on this computer: FLAC up to 24/192, DSD, and whatever
-        # else mpv opens. After what TIDAL proposes, before the free section.
+        # else mpv opens. After what TIDAL proposes, and last, because it is
+        # the one level that is not TIDAL's.
         Row(
             _("Música local"),
             _("FLAC y hi-res desde tus carpetas"),
             key="local",
             loader=cached("local", _local_level),
             source=LOCAL,
-        ),
-        # The only level that is not TIDAL's. Last, after everything the
-        # account holds and everything TIDAL proposes, because it is the odd
-        # one out: no subscription, no session, and a licence on every row.
-        Row(
-            _("Lofi sin copyright"),
-            # Experimental, and it says so, because what it can promise and
-            # what somebody arrives wanting are not the same thing: the
-            # «lofi hip hop radio» sound is a label's catalogue and none of
-            # it is Creative Commons. This is the closest a free catalogue
-            # gets, and the label is what keeps that honest.
-            _("experimental · la selección de hoy"),
-            key="free",
-            loader=cached("free", _free_level()),
         ),
     ]
 
@@ -1047,10 +945,8 @@ def favourite(session: tidalapi.Session, row: Row, add: bool = True) -> str:
     """
     if not row.is_tidal:
         # Not a failure to report as an error: favourites are a TIDAL
-        # account's, and nothing in «Lofi sin copyright» is in one.
-        raise NotFavouritable(
-            _("«Lofi sin copyright» no está en TIDAL: no hay dónde guardarlo")
-        )
+        # account's, and a file on this computer is not in one.
+        raise NotFavouritable(_("«{label}» no está en TIDAL").format(label=row.label))
     favorites = _me(session).favorites
     entry = row.entry
     if entry is not None:

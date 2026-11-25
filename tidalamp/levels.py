@@ -310,8 +310,8 @@ class Row:
     caption: str = ""
     byline: str = ""
     # Where the level under this row comes from, as `Entry.source` says it
-    # for a track. Only «Lofi sin copyright» is not TIDAL's, and the screens
-    # read it to know which verbs to offer over the row.
+    # for a track. Only «Música local» is not TIDAL's, and the screens read
+    # it to know which verbs to offer over the row.
     source: str = TIDAL
     # What a level sorted here (not by TIDAL) sorts by date and by release:
     # when the row's file or record arrived, and the year it came out. Only

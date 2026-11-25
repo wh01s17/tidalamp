@@ -352,7 +352,7 @@ class Playback:
         try:
             # An access token only lasts a few hours, less than a listening
             # session; refresh it here rather than letting the next call fail.
-            # A free row needs neither: it carries its own URL, and
+            # A local row needs neither: it carries its own path, and
             # refreshing a TIDAL token to play something that is not TIDAL's
             # would be a request per track for nothing.
             if entry.is_tidal and auth.ensure_fresh(self.app.session):
@@ -437,9 +437,8 @@ class Playback:
         half later, saying nothing. A queue of them raced past in seconds.
 
         Worth retrying rather than skipping, because the failure that causes
-        this is usually a moment's worth: the Internet Archive answers 500
-        under load and the very same URL comes back 206 a second later,
-        measured on four of them. TIDAL's CDN does the same. So it is tried
+        this is usually a moment's worth: TIDAL's CDN answers 500 under load
+        and the very same URL comes back 206 a second later. So it is tried
         again, from where it was, and only then given up on and named.
         """
         entry, playable = self.app.queue.current, self.playable

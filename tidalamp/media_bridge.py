@@ -35,9 +35,9 @@ def entry_metadata(entry: Entry) -> dict:
         "artist": entry.artist,
         "album": entry.album,
         "art_url": entry.art_url,
-        # A free row's audio is a real URL; a TIDAL one has none that
-        # outlives the play, so it gets the scheme its own clients use.
-        # A local one is a path, and MPRIS wants a URI for it.
+        # A TIDAL row has no URL that outlives the play, so it gets the
+        # scheme its own clients use. A local one is a path, and MPRIS
+        # wants a URI for it.
         "url": (
             Path(entry.url).as_uri()
             if entry.is_local

@@ -21,7 +21,6 @@ from ..keys import keys_for
 from ..levels import Row
 from ..widgets import Spinner
 from .choice import ChoiceScreen
-from .credits import CreditsScreen
 from .grid import GridList, cached_cells, cover_cells
 from .help import HelpScreen
 from .playlist_edits import PlaylistEdits, favourite_message
@@ -93,7 +92,6 @@ class BrowserScreen(ModalScreen[tuple | None]):
         Binding("a", "append_one", _("añadir"), show=False),
         Binding("A", "append_all", _("añadir todo"), show=False),
         Binding("m", "menu", _("menú"), show=False),
-        Binding("k", "credits", _("créditos"), show=False),
         Binding("R", "reload", _("recargar"), show=False),
         Binding("s", "sort", _("ordenar"), show=False),
         Binding("d,delete", "remove", _("quitar"), show=False),
@@ -766,20 +764,12 @@ class BrowserScreen(ModalScreen[tuple | None]):
             )
         elif row.loader is not None:
             # A playlist of yours can also be renamed, described and deleted;
-            # a record in «Lofi sin copyright» can only be played.
+            # a record on this computer can only be played.
             actions = container_actions_for(row)
             self.app.push_screen(
                 TrackActionsScreen(row.label, actions),
                 partial(self._act_on_container, row),
             )
-
-    def action_credits(self) -> None:
-        """`k`: who made the row under the cursor, and what it asks of you."""
-        row = self._list().current
-        if row is None or row.entry is None:
-            return
-        if not row.entry.is_tidal and not row.entry.is_local:
-            self.app.push_screen(CreditsScreen(row.entry))
 
     def _act_on_container(self, row: Row, action: str | None) -> None:
         if action is None:
@@ -832,11 +822,6 @@ class BrowserScreen(ModalScreen[tuple | None]):
             return
         if action == "album":
             self._go_to(row.entry, "album")
-            return
-        if action == "credits":
-            # Over this level rather than dismissing it: reading a credit is
-            # not leaving the browser, and ⌫ should come back to the track.
-            self.app.push_screen(CreditsScreen(row.entry))
             return
         if action == "play":
             # The whole level goes into the queue, so the rest follows on —

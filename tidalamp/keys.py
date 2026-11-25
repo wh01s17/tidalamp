@@ -33,9 +33,6 @@ DEFAULT_KEYS: dict[str, str] = {
     "save_playlist": "p",
     "library": "l",
     "lyrics": "y",
-    # Next to `y`: both answer «what is this», one with the words and the
-    # other with who made it and what its licence asks.
-    "credits": "k",
     "equalizer": "e",
     "shuffle": "s",
     "repeat": "r",

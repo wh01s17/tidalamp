@@ -126,7 +126,7 @@ class Prefetcher:
         the time, and from the disk cache it is quick. Failures are silent,
         and the track's own turn fetches again and says why.
 
-        A free row has a cover and no lyrics: TIDAL is the only provider
+        A local row has a cover and no lyrics: TIDAL is the only provider
         here, and it knows nothing about a track that is not in its
         catalogue.
         """

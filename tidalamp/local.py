@@ -11,8 +11,8 @@ takes a while; checking that they have not changed takes very little. Every
 file read goes into `INDEX_FILE` with its size and modification time, and the
 next scan reads again only what is new or touched since.
 
-Nothing here knows about ``Row`` or Textual, like `music` for the free
-section: `library` turns these into rows.
+Nothing here knows about ``Row`` or Textual: `library` turns these into
+rows.
 """
 
 from __future__ import annotations
@@ -47,7 +47,7 @@ _IMAGE_EXTENSIONS = (".jpg", ".jpeg", ".png", ".webp")
 
 # Every file read so far, so the next scan reads only what changed. Keyed by
 # path; bump the version whenever `Track` changes shape, or an old index
-# loads quietly wrong (see `freemusic.STATION_VERSION`).
+# loads quietly wrong.
 INDEX_FILE = CACHE_DIR / "local-index.json"
 INDEX_VERSION = 1
 # Covers that only exist inside a file, written out once so the artwork code
@@ -83,10 +83,11 @@ class Track:
 
     @property
     def id(self) -> int:
-        """A stable negative id, unique to this file and never a free one's.
+        """A stable negative id, unique to this file.
 
-        Negative for the same reasons as `music.Track.id`; the prefix keeps a
-        file from ever colliding with a free track's URL.
+        Negative so that it can never be taken for a TIDAL track's id, which
+        is always positive. The `local:` prefix is part of the hash, and
+        changing it would orphan every local row in a saved queue.
         """
         return -(zlib.crc32(f"local:{self.path}".encode()) or 1)
 

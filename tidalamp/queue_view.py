@@ -21,7 +21,6 @@ from .levels import Row
 from .queue import Entry, Repeat
 from .screens import (
     BrowserScreen,
-    CreditsScreen,
     FullscreenScreen,
     PlaylistPickerScreen,
     RowList,
@@ -225,9 +224,6 @@ class QueueView:
             return
         if action == "album":
             self.open_browser_at(entry, "album")
-            return
-        if action == "credits":
-            self.app.push_screen(CreditsScreen(entry))
             return
         self.browser_answered((action, [entry], 0))
 
