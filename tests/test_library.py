@@ -1,6 +1,6 @@
 """Browsing TIDAL: search, the playlist listing, favourites, the radio, the
 album year, TIDAL's own orders, the artist and the album of a track, and
-what is not TIDAL's."""
+the root of the library."""
 
 from __future__ import annotations
 
@@ -576,7 +576,47 @@ def test_go_to_the_artist_that_was_picked_asks_for_that_one():
     assert asked == ["artist:9"]
 
 
-# ------------------------------------------------------------ not TIDAL's
+# ------------------------------------------------------------------ the root
+
+
+def test_the_root_lists_what_you_keep_then_what_tidal_proposes_then_your_files():
+    keys = [row.key for row in library.root(FakeSession())]
+    assert keys == [
+        "fav:tracks",
+        "fav:albums",
+        "fav:artists",
+        "playlists",
+        "mixes",
+        "discover",
+        "local",
+    ]
+
+
+def test_every_root_row_has_an_icon_of_one_cell():
+    """One glyph per kind of level, and all different: two rows with the
+    same icon would say they hold the same kind of thing."""
+    from rich.cells import cell_len
+
+    icons = [row.icon for row in library.root(FakeSession())]
+    assert all(icon and cell_len(icon) == 1 for icon in icons)
+    assert len(set(icons)) == len(icons)
+
+
+def test_the_icon_sits_between_the_number_and_the_label():
+    from tidalamp.screens.rowlist import RowList
+
+    row = Row(label="Pistas favoritas", icon="♪")
+    line = RowList._line(row, 0, -1, 40, 0)
+    assert line.startswith("›  1. ♪ Pistas favoritas")
+    # The label is still the label: the filter and the title read it.
+    assert row.label == "Pistas favoritas"
+
+
+def test_a_row_without_an_icon_draws_as_before():
+    from tidalamp.screens.rowlist import RowList
+
+    line = RowList._line(Row(label="Schism"), 0, -1, 30, 0)
+    assert line.startswith("›  1. Schism")
 
 
 def test_a_local_row_cannot_be_favourited():

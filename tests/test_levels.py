@@ -120,8 +120,8 @@ def test_forgetting_everything_clears_every_level():
 
 def test_favourite_levels_are_cached_too(monkeypatch):
     session = FakeSession(total=3)
-    library.root(session)[1].loader()
-    library.root(session)[1].loader()
+    for _ in range(2):
+        next(r for r in library.root(session) if r.key == "fav:tracks").loader()
     assert session.favorites.calls == [(0, PAGE)]
 
 

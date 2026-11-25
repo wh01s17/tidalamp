@@ -318,6 +318,9 @@ class Row:
     # «Música local» fills them; everywhere else TIDAL sorts by date itself.
     added: float = 0.0
     year: int = 0
+    # A glyph drawn between the number and the label, saying what kind of
+    # thing the level holds. Only the root's rows carry one (`ROOT_ICONS`).
+    icon: str = ""
 
     @property
     def is_playable(self) -> bool:

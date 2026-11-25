@@ -443,7 +443,7 @@ class RowList(Widget):
             return set_cell_size(line, width)
 
         detail = cls._cell(row.detail, detail_width, "right") if detail_width else ""
-        head = f"{marker}{number:>3}. "
+        head = f"{marker}{number:>3}. " + (f"{row.icon} " if row.icon else "")
         left_width = max(0, width - detail_width - (1 if detail else 0))
         left = head + cls._slide(row.label, left_width - cell_len(head), moved)
         line = set_cell_size(left, left_width)

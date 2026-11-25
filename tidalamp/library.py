@@ -714,20 +714,34 @@ def _local_level() -> list[Row]:
     ]
 
 
+# The icon at the head of each row of the root, one per kind of thing the
+# level holds. The same glyphs the track menu already uses for the same
+# things — ♪ a track, ◎ an album, ◉ an artist, ≡ a playlist, ≈ a radio —
+# so a glyph means one thing across the whole app. Every one is a single
+# cell with no emoji form: `⏸` fell into a colour emoji font on Linux and on
+# Windows, and a glyph that does that here would push the label out of line.
+ROOT_ICONS = {
+    "fav:tracks": "♪",
+    "fav:albums": "◎",
+    "fav:artists": "◉",
+    "playlists": "≡",
+    # A mix is TIDAL's radio by another name: tracks it picked around a seed.
+    "mixes": "≈",
+    "discover": "✦",
+    # A house: what is on this computer and not in anybody's catalogue.
+    "local": "⌂",
+}
+
+
 def root(session: tidalapi.Session) -> list[Row]:
-    """The top level of the browser."""
+    """The top level of the browser.
+
+    What the account keeps first, by kind — tracks, albums, artists, then the
+    playlists made of them — then what TIDAL proposes, and last the files on
+    this computer, the one level that needs no subscription.
+    """
     favorites = _me(session).favorites
-    return [
-        Row(
-            _("Mis playlists"),
-            "",
-            **_sortable(
-                "playlists",
-                PLAYLIST_BY,
-                lambda order: _playlists_level(session, order),
-                created=True,
-            ),
-        ),
+    rows = [
         Row(
             _("Pistas favoritas"),
             "",
@@ -773,9 +787,16 @@ def root(session: tidalapi.Session) -> list[Row]:
                 ),
             ),
         ),
-        # Last, not next to the playlists: the four above are what the
-        # account holds, and the tests and the muscle memory both count on
-        # where they are.
+        Row(
+            _("Mis playlists"),
+            "",
+            **_sortable(
+                "playlists",
+                PLAYLIST_BY,
+                lambda order: _playlists_level(session, order),
+                created=True,
+            ),
+        ),
         Row(
             _("Mis mixes"),
             "",
@@ -791,8 +812,8 @@ def root(session: tidalapi.Session) -> list[Row]:
             loader=cached("discover", partial(_discover_rows, session)),
         ),
         # The files on this computer: FLAC up to 24/192, DSD, and whatever
-        # else mpv opens. After what TIDAL proposes, and last, because it is
-        # the one level that is not TIDAL's.
+        # else mpv opens. Last, because it is the one level that is not
+        # TIDAL's: no subscription and no session.
         Row(
             _("Música local"),
             _("FLAC y hi-res desde tus carpetas"),
@@ -801,6 +822,9 @@ def root(session: tidalapi.Session) -> list[Row]:
             source=LOCAL,
         ),
     ]
+    for row in rows:
+        row.icon = ROOT_ICONS.get(row.key, "")
+    return rows
 
 
 class NotFavouritable(RuntimeError):
