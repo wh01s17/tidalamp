@@ -64,6 +64,15 @@ def releases() -> tuple[Release, ...]:
     """Newest first. Translated at call time, not at import time."""
     return (
         Release(
+            "0.26.0",
+            "2026-11-25",
+            (
+                _("Modo offline: sólo música local, sin sesión de TIDAL."),
+                _("Al desactivarlo vuelve la sesión, sin otro login."),
+                _("Iniciar sesión en TIDAL desde la configuración (o)."),
+            ),
+        ),
+        Release(
             "0.25.0",
             "2026-11-25",
             (

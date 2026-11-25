@@ -224,6 +224,16 @@ ENGLISH: dict[str, str] = {
     "La biblioteca abre por fecha, lo más reciente primero.": (
         "The library opens by date, most recent first."
     ),
+    # --- 0.26.0, in the help's list of changes
+    "Modo offline: sólo música local, sin sesión de TIDAL.": (
+        "Offline mode: local music only, with no TIDAL session."
+    ),
+    "Al desactivarlo vuelve la sesión, sin otro login.": (
+        "Turning it off brings the session back, with no new login."
+    ),
+    "Iniciar sesión en TIDAL desde la configuración (o).": (
+        "Log in to TIDAL from the settings (o)."
+    ),
     # --- 0.25.0, in the help's list of changes
     "La biblioteca, en otro orden y con un icono por fila.": (
         "The library, in a new order and with an icon on every row."

@@ -4,7 +4,13 @@ Documento de traspaso. Describe qué existe, qué está verificado, qué falta y
 criterio se tomaron las decisiones, para que cualquiera (humano o modelo) pueda
 retomar el trabajo sin contexto previo.
 
-**Última actualización:** 2026-11-25, versión `0.25.0` publicada en PyPI y GitHub,
+**Última actualización:** 2026-11-25, versión `0.26.0` preparada para publicar:
+modo offline (sólo música local, sin sesión de TIDAL; se ofrece al arrancar sin
+sesión, con `offline = true` o desde `o`), la sesión vuelve sin login al
+desactivarlo, e «Iniciar sesión en TIDAL» desde la configuración, con el enlace
+que se abre en el navegador o se copia. Ver §4, «Modo offline».
+
+2026-11-25, versión `0.25.0` publicada en PyPI y GitHub,
 con el tag `v0.25.0` sobre `0623a3f` y el checksum del tarball en `packaging/aur/`.
 CI en verde en Linux (Python 3.11–3.14), Windows (3.11 y 3.14), instalaciones sin
 extras y lint, ya con `-n auto`; ZIP de Windows adjunto al Release. Lo nuevo:

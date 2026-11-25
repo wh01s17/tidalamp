@@ -5,6 +5,8 @@ versioning is [semantic](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.26.0] - 2026-11-25
+
 ### Added
 
 - **Offline mode**, for local music without TIDAL. With no session (or no TIDAL to
