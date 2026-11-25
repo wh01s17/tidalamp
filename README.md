@@ -312,7 +312,7 @@ with `↵` and go back with `⌫`. A mix opens like a playlist, but it cannot be
 `d` do nothing there.
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/wh01s17/tidalamp/main/img/library.webp?v=0.25.0" alt="The library browser open over the player: My library, with my playlists, favourite tracks, albums and artists, my mixes, Discover, and Copyright-free lofi, marked experimental and today's selection" width="880">
+  <img src="https://raw.githubusercontent.com/wh01s17/tidalamp/main/img/library.webp?v=0.25.0-2" alt="The library browser open over the player: My library, each row with its icon — favourite tracks, albums and artists, my playlists, my mixes, Discover, and local music, FLAC and hi-res from your folders" width="880">
 </p>
 
 An artist opens to its sections: popular tracks, albums, EPs and singles, and other

@@ -283,6 +283,8 @@ No se borran: quedan escritos con el motivo para no volver a discutirlos desde c
   ISRC con TIDAL o con lo local, o manejar un dispositivo Spotify Connect, con el audio
   fuera de mpv: sin rates, ecualizador, cava ni gapless. El mantenedor lo descartó.
 
+- *Las dos entradas siguientes quedan como registro: «Lofi sin copyright» se retiró en
+  la `0.25.0` (`plan.md` §4, «Lofi sin copyright: retirada»).*
 - **Emisoras lofi en vivo** (2026-09-20), de Radio Browser, como segunda fila de
   «Lofi sin copyright». La API responde sin clave y tiene emisoras lofi de sobra, pero
   no hay forma de verificar qué emiten, así que la fila dejaría de merecer su nombre.

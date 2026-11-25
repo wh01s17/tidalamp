@@ -178,8 +178,8 @@ Estado a la v0.15.0.
 
 Módulos que **no** hay que tocar: `library.py`, `queue.py`, `net.py`, `lyrics.py`,
 `analyzer.py`, `settings.py`, `widgets.py`, `layouts.py`, `scrolling.py`, `columns.py`,
-`about.py`, `archive.py`, `music.py`, `freemusic.py`, `jamendo.py` y todo `screens/`
-salvo `config_window.py`. Se ha comprobado con grep que ninguno usa sockets, `chmod`,
+`about.py` y todo `screens/` salvo `config_window.py` (los cuatro módulos de «Lofi sin
+copyright» que también estaban en esta lista se retiraron en la `0.25.0`). Se ha comprobado con grep que ninguno usa sockets, `chmod`,
 `/proc`, `/etc`, XDG, señales ni subprocesos.
 
 ---

@@ -606,7 +606,9 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
       forma emoji (la lección de `⏸`, §4 «Barra de transporte»), y no Nerd Font: la
       app no la exige en ningún otro sitio. `RowList._line` lo dibuja entre el número
       y la etiqueta; la etiqueta no cambia, así que el filtro `/` y el título del
-      nivel siguen leyendo el texto de siempre.
+      nivel siguen leyendo el texto de siempre. Visto por el mantenedor en su
+      terminal (2026-11-25): siete glifos de una celda, ninguno como emoji, y esa
+      captura es la nueva `img/library.webp` del README.
 - [x] Drill-down perezoso: cada nivel se pide sólo al abrirlo, en un hilo.
 - [x] La búsqueda reutiliza la misma estructura de `Row` que la biblioteca.
 - [x] Paginación: `_paged()` pide `PAGE` (100) elementos y cuelga una fila `más…` al
@@ -2396,8 +2398,8 @@ efecto las tres trampas que lo hacían caro:
       Leonel García no aparecía en ningún sitio. Ahora `_artist_names` junta el
       principal y `track.artists`, separados por «, », el principal primero y cada
       nombre una vez (TIDAL repite el principal dentro de `artists`). Es el mismo
-      `artist`, así que la cola, el bloque bajo el reloj, la pantalla completa, MPRIS,
-      los créditos y el orden por artista lo leen sin tocar nada. Una cola guardada
+      `artist`, así que la cola, el bloque bajo el reloj, la pantalla completa, MPRIS
+      y el orden por artista lo leen sin tocar nada. Una cola guardada
       antes se queda con el principal hasta que la pista se vuelve a cargar.
 - [x] **La celda del artista se desliza** cuando no cabe, también en la cola del
       reproductor: `set_glide(names=False)` enciende el temporizador sólo para esa
@@ -2526,8 +2528,8 @@ siguiente gran cambio»): sin panel de fuentes ni costura `Source`.
   música» abre la lista: «+ añadir una carpeta…» pide la ruta (con `~`), y ↵ sobre
   una la quita.
 - [x] **Fila de la cola:** `Entry.source = "local"`, `url` es la ruta e `id` es
-  negativo derivado de ella (`-crc32("local:" + ruta)`), como en las libres. Sin
-  radio, favoritos, playlists, letras ni créditos: el menú sólo ofrece reproducir y
+  negativo derivado de ella (`-crc32("local:" + ruta)`), para que nunca coincida con
+  uno de TIDAL. Sin radio, favoritos, playlists ni letras: el menú sólo ofrece reproducir y
   a continuación. MPRIS recibe la ruta como `file://`.
 - [ ] Selector de carpetas en la TUI, playlists `.m3u8`, letras `.lrc`/embebidas y
   la prueba en Windows: `next.md`, «Música local».
@@ -2703,7 +2705,6 @@ Distinguir esto importa: parte del código nunca se ha ejecutado contra TIDAL re
 | Carátula                           | **VERIFICADO A LA VISTA**     | Capturas del usuario en kitty, dos veces: la portada de Thriller se dibuja con el protocolo gráfico en su recuadro, a la izquierda del reloj, sin invadir el marquee ni el analizador, y con el recuadro ya adaptativo. Unidades sobre los tres codificadores, incluida una vuelta completa de sixel a píxeles; la app real bajo un pty con `TERM=xterm-kitty` emite el APC gráfico anclado en la esquina del widget, y en medios bloques pyte muestra el recuadro con el resto del display intacto. |
 | La cola de pantalla completa se desliza | **VERIFICADO POR EL USUARIO** | El mantenedor la miró en `w` con `tab` y una cola de nombres largos (2026-09-23): el ritmo de 0,3 s por celda se lee. Las celdas, lo que no se mueve y el ancho van por tests. |
 | Una carga que falla                | **VERIFICADO DE PUNTA A PUNTA**   | mpv de verdad contra un servidor local que devuelve 500 la primera vez y audio la segunda: la carga falla a 1,5 s sin que salga una muestra, el reintento la recupera y suena. Antes, idle sin haber abierto se leía como «la pista acabó» y se saltaba en silencio. Seis tests cubren el reintento, el salto con su nombre, que una pista que sí sonó no se reintente, y que el contador se limpie también en el salto sin corte. |
-| Créditos y atribución              | **Verificado**                    | Renderizado con pistas reales de las dos fuentes: título, autor, fuente y licencia (TASL), lo que exige esa licencia en concreto, y la cita montada. La fuente es la página de la obra y no el fichero. 20 tests, incluido el que caza que la ventana **no se podía cerrar** (un `Binding` a una acción que no existía) y el que ata las letras del menú. |
 | Indicador de carga y barra de estado | **Verificado**                  | Unitarias del `Spinner` y de los tres momentos del navegador (raíz, abrir un nivel, volver atrás) con un loader bloqueado a propósito; la app real bajo pty midió `#statusbar` dentro de la pantalla y pintó `⠦ resolviendo «Schism»…` en la última fila. |
 | «Mis playlists» y caché de niveles | **Verificado contra TIDAL real**  | cProfile sobre la cuenta del usuario localizó las 111 peticiones; tras el cambio, la app real bajo un pty abre «Mis playlists» en 0,39 s (antes 19,87 s) y en 0,13 s la segunda vez. Unitarias: una petición por página, paginación, claves de caché y `R`. |
 | Secciones del artista              | **VERIFICADO CONTRA TIDAL REAL**  | El mantenedor lo probó a mano (2026-09-14) con varios artistas: uno grande, uno pequeño sin EPs (bôa, sin «Otros») y uno con recopilatorios. Salen las secciones esperadas y ninguna vacía; álbumes y EPs traen sus pistas; «más…» aparece en un artista con más de 100 discos; el tiempo de apertura con las cuatro peticiones de sondeo es aceptable. `m` y `a` sobre el artista añaden sus populares, `s` ordena las populares y no hace nada en los discos, y `f` lo añade a favoritos. En tests: sesión simulada con álbumes, EPs y nada en «otros». |
