@@ -2604,10 +2604,55 @@ siguiente gran cambio»): sin panel de fuentes ni costura `Source`.
   una la quita.
 - [x] **Fila de la cola:** `Entry.source = "local"`, `url` es la ruta e `id` es
   negativo derivado de ella (`-crc32("local:" + ruta)`), para que nunca coincida con
-  uno de TIDAL. Sin radio, favoritos, playlists ni letras: el menú sólo ofrece reproducir y
-  a continuación. MPRIS recibe la ruta como `file://`.
-- [ ] Selector de carpetas en la TUI, playlists `.m3u8`, letras `.lrc`/embebidas y
-  la prueba en Windows: `next.md`, «Música local».
+  uno de TIDAL. Sin radio, favoritos ni letras: el menú ofrece reproducir, a
+  continuación y añadir a una playlist local. MPRIS recibe la ruta como `file://`.
+- [x] **`R` reescanea** en cualquier nivel del navegador (`BrowserScreen.action_reload`
+  llama a `library.forget_local()`), no sólo sobre «Música local» (pedido por el
+  mantenedor el 2026-11-26). Para que sirva dentro de un disco, un artista o una
+  carpeta, esos niveles ya no guardan las pistas con las que se cortaron: las buscan
+  en el escaneo al cargarse (`_local_album_tracks`, `_local_records_of`,
+  `_local_under`). El reescaneo sólo relee lo cambiado, así que en un nivel de TIDAL
+  no cuesta nada hasta que se abre uno local.
+- [ ] Selector de carpetas en la TUI, letras `.lrc`/embebidas, leer los `.m3u` de
+  dentro de las carpetas y la prueba en Windows: `next.md`, «Música local».
+
+### Playlists locales - `local_playlists.py`, `library.py`, `screens/playlist_edits.py`, `library_tasks.py`
+
+`2026-11-26`. «Playlists» es la quinta fila de «Música local», con «+ nueva
+playlist…» en cabeza (`library.NEW_LOCAL_PLAYLIST`: una clave sin loader que el
+navegador reconoce y que pide un nombre, como «+ añadir una carpeta…» en `o`).
+
+- [x] **Una playlist es un fichero** `.m3u8` (UTF-8, `#EXTM3U`, `#EXTINF` con
+  duración y «artista - título», una ruta absoluta por línea) en
+  `STATE_DIR/playlists/`. Así la abre cualquier reproductor, y una copiada ahí
+  aparece. El nombre es la línea `#PLAYLIST:` si la hay, y si no el del fichero; se
+  escribe sólo cuando el nombre no cabe en un fichero (`/`, `:` y lo que Windows
+  no admite pasan a `_`). Se leen también rutas relativas al fichero, `file://` y
+  BOM; una URL de stream se descarta. Toda escritura va por `write_atomically`.
+- [x] **Sólo ficheros locales**, como decidió «Playlists separadas, cola mezclada»
+  (`next.md`): `local_only` deja fuera las de TIDAL y el mensaje dice cuántas. El
+  selector de `l` ofrece las de la fuente de lo que se añade (`entries[0]`: lo que
+  abre el menú es siempre de una sola fuente).
+- [x] **Nombres repetidos** se rechazan sin distinguir mayúsculas
+  (`PlaylistExists`): en Windows y macOS serían el mismo fichero, y pedir una
+  playlist nueva y que las pistas acaben en una vieja es lo contrario de lo pedido.
+- [x] **Mismas teclas que «Mis playlists»:** `Row.editable`, `m` ofrece renombrar y
+  borrar (no hay descripción en un `.m3u8`), `d` quita, `alt+↑↓` mueve. Quitar va
+  por ruta y no por posición, porque el nivel puede estar ordenado: una pista
+  repetida pierde su primera aparición, como en TIDAL. Mover comprueba que la línea
+  en esa posición siga siendo esa pista (otro programa pudo tocar el fichero).
+  Borrar pregunta con el cursor en «cancelar» y dice que la música se queda.
+  Todo en el hilo de la UI: un fichero pequeño, sin red que esperar.
+- [x] **El nivel de una playlist lee su fichero al cargarse**
+  (`_local_playlist_file`), no una copia de la lista: después de escribir basta con
+  olvidar la caché. Las líneas se cruzan con el escaneo; una ruta fuera de las
+  carpetas se lee en el momento, y una que ya no está sale como fila «el fichero no
+  está», para poder verla y quitarla.
+- [x] **Se abre en su propio orden** (`LOCAL_PLAYLIST_BY`, sin fecha): el resto de
+  niveles locales abre por fecha del fichero, y en una playlist esa fecha no dice
+  cuándo entró la pista. Con fecha, además, `alt+↑↓` quedaba siempre bloqueado.
+- [x] **`p`** con una cola sólo de ficheros, o en modo offline, guarda una playlist
+  local. Una cola mezclada con sesión sigue yendo a TIDAL (`next.md`, por decidir).
 
 ### Windows - `backends/`, `player.py`, `config.py`, `i18n.py`
 

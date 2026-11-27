@@ -117,7 +117,7 @@ mezcla.**
   **Falta:**
   - Selector de carpetas dentro de la TUI (Textual trae `DirectoryTree`); hoy sólo se
     escribe la ruta.
-  - Playlists (abajo) y letras locales (entrada siguiente).
+  - Letras locales (entrada siguiente).
   - Probarlo en Windows (abajo, *Trampa*).
 
   Plan original, para lo que queda:
@@ -125,8 +125,8 @@ mezcla.**
   - mpv reproduce el fichero tal cual, así que rates, hi-res, cava, ecualizador y
     gapless siguen valiendo. Es la fuente que mejor casa con lo que tidalamp promete:
     un FLAC 24/192 del disco sale bit-perfect sin depender de nadie.
-  - Playlists locales en `.m3u8` bajo `STATE_DIR/playlists/`, y además se leen los
-    `.m3u` y `.m3u8` que haya dentro de las carpetas añadidas.
+  - Leer también los `.m3u` y `.m3u8` que haya dentro de las carpetas añadidas
+    (las de `STATE_DIR/playlists/` ya están, `plan.md` §4 «Playlists locales»).
   - Radio y favoritos son cosas de TIDAL y no se ofrecen en una pista local. Las
     letras sí, ver la entrada siguiente.
   - *Trampa, Windows:* rutas con `\`, letras de unidad, mayúsculas que no distinguen,
@@ -170,7 +170,10 @@ mezcla.**
   - Guardar la cola como playlist (`p`) con una cola mezclada, *por decidir:*
     preguntar la fuente y guardar sólo sus pistas, diciendo cuántas quedan fuera; o
     guardarla como playlist local `.m3u8`, que puede apuntar a las dos. Lo que no se
-    hace es meter en TIDAL una pista local buscándola por ISRC sin preguntar.
+    hace es meter en TIDAL una pista local buscándola por ISRC sin preguntar. Hoy
+    (2026-11-26) una cola sólo de ficheros, o cualquiera en modo offline, va a una
+    playlist local sin sus pistas de TIDAL; una mezclada con sesión sigue yendo a
+    TIDAL tal cual, con los ids negativos de los ficheros dentro.
   - En la cola, la fuente de cada fila como columna opcional de `columns.py`, igual
     que la licencia de las pistas libres.
   - Cada pista se resuelve con su fuente al sonar. Si TIDAL está sin vincular o no
