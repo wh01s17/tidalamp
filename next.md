@@ -125,8 +125,6 @@ mezcla.**
   - mpv reproduce el fichero tal cual, así que rates, hi-res, cava, ecualizador y
     gapless siguen valiendo. Es la fuente que mejor casa con lo que tidalamp promete:
     un FLAC 24/192 del disco sale bit-perfect sin depender de nadie.
-  - Leer también los `.m3u` y `.m3u8` que haya dentro de las carpetas añadidas
-    (las de `STATE_DIR/playlists/` ya están, `plan.md` §4 «Playlists locales»).
   - Radio y favoritos son cosas de TIDAL y no se ofrecen en una pista local. Las
     letras sí, ver la entrada siguiente.
   - *Trampa, Windows:* rutas con `\`, letras de unidad, mayúsculas que no distinguen,
@@ -271,6 +269,11 @@ mezcla.**
 
 No se borran: quedan escritos con el motivo para no volver a discutirlos desde cero.
 
+- **Leer los `.m3u` y `.m3u8` de dentro de las carpetas de música** (2026-11-26), como
+  playlists de «Música local» junto a las de `STATE_DIR/playlists/`. El mantenedor lo
+  descartó al cerrar las playlists locales. Lo que ya cubre el caso: un `.m3u8` copiado
+  a `STATE_DIR/playlists/` aparece en «Playlists», con rutas relativas, `file://` y BOM
+  (`plan.md` §4 «Playlists locales»).
 - **YouTube Music como fuente** (2026-10-02), mirado junto con la música local. Se
   haría con `ytmusicapi` para el catálogo y `yt-dlp` para el audio (mpv ya lo usa por
   su `ytdl_hook`). Lo que pesó en contra: vincular la cuenta pide credenciales propias

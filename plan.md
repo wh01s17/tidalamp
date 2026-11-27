@@ -2613,8 +2613,9 @@ siguiente gran cambio»): sin panel de fuentes ni costura `Source`.
   en el escaneo al cargarse (`_local_album_tracks`, `_local_records_of`,
   `_local_under`). El reescaneo sólo relee lo cambiado, así que en un nivel de TIDAL
   no cuesta nada hasta que se abre uno local.
-- [ ] Selector de carpetas en la TUI, letras `.lrc`/embebidas, leer los `.m3u` de
-  dentro de las carpetas y la prueba en Windows: `next.md`, «Música local».
+- [ ] Selector de carpetas en la TUI, letras `.lrc`/embebidas y la prueba en
+  Windows: `next.md`, «Música local». Leer los `.m3u` de dentro de las carpetas se
+  descartó (`next.md`, «Descartado por ahora»).
 
 ### Playlists locales - `local_playlists.py`, `library.py`, `screens/playlist_edits.py`, `library_tasks.py`
 
