@@ -4,7 +4,10 @@ Documento de traspaso. Describe qué existe, qué está verificado, qué falta y
 criterio se tomaron las decisiones, para que cualquiera (humano o modelo) pueda
 retomar el trabajo sin contexto previo.
 
-**Última actualización:** 2026-11-27, versión `0.27.1` preparada para publicar:
+**Última actualización:** 2026-11-27, versión `0.27.1` publicada en PyPI y GitHub,
+con el tag `v0.27.1` sobre `0142e51` y el checksum del tarball en `packaging/aur/`.
+CI en verde en Linux (Python 3.11–3.14), Windows (3.11 y 3.14), instalaciones sin
+extras y lint; ZIP de Windows adjunto al Release. Lo nuevo:
 cuando hay resampling con los rates configurados, Ajustes dice qué tiene ocupada la
 salida («La tiene ocupada: …», leído de `pw-dump`), y no se fuerza el rate de un sink
 que sigue el reloj de otro dispositivo. Ver §4, el rate que sigue a cada pista.

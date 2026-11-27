@@ -14,7 +14,7 @@ calcula el checksum y, cuando vuelva a ser posible obtener una cuenta, se public
 paquete en el AUR.
 
 > [!IMPORTANT]
-> **Estado a 2026-11-26:** la versión `0.27.0` está publicada en PyPI mediante
+> **Estado a 2026-11-27:** la versión `0.27.1` está publicada en PyPI mediante
 > Trusted Publishing y en GitHub Releases, con el ZIP de Windows y su SHA-256.
 > El environment `pypi` de GitHub existe y el publisher de PyPI ya
 > no está pendiente: se convirtió en uno normal con la primera publicación, así que
