@@ -64,6 +64,14 @@ def releases() -> tuple[Release, ...]:
     """Newest first. Translated at call time, not at import time."""
     return (
         Release(
+            "0.27.1",
+            "2026-11-27",
+            (
+                _("Ajustes dice qué tiene ocupada la salida cuando hay resampling."),
+                _("No se fuerza el rate de una salida atada a otro dispositivo."),
+            ),
+        ),
+        Release(
             "0.27.0",
             "2026-11-26",
             (

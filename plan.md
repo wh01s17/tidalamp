@@ -4,7 +4,12 @@ Documento de traspaso. Describe qué existe, qué está verificado, qué falta y
 criterio se tomaron las decisiones, para que cualquiera (humano o modelo) pueda
 retomar el trabajo sin contexto previo.
 
-**Última actualización:** 2026-11-26, versión `0.27.0` publicada en PyPI y GitHub,
+**Última actualización:** 2026-11-27, versión `0.27.1` preparada para publicar:
+cuando hay resampling con los rates configurados, Ajustes dice qué tiene ocupada la
+salida («La tiene ocupada: …», leído de `pw-dump`), y no se fuerza el rate de un sink
+que sigue el reloj de otro dispositivo. Ver §4, el rate que sigue a cada pista.
+
+2026-11-26, versión `0.27.0` publicada en PyPI y GitHub,
 con el tag `v0.27.0` sobre `fdfaf0c` y el checksum del tarball en `packaging/aur/`.
 CI en verde en Linux (Python 3.11–3.14), Windows (3.11 y 3.14), instalaciones sin
 extras y lint; ZIP de Windows adjunto al Release. Lo nuevo:
@@ -1534,6 +1539,20 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
       ALSA. `OUT` añade «resampling desde … kHz» y la ventana `o` avisa cuando
       stream y sink difieren. **Comprobado en el hardware** el 2026-09-17: el BTR15 sigue
       el rate al cambiar de pista.
+- [x] **Qué tiene ocupada la salida** (0.27.1, 2026-11-27). Con los rates puestos y el
+      grafo a 96 kHz, el BTR15 seguía a 48 kHz: un loopback de evo8-linux
+      (`mezcla.compartido.escucha`, de Compartido a la salida por defecto) lo tenía
+      abierto y, por el `node.group` del loopback, atado al reloj de la entrada de la
+      EVO 8 (`node.driver-id` del sink ≠ su id). Ajustes sólo decía «configured».
+      `audio.holders()` lee `pw-dump`: el reloj que sigue el sink y qué otros nodos le
+      mandan audio (sin el stream de mpv, por su pid). La ventana `o` añade «La tiene
+      ocupada: …» bajo el aviso de resampling; nombra lo que tiene la salida abierta y,
+      si no hay nada, el dispositivo al que está atada. No se fuerza el rate de un sink
+      que sigue otro reloj: `clock.force-rate` movía ese otro dispositivo (y cortaba lo
+      que grababa) y el sink se quedaba igual. `node.passive` en la escucha no basta:
+      cualquier stream abierto en Compartido la activa. **Comprobado en el hardware**:
+      con el micrófono virtual de evo8-linux apagado, el BTR15 corre con su propio reloj
+      a 96 kHz (`/proc/asound/card3`, `rate: 96000`).
 
 ### Menú de la pista — `screens/tracks.py`, `queue.py`, `library.py`
 

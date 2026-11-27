@@ -224,6 +224,13 @@ ENGLISH: dict[str, str] = {
     "La biblioteca abre por fecha, lo más reciente primero.": (
         "The library opens by date, most recent first."
     ),
+    # --- 0.27.1, in the help's list of changes
+    "Ajustes dice qué tiene ocupada la salida cuando hay resampling.": (
+        "Settings say what holds the output open when it is resampled."
+    ),
+    "No se fuerza el rate de una salida atada a otro dispositivo.": (
+        "The rate is not forced on an output tied to another device."
+    ),
     # --- 0.27.0, in the help's list of changes
     "Playlists de música local, en .m3u8: crear, añadir, mover.": (
         "Local music playlists, as .m3u8: create, add, reorder."

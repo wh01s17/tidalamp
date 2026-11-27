@@ -5,6 +5,8 @@ versioning is [semantic](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.27.1] - 2026-11-27
+
 ### Changed
 
 - **The settings say why PipeWire resamples.** When the rates are configured and the
