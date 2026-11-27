@@ -4,19 +4,19 @@ Documento de traspaso. Describe qué existe, qué está verificado, qué falta y
 criterio se tomaron las decisiones, para que cualquiera (humano o modelo) pueda
 retomar el trabajo sin contexto previo.
 
-**Última actualización:** 2026-11-27, versión `0.28.0` preparada para publicar:
-una pista sin carátula recibe una dibujada para el tema en uso (`blank_cover.py`:
-el emblema enmarcado en los temas con emblema; pantalla con analizador en retro,
-anillo en nova, vinilo pixelado en ascii, vinilo plano en quattro), en los colores
-de la paleta. Arregla la carátula de TIDAL que volvía sobre una pista local sin
-carátula al cerrar una ventana. Ver §4, «Carátula por defecto».
-
-2026-11-27, versión `0.27.1` publicada en PyPI y GitHub,
-con el tag `v0.27.1` sobre `0142e51` y el checksum del tarball en `packaging/aur/`.
+**Última actualización:** 2026-11-27, versión `0.28.0` publicada en PyPI y GitHub,
+con el tag `v0.28.0` sobre `cf0cbb2` y el checksum del tarball en `packaging/aur/`.
 CI en verde en Linux (Python 3.11–3.14), Windows (3.11 y 3.14), instalaciones sin
-extras y lint; ZIP de Windows adjunto al Release. Lo nuevo:
-cuando hay resampling con los rates configurados, Ajustes dice qué tiene ocupada la
-salida («La tiene ocupada: …», leído de `pw-dump`), y no se fuerza el rate de un sink
+extras y lint; ZIP de Windows adjunto al Release. Lo nuevo: una pista sin carátula
+recibe una dibujada para el tema en uso (`blank_cover.py`: el emblema enmarcado en
+los temas con emblema; pantalla con analizador en retro, anillo en nova, vinilo
+pixelado en ascii, vinilo plano en quattro), en los colores de la paleta. Arregla
+la carátula de TIDAL que volvía sobre una pista local sin carátula al cerrar una
+ventana. Ver §4, «Carátula por defecto».
+
+2026-11-27, versión `0.27.1` (tag `v0.27.1` sobre `0142e51`): cuando hay
+resampling con los rates configurados, Ajustes dice qué tiene ocupada la salida
+(«La tiene ocupada: …», leído de `pw-dump`), y no se fuerza el rate de un sink
 que sigue el reloj de otro dispositivo. Ver §4, el rate que sigue a cada pista.
 
 2026-11-26, versión `0.27.0` publicada en PyPI y GitHub,
