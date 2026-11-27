@@ -121,7 +121,7 @@ def test_the_section_opens_newest_first(tmp_path, monkeypatch):
     make_flac(tmp_path / "new.flac", title="Nueva", album="Y", mtime=2_000_000)
 
     section = next(row for row in library.root(FakeSession()) if row.key == "local")
-    albums, artists, tracks, _folders = section.loader()
+    albums, artists, tracks, _folders, _playlists = section.loader()
     assert "2 pistas · 2 hi-res" in tracks.detail
 
     for row in (albums, artists, tracks):

@@ -5,6 +5,23 @@ versioning is [semantic](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **Local playlists**, under *Local music* → *Playlists*. *+ new playlist…* makes
+  one, and `l` in the menu of a local track, record, artist or folder adds it to one.
+  `p` saves a queue of local files (or any queue, offline) as a local playlist. They
+  can be renamed, deleted and reordered with `alt+↑` `alt+↓`, and `d` takes a track
+  out, as with your TIDAL playlists. Each one is an `.m3u8` file in the state folder
+  (`~/.local/state/tidalamp/playlists/`), so other players open it too, and an
+  `.m3u8` copied there shows up. Only local files go in: TIDAL tracks are left out,
+  and the status line says how many.
+
+### Changed
+
+- **`R` in the library also scans the local folders again**, on any level, not only
+  over *Local music*: a record copied into a folder shows up when you reload the
+  level it belongs to. Only new or changed files are read again.
+
 ## [0.26.0] - 2026-11-25
 
 ### Added

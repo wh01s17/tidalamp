@@ -301,8 +301,12 @@ class QueueView:
             )
         elif action == "playlist":
             self.app.tasks.pending_playlist = list(entries)
+            # A playlist holds one source's tracks: files go to the local
+            # ones, and a TIDAL track to TIDAL's. What the menu was opened
+            # on is all of one source, a track or everything in a container.
             self.app.push_screen(
-                PlaylistPickerScreen(self.app.session), self.app.tasks.playlist_chosen
+                PlaylistPickerScreen(self.app.session, local=entries[0].is_local),
+                self.app.tasks.playlist_chosen,
             )
         elif action == "radio":
             self.app.query_one("#busy", Spinner).start(

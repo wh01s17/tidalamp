@@ -342,8 +342,17 @@ and bit depth are read from each file's header with [mutagen](https://mutagen.re
 and the badge shows a 24/192 FLAC as `FLAC · 24-bit · 192 kHz`, just as it does for
 TIDAL's hi-res. The cover is the folder's `cover.jpg` (or `folder.jpg`, `front.jpg`…),
 or else the one embedded in the files. The first scan reads every file. After that,
-only new or changed files are read, and `R` over the section scans again. DSD is
+only new or changed files are read, and `R` on any level of the library scans again. DSD is
 converted to PCM by mpv (ffmpeg) and is not sent to the DAC as native DSD or DoP.
+
+**Local playlists** live under *Local music* → *Playlists*. *+ new playlist…* makes an
+empty one, `l` in the menu of a local track, record, artist or folder adds it to a
+playlist (or to a new one), and `p` saves a queue of local files as one. In the
+playlist's menu (`m`) you can rename or delete it. `alt+↑` `alt+↓` move a track and `d`
+takes it out. Each playlist is a plain `.m3u8` in `~/.local/state/tidalamp/playlists/`
+(`%LOCALAPPDATA%\tidalamp\state\playlists\` on Windows), so other players open them,
+and one copied there shows up too. They hold local files only: TIDAL tracks stay in
+your TIDAL playlists.
 
 **Every level that can be sorted by date opens newest first**: playlists, favourite
 tracks, albums and artists, a playlist's tracks and local music. Pick *original order*

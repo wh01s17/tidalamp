@@ -638,12 +638,17 @@ class BrowserScreen(ModalScreen[tuple | None]):
         Levels are cached for the whole session, which is what makes walking
         the library feel instant — but a playlist created on the phone would
         otherwise never show up until tidalamp restarts. This is the way back.
+
+        It also drops the scan of «Música local», wherever it is pressed: a
+        record copied into a folder shows up on the next local level loaded,
+        this one if it is local. The rescan reads only what changed.
         """
         if not self._stack:
             return
         title, _rows, key, loader, source = self._stack[-1]
         if loader is None:
             return
+        library.forget_local()
         levels.forget(key)
         self._stack.pop()
         self._empty = _("cargando…")
@@ -707,6 +712,9 @@ class BrowserScreen(ModalScreen[tuple | None]):
             # the one label that says where they are.
             self._busy(_("cargando más…"))
             self._page(row)
+            return
+        if row.key == library.NEW_LOCAL_PLAYLIST:
+            self._edits.ask_create()
             return
         if row.loader is not None:
             self._empty = _("cargando…")

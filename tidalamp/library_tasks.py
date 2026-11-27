@@ -10,11 +10,11 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import TYPE_CHECKING, cast
 
-from . import auth, levels, library, playlists
+from . import auth, levels, library, local_playlists, playlists
 from .i18n import _
 from .levels import Row
 from .queue import Entry
-from .screens import ChoiceScreen, RowList, favourite_message
+from .screens import ChoiceScreen, PlaylistNameScreen, RowList, favourite_message
 from .widgets import Spinner
 from .workers import thread_worker
 
@@ -80,6 +80,15 @@ class LibraryTasks:
         entries, self.pending_playlist = self.pending_playlist, []
         if key is None or not entries:
             return
+        if key == library.NEW_LOCAL_PLAYLIST:
+            self.app.push_screen(
+                PlaylistNameScreen(title=_("NUEVA PLAYLIST LOCAL")),
+                lambda name: self.save_local(name, entries),
+            )
+            return
+        if key.startswith(local_playlists.KEY_PREFIX):
+            self.add_local(key, entries)
+            return
         # The row's cache key is `playlist:<id>`; the write wants the id.
         self.app.query_one("#busy", Spinner).start(_("añadiendo a la playlist…"))
         self.add_worker(key.split(":", 1)[-1], entries)
@@ -111,6 +120,61 @@ class LibraryTasks:
         self.app.query_one("#busy", Spinner).stop()
         self.app.status = message
 
+    # ------------------------------------------- the playlists of «Música local»
+
+    def add_local(self, key: str, entries: list[Entry]) -> None:
+        """Append files to a local playlist. On this thread: it is one small
+        file written once, quicker than starting a worker."""
+        kept, skipped = local_playlists.local_only(entries)
+        if not kept:
+            self.app.status = _("en una playlist local solo entran ficheros locales")
+            return
+        try:
+            path = local_playlists.find(key)
+            added = local_playlists.add(path, kept)
+            name = local_playlists.load(path).name
+        except (OSError, ValueError) as exc:
+            self.app.status = _("playlist: {error}").format(error=exc)
+            return
+        library.forget_local_playlists(key)
+        self.app.status = self._local_message(
+            _("{count} pistas añadidas a «{title}»").format(count=added, title=name),
+            skipped,
+        )
+
+    def save_local(self, name: str | None, entries: list[Entry]) -> None:
+        """Make a local playlist called ``name`` out of ``entries``."""
+        name = (name or "").strip()
+        if not name:
+            return
+        kept, skipped = local_playlists.local_only(entries)
+        if not kept:
+            self.app.status = _("en una playlist local solo entran ficheros locales")
+            return
+        try:
+            playlist = local_playlists.create(name, kept)
+        except local_playlists.PlaylistExists:
+            self.app.status = _("ya hay una playlist «{title}»").format(title=name)
+            return
+        except (OSError, ValueError) as exc:
+            self.app.status = _("playlist: {error}").format(error=exc)
+            return
+        library.forget_local_playlists()
+        self.app.status = self._local_message(
+            _("playlist local «{title}» creada con {count} pistas").format(
+                title=playlist.name, count=len(kept)
+            ),
+            skipped,
+        )
+
+    @staticmethod
+    def _local_message(message: str, skipped: int) -> str:
+        if not skipped:
+            return message
+        return _("{message} ({skipped} de TIDAL fuera)").format(
+            message=message, skipped=skipped
+        )
+
     def save_named(self, result: str | None) -> None:
         title = (result or "").strip()
         if not title:
@@ -120,6 +184,11 @@ class LibraryTasks:
         entries = list(self.app.queue)
         if not entries:
             self.app.status = _("la cola está vacía; no hay nada que guardar")
+            return
+        # A queue of files, or a player without TIDAL, saves to «Música
+        # local»: TIDAL has no id for a file, and offline it cannot be asked.
+        if self.app.offline or all(entry.is_local for entry in entries):
+            self.save_local(title, entries)
             return
         self.app.query_one("#busy", Spinner).start(
             _("guardando la cola como «{title}»…").format(title=title)

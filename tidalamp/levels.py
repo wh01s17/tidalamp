@@ -96,6 +96,10 @@ ARTIST_TRACK_BY = ("name", "album")
 LOCAL_TRACK_BY = ("date", "name", "artist", "album")
 LOCAL_ALBUM_BY = ("date", "name", "artist", "release")
 LOCAL_ARTIST_BY = ("date", "name")
+# A local playlist has no date of its own: a file's is when it reached the
+# disk, not when it went into the list. With no date it opens in its own
+# order (`default_order`), the one it was made in.
+LOCAL_PLAYLIST_BY = ("name", "artist", "album")
 
 # The order picked for each level, by the level's key: its code, as in
 # `name-asc`. Kept on disk so a level opens the next day the way it was left;

@@ -192,6 +192,15 @@ def private_local_index(tmp_path_factory, monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def private_local_playlists(tmp_path_factory, monkeypatch):
+    """The playlists of «Música local» are files: never the developer's."""
+    from tidalamp import local_playlists
+
+    folder = tmp_path_factory.mktemp("local-playlists")
+    monkeypatch.setattr(local_playlists, "PLAYLIST_DIR", folder)
+
+
+@pytest.fixture(autouse=True)
 def private_session(tmp_path_factory, monkeypatch):
     """The session, the app's folders and the menu, never the developer's own.
 

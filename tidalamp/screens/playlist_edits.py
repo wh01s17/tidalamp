@@ -5,13 +5,17 @@ moves a track inside a playlist of yours, and the menu over one of your
 playlists renames it, describes it or deletes it. Each one asks TIDAL in a
 worker and then changes the level on screen in place, rather than fetching it
 again: TIDAL has it that way now, and asking again would only cost a request.
+
+The playlists of «Música local» take the same keys and the same questions,
+and write their `.m3u8` on this thread: one small file, and no network to
+wait for (`local_playlists`).
 """
 
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from .. import levels, library, playlists
+from .. import levels, library, local_playlists, playlists
 from ..auth import ensure_fresh
 from ..i18n import _
 from ..levels import Row
@@ -56,6 +60,42 @@ class PlaylistEdits:
         stack = self.screen._stack
         return stack[-1][4] if stack else None
 
+    @staticmethod
+    def _is_local(row: Row | None) -> bool:
+        """Whether ``row`` is one of the playlists of «Música local»."""
+        return row is not None and row.key.startswith(local_playlists.KEY_PREFIX)
+
+    # ------------------------------------------------------------- create
+
+    def ask_create(self) -> None:
+        """«+ nueva playlist…»: a name, then an empty playlist under it."""
+        self.screen.app.push_screen(
+            PlaylistNameScreen(title=_("NUEVA PLAYLIST LOCAL")), self._create
+        )
+
+    def _create(self, name: str | None) -> None:
+        name = (name or "").strip()
+        if not name:
+            return
+        try:
+            playlist = local_playlists.create(name)
+        except local_playlists.PlaylistExists:
+            self.player.status = _("ya hay una playlist «{title}»").format(title=name)
+            return
+        except (OSError, ValueError) as exc:
+            self.player.status = _("playlist: {error}").format(error=exc)
+            return
+        self.player.status = _(
+            "playlist «{title}» creada: añádele pistas con l en su menú"
+        ).format(title=playlist.name)
+        self._reload_playlists()
+
+    def _reload_playlists(self) -> None:
+        """«Playlists» again, from the files: a new name, a new row."""
+        library.forget_local_playlists()
+        if self.screen.is_mounted:
+            self.screen.action_reload()
+
     # ------------------------------------------------------------- remove
 
     def ask_remove(self) -> None:
@@ -71,7 +111,9 @@ class PlaylistEdits:
             kind, _sep, ident = source.key.partition(":")
             if source.key.startswith("fav:"):
                 where = _("favoritos")
-            elif kind == "playlist" and ident and row.entry is not None:
+            elif (
+                (kind == "playlist" and ident) or self._is_local(source)
+            ) and row.entry is not None:
                 where = f"«{source.label}»"
         if not where or row is None or source is None:
             self.player.status = _("aquí no hay de dónde quitar")
@@ -94,8 +136,28 @@ class PlaylistEdits:
         )
 
     def _remove(self, row: Row, source: Row) -> None:
+        if self._is_local(source):
+            self._remove_local(row, source)
+            return
         self.screen._busy(_("quitando…"))
         self._remove_worker(row, source)
+
+    def _remove_local(self, row: Row, source: Row) -> None:
+        assert row.entry is not None
+        gone: Row | None = row
+        try:
+            name = local_playlists.remove(local_playlists.find(source.key), row.entry.url)
+            message = _("«{label}» quitada de «{playlist}»").format(
+                label=row.label, playlist=name
+            )
+        except local_playlists.TrackNotInPlaylist:
+            message = _("«{label}» ya no está en la playlist").format(label=row.label)
+        except (OSError, ValueError) as exc:
+            message = _("quitar: {error}").format(error=exc)
+            gone = None
+        # The list of playlists says how many tracks each holds.
+        library.forget_local_playlists(source.key)
+        self._removed(message, gone)
 
     @thread_worker(group="remove")
     def _remove_worker(self, row: Row, source: Row) -> None:
@@ -156,6 +218,9 @@ class PlaylistEdits:
             not rename and text == row.description
         ):
             return
+        if self._is_local(row):
+            self._rename_local(row, text)
+            return
         self.screen._busy(_("guardando…"))
         self._edit_worker(row, rename, text)
 
@@ -198,26 +263,59 @@ class PlaylistEdits:
             row.description = text
         self.screen._list().refresh()
 
+    def _rename_local(self, row: Row, text: str) -> None:
+        """A new name, and a new file to go with it: the row's key is the
+        file's name, so «Playlists» is read again rather than patched."""
+        try:
+            local_playlists.rename(local_playlists.find(row.key), text)
+        except local_playlists.PlaylistExists:
+            self.player.status = _("ya hay una playlist «{title}»").format(title=text)
+            return
+        except (OSError, ValueError) as exc:
+            self.player.status = _("playlist: {error}").format(error=exc)
+            return
+        library.forget_local_playlists(row.key)
+        self.player.status = _("«{old}» ahora se llama «{new}»").format(
+            old=row.label, new=text
+        )
+        self._reload_playlists()
+
     # ------------------------------------------------------------- delete
 
     def ask_delete(self, row: Row) -> None:
         """Asked first, with the cursor on «cancelar»: a deleted playlist
         does not come back."""
+        what = (
+            _("borrar «{title}» (la música se queda)")
+            if self._is_local(row)
+            else _("borrar «{title}» de TIDAL")
+        ).format(title=row.label)
         self.screen.app.push_screen(
             ChoiceScreen(
                 _("BORRAR PLAYLIST"),
-                [
-                    ("delete", _("borrar «{title}» de TIDAL").format(title=row.label)),
-                    ("cancel", _("cancelar")),
-                ],
+                [("delete", what), ("cancel", _("cancelar"))],
                 cursor=1,
             ),
             lambda answer: self._delete(row) if answer == "delete" else None,
         )
 
     def _delete(self, row: Row) -> None:
+        if self._is_local(row):
+            self._delete_local(row)
+            return
         self.screen._busy(_("borrando…"))
         self._delete_worker(row)
+
+    def _delete_local(self, row: Row) -> None:
+        gone: Row | None = None
+        try:
+            local_playlists.delete(local_playlists.find(row.key))
+            message = _("«{title}» borrada").format(title=row.label)
+            gone = row
+        except (OSError, ValueError) as exc:
+            message = _("playlist: {error}").format(error=exc)
+        library.forget_local_playlists(row.key)
+        self._removed(message, gone)
 
     @thread_worker(group="playlist-edit")
     def _delete_worker(self, row: Row) -> None:
@@ -253,7 +351,7 @@ class PlaylistEdits:
             or row.entry is None
             or source is None
             or not source.editable
-            or not source.key.startswith("playlist:")
+            or not (source.key.startswith("playlist:") or self._is_local(source))
         ):
             self.player.status = _("solo se reordenan las pistas de tus playlists")
             return
@@ -276,9 +374,29 @@ class PlaylistEdits:
                 "carga la página siguiente con «más…» antes de bajarla"
             )
             return
+        if self._is_local(source):
+            self._move_local(row, source, index, delta)
+            return
         self.moving = True
         screen._busy(_("moviendo…"))
         self._move_worker(row, source, index, delta)
+
+    def _move_local(self, row: Row, source: Row, index: int, delta: int) -> None:
+        assert row.entry is not None
+        moved = 0
+        try:
+            local_playlists.move(
+                local_playlists.find(source.key), index, row.entry.url, delta
+            )
+            message = _("«{label}» movida").format(label=row.label)
+            moved = delta
+        except local_playlists.TrackNotInPlaylist:
+            message = _("la playlist cambió fuera de tidalamp; R la vuelve a leer")
+        except (OSError, ValueError) as exc:
+            message = _("mover: {error}").format(error=exc)
+        # The sorted copies were cut from the old order.
+        library.forget_local_playlists(source.key)
+        self._moved(message, row, moved)
 
     @thread_worker(group="playlist-move")
     def _move_worker(self, row: Row, source: Row, index: int, delta: int) -> None:

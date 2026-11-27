@@ -498,4 +498,26 @@ ENGLISH: dict[str, str] = {
     "Varios artistas": "Various artists",
     "Carpetas": "Folders",
     "la estructura de tus carpetas": "your folders as they are on disk",
+    # The playlists of «Música local», `.m3u8` files of your own.
+    "las tuyas, con tus ficheros": "your own, made of your files",
+    "+ nueva playlist…": "+ new playlist…",
+    "NUEVA PLAYLIST LOCAL": "NEW LOCAL PLAYLIST",
+    "el fichero no está": "the file is missing",
+    "una playlist necesita un nombre": "a playlist needs a name",
+    "ya hay una playlist «{title}»": "there is already a playlist «{title}»",
+    "en una playlist local solo entran ficheros locales": (
+        "only local files go in a local playlist"
+    ),
+    "{count} pistas añadidas a «{title}»": "{count} tracks added to «{title}»",
+    "playlist local «{title}» creada con {count} pistas": (
+        "local playlist «{title}» created with {count} tracks"
+    ),
+    "{message} ({skipped} de TIDAL fuera)": "{message} ({skipped} from TIDAL left out)",
+    "playlist «{title}» creada: añádele pistas con l en su menú": (
+        "playlist «{title}» created: add tracks to it with l in their menu"
+    ),
+    "borrar «{title}» (la música se queda)": "delete «{title}» (the music stays)",
+    "la playlist cambió fuera de tidalamp; R la vuelve a leer": (
+        "the playlist changed outside tidalamp; R reads it again"
+    ),
 }

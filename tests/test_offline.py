@@ -155,7 +155,13 @@ def test_the_library_opens_straight_onto_local_music(monkeypatch, tmp_path):
             screen = application.screen
             assert "MÚSICA LOCAL" in str(screen.query_one("#browser-title").render())
             labels = [row.label for row in screen.query_one(RowList).rows]
-            assert labels == ["Álbumes", "Artistas", "Todas las pistas", "Carpetas"]
+            assert labels == [
+                "Álbumes",
+                "Artistas",
+                "Todas las pistas",
+                "Carpetas",
+                "Playlists",
+            ]
 
     asyncio.run(scenario())
 

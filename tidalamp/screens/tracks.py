@@ -38,13 +38,16 @@ TRACK_ACTIONS: tuple[tuple[str, str, str, str], ...] = (
     ("album", "◎", "b", _("ir al álbum")),
 )
 
-# What a file on this computer offers: playing it. The other five verbs are
-# all things only TIDAL can do — its radio grows from a track in its
-# catalogue, and its favourites, its playlists, its artists and its albums are
-# its own — so on a local row they would be five entries that answer with an
-# error. Same actions, same letters, same order: what is missing is missing,
-# nothing has moved.
-LOCAL_TRACK_ACTIONS: tuple[tuple[str, str, str, str], ...] = TRACK_ACTIONS[:2]
+# What a file on this computer offers: playing it, and putting it in one of
+# the playlists of «Música local». The other four verbs are things only TIDAL
+# can do — its radio grows from a track in its catalogue, and its favourites,
+# its artists and its albums are its own — so on a local row they would be
+# four entries that answer with an error. Same actions, same letters, same
+# order: what is missing is missing, nothing has moved.
+LOCAL_TRACK_ACTIONS: tuple[tuple[str, str, str, str], ...] = (
+    *TRACK_ACTIONS[:2],
+    TRACK_ACTIONS[4],
+)
 
 # What `m` offers on an album, an artist or a playlist: the same verbs, over
 # every track inside it, with the same letters. No radio: it grows from one
@@ -65,10 +68,21 @@ PLAYLIST_EXTRA: tuple[tuple[str, str, str, str], ...] = (
 )
 PLAYLIST_ACTIONS = CONTAINER_ACTIONS + PLAYLIST_EXTRA
 
-# And what `m` offers on a record or a folder in «Música local»: play it, or
-# queue it. Favourites and playlists belong to a TIDAL account, and these
-# files are not in one.
-LOCAL_CONTAINER_ACTIONS: tuple[tuple[str, str, str, str], ...] = CONTAINER_ACTIONS[:2]
+# And what `m` offers on a record or a folder in «Música local»: play it,
+# queue it, or put all of it in a local playlist. Favourites belong to a
+# TIDAL account, and these files are not in one.
+LOCAL_CONTAINER_ACTIONS: tuple[tuple[str, str, str, str], ...] = (
+    *CONTAINER_ACTIONS[:2],
+    CONTAINER_ACTIONS[3],
+)
+
+# A local playlist is a file with a name and no description: renaming and
+# deleting it are what its owner can do.
+LOCAL_PLAYLIST_ACTIONS: tuple[tuple[str, str, str, str], ...] = (
+    *LOCAL_CONTAINER_ACTIONS,
+    PLAYLIST_EXTRA[0],
+    PLAYLIST_EXTRA[2],
+)
 
 
 def actions_for(entry: object | None) -> tuple[tuple[str, str, str, str], ...]:
@@ -78,16 +92,19 @@ def actions_for(entry: object | None) -> tuple[tuple[str, str, str, str], ...]:
 
 def container_actions_for(row: object) -> tuple[tuple[str, str, str, str], ...]:
     """The menu an album, an artist or a playlist gets."""
+    editable = getattr(row, "editable", False)
     if not getattr(row, "is_tidal", True):
-        return LOCAL_CONTAINER_ACTIONS
-    return PLAYLIST_ACTIONS if getattr(row, "editable", False) else CONTAINER_ACTIONS
+        return LOCAL_PLAYLIST_ACTIONS if editable else LOCAL_CONTAINER_ACTIONS
+    return PLAYLIST_ACTIONS if editable else CONTAINER_ACTIONS
 
 
 class PlaylistPickerScreen(ModalScreen[str | None]):
     """Which playlist to add to. Dismisses with its cache key, or None.
 
     A pane of its own rather than the browser: the browser answers with what
-    to play or queue, and this question has a different answer.
+    to play or queue, and this question has a different answer. With
+    ``local`` it offers the playlists of «Música local» instead of TIDAL's,
+    headed by a row that makes a new one (`library.NEW_LOCAL_PLAYLIST`).
     """
 
     BINDINGS = [
@@ -99,9 +116,10 @@ class PlaylistPickerScreen(ModalScreen[str | None]):
         Binding("enter", "choose", _("elegir"), show=False),
     ]
 
-    def __init__(self, session) -> None:
+    def __init__(self, session, *, local: bool = False) -> None:
         super().__init__()
         self._session = session
+        self._local = local
 
     def compose(self) -> ComposeResult:
         with Vertical(id="picker-box"):
@@ -117,7 +135,13 @@ class PlaylistPickerScreen(ModalScreen[str | None]):
     @work(thread=True, exclusive=True, group="playlists")
     def _load(self) -> None:
         try:
-            rows = library.playlist_rows(self._session)
+            if self._local:
+                rows = [
+                    Row(_("+ nueva playlist…"), "", key=library.NEW_LOCAL_PLAYLIST),
+                    *library.local_playlist_rows(),
+                ]
+            else:
+                rows = library.playlist_rows(self._session)
         except Exception as exc:
             self.app.call_from_thread(self._failed, exc)
             return

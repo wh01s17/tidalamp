@@ -18,7 +18,7 @@ from typing import Any, cast
 import tidalapi
 from tidalapi.types import AlbumOrder, ArtistOrder, ItemOrder, OrderDirection
 
-from . import local
+from . import local, local_playlists
 from .i18n import _
 from .levels import (
     ALBUM_BY,
@@ -27,6 +27,7 @@ from .levels import (
     ARTIST_TRACK_BY,
     LOCAL_ALBUM_BY,
     LOCAL_ARTIST_BY,
+    LOCAL_PLAYLIST_BY,
     LOCAL_TRACK_BY,
     PLAYLIST_BY,
     TRACK_BY,
@@ -542,6 +543,48 @@ def _local_track_rows(tracks: Iterable[local.Track]) -> list[Row]:
     return rows
 
 
+# The levels under «Música local» look their tracks up in the scan when they
+# load, rather than keep the ones they were cut from: `R` drops the scan
+# (`forget_local`), and the level it reloads then shows what is on the disk
+# now — a file added to a record, a tag fixed — and not the old copy.
+
+
+def _local_album_tracks(key: str) -> list[Row]:
+    found = [track for track in _local_tracks() if track.album_key == key]
+    found.sort(key=lambda track: (track.disc, track.track_num, track.path))
+    return _local_track_rows(found)
+
+
+def _local_records_of(name: str) -> list[local.Album]:
+    wanted = name.casefold()
+    found = local.artists(local.albums(_local_tracks()))
+    return next(
+        (records for artist, records in found.items() if artist.casefold() == wanted),
+        [],
+    )
+
+
+def _local_artist_albums(name: str) -> list[Row]:
+    return _local_album_rows(_local_records_of(name))
+
+
+def _local_artist_tracks(name: str) -> list[Row]:
+    return _local_track_rows(
+        [track for album in _local_records_of(name) for track in album.tracks]
+    )
+
+
+def _local_under(directory: Path) -> list[local.Track]:
+    return sorted(
+        (
+            track
+            for track in _local_tracks()
+            if Path(track.path).is_relative_to(directory)
+        ),
+        key=lambda track: track.path,
+    )
+
+
 def _local_album_rows(records: Iterable[local.Album]) -> list[Row]:
     rows = []
     for album in records:
@@ -563,7 +606,9 @@ def _local_album_rows(records: Iterable[local.Album]) -> list[Row]:
                 **_sortable(
                     key,
                     ("name", "artist"),
-                    _whatever_order(partial(_local_track_rows, list(album.tracks))),
+                    _whatever_order(
+                        partial(_local_album_tracks, album.tracks[0].album_key)
+                    ),
                     local=True,
                 ),
             )
@@ -586,13 +631,10 @@ def _local_artist_rows(found: dict[str, list[local.Album]]) -> list[Row]:
                 **_sortable(
                     f"local:artist:{name.casefold()}",
                     LOCAL_ALBUM_BY,
-                    _whatever_order(partial(_local_album_rows, records)),
+                    _whatever_order(partial(_local_artist_albums, name)),
                     local=True,
                 ),
-                tracks=partial(
-                    _local_track_rows,
-                    [track for album in records for track in album.tracks],
-                ),
+                tracks=partial(_local_artist_tracks, name),
             )
         )
     return rows
@@ -609,16 +651,15 @@ def _local_folder_row(directory: Path, tracks: list[local.Track], label: str = "
         caption=label or directory.name,
         source=LOCAL,
         key=f"local:dir:{directory}",
-        loader=cached(
-            f"local:dir:{directory}", partial(_local_folder_level, directory, inside)
-        ),
-        tracks=partial(_local_track_rows, inside),
+        loader=cached(f"local:dir:{directory}", partial(_local_folder_level, directory)),
+        tracks=lambda: _local_track_rows(_local_under(directory)),
     )
 
 
-def _local_folder_level(directory: Path, tracks: list[local.Track]) -> list[Row]:
+def _local_folder_level(directory: Path) -> list[Row]:
     """A folder as it is on the disk: its subfolders first, then its files,
     each by name. Only what holds audio: a folder of scans is not shown."""
+    tracks = _local_under(directory)
     subfolders: dict[str, list[local.Track]] = {}
     files: list[local.Track] = []
     for track in tracks:
@@ -649,6 +690,101 @@ def _local_roots_level() -> list[Row]:
                 shown = str(root)
             rows.append(_local_folder_row(real, inside, label=f"{shown}/"))
     return rows
+
+
+# The row at the head of «Playlists» that makes a new one, as «+ añadir una
+# carpeta…» heads the folders in `o`. A key and no loader: the browser knows
+# it by its key and asks for a name instead of opening anything.
+NEW_LOCAL_PLAYLIST = "local:new-playlist"
+
+
+def _local_by_path() -> dict[str, local.Track]:
+    try:
+        tracks = _local_tracks()
+    except local.LocalUnavailable:
+        tracks = []
+    return {track.path: track for track in tracks}
+
+
+def _missing(path: str) -> local.Track:
+    """A line of a playlist whose file is not there: still a row, so it can
+    be seen and taken out, named after the file it was."""
+    name = Path(path)
+    return local.Track(path=path, title=name.stem, artist="", album=name.parent.name)
+
+
+def _local_playlist_tracks(paths: list[str]) -> list[Row]:
+    """A playlist's lines as rows, in its own order.
+
+    From the scan when the file is in it, read on the spot when it is not
+    (a playlist can point outside the configured folders), and a row that
+    says the file is gone otherwise.
+    """
+    known = _local_by_path()
+    rows = []
+    for path in paths:
+        track = known.get(path)
+        gone = False
+        if track is None:
+            file = Path(path)
+            if file.is_file():
+                track = local.read(file)
+                known[path] = track
+            else:
+                track, gone = _missing(path), True
+        (row,) = _local_track_rows([track])
+        if gone:
+            row.detail = _("el fichero no está")
+        rows.append(row)
+    return rows
+
+
+def _local_playlist_file(path: Path) -> list[Row]:
+    """A playlist's level, read from its file when it opens: after a write
+    forgets it, the next visit sees what the file says now."""
+    return _local_playlist_tracks(local_playlists.load(path).tracks)
+
+
+def _local_playlist_rows(found: Iterable[local_playlists.Playlist]) -> list[Row]:
+    rows = []
+    for playlist in found:
+        rows.append(
+            Row(
+                label=playlist.name,
+                detail=_("{count} pistas").format(count=len(playlist.items)),
+                caption=playlist.name,
+                source=LOCAL,
+                # Renamed, deleted and reordered here, like «Mis playlists».
+                editable=True,
+                **_sortable(
+                    playlist.key,
+                    LOCAL_PLAYLIST_BY,
+                    _whatever_order(partial(_local_playlist_file, playlist.path)),
+                    local=True,
+                ),
+            )
+        )
+    return rows
+
+
+def _local_playlists_level() -> list[Row]:
+    """«Playlists»: a row to make one, then every one there is, by name."""
+    return [
+        Row(_("+ nueva playlist…"), "", key=NEW_LOCAL_PLAYLIST, source=LOCAL),
+        *_local_playlist_rows(local_playlists.listing()),
+    ]
+
+
+def local_playlist_rows() -> list[Row]:
+    """Every local playlist, for the picker to draw."""
+    return _local_playlist_rows(local_playlists.listing())
+
+
+def forget_local_playlists(key: str = "") -> None:
+    """Drop «Playlists», and the playlist ``key`` in every order, after a write."""
+    forget_level("local:playlists")
+    if key:
+        forget_level(key)
 
 
 def local_root() -> list[Row]:
@@ -715,6 +851,15 @@ def _local_level() -> list[Row]:
             source=LOCAL,
             key="local:folders",
             loader=cached("local:folders", _local_roots_level),
+        ),
+        # Lists of these files made here, saved as `.m3u8` so any other
+        # player opens them too (`local_playlists`).
+        Row(
+            _("Playlists"),
+            _("las tuyas, con tus ficheros"),
+            source=LOCAL,
+            key="local:playlists",
+            loader=cached("local:playlists", _local_playlists_level),
         ),
     ]
 
