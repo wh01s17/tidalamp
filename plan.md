@@ -4,7 +4,10 @@ Documento de traspaso. Describe qué existe, qué está verificado, qué falta y
 criterio se tomaron las decisiones, para que cualquiera (humano o modelo) pueda
 retomar el trabajo sin contexto previo.
 
-**Última actualización:** 2026-11-26, versión `0.27.0` preparada para publicar:
+**Última actualización:** 2026-11-26, versión `0.27.0` publicada en PyPI y GitHub,
+con el tag `v0.27.0` sobre `fdfaf0c` y el checksum del tarball en `packaging/aur/`.
+CI en verde en Linux (Python 3.11–3.14), Windows (3.11 y 3.14), instalaciones sin
+extras y lint; ZIP de Windows adjunto al Release. Lo nuevo:
 playlists de «Música local» en `.m3u8` (crear, añadir con `l`, `p`, renombrar,
 borrar, quitar y mover), `p` con una cola mezclada pregunta si a TIDAL o a una
 playlist local, y `R` reescanea las carpetas en cualquier nivel. Ver §4,
