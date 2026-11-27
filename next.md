@@ -167,13 +167,6 @@ mezcla.**
   lleva pistas de esa fuente. La cola acepta de las dos.
   - «Añadir a una playlist» (menú de la pista) ofrece sólo las playlists de la fuente
     de esa pista.
-  - Guardar la cola como playlist (`p`) con una cola mezclada, *por decidir:*
-    preguntar la fuente y guardar sólo sus pistas, diciendo cuántas quedan fuera; o
-    guardarla como playlist local `.m3u8`, que puede apuntar a las dos. Lo que no se
-    hace es meter en TIDAL una pista local buscándola por ISRC sin preguntar. Hoy
-    (2026-11-26) una cola sólo de ficheros, o cualquiera en modo offline, va a una
-    playlist local sin sus pistas de TIDAL; una mezclada con sesión sigue yendo a
-    TIDAL tal cual, con los ids negativos de los ficheros dentro.
   - En la cola, la fuente de cada fila como columna opcional de `columns.py`, igual
     que la licencia de las pistas libres.
   - Cada pista se resuelve con su fuente al sonar. Si TIDAL está sin vincular o no

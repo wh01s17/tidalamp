@@ -2652,7 +2652,14 @@ navegador reconoce y que pide un nombre, como «+ añadir una carpeta…» en `o
   niveles locales abre por fecha del fichero, y en una playlist esa fecha no dice
   cuándo entró la pista. Con fecha, además, `alt+↑↓` quedaba siempre bloqueado.
 - [x] **`p`** con una cola sólo de ficheros, o en modo offline, guarda una playlist
-  local. Una cola mezclada con sesión sigue yendo a TIDAL (`next.md`, por decidir).
+  local; sólo de TIDAL, en TIDAL como siempre. **Mezclada, pregunta** (decidido con
+  el mantenedor el 2026-11-26): «en TIDAL: N pistas (M locales fuera)», «como
+  playlist local: M pistas (N de TIDAL fuera)» o cancelar, con el cursor en la que
+  más pistas guarda. Se descartó el `.m3u8` que apunta a las dos fuentes: una línea
+  de TIDAL no la abre ningún otro reproductor, y rompe «cada playlist, una fuente».
+  Antes, la cola mezclada mandaba a TIDAL los ids negativos de los ficheros;
+  `save_queue_playlist` y `add_to_playlist` ya sólo mandan las de TIDAL, también
+  como guarda bajo la UI.
 
 ### Windows - `backends/`, `player.py`, `config.py`, `i18n.py`
 
