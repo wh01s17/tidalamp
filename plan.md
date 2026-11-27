@@ -4,7 +4,14 @@ Documento de traspaso. Describe qué existe, qué está verificado, qué falta y
 criterio se tomaron las decisiones, para que cualquiera (humano o modelo) pueda
 retomar el trabajo sin contexto previo.
 
-**Última actualización:** 2026-11-27, versión `0.27.1` publicada en PyPI y GitHub,
+**Última actualización:** 2026-11-27, versión `0.28.0` preparada para publicar:
+una pista sin carátula recibe una dibujada para el tema en uso (`blank_cover.py`:
+el emblema enmarcado en los temas con emblema; pantalla con analizador en retro,
+anillo en nova, vinilo pixelado en ascii, vinilo plano en quattro), en los colores
+de la paleta. Arregla la carátula de TIDAL que volvía sobre una pista local sin
+carátula al cerrar una ventana. Ver §4, «Carátula por defecto».
+
+2026-11-27, versión `0.27.1` publicada en PyPI y GitHub,
 con el tag `v0.27.1` sobre `0142e51` y el checksum del tarball en `packaging/aur/`.
 CI en verde en Linux (Python 3.11–3.14), Windows (3.11 y 3.14), instalaciones sin
 extras y lint; ZIP de Windows adjunto al Release. Lo nuevo:
@@ -1094,6 +1101,25 @@ separación: es lo que permitiría añadir otro frontend (ver §6).
       compositor de Textual desconoce: la carátula se retira al apilar una pantalla
       modal y se restaura desde el tick lento al desapilarla, y se borra por id al
       desmontar el widget.
+
+### Carátula por defecto — `blank_cover.py`, `cover.py`
+
+- [x] **Una pista sin carátula recibe una del tema** (0.28.0, 2026-11-27). Antes, una
+      pista sin `art_url` bajaba la carátula, pero no la guardada para cuando se
+      cerrara una ventana (`CoverView.pending`): al pasar a offline en Ajustes y poner
+      una demo local desde el navegador, volvía la del último disco de TIDAL. Ahora
+      `CoverView.load` usa `blank_cover.url(tema, paleta)` cuando no hay `art_url`, y
+      el dibujo pasa por el mismo `ready`, que sustituye también la guardada.
+- [x] La URL (`tidalamp:blank-cover/<tema>/<colores>`) lleva todo lo necesario para
+      dibujarla; `artwork.fetch` la dibuja en vez de descargarla, sin caché en disco
+      (`lru_cache` en memoria). Así la usan igual el reproductor, la pantalla
+      completa y `reshape`, que la redibuja si cambian el tema o la paleta (también
+      el de Omarchy, desde `refresh_theme`).
+- [x] Un dibujo por tema: los temas con emblema lo enmarcan en el acento sobre un
+      degradado de `panel` a `display_background`; retro, panel con relieve y LCD con
+      analizador y scanlines; nova, anillo y punto; ascii, vinilo de 32×32 ampliado
+      sin suavizar; quattro (y cualquier tema desconocido), vinilo plano con los
+      cuatro cuadros. Sin Pillow no se dibuja, como cualquier carátula.
 
 ### Barra de transporte — `app.py`, `styles/player.tcss`
 

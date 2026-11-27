@@ -64,6 +64,14 @@ def releases() -> tuple[Release, ...]:
     """Newest first. Translated at call time, not at import time."""
     return (
         Release(
+            "0.28.0",
+            "2026-11-27",
+            (
+                _("Una carátula a juego con el tema para pistas que no tienen."),
+                _("Una pista local sin carátula ya no muestra la anterior."),
+            ),
+        ),
+        Release(
             "0.27.1",
             "2026-11-27",
             (

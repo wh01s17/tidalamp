@@ -224,6 +224,13 @@ ENGLISH: dict[str, str] = {
     "La biblioteca abre por fecha, lo más reciente primero.": (
         "The library opens by date, most recent first."
     ),
+    # --- 0.28.0, in the help's list of changes
+    "Una carátula a juego con el tema para pistas que no tienen.": (
+        "A cover to match the theme for tracks that have none."
+    ),
+    "Una pista local sin carátula ya no muestra la anterior.": (
+        "A local track without a cover no longer shows the last one."
+    ),
     # --- 0.27.1, in the help's list of changes
     "Ajustes dice qué tiene ocupada la salida cuando hay resampling.": (
         "Settings say what holds the output open when it is resampled."

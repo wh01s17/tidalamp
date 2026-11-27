@@ -5,6 +5,8 @@ versioning is [semantic](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.28.0] - 2026-11-27
+
 ### Added
 
 - **A cover for tracks that have none**, drawn for the look in use. The themed
