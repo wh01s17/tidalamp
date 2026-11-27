@@ -398,7 +398,11 @@ def test_the_next_cover_and_lyrics_are_fetched_with_its_stream(monkeypatch):
             await settle(pilot, lambda: bool(lyrics_for))
 
             assert mpv.queued == [("https://cdn/track-2", 0.0)], "el audio, primero"
-            assert fetched == ["https://img/2.jpg"]
+            # The first track has no cover and gets the blank one; the
+            # prefetch asks for the next one's.
+            assert [url for url in fetched if not url.startswith("tidalamp:")] == [
+                "https://img/2.jpg"
+            ]
             assert lyrics_for == ["track-2"]
             assert application.lyrics.cache[2] == "letra"
 

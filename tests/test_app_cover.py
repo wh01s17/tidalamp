@@ -23,7 +23,7 @@ from textual.screen import Screen
 from textual.widgets import Input, Static
 
 from tidalamp import app as app_module
-from tidalamp import artwork, auth, playlists, spectrum_feed
+from tidalamp import artwork, auth, blank_cover, playlists, spectrum_feed
 from tidalamp import audio as audio_module
 from tidalamp.app import ConfigScreen, RowList, TidalAmp
 from tidalamp.artwork import Protocol
@@ -289,10 +289,12 @@ def test_the_same_cover_is_not_fetched_twice(monkeypatch):
             application.cover.load(entry)
             assert asked == ["https://c/1.jpg"]
 
-            # A track with no cover hides whatever was on screen.
-            application.query_one(Artwork).show(a_cover())
+            # A track with no cover gets the blank one of the look in use,
+            # rather than the last record's.
             application.cover.load(Entry(id=2, title="t2", artist="a"))
-            assert application.query_one(Artwork).cover is None
+            assert asked[1] == application.cover.blank_url()
+            assert blank_cover.is_blank(asked[1])
+            assert "/quattro/" in asked[1]
 
     asyncio.run(scenario())
 
@@ -944,5 +946,68 @@ def test_windows_asks_the_terminal_for_whole_frames(monkeypatch):
             application.post_message(TerminalSupportsSynchronizedOutput())
             await pilot.pause()
             assert application._sync_available
+
+    asyncio.run(scenario())
+
+
+def test_a_track_without_a_cover_never_brings_the_last_one_back(monkeypatch):
+    """Offline mode switched on in the settings, then a local demo with no
+    art played from the browser: the TIDAL record's cover, kept for when the
+    window closed, came back over the demo (2026-11-27). The blank cover
+    takes its place instead, window or no window."""
+    isolate_runtime(monkeypatch)
+    blank = a_cover(Protocol.KITTY)
+    monkeypatch.setattr(
+        CoverView,
+        "worker",
+        lambda self, url: self.ready(blank if blank_cover.is_blank(url) else None),
+    )
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(100, 30)) as pilot:
+            await pilot.pause()
+            application.cover.protocol = Protocol.KITTY
+            art = application.query_one(Artwork)
+            record = a_cover(Protocol.KITTY)
+            application.cover.ready(record)
+
+            application.push_screen(Screen())
+            await pilot.pause()
+            assert application.cover.pending is record
+
+            application.cover.load(Entry(id=2, title="demo", artist="a"))
+            application.pop_screen()
+            await wait_for(pilot, lambda: art.cover is blank)
+
+    asyncio.run(scenario())
+
+
+def test_the_blank_cover_follows_the_look(monkeypatch):
+    """A blank cover is the look's and the palette's: change either and it
+    is drawn again, while a record's cover stays as it is."""
+    isolate_runtime(monkeypatch)
+    asked: list[str] = []
+    monkeypatch.setattr(CoverView, "worker", lambda self, url: asked.append(url))
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())
+        async with application.run_test(size=(100, 30)) as pilot:
+            await pilot.pause()
+            application.cover.load(Entry(id=2, title="demo", artist="a"))
+            assert "/quattro/" in asked[-1]
+
+            monkeypatch.setattr(app_module.config, "THEME", "retro")
+            application.cover.reshape()
+            assert "/retro/" in asked[-1]
+            count = len(asked)
+            application.cover.reshape()
+            assert len(asked) == count, "the same look draws nothing new"
+
+            application.cover.load(
+                Entry(id=1, title="t", artist="a", art_url="https://c/1.jpg")
+            )
+            application.cover.reshape()
+            assert asked[-1] == "https://c/1.jpg"
 
     asyncio.run(scenario())

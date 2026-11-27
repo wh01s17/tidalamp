@@ -994,6 +994,11 @@ terminal's capabilities:
 Detection reads `$TERM`, `$TERM_PROGRAM`, and `$KITTY_WINDOW_ID`, and falls back to
 blocks, which work everywhere.
 
+A track without art, such as a local file with no image in its folder or tags, gets
+a cover drawn for the look in use, in the palette's colours. The themed looks frame
+their emblem, *retro* shows a bevelled screen with an analyser, *nova* a ring, *ascii*
+a pixel record and *quattro* a flat one.
+
 `cover_shape = "round"` (Cover shape in the settings window) draws the cover as a disc,
 under any theme. The corners are painted in the band's own colour rather than left
 transparent, since sixel and blocks have no transparency to leave, so the disc looks

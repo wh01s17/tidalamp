@@ -13,7 +13,7 @@ from textual.containers import Horizontal, Vertical
 from textual.screen import Screen
 from textual.widgets import Static
 
-from .. import artwork, config, transport
+from .. import artwork, blank_cover, config, transport
 from ..columns import QUALITY_LABELS
 from ..i18n import _
 from ..keys import keys_for
@@ -186,8 +186,11 @@ class FullscreenScreen(Screen[None]):
         """The playing track's cover at 1280 px: the queue keeps the 320 that
         suits the player, and stretched to fill a 4K screen it is a blur."""
         entry = self.player.queue.current
-        url = (entry.art_url or "") if entry is not None else ""
-        return artwork.sized(url, 1280) if url else ""
+        if entry is None:
+            return ""
+        if not entry.art_url:
+            return blank_cover.url(config.THEME, palette_for(self).colors)
+        return artwork.sized(entry.art_url, 1280)
 
     def _fit(self) -> None:
         """As large as the stage, square on screen, with a row of air."""

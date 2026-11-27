@@ -142,7 +142,12 @@ def fetch(url: str, *, root: Path | None = None) -> bytes:
     Covers never change under a URL — TIDAL puts the image id in the path — so
     the cache needs no expiry. A ``file://`` cover is a local record's, read
     where it is: copying it into the cache would only keep a second one.
+    A blank cover (`blank_cover`) is drawn here, for a track that has none.
     """
+    from . import blank_cover
+
+    if blank_cover.is_blank(url):
+        return blank_cover.draw(url)
     if url.startswith("file://"):
         from urllib.parse import unquote, urlparse
         from urllib.request import url2pathname
@@ -607,6 +612,11 @@ def _emblem_image(path: str):
     except OSError as exc:
         log.warning("emblema ilegible: %s", exc)
         return None
+
+
+def emblem_image(path: Path):
+    """The emblem at ``path`` as an RGBA Pillow image, or None."""
+    return _emblem_image(str(path))
 
 
 def _veil(pixel: Pixel, ground: Pixel, amount: float) -> Pixel:

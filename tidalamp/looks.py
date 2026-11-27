@@ -288,5 +288,7 @@ class Looks:
         self.app.tidalamp_palette = palette
         self.app.refresh_css(animate=False)
         self.paint_terminal_margin()
+        # A blank cover is drawn in the palette's colours.
+        self.app.call_after_refresh(self.app.cover.reshape)
         self.app.transport.refresh()
         self.app.screen.refresh()

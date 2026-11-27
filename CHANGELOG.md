@@ -5,6 +5,20 @@ versioning is [semantic](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **A cover for tracks that have none**, drawn for the look in use. The themed
+  looks set their emblem in a frame; *retro* gets a bevelled screen with an
+  analyser, *nova* a ring, *ascii* a record in counted pixels and *quattro* a
+  flat record. All are in the palette's colours and are drawn again when the look
+  or the palette changes, in the player and in full screen.
+
+### Fixed
+
+- A local track without art no longer plays under the last record's cover. The
+  cover kept for after a window closed (switching to offline mode in the settings,
+  say) came back once it did.
+
 ## [0.27.1] - 2026-11-27
 
 ### Changed

@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from . import artwork, config
+from . import artwork, blank_cover, config
 from .i18n import _
 from .queue import Entry
 from .widgets import Artwork
@@ -139,9 +139,17 @@ class CoverView:
             ground = (int(hex_[0:2], 16), int(hex_[2:4], 16), int(hex_[4:6], 16))
         return config.COVER_SHAPE, ground
 
+    def blank_url(self) -> str:
+        """The cover a track without one gets, in the look and palette in use."""
+        return blank_cover.url(config.THEME, self.app.tidalamp_palette.colors)
+
     def reshape(self) -> None:
-        """Draw the cover again if the look now cuts it differently."""
-        if self.url and self.cut_with not in (None, self.look()):
+        """Draw the cover again if the look now cuts it differently, or if
+        the blank one up belongs to another look or palette."""
+        if blank_cover.is_blank(self.url) and self.url != self.blank_url():
+            self.url = self.blank_url()
+            self.worker(self.url)
+        elif self.url and self.cut_with not in (None, self.look()):
             self.worker(self.url)
 
     def load(self, entry: Entry) -> None:
@@ -151,17 +159,17 @@ class CoverView:
         widget = self.widget()
         if widget is None:
             return
-        if not entry.art_url:
-            self.url = ""
-            widget.show(None)
+        # Not nothing: a track without a cover used to take the last one
+        # down, and a window open at the time put it back up on closing, so
+        # a home demo played under the last TIDAL record's cover.
+        url = entry.art_url or self.blank_url()
+        if url == self.url:
             return
-        if entry.art_url == self.url:
-            return
-        self.url = entry.art_url
+        self.url = url
         if self.app.looks.compact:
             widget.show(None)
             return
-        self.worker(entry.art_url)
+        self.worker(url)
 
     # Its own group: the default one is the resolve worker's, and an exclusive
     # worker cancels the rest of its group — the cover would kill playback.
