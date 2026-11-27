@@ -224,6 +224,16 @@ ENGLISH: dict[str, str] = {
     "La biblioteca abre por fecha, lo más reciente primero.": (
         "The library opens by date, most recent first."
     ),
+    # --- 0.27.0, in the help's list of changes
+    "Playlists de música local, en .m3u8: crear, añadir, mover.": (
+        "Local music playlists, as .m3u8: create, add, reorder."
+    ),
+    "Una cola mezclada pregunta dónde guardarse con p.": (
+        "A mixed queue asks where to be saved with p."
+    ),
+    "R en la biblioteca vuelve a leer tus carpetas.": (
+        "R in the library reads your folders again."
+    ),
     # --- 0.26.0, in the help's list of changes
     "Modo offline: sólo música local, sin sesión de TIDAL.": (
         "Offline mode: local music only, with no TIDAL session."

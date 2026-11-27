@@ -5,6 +5,8 @@ versioning is [semantic](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.27.0] - 2026-11-26
+
 ### Added
 
 - **Local playlists**, under *Local music* → *Playlists*. *+ new playlist…* makes
