@@ -115,6 +115,7 @@ class ConfigScreen(ModalScreen[None]):
         self._allowed: tuple[int, ...] = ()
         self._hardware: tuple[int, ...] = ()
         self._stream_rate = 0
+        self._holders = audio.Holders()
         # The outputs mpv can play to, as (name, description), and the one
         # the system has as its default. Probed with the audio stack.
         self._devices: list[tuple[str, str]] = []
@@ -395,15 +396,26 @@ class ConfigScreen(ModalScreen[None]):
         found = (audio.sink(), audio.allowed_rates())
         hardware = audio.hardware_rates(found[0].name)
         stream = getattr(getattr(self.app, "mpv", None), "samplerate", 0)
+        holders = audio.holders(found[0])
         launcher = desktop.existing(desktop.data_dirs())
         outputs = (audio.devices(), audio.system_default())
-        self.app.call_from_thread(self._probed, found[0], found[1], hardware, stream)
+        self.app.call_from_thread(
+            self._probed, found[0], found[1], hardware, stream, holders
+        )
         self.app.call_from_thread(self._launcher_probed, launcher)
         self.app.call_from_thread(self._devices_probed, *outputs)
 
-    def _probed(self, found, allowed, hardware, stream_rate: int = 0) -> None:
+    def _probed(
+        self,
+        found,
+        allowed,
+        hardware,
+        stream_rate: int = 0,
+        holders: audio.Holders | None = None,
+    ) -> None:
         self._sink, self._allowed, self._hardware = found, allowed, hardware
         self._stream_rate = stream_rate
+        self._holders = holders or audio.Holders()
         self._render_list()
 
     def _launcher_probed(self, launcher: Path | None) -> None:
@@ -562,9 +574,7 @@ class ConfigScreen(ModalScreen[None]):
         current = self._rows[self.cursor]
         footer = [(f"     {current.label}: {self._detail(current)}", palette["muted"])]
         footer.append((self._status(), palette["muted"]))
-        warning = self._warning()
-        if warning:
-            footer.append((warning, palette["warning"]))
+        footer += [(line, palette["warning"]) for line in self._warning().splitlines()]
         footer += [(line, palette["warning"]) for line in self._notice.splitlines()]
 
         rendered = Text()
@@ -637,9 +647,22 @@ class ConfigScreen(ModalScreen[None]):
         # the sink at its rate, or the switch has not landed yet.
         stream = self._stream_rate
         if stream and self._sink.rate and stream != self._sink.rate:
-            return _("  PipeWire hace resampling de {stream} Hz a {rate} Hz").format(
-                stream=stream, rate=self._sink.rate
-            )
+            lines = [
+                _("  PipeWire hace resampling de {stream} Hz a {rate} Hz").format(
+                    stream=stream, rate=self._sink.rate
+                )
+            ]
+            # Why, when PipeWire says: «configured» next to a resampled
+            # stream reads as a fault of the setting, and it is not one.
+            # What else has the output open, or, failing that, the device
+            # it is tied to.
+            holders = self._holders
+            names = holders.others or ((holders.clock,) if holders.clock else ())
+            if names:
+                lines.append(
+                    _("  La tiene ocupada: {names}").format(names=", ".join(names))
+                )
+            return "\n".join(lines)
         return ""
 
     # --------------------------------------------------------------- actions

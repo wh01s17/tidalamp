@@ -31,7 +31,7 @@ from pathlib import Path
 from typing import Any, NamedTuple
 
 # The same record on every system: what an output is, as far as it will say.
-from ..linux.audio import Sink
+from ..linux.audio import Holders, Sink
 
 # Whether this backend manages the stack's rates. The settings window offers
 # PipeWire's rows only where it does, and exclusive mode where it does not.
@@ -292,6 +292,11 @@ def _endpoint_guid(device: Any) -> str:
 def streams_on(target: Sink) -> int:
     """Unknown: WASAPI does not say who else is playing."""
     return -1
+
+
+def holders(target: Sink) -> Holders:
+    """Windows's audio engine does not say what else holds the device."""
+    return Holders()
 
 
 def allowed_rates() -> tuple[int, ...]:

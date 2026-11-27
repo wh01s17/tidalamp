@@ -137,6 +137,11 @@ class Output:
                         audio.hardware_rates(sink.name),
                         audio.streams_on(sink),
                     )
+                    if target and audio.holders(sink).clock:
+                        # The sink follows another device's clock. Forcing
+                        # moves that device instead, cutting whatever it
+                        # records, and leaves this one at its rate.
+                        target = 0
                     if target and audio.force_rate(target):
                         log.info("forzando %s Hz: el sink iba a %s Hz", target, sink.rate)
                         forced = target

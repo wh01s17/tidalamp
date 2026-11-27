@@ -372,3 +372,115 @@ def test_cava_listens_to_the_monitor_of_the_chosen_sink():
     assert audio.monitor(f"pipewire/{BTR15}") == f"{BTR15}.monitor"
     assert audio.monitor("auto") == "auto"
     assert audio.monitor("") == "auto"
+
+
+# ------------------------------------------------------------------ holders
+
+
+def _node(number, name, **props):
+    return {
+        "id": number,
+        "type": "PipeWire:Interface:Node",
+        "info": {"props": {"node.name": name, **props}},
+    }
+
+
+def _link(source, target):
+    return {
+        "id": 1000 + source * 10 + target,
+        "type": "PipeWire:Interface:Link",
+        "info": {"output-node-id": source, "input-node-id": target},
+    }
+
+
+# The graph seen 2026-11-27: a loopback from evo8-linux plays a virtual sink
+# to the default output, a BTR15, which follows the EVO 8's clock.
+PW_DUMP = [
+    _node(
+        77,
+        "alsa_input.usb-Audient_EVO8-00.pro-input-0",
+        **{
+            "node.description": "EVO8 Pro",
+        },
+    ),
+    _node(
+        84,
+        BTR15,
+        **{
+            "node.description": "FIIO BTR15 Analog Stereo",
+            "node.driver-id": 77,
+        },
+    ),
+    _node(
+        56,
+        "mezcla.compartido.escucha",
+        **{
+            "node.description": "Compartido (escucha)",
+            "node.driver-id": 77,
+        },
+    ),
+    _node(
+        44,
+        "mpv",
+        **{
+            "application.name": "mpv",
+            "application.process.id": 4321,
+            "node.driver-id": 77,
+        },
+    ),
+    _node(42, "Firefox", **{"application.name": "Firefox"}),
+    _link(56, 84),
+    _link(44, 84),
+    {"id": 1, "type": "PipeWire:Interface:Core", "info": {}},
+]
+
+
+def _dumping(monkeypatch, objects):
+    import json
+
+    text = objects if isinstance(objects, str) else json.dumps(objects)
+    monkeypatch.setattr(audio, "_run", lambda command, timeout=5: text)
+
+
+class _Mpv:
+    pid = 4321
+
+
+def test_a_sink_on_another_clock_says_whose_and_who_else_plays(monkeypatch):
+    _dumping(monkeypatch, PW_DUMP)
+    monkeypatch.setattr(audio, "_player", _Mpv())
+
+    found = audio.holders(audio.Sink(name=BTR15))
+
+    # mpv's own stream is the music, not something in its way.
+    assert found == audio.Holders(clock="EVO8 Pro", others=("Compartido (escucha)",))
+    assert found.any
+
+
+def test_a_sink_on_its_own_clock_with_mpv_alone_is_free(monkeypatch):
+    objects = [
+        _node(84, BTR15, **{"node.driver-id": 84}),
+        _node(44, "mpv", **{"application.process.id": 4321}),
+        _link(44, 84),
+    ]
+    _dumping(monkeypatch, objects)
+    monkeypatch.setattr(audio, "_player", _Mpv())
+
+    found = audio.holders(audio.Sink(name=BTR15))
+
+    assert found == audio.Holders()
+    assert not found.any
+
+
+@pytest.mark.parametrize("output", [None, "", "no es json", '{"un": "objeto"}'])
+def test_a_dump_that_cannot_be_read_holds_nothing(monkeypatch, output):
+    monkeypatch.setattr(audio, "_run", lambda command, timeout=5: output)
+
+    assert audio.holders(audio.Sink(name=BTR15)) == audio.Holders()
+
+
+def test_a_sink_missing_from_the_dump_holds_nothing(monkeypatch):
+    _dumping(monkeypatch, PW_DUMP)
+
+    assert audio.holders(audio.Sink(name="otro")) == audio.Holders()
+    assert audio.holders(audio.Sink()) == audio.Holders()

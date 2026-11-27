@@ -18,6 +18,7 @@ raising, because none of it is on the path that plays music.
 
 from __future__ import annotations
 
+import json
 import logging
 import os
 import re
@@ -237,6 +238,87 @@ def streams_on(target: Sink) -> int:
         for line in listing.splitlines()
         if len(fields := line.split("\t")) > 1 and fields[1] == str(target.index)
     )
+
+
+@dataclass(frozen=True)
+class Holders:
+    """Why the sink is not free to take the stream's rate, as PipeWire says.
+
+    PipeWire opens a device at one rate and keeps it there while it runs,
+    and a device that follows another one's clock runs at whatever it was
+    opened at, its samples matched to that clock. Both were seen at once
+    (2026-11-27): a loopback sending a virtual sink to the default output
+    kept a FiiO BTR15 open at 48 kHz and tied to an Audient EVO 8's clock,
+    with the allowed rates in place and the graph itself at 96 kHz. The
+    settings said «configured» and the DAC got 48 kHz, and nothing on
+    screen said why.
+    """
+
+    # The device whose clock the sink follows, by its description; "" while
+    # the sink keeps its own.
+    clock: str = ""
+    # Whatever else plays into the sink, mpv aside, by description.
+    others: tuple[str, ...] = ()
+
+    @property
+    def any(self) -> bool:
+        return bool(self.clock or self.others)
+
+
+def _label(props: dict[str, Any]) -> str:
+    return str(
+        props.get("node.description")
+        or props.get("application.name")
+        or props.get("node.nick")
+        or props.get("node.name")
+        or ""
+    )
+
+
+def holders(target: Sink) -> Holders:
+    """What keeps ``target`` from playing the stream untouched, read from
+    `pw-dump`. Empty when nothing does, and when PipeWire will not say."""
+    if not target.known:
+        return Holders()
+    output = _run(["pw-dump"])
+    try:
+        objects = json.loads(output or "[]")
+    except ValueError:
+        return Holders()
+    if not isinstance(objects, list):
+        return Holders()
+    nodes: dict[int, dict[str, Any]] = {}
+    links: list[dict[str, Any]] = []
+    for item in objects:
+        if not isinstance(item, dict) or not isinstance(item.get("info"), dict):
+            continue
+        kind = str(item.get("type", ""))
+        if kind.endswith(":Node"):
+            nodes[item.get("id", -1)] = item["info"].get("props") or {}
+        elif kind.endswith(":Link"):
+            links.append(item["info"])
+    own = next(
+        (key for key, props in nodes.items() if props.get("node.name") == target.name),
+        None,
+    )
+    if own is None:
+        return Holders()
+    clock = ""
+    driver = nodes[own].get("node.driver-id")
+    if isinstance(driver, int) and driver != own and driver in nodes:
+        clock = _label(nodes[driver])
+    mpv = str(getattr(_player, "pid", "") or "")
+    others: list[str] = []
+    for link in links:
+        if link.get("input-node-id") != own:
+            continue
+        props = nodes.get(link.get("output-node-id", -1))
+        if props is None or (mpv and str(props.get("application.process.id")) == mpv):
+            continue
+        label = _label(props)
+        if label and label not in others:
+            others.append(label)
+    return Holders(clock=clock, others=tuple(others))
 
 
 def allowed_rates() -> tuple[int, ...]:

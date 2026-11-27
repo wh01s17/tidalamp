@@ -163,6 +163,7 @@ ENGLISH: dict[str, str] = {
     "  PipeWire hace resampling de {stream} Hz a {rate} Hz": (
         "  PipeWire resamples {stream} Hz to {rate} Hz"
     ),
+    "  La tiene ocupada: {names}": "  Held open by: {names}",
     "resampling desde {rate} kHz": "resampled from {rate} kHz",
     "no se pudo consultar PipeWire": "could not ask PipeWire",
     "la salida es Bluetooth: no hay hi-res real por ahí": (

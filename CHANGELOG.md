@@ -5,6 +5,19 @@ versioning is [semantic](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- **The settings say why PipeWire resamples.** When the rates are configured and the
+  DAC still runs at another rate, a line under the warning names what holds the
+  output open, as PipeWire reports it (*Held open by: …*). Before, all the window
+  said was «configured».
+
+### Fixed
+
+- The rate is no longer forced when the output follows another device's clock.
+  Forcing switched that other device, cutting whatever it was recording, and left
+  the DAC where it was.
+
 ## [0.27.0] - 2026-11-26
 
 ### Added

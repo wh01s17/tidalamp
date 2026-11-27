@@ -280,3 +280,68 @@ def test_favouriting_nothing_says_so_instead_of_failing(monkeypatch):
             assert application.status == "no hay ninguna pista seleccionada"
 
     asyncio.run(scenario())
+
+
+def test_the_screen_says_why_the_sink_would_not_switch(monkeypatch, tmp_path):
+    """«Configured» next to a resampled stream read as a broken setting. A
+    loopback held a BTR15 open at 48 kHz on an EVO 8's clock (2026-11-27),
+    and the window has to say that rather than leave it to `pw-dump`."""
+    isolate_runtime(monkeypatch)
+    isolate_config(monkeypatch, tmp_path)
+    monkeypatch.setattr(
+        audio_module,
+        "sink",
+        lambda: audio_module.Sink(name="s", description="Mi DAC", rate=48000),
+    )
+    monkeypatch.setattr(audio_module, "allowed_rates", lambda: linux_audio.RATES)
+    monkeypatch.setattr(
+        audio_module,
+        "holders",
+        lambda sink: audio_module.Holders(
+            clock="EVO8 Pro", others=("Compartido (escucha)",)
+        ),
+    )
+    mpv = FakeMpv()
+    mpv.samplerate = 96000
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), mpv)
+        async with application.run_test(size=(120, 40)) as pilot:
+            await pilot.pause()
+            application.push_screen(ConfigScreen())
+            await settle(pilot, lambda: "Mi DAC" in config_text(application))
+            drawn = config_text(application)
+            assert "PipeWire hace resampling de 96000 Hz a 48000 Hz" in drawn
+            # What has the output open, which is what can be closed.
+            assert "La tiene ocupada: Compartido (escucha)" in drawn
+            assert "EVO8 Pro" not in drawn
+
+    asyncio.run(scenario())
+
+
+def test_a_sink_tied_to_another_device_names_that_device(monkeypatch, tmp_path):
+    """Nothing else plays into it and it still will not switch: the device
+    it is tied to is the only name there is to give."""
+    isolate_runtime(monkeypatch)
+    isolate_config(monkeypatch, tmp_path)
+    monkeypatch.setattr(
+        audio_module,
+        "sink",
+        lambda: audio_module.Sink(name="s", description="Mi DAC", rate=48000),
+    )
+    monkeypatch.setattr(audio_module, "allowed_rates", lambda: linux_audio.RATES)
+    monkeypatch.setattr(
+        audio_module, "holders", lambda sink: audio_module.Holders(clock="EVO8 Pro")
+    )
+    mpv = FakeMpv()
+    mpv.samplerate = 96000
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), mpv)
+        async with application.run_test(size=(120, 40)) as pilot:
+            await pilot.pause()
+            application.push_screen(ConfigScreen())
+            await settle(pilot, lambda: "Mi DAC" in config_text(application))
+            assert "La tiene ocupada: EVO8 Pro" in config_text(application)
+
+    asyncio.run(scenario())

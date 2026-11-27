@@ -341,6 +341,11 @@ class Mpv:
         self._transport.connect(timeout)
 
     @property
+    def pid(self) -> int:
+        """mpv's process, which is how PipeWire tells its stream from others."""
+        return self._proc.pid
+
+    @property
     def alive(self) -> bool:
         """False once the mpv process is gone. Without this the UI would keep
         polling a dead socket and simply freeze at the last known position."""

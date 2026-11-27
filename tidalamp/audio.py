@@ -13,6 +13,7 @@ if sys.platform == "win32":
     from .backends.windows.audio import (
         MANAGES_RATES,
         SYSTEM,
+        Holders,
         Sink,
         allowed_rates,
         capturing,
@@ -21,6 +22,7 @@ if sys.platform == "win32":
         devices,
         force_rate,
         hardware_rates,
+        holders,
         monitor,
         rate_to_force,
         rates_configured,
@@ -36,6 +38,7 @@ else:
     from .backends.linux.audio import (
         MANAGES_RATES,
         SYSTEM,
+        Holders,
         Sink,
         allowed_rates,
         capturing,
@@ -44,6 +47,7 @@ else:
         devices,
         force_rate,
         hardware_rates,
+        holders,
         monitor,
         rate_to_force,
         rates_configured,
@@ -59,6 +63,7 @@ else:
 __all__ = [
     "MANAGES_RATES",
     "SYSTEM",
+    "Holders",
     "Sink",
     "allowed_rates",
     "capturing",
@@ -67,6 +72,7 @@ __all__ = [
     "devices",
     "force_rate",
     "hardware_rates",
+    "holders",
     "monitor",
     "rate_to_force",
     "rates_configured",

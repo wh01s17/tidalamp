@@ -171,6 +171,7 @@ def isolate_runtime(monkeypatch) -> None:
             allowed,
             audio_module.hardware_rates(sink.name),
             getattr(screen.app.mpv, "samplerate", 0),
+            audio_module.holders(sink),
         )
 
     monkeypatch.setattr(Queue, "load", lambda self: False)
@@ -186,6 +187,7 @@ def isolate_runtime(monkeypatch) -> None:
     monkeypatch.setattr(audio_module, "sink", lambda: audio_module.Sink())
     monkeypatch.setattr(audio_module, "allowed_rates", lambda: ())
     monkeypatch.setattr(audio_module, "hardware_rates", lambda name: ())
+    monkeypatch.setattr(audio_module, "holders", lambda sink: audio_module.Holders())
 
 
 # The transport is drawn as boxes three rows tall; row 1 carries the labels.
