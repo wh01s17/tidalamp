@@ -330,3 +330,118 @@ def test_a_track_is_moved_and_taken_out_of_a_local_playlist(monkeypatch, tmp_pat
             assert application.status == "«Uno» quitada de «Viaje»"
 
     asyncio.run(scenario())
+
+
+# ------------------------------------------------- `p` with a mixed queue
+
+
+def _mixed_save(monkeypatch, tmp_path, answer: str):
+    """Save a queue of two TIDAL tracks and one file, answering ``answer``
+    to the question; returns what TIDAL was sent, and the app's status."""
+    from tidalamp import playlists
+    from tidalamp.library_tasks import LibraryTasks
+    from tidalamp.screens import ChoiceScreen
+
+    isolate_runtime(monkeypatch)
+    sent: list[list[int]] = []
+    monkeypatch.setattr(auth, "ensure_fresh", lambda session: False)
+    monkeypatch.setattr(
+        playlists,
+        "save_queue_playlist",
+        lambda session, title, entries: (
+            sent.append([e.id for e in entries]) or len(entries)
+        ),
+    )
+    status: list[str] = []
+    asked: list[list[str]] = []
+
+    async def scenario() -> None:
+        application = TidalAmp(object(), FakeMpv())  # type: ignore[arg-type]
+        async with application.run_test(size=(100, 34)) as pilot:
+            await pilot.pause()
+            monkeypatch.setattr(
+                application, "call_from_thread", lambda callback, *a: callback(*a)
+            )
+            monkeypatch.setattr(
+                application.tasks,
+                "save_worker",
+                lambda *args: LibraryTasks.save_worker.__wrapped__(
+                    application.tasks, *args
+                ),
+            )
+            application.queue.replace(
+                [
+                    Entry(id=1, title="Schism", artist="TOOL"),
+                    a_file(tmp_path, "Uno"),
+                    Entry(id=2, title="Sober", artist="TOOL"),
+                ],
+                start=-1,
+            )
+            application.queue_view.sync()
+            await pilot.press("p")
+            await pilot.pause()
+            application.screen.query_one(Input).value = "Mezcla"
+            await pilot.press("enter")
+            await pilot.pause()
+            assert isinstance(application.screen, ChoiceScreen)
+            asked.append([label for _value, label in application.screen._options])
+            application.screen.dismiss(answer)
+            await pilot.pause()
+            status.append(application.status)
+
+    asyncio.run(scenario())
+    return sent, status[0], asked[0]
+
+
+def test_a_mixed_queue_asks_where_and_says_what_stays_out(monkeypatch, tmp_path):
+    sent, status, asked = _mixed_save(monkeypatch, tmp_path, "tidal")
+    assert asked == [
+        "en TIDAL: 2 pistas (1 locales fuera)",
+        "como playlist local: 1 pistas (2 de TIDAL fuera)",
+        "cancelar",
+    ]
+    # Never a file's negative id: TIDAL gets its own tracks only.
+    assert sent == [[1, 2]]
+    assert status == "playlist «Mezcla» creada con 2 pistas (1 locales fuera)"
+    assert local_playlists.listing() == []
+
+
+def test_a_mixed_queue_can_go_to_a_local_playlist(monkeypatch, tmp_path):
+    sent, status, _asked = _mixed_save(monkeypatch, tmp_path, "local")
+    assert sent == []
+    (playlist,) = local_playlists.listing()
+    assert playlist.name == "Mezcla" and len(playlist.tracks) == 1
+    assert status == "playlist local «Mezcla» creada con 1 pistas (2 de TIDAL fuera)"
+
+
+def test_cancelling_a_mixed_queue_saves_nothing(monkeypatch, tmp_path):
+    sent, _status, _asked = _mixed_save(monkeypatch, tmp_path, "cancel")
+    assert sent == [] and local_playlists.listing() == []
+
+
+def test_tidal_is_never_sent_a_files_id():
+    """The guard under the UI: a local entry that reaches the write is left
+    out of the request, not sent as a negative id."""
+    from tidalamp import playlists
+
+    class FakePlaylist:
+        def __init__(self):
+            self.items = []
+
+        def add(self, items, **kwargs):
+            self.items.extend(items)
+            return items
+
+    made = FakePlaylist()
+
+    class FakeUser:
+        def create_playlist(self, title, description):
+            return made
+
+    session = type("S", (), {"user": FakeUser()})()
+    entries = [
+        Entry(id=5, title="Schism", artist="TOOL"),
+        Entry.from_local(local.Track("/m/a.flac", "a", "", "")),
+    ]
+    assert playlists.save_queue_playlist(session, "X", entries) == 1
+    assert made.items == ["5"]

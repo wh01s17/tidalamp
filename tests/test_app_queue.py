@@ -252,10 +252,12 @@ def test_saving_the_queue_uses_the_written_name_and_a_queue_snapshot(monkeypatch
                 lambda callback, *args: callback(*args),
             )
 
-            def run_now(title, entries):
+            def run_now(title, entries, skipped=0):
                 spinner = application.query_one("#busy", Spinner)
                 busy_during_save.append((spinner.busy, spinner.label))
-                LibraryTasks.save_worker.__wrapped__(application.tasks, title, entries)
+                LibraryTasks.save_worker.__wrapped__(
+                    application.tasks, title, entries, skipped
+                )
 
             monkeypatch.setattr(application.tasks, "save_worker", run_now)
             a_queue(application, "Schism", "Lateralus", "The Grudge")

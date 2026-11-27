@@ -517,6 +517,14 @@ ENGLISH: dict[str, str] = {
         "playlist «{title}» created: add tracks to it with l in their menu"
     ),
     "borrar «{title}» (la música se queda)": "delete «{title}» (the music stays)",
+    "¿DÓNDE GUARDAR «{title}»?": "WHERE TO SAVE «{title}»?",
+    "en TIDAL: {count} pistas ({skipped} locales fuera)": (
+        "in TIDAL: {count} tracks ({skipped} local left out)"
+    ),
+    "como playlist local: {count} pistas ({skipped} de TIDAL fuera)": (
+        "as a local playlist: {count} tracks ({skipped} from TIDAL left out)"
+    ),
+    "{message} ({skipped} locales fuera)": "{message} ({skipped} local left out)",
     "la playlist cambió fuera de tidalamp; R la vuelve a leer": (
         "the playlist changed outside tidalamp; R reads it again"
     ),

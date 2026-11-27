@@ -347,7 +347,8 @@ converted to PCM by mpv (ffmpeg) and is not sent to the DAC as native DSD or DoP
 
 **Local playlists** live under *Local music* → *Playlists*. *+ new playlist…* makes an
 empty one, `l` in the menu of a local track, record, artist or folder adds it to a
-playlist (or to a new one), and `p` saves a queue of local files as one. In the
+playlist (or to a new one), and `p` saves a queue of local files as one. A queue
+that mixes TIDAL tracks and files asks where to go, and says what stays out. In the
 playlist's menu (`m`) you can rename or delete it. `alt+↑` `alt+↓` move a track and `d`
 takes it out. Each playlist is a plain `.m3u8` in `~/.local/state/tidalamp/playlists/`
 (`%LOCALAPPDATA%\tidalamp\state\playlists\` on Windows), so other players open them,

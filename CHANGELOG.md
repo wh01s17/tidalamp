@@ -18,9 +18,17 @@ versioning is [semantic](https://semver.org/).
 
 ### Changed
 
+- **`p` with a queue of TIDAL tracks and local files asks where to save it**: to
+  TIDAL with its TIDAL tracks, or as a local playlist with its files, each option
+  saying how many stay out. A queue of one source saves without asking, as before.
 - **`R` in the library also scans the local folders again**, on any level, not only
   over *Local music*: a record copied into a folder shows up when you reload the
   level it belongs to. Only new or changed files are read again.
+
+### Fixed
+
+- **Saving a queue with local files in it to TIDAL** no longer sends TIDAL the
+  files' internal ids, which name no track there.
 
 ## [0.26.0] - 2026-11-25
 

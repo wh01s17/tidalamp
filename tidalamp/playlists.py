@@ -50,7 +50,8 @@ def save_queue_playlist(
     if batch_size < 1:
         raise ValueError("batch_size must be positive")
 
-    media_ids = [str(entry.id) for entry in entries]
+    # Only TIDAL's own: a file's id is negative and means nothing to TIDAL.
+    media_ids = [str(entry.id) for entry in entries if entry.is_tidal]
     # Not retried on a lost answer: that would be a second playlist.
     playlist = with_retries(
         lambda: _me(session).create_playlist(title, ""), idempotent=False
@@ -172,7 +173,7 @@ def add_to_playlist(
     if batch_size < 1:
         raise ValueError("batch_size must be positive")
 
-    media_ids = [str(entry.id) for entry in entries]
+    media_ids = [str(entry.id) for entry in entries if entry.is_tidal]
     playlist = with_retries(lambda: session.playlist(playlist_id))
     title = getattr(playlist, "name", "") or ""
     if not hasattr(playlist, "add"):

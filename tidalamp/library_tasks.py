@@ -190,13 +190,54 @@ class LibraryTasks:
         if self.app.offline or all(entry.is_local for entry in entries):
             self.save_local(title, entries)
             return
+        local = sum(1 for entry in entries if entry.is_local)
+        if not local:
+            self.save_tidal(title, entries)
+            return
+        # Mixed: a playlist belongs to one source, so ask which. Each option
+        # says what goes in and what stays out, so nothing is dropped unseen.
+        tidal = len(entries) - local
+        self.app.push_screen(
+            ChoiceScreen(
+                _("¿DÓNDE GUARDAR «{title}»?").format(title=title),
+                [
+                    (
+                        "tidal",
+                        _("en TIDAL: {count} pistas ({skipped} locales fuera)").format(
+                            count=tidal, skipped=local
+                        ),
+                    ),
+                    (
+                        "local",
+                        _(
+                            "como playlist local: {count} pistas "
+                            "({skipped} de TIDAL fuera)"
+                        ).format(count=local, skipped=tidal),
+                    ),
+                    ("cancel", _("cancelar")),
+                ],
+                cursor=0 if tidal >= local else 1,
+            ),
+            lambda answer: self._mixed_answered(answer, title, entries),
+        )
+
+    def _mixed_answered(self, answer: object, title: str, entries: list[Entry]) -> None:
+        if answer == "tidal":
+            self.save_tidal(title, entries)
+        elif answer == "local":
+            self.save_local(title, entries)
+
+    def save_tidal(self, title: str, entries: list[Entry]) -> None:
+        """Save the TIDAL tracks of ``entries`` as a TIDAL playlist."""
+        kept = [entry for entry in entries if entry.is_tidal]
+        skipped = len(entries) - len(kept)
         self.app.query_one("#busy", Spinner).start(
             _("guardando la cola como «{title}»…").format(title=title)
         )
-        self.save_worker(title, entries)
+        self.save_worker(title, kept, skipped)
 
     @thread_worker(group="save-playlist")
-    def save_worker(self, title: str, entries: list[Entry]) -> None:
+    def save_worker(self, title: str, entries: list[Entry], skipped: int = 0) -> None:
         try:
             auth.ensure_fresh(self.app.session)
             added = playlists.save_queue_playlist(self.app.session, title, entries)
@@ -215,6 +256,10 @@ class LibraryTasks:
             message = _("playlist «{title}» creada con {count} pistas").format(
                 title=title, count=added
             )
+            if skipped:
+                message = _("{message} ({skipped} locales fuera)").format(
+                    message=message, skipped=skipped
+                )
         self.app.call_from_thread(self.save_done, message)
 
     def save_done(self, message: str) -> None:

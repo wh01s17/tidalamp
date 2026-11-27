@@ -430,8 +430,8 @@ def test_a_partial_playlist_reaches_status_without_changing_the_queue(monkeypatc
             monkeypatch.setattr(
                 application.tasks,
                 "save_worker",
-                lambda title, entries: LibraryTasks.save_worker.__wrapped__(
-                    application.tasks, title, entries
+                lambda title, entries, skipped=0: LibraryTasks.save_worker.__wrapped__(
+                    application.tasks, title, entries, skipped
                 ),
             )
             a_queue(application, "Schism", "Lateralus", "The Grudge")
